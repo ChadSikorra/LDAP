@@ -29,6 +29,8 @@ trait LoggerTrait
     /**
      * Logs a message and then throws a runtime exception.
      *
+     * @param array<string, mixed> $context
+     *
      * @throws RuntimeException
      */
     private function logAndThrow(

@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Control\Vlv\VlvControl;
 use FreeDSx\Ldap\Control\Vlv\VlvResponseControl;
 use FreeDSx\Ldap\Controls;
 use FreeDSx\Ldap\Entry\Entries;
+use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\LdapClient;
@@ -194,6 +195,8 @@ class Vlv
     }
 
     /**
+     * @return Entries<Entry>
+     *
      * @throws ProtocolException
      * @throws OperationException
      */
@@ -203,6 +206,8 @@ class Vlv
     }
 
     /**
+     * @return Entries<Entry>
+     *
      * @throws OperationException
      * @throws ProtocolException
      */

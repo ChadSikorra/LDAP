@@ -201,6 +201,8 @@ class PcntlServerRunner implements ServerRunnerInterface
 
     /**
      * Install signal handlers responsible for sending a notice of disconnect to the client and stopping the queue.
+     *
+     * @param array<string, scalar> $context
      */
     private function installChildSignalHandlers(
         ServerProtocolHandler $protocolHandler,

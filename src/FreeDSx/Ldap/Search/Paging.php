@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\PagingControl;
 use FreeDSx\Ldap\Controls;
 use FreeDSx\Ldap\Entry\Entries;
+use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\LdapClient;
@@ -83,6 +84,8 @@ class Paging
     /**
      * Get the next set of entries of results.
      *
+     * @return Entries<Entry>
+     *
      * @throws OperationException
      */
     public function getEntries(?int $size = null): Entries
@@ -109,6 +112,8 @@ class Paging
     }
 
     /**
+     * @return Entries<Entry>
+     *
      * @throws OperationException
      */
     private function send(?int $size = null): Entries

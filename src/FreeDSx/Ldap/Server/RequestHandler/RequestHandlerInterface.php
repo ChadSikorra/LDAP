@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\RequestHandler;
 
 use FreeDSx\Ldap\Entry\Entries;
+use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Operation\Request\CompareRequest;
@@ -94,6 +95,8 @@ interface RequestHandlerInterface
 
     /**
      * A search request. This should return an entries collection object.
+     *
+     * @return Entries<Entry>
      *
      * @throws OperationException
      */

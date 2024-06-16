@@ -25,6 +25,7 @@ use function is_string;
 /**
  * Represents a set of controls.
  *
+ * @implements IteratorAggregate<Control>
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class ControlBag implements IteratorAggregate, Countable

@@ -443,7 +443,8 @@ class FilterParser
     }
 
     /**
-     * @psalm-param 0|positive-int $child
+     * @return array{0: int, 1: ?int}
+     *
      * @throws FilterParseException
      */
     private function parseContainerStart(int $i, ?int $child): array

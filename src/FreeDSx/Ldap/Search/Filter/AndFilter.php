@@ -16,10 +16,12 @@ namespace FreeDSx\Ldap\Search\Filter;
 use Countable;
 use IteratorAggregate;
 use Stringable;
+use Traversable;
 
 /**
  * Represents a logical 'and' filter. RFC 4511, 4.5.1
  *
+ * @implements IteratorAggregate<FilterInterface>
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class AndFilter implements FilterContainerInterface, IteratorAggregate, Countable, Stringable

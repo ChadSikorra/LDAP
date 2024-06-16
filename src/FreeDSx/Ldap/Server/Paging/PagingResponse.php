@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Paging;
 
 use FreeDSx\Ldap\Entry\Entries;
+use FreeDSx\Ldap\Entry\Entry;
 
 /**
  * Represents the paging response to be returned from a client paging request.
@@ -22,6 +23,9 @@ use FreeDSx\Ldap\Entry\Entries;
  */
 final class PagingResponse
 {
+    /**
+     * @param Entries<Entry> $entries
+     */
     public function __construct(
         private readonly Entries $entries,
         private readonly bool $isComplete = false,
@@ -29,6 +33,9 @@ final class PagingResponse
     ) {
     }
 
+    /**
+     * @return Entries<Entry>
+     */
     public function getEntries(): Entries
     {
         return $this->entries;
@@ -47,7 +54,7 @@ final class PagingResponse
     /**
      * Make a standard paging response that indicates that are still results left to return.
      *
-     * @param Entries $entries The entries returned for this response.
+     * @param Entries<Entry> $entries The entries returned for this response.
      * @param int $remaining The number of entries left (if known)
      */
     public static function make(
@@ -63,6 +70,8 @@ final class PagingResponse
 
     /**
      * Make a final paging response indicating that there are no more entries left to return.
+     *
+     * @param Entries<Entry> $entries
      */
     public static function makeFinal(Entries $entries): self
     {

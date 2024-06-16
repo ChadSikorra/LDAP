@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Controls;
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Entries;
+use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\LdapClient;
@@ -116,6 +117,7 @@ class DirSync
      * Get the changes as entries. This may be empty if there are no changes since the last query. This should be
      * followed with a hasChanges() call to determine if more changes are still available.
      *
+     * @return Entries<Entry>
      * @throws OperationException
      */
     public function getChanges(): Entries

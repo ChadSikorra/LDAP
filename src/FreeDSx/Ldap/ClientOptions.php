@@ -19,6 +19,9 @@ final class ClientOptions
 {
     private int $version = 3;
 
+    /**
+     * @var string[]
+     */
     private array $servers;
 
     private int $port = 389;

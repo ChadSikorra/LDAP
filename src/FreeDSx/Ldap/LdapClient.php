@@ -269,6 +269,7 @@ class LdapClient
     /**
      * Send a search response and return the entries.
      *
+     * @return Entries<Entry>
      * @throws OperationException
      */
     public function search(

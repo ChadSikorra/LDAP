@@ -30,6 +30,7 @@ use function reset;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  *
+ * @implements IteratorAggregate<Entry>
  * @template T of Entry
  */
 class Entries implements Countable, IteratorAggregate
