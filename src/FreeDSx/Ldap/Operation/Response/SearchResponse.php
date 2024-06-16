@@ -26,6 +26,9 @@ use FreeDSx\Ldap\Search\Result\ReferralResult;
  */
 class SearchResponse extends SearchResultDone
 {
+    /**
+     * @var ?Entries<Entry>
+     */
     private ?Entries $entries = null;
 
     /**
@@ -47,6 +50,8 @@ class SearchResponse extends SearchResultDone
 
     /**
      * Returns the {@see Entry} objects associated with this result set.
+     *
+     * @return Entries<Entry>
      */
     public function getEntries(): Entries
     {

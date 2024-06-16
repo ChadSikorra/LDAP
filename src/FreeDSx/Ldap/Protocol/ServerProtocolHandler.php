@@ -57,6 +57,7 @@ class ServerProtocolHandler
     /**
      * Listens for messages from the socket and handles the responses/actions needed.
      *
+     * @param array<string, mixed> $defaultContext
      * @throws EncoderException
      */
     public function handle(array $defaultContext = []): void
@@ -116,6 +117,7 @@ class ServerProtocolHandler
     /**
      * Used asynchronously to end a client session when the server process is shutting down.
      *
+     * @param array<string, mixed> $context
      * @throws EncoderException
      */
     public function shutdown(array $context = []): void

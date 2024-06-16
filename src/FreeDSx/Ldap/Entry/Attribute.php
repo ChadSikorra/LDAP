@@ -31,6 +31,7 @@ use function strtolower;
 /**
  * Represents an entry attribute and any values.
  *
+ * @implements IteratorAggregate<int|string, string>
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class Attribute implements IteratorAggregate, Countable, Stringable
@@ -48,7 +49,7 @@ class Attribute implements IteratorAggregate, Countable, Stringable
     private ?string $lcAttribute = null;
 
     /**
-     * @var string[]
+     * @var array<int|string, string>
      */
     private array $values;
 

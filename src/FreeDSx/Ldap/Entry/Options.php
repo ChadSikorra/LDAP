@@ -24,6 +24,7 @@ use function sort;
 /**
  * Represents a collection of attribute options.
  *
+ * @implements IteratorAggregate<Option>
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class Options implements Countable, IteratorAggregate, Stringable

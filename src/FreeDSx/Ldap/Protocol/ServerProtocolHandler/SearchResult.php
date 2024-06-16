@@ -14,11 +14,15 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Ldap\Entry\Entries;
+use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Operation\ResultCode;
 
 final class SearchResult
 {
+    /**
+     * @param Entries<Entry> $entries
+     */
     private function __construct(
         private readonly Entries $entries,
         private readonly string $baseDn = '',
@@ -29,6 +33,8 @@ final class SearchResult
 
     /**
      * Make a successful server search result representation.
+     *
+     * @param Entries<Entry> $entries
      */
     public static function makeSuccessResult(
         Entries $entries,
@@ -46,6 +52,8 @@ final class SearchResult
     /**
      * Make an error result for server search result representation. This could occur for any reason, such as a base DN
      * not existing. This result MUST not return a success result code.
+     *
+     * @param ?Entries<Entry> $entries
      */
     public static function makeErrorResult(
         int $resultCode,
@@ -65,6 +73,9 @@ final class SearchResult
         );
     }
 
+    /**
+     * @return Entries<Entry>
+     */
     public function getEntries(): Entries
     {
         return $this->entries;

@@ -22,6 +22,9 @@ use IteratorAggregate;
 use Traversable;
 use function count;
 
+/**
+ * @implements IteratorAggregate<int, string>
+ */
 class SyncIdSetResult implements Countable, IteratorAggregate
 {
     private ?SyncIdSet $idSet = null;

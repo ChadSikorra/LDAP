@@ -20,6 +20,7 @@ use Stringable;
 /**
  * Represents a logical 'or' filter. RFC 4511, 4.5.1
  *
+ * @implements IteratorAggregate<FilterInterface>
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class OrFilter implements FilterContainerInterface, IteratorAggregate, Countable, Stringable

@@ -25,10 +25,14 @@ use function is_array;
 /**
  * Represents an Entry in LDAP.
  *
+ * @implements IteratorAggregate<Attribute>
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class Entry implements IteratorAggregate, Countable, Stringable
 {
+    /**
+     * @var Attribute[]
+     */
     private array $attributes;
 
     private Dn $dn;
@@ -254,8 +258,13 @@ class Entry implements IteratorAggregate, Countable, Stringable
         return $this->get($name);
     }
 
-    public function __set(string $name, Stringable|string|array $value): void
-    {
+    /**
+     * @param Stringable|string|array<string|Stringable> $value
+     */
+    public function __set(
+        string $name,
+        Stringable|string|array $value
+    ): void {
         $this->set(
             $name,
             ...(is_array($value) ? $value : [(string) $value])
@@ -275,7 +284,7 @@ class Entry implements IteratorAggregate, Countable, Stringable
     /**
      * An alias of fromArray().
      *
-     * @param array<string, string|array> $attributes
+     * @param array<string, string|array<string|Stringable>> $attributes
      */
     public static function create(
         Dn|Stringable|string $dn,

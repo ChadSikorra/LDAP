@@ -29,10 +29,14 @@ use function preg_split;
 /**
  * Represents a Distinguished Name.
  *
+ * @implements IteratorAggregate<Rdn>
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class Dn implements IteratorAggregate, Countable, Stringable
 {
+    /**
+     * @var ?Rdn[]
+     */
     private ?array $pieces = null;
 
     public function __construct(private readonly string $dn)

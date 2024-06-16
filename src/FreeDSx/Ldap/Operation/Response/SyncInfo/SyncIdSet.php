@@ -42,6 +42,9 @@ class SyncIdSet extends SyncInfoMessage
 
     private bool $refreshDeletes;
 
+    /**
+     * @var string[]
+     */
     private array $entryUuids;
 
     /**

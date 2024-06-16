@@ -23,6 +23,7 @@ use function count;
 /**
  * Represents a set of change objects.
  *
+ * @implements IteratorAggregate<Change>
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class Changes implements Countable, IteratorAggregate

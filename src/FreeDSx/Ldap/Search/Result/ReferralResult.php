@@ -26,7 +26,7 @@ use function count;
 use function implode;
 
 /**
- * @template T of LdapUrl[]
+ * @implements IteratorAggregate<int, LdapUrl>
  */
 final class ReferralResult implements Countable, IteratorAggregate, Stringable
 {
@@ -50,7 +50,7 @@ final class ReferralResult implements Countable, IteratorAggregate, Stringable
     /**
      * Get the referrals returned for this result reference.
      *
-     * @return LdapUrl[]
+     * @return array<int, LdapUrl>
      */
     public function getReferrals(): array
     {
