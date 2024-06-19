@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace integration\FreeDSx\Ldap\Sync;
 
+use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\CancelRequestException;
 use FreeDSx\Ldap\Sync\Result\SyncEntryResult;
 use integration\FreeDSx\Ldap\LdapTestCase;
@@ -34,6 +35,32 @@ class SyncReplTest extends LdapTestCase
             0,
             $entries,
         );
+    }
+
+    public function testItCanPerformPollingSyncForContentUpdates(): void
+    {
+        $entries = [];
+
+        $client = $this->getClient();
+        $this->bindClient($client);
+
+        $saved_cookie = null;
+        $syncRepl = $client->syncRepl();
+        $syncRepl->useCookieHandler(function(string $cookie) use (&$saved_cookie) {
+            $saved_cookie = $cookie;
+        });
+        $syncRepl->poll();
+
+        $entry = new Entry('cn=Kathrine Erbach,ou=Payroll,ou=FreeDSx-Test,dc=example,dc=com');
+        $entry->add('mobile', '+1 444 444-4444');
+        $entry->set('title', 'Random Employee');
+        $client->update($entry);
+
+        $syncRepl = $client->syncRepl();
+        $syncRepl->useCookie($saved_cookie);
+        $syncRepl->poll(fn (SyncEntryResult $result) => array_push($entries, $result));
+
+        $this->assertCount(1, $entries);
     }
 
     public function testItCanCancelTheSync(): void
