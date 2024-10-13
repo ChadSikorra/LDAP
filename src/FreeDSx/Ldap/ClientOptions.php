@@ -26,6 +26,9 @@ final class ClientOptions
 
     private int $port = 389;
 
+    /**
+     * @var 'tcp'|'udp'|'unix'
+     */
     private string $transport = 'tcp';
 
     private ?string $baseDn = null;
@@ -127,6 +130,9 @@ final class ClientOptions
         return $this->transport;
     }
 
+    /**
+     * @param 'tcp'|'udp'|'unix' $transport
+     */
     public function setTransport(string $transport): self
     {
         $this->transport = $transport;

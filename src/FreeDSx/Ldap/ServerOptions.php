@@ -27,6 +27,9 @@ final class ServerOptions
 
     private string $unixSocket = '/var/run/ldap.socket';
 
+    /**
+     * @var 'tcp'|'udp'|'unix'
+     */
     private string $transport = 'tcp';
 
     private int $idleTimeout = 600;
@@ -105,6 +108,9 @@ final class ServerOptions
         return $this->transport;
     }
 
+    /**
+     * @param 'tcp'|'udp'|'unix' $transport
+     */
     public function setTransport(string $transport): self
     {
         $this->transport = $transport;
