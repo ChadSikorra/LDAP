@@ -254,7 +254,7 @@ class LdapUrl implements Stringable
     }
 
     /**
-     * @return array{scheme: ?string, path: ?string, query: ?string, host: ?string, port: ?string}
+     * @return array{scheme: 'ldap'|'ldaps', host?: string, port?: int<0, 65535>, user?: string, pass?: string, path?: ?string, query?: ?string, fragment?: string}
      * @throws UrlParseException
      */
     private static function explodeUrl(string $url): array
@@ -292,7 +292,7 @@ class LdapUrl implements Stringable
         }
         $pieces['scheme'] = isset($pieces['scheme'])
             ? strtolower($pieces['scheme'])
-            : null;
+            : '';
 
         if (!($pieces['scheme'] === 'ldap' || $pieces['scheme'] === 'ldaps')) {
             throw new UrlParseException(sprintf(
@@ -301,7 +301,6 @@ class LdapUrl implements Stringable
             ));
         }
 
-        /** @phpstan-ignore-next-line */
         return $pieces;
     }
 
