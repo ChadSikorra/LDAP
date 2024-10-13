@@ -269,22 +269,23 @@ class LdapUrl implements Stringable
             }
             $query = null;
             $path = null;
+            $raw_path = $matches[2] ?? null;
 
             # Check for query parameters but no path...
-            if (strlen($matches[2]) > 0 && $matches[2][0] === '?') {
-                $query = substr($matches[2], 1);
+            if (is_string($raw_path) && strlen($raw_path) > 0 && $raw_path[0] === '?') {
+                $query = substr($raw_path, 1);
             # Check if there are any query parameters and a possible path...
-            } elseif (str_contains($matches[2], '?')) {
-                $parts = explode('?', $matches[2], 2);
+            } elseif (is_string($raw_path) && str_contains($raw_path, '?')) {
+                $parts = explode('?', $raw_path, 2);
                 $path = $parts[0];
                 $query = $parts[1] ?? null;
             # A path only...
             } else {
-                $path = $matches[2];
+                $path = $raw_path;
             }
 
             $pieces = [
-                'scheme' => $matches[1],
+                'scheme' => $matches[1] ?? null,
                 'path' => $path,
                 'query' => $query,
             ];
