@@ -290,7 +290,9 @@ class LdapUrl implements Stringable
                 'query' => $query,
             ];
         }
-        $pieces['scheme'] = strtolower($pieces['scheme']);
+        $pieces['scheme'] = isset($pieces['scheme'])
+            ? strtolower($pieces['scheme'])
+            : null;
 
         if (!($pieces['scheme'] === 'ldap' || $pieces['scheme'] === 'ldaps')) {
             throw new UrlParseException(sprintf(
