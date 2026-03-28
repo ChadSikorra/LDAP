@@ -53,7 +53,13 @@ class ServerDispatchHandler implements ServerProtocolHandlerInterface
         if ($request instanceof Request\AddRequest) {
             $this->dispatcher->add($context, $request);
         } elseif ($request instanceof Request\CompareRequest) {
-            $this->dispatcher->compare($context, $request);
+            $compareMatch = $this->dispatcher->compare($context, $request);
+            $this->queue->sendMessage($this->responseFactory->getStandardResponse(
+                $message,
+                $compareMatch ? ResultCode::COMPARE_TRUE : ResultCode::COMPARE_FALSE,
+            ));
+
+            return;
         } elseif ($request instanceof Request\DeleteRequest) {
             $this->dispatcher->delete($context, $request);
         } elseif ($request instanceof Request\ModifyDnRequest) {
