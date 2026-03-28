@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap;
 
+use FreeDSx\Ldap\Server\RequestHandler\BackendStorageRequestHandler;
 use FreeDSx\Ldap\Server\RequestHandler\PagingHandlerInterface;
 use FreeDSx\Ldap\Server\RequestHandler\ProxyHandler;
 use FreeDSx\Ldap\Server\RequestHandler\ProxyPagingHandler;
@@ -20,6 +21,7 @@ use FreeDSx\Ldap\Server\RequestHandler\RequestHandlerInterface;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use FreeDSx\Ldap\Server\SocketServerFactory;
+use FreeDSx\Ldap\Server\Storage\ReadableStorageAdapterInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
 use Psr\Log\LoggerInterface;
 
@@ -101,6 +103,21 @@ class LdapServer
     public function useLogger(LoggerInterface $logger): self
     {
         $this->options->setLogger($logger);
+
+        return $this;
+    }
+
+    /**
+     * Configure the server to use a storage adapter as its backend.
+     *
+     * Creates and registers a BackendStorageRequestHandler (which also serves
+     * as the paging handler) backed by the given adapter.
+     */
+    public function useStorageAdapter(ReadableStorageAdapterInterface $adapter): self
+    {
+        $handler = new BackendStorageRequestHandler($adapter);
+        $this->useRequestHandler($handler);
+        $this->usePagingHandler($handler);
 
         return $this;
     }
