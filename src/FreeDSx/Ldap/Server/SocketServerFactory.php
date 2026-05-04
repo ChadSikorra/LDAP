@@ -15,6 +15,8 @@ namespace FreeDSx\Ldap\Server;
 
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\SocketServer;
+use FreeDSx\Socket\SocketServerOptions;
+use FreeDSx\Socket\Transport;
 use Psr\Log\LoggerInterface;
 
 class SocketServerFactory
@@ -38,10 +40,20 @@ class SocketServerFactory
             $this->removeExistingSocketIfNeeded($resource);
         }
 
+        $socketServerOptions = (new SocketServerOptions())
+            ->setTransport(Transport::from($this->options->getTransport()))
+            ->setIdleTimeout($this->options->getIdleTimeout())
+            ->setUseSsl($this->options->isUseSsl())
+            ->setSslCert($this->options->getSslCert())
+            ->setSslCertKey($this->options->getSslCertKey())
+            ->setSslCertPassphrase($this->options->getSslCertPassphrase());
+
         return SocketServer::bind(
             $resource,
-            $this->options->getPort(),
-            $this->options->toArray(),
+            $isUnixSocket
+                ? null
+                : $this->options->getPort(),
+            $socketServerOptions,
         );
     }
 

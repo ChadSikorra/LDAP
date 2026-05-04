@@ -177,7 +177,7 @@ class LdapServer
         ServerOptions $serverOptions = new ServerOptions(),
     ): LdapServer {
         $client = new LdapClient(
-            $clientOptions->setServers((array) $servers)
+            $clientOptions->setServers(array_values((array) $servers))
         );
 
         $server = new LdapServer($serverOptions);
