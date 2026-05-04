@@ -74,7 +74,7 @@ class LdapQueue extends Asn1MessageQueue
     public function close(): void
     {
         $this->socket->close();
-        $this->buffer = false;
+        $this->buffer = '';
         $this->id = 0;
     }
 
@@ -104,7 +104,7 @@ class LdapQueue extends Asn1MessageQueue
     /**
      * {@inheritDoc}
      */
-    protected function unwrap($bytes): Buffer
+    protected function unwrap(string $bytes): Buffer
     {
         if ($this->messageWrapper === null) {
             return parent::unwrap($bytes);

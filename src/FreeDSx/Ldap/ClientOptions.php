@@ -20,7 +20,7 @@ final class ClientOptions
     private int $version = 3;
 
     /**
-     * @var string[]
+     * @var list<string>
      */
     private array $servers;
 
@@ -53,7 +53,7 @@ final class ClientOptions
     private int $referralLimit = 10;
 
     /**
-     * @param string[] $servers
+     * @param list<string> $servers
      */
     public function __construct(
         array $servers = [],
@@ -93,7 +93,7 @@ final class ClientOptions
     }
 
     /**
-     * @return string[]
+     * @return list<string>
      */
     public function getServers(): array
     {
@@ -101,7 +101,7 @@ final class ClientOptions
     }
 
     /**
-     * @param string[] $servers
+     * @param list<string> $servers
      */
     public function setServers(array $servers): self
     {
@@ -280,7 +280,7 @@ final class ClientOptions
     }
 
     /**
-     * @return array{version: int, servers: string[], port: int, base_dn: ?string, page_size: int, use_ssl: bool, ssl_validate_cert: bool, ssl_allow_self_signed: bool, ssl_ca_cert: ?string, ssl_peer_name: ?string, timeout_connect: int, timeout_read: int, referral: string, referral_chaser: ?ReferralChaserInterface, referral_limit: int}
+     * @return array{version: int, servers: list<string>, port: int, base_dn: ?string, page_size: int, use_ssl: bool, ssl_validate_cert: bool, ssl_allow_self_signed: bool, ssl_ca_cert: ?string, ssl_peer_name: ?string, timeout_connect: int, timeout_read: int, referral: string, referral_chaser: ?ReferralChaserInterface, referral_limit: int}
      */
     public function toArray(): array
     {

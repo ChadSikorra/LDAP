@@ -27,7 +27,10 @@ use FreeDSx\Ldap\Server\ServerRunner\PcntlServerRunner;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use FreeDSx\Ldap\Server\ServerRunner\SwooleServerRunner;
 use FreeDSx\Ldap\Server\SocketServerFactory;
+use FreeDSx\Socket\SocketOptions;
 use FreeDSx\Socket\SocketPool;
+use FreeDSx\Socket\SocketPoolOptions;
+use FreeDSx\Socket\Transport;
 
 class Container
 {
@@ -171,10 +174,22 @@ class Container
 
     private function makeSocketPool(): SocketPool
     {
-        return new SocketPool(
-            $this->get(ClientOptions::class)
-                ->toArray()
-        );
+        $clientOptions = $this->get(ClientOptions::class);
+        $socketOptions = (new SocketOptions())
+            ->setTransport(Transport::from($clientOptions->getTransport()))
+            ->setPort($clientOptions->getPort())
+            ->setUseSsl($clientOptions->isUseSsl())
+            ->setSslValidateCert($clientOptions->isSslValidateCert())
+            ->setSslAllowSelfSigned($clientOptions->isSslAllowSelfSigned())
+            ->setSslCaCert($clientOptions->getSslCaCert())
+            ->setSslPeerName($clientOptions->getSslPeerName())
+            ->setTimeoutConnect($clientOptions->getTimeoutConnect())
+            ->setTimeoutRead($clientOptions->getTimeoutRead());
+
+        $poolOptions = (new SocketPoolOptions($socketOptions))
+            ->setServers($clientOptions->getServers());
+
+        return new SocketPool($poolOptions);
     }
 
     private function makeClientProtocolHandlerFactory(): ClientProtocolHandlerFactory
