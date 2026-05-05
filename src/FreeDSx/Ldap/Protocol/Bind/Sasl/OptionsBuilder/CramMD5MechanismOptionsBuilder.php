@@ -46,7 +46,7 @@ class CramMD5MechanismOptionsBuilder implements MechanismOptionsBuilderInterface
             function (string $username, string $challenge): string {
                 $password = $this->requirePassword($this->handler->getPassword(
                     $username,
-                    MechanismName::CRAM_MD5->value,
+                    MechanismName::CRAM_MD5,
                 ));
 
                 return hash_hmac(

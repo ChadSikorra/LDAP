@@ -19,6 +19,7 @@ use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticator;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -201,7 +202,7 @@ final class PasswordAuthenticatorTest extends TestCase
     public function test_get_password_returns_null_when_entry_not_found(): void
     {
         self::assertNull(
-            $this->subject()->getPassword('unknown', 'SCRAM-SHA-256')
+            $this->subject()->getPassword('unknown', MechanismName::SCRAM_SHA256)
         );
     }
 
@@ -213,7 +214,7 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         self::assertNull(
-            $this->subject($entry)->getPassword('cn=Alice,dc=example,dc=com', 'SCRAM-SHA-256')
+            $this->subject($entry)->getPassword('cn=Alice,dc=example,dc=com', MechanismName::SCRAM_SHA256)
         );
     }
 
@@ -226,7 +227,7 @@ final class PasswordAuthenticatorTest extends TestCase
 
         self::assertSame(
             'secret',
-            $this->subject($entry)->getPassword('cn=Alice,dc=example,dc=com', 'SCRAM-SHA-256')
+            $this->subject($entry)->getPassword('cn=Alice,dc=example,dc=com', MechanismName::SCRAM_SHA256)
         );
     }
 
@@ -240,7 +241,7 @@ final class PasswordAuthenticatorTest extends TestCase
 
         self::assertSame(
             $hashed,
-            $this->subject($entry)->getPassword('cn=Alice,dc=example,dc=com', 'SCRAM-SHA-256')
+            $this->subject($entry)->getPassword('cn=Alice,dc=example,dc=com', MechanismName::SCRAM_SHA256)
         );
     }
 }

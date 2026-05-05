@@ -54,7 +54,7 @@ class DigestMD5MechanismOptionsBuilder implements MechanismOptionsBuilderInterfa
         );
         $password = $this->requirePassword($this->handler->getPassword(
             $username,
-            MechanismName::DIGEST_MD5->value,
+            MechanismName::DIGEST_MD5,
         ));
 
         return (new DigestMD5Options())->setPassword($password);

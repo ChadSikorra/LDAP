@@ -30,6 +30,7 @@ use FreeDSx\Ldap\Server\Backend\Write\Command\MoveCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Write\WritableBackendTrait;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
@@ -121,8 +122,10 @@ class ProxyBackend implements WritableLdapBackendInterface, PasswordAuthenticata
         }
     }
 
-    public function getPassword(string $username, string $mechanism): ?string
-    {
+    public function getPassword(
+        string $username,
+        MechanismName $mechanism,
+    ): ?string {
         return null;
     }
 

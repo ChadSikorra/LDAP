@@ -56,7 +56,7 @@ final class DigestMD5MechanismOptionsBuilderTest extends TestCase
 
         $this->mockHandler
             ->method('getPassword')
-            ->with('cn=user,dc=foo,dc=bar', MechanismName::DIGEST_MD5->value)
+            ->with('cn=user,dc=foo,dc=bar', MechanismName::DIGEST_MD5)
             ->willReturn('12345');
 
         $options = $this->subject->buildOptions('client-response', MechanismName::DIGEST_MD5);
