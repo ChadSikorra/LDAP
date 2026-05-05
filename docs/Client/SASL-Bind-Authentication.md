@@ -58,6 +58,10 @@ $ldap->bindSasl(
 
 Each mechanism has its own options class from the `FreeDSx\Sasl\Options` namespace.
 
+> **Prefer SCRAM for new deployments.** The `SCRAM-SHA-256` (or higher) family offers modern cryptographic
+> guarantees and mutual authentication. `DIGEST-MD5` and `CRAM-MD5` are included for compatibility with
+> legacy servers only and should be avoided where the server supports SCRAM.
+
 ### PLAIN
 
 ```php
