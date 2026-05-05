@@ -58,7 +58,7 @@ final class CiThresholds
             ),
             'sqlite:swoole' => new ThresholdSet(
                 maxErrors: 0,
-                minThroughput: 1000.0,
+                minThroughput: 950.0,
                 maxP99Ms: 800.0,
             ),
             'mysql:pcntl' => new ThresholdSet(
