@@ -14,7 +14,9 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
-use FreeDSx\Sasl\Mechanism\CramMD5Mechanism;
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\ChallengeOptionsInterface;
+use FreeDSx\Sasl\Options\CramMD5Options;
 
 /**
  * Builds options for the CRAM-MD5 SASL mechanism on the server side.
@@ -34,17 +36,17 @@ class CramMD5MechanismOptionsBuilder implements MechanismOptionsBuilderInterface
      */
     public function buildOptions(
         ?string $received,
-        string $mechanism,
-    ): array {
+        MechanismName $mechanism,
+    ): ?ChallengeOptionsInterface {
         if ($received === null) {
-            return [];
+            return null;
         }
 
-        return [
-            'password' => function (string $username, string $challenge): string {
+        return (new CramMD5Options())->setPasswordCallback(
+            function (string $username, string $challenge): string {
                 $password = $this->requirePassword($this->handler->getPassword(
                     $username,
-                    CramMD5Mechanism::NAME
+                    MechanismName::CRAM_MD5->value,
                 ));
 
                 return hash_hmac(
@@ -53,14 +55,6 @@ class CramMD5MechanismOptionsBuilder implements MechanismOptionsBuilderInterface
                     $password,
                 );
             },
-        ];
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function supports(string $mechanism): bool
-    {
-        return $mechanism === CramMD5Mechanism::NAME;
+        );
     }
 }

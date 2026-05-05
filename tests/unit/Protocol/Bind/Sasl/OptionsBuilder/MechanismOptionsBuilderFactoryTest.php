@@ -21,6 +21,7 @@ use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\MechanismOptionsBuilderFactor
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\PlainMechanismOptionsBuilder;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\ScramMechanismOptionsBuilder;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -40,7 +41,7 @@ final class MechanismOptionsBuilderFactoryTest extends TestCase
     {
         self::assertInstanceOf(
             PlainMechanismOptionsBuilder::class,
-            $this->subject->make('PLAIN')
+            $this->subject->make(MechanismName::PLAIN),
         );
     }
 
@@ -48,7 +49,7 @@ final class MechanismOptionsBuilderFactoryTest extends TestCase
     {
         self::assertInstanceOf(
             CramMD5MechanismOptionsBuilder::class,
-            $this->subject->make('CRAM-MD5')
+            $this->subject->make(MechanismName::CRAM_MD5),
         );
     }
 
@@ -56,7 +57,7 @@ final class MechanismOptionsBuilderFactoryTest extends TestCase
     {
         self::assertInstanceOf(
             DigestMD5MechanismOptionsBuilder::class,
-            $this->subject->make('DIGEST-MD5')
+            $this->subject->make(MechanismName::DIGEST_MD5),
         );
     }
 
@@ -64,15 +65,15 @@ final class MechanismOptionsBuilderFactoryTest extends TestCase
     {
         self::assertInstanceOf(
             ScramMechanismOptionsBuilder::class,
-            $this->subject->make('SCRAM-SHA-256')
+            $this->subject->make(MechanismName::SCRAM_SHA256),
         );
     }
 
-    public function test_make_unknown_mechanism_throws(): void
+    public function test_make_unsupported_mechanism_throws(): void
     {
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::OTHER);
 
-        $this->subject->make('UNKNOWN');
+        $this->subject->make(MechanismName::ANONYMOUS);
     }
 }

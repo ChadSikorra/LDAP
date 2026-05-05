@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor;
 
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 
 /**
  * Extracts a username from raw SASL credential bytes for a specific set of mechanisms.
@@ -27,10 +28,6 @@ interface SaslUsernameExtractorInterface
      *
      * @throws OperationException if the username cannot be extracted from the credentials.
      */
-    public function extractUsername(string $mechanism, string $credentials): string;
+    public function extractUsername(MechanismName $mechanism, string $credentials): string;
 
-    /**
-     * Whether this extractor handles the given mechanism name.
-     */
-    public function supports(string $mechanism): bool;
 }

@@ -39,6 +39,9 @@ use FreeDSx\Ldap\Search\RangeRetrieval;
 use FreeDSx\Ldap\Search\Vlv;
 use FreeDSx\Ldap\Sync\SyncRepl;
 use FreeDSx\Sasl\Exception\SaslException;
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\ChallengeOptionsInterface;
+use FreeDSx\Sasl\Options\SelectOptions;
 use SensitiveParameter;
 use Stringable;
 
@@ -88,19 +91,22 @@ class LdapClient
     /**
      * A SASL Bind to LDAP with SASL options and an optional specific mechanism type.
      *
-     * @param array<string, mixed> $options The SASL options (ie. ['username' => '...', 'password' => '...'])
-     * @param string $mechanism A specific mechanism to use. If none is supplied, one will be selected.
      * @throws Exception\BindException
      * @throws OperationException
      * @throws SaslException
      */
     public function bindSasl(
         #[SensitiveParameter]
-        array $options = [],
-        string $mechanism = ''
+        ?ChallengeOptionsInterface $options = null,
+        ?MechanismName $mechanism = null,
+        ?SelectOptions $selectOptions = null,
     ): LdapMessageResponse {
         return $this->sendAndReceive(
-            Operations::bindSasl($options, $mechanism)
+            Operations::bindSasl(
+                $options,
+                $mechanism,
+                selectOptions: $selectOptions,
+            )
                 ->setVersion($this->options->getVersion())
         );
     }

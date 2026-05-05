@@ -13,25 +13,22 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\ChallengeOptionsInterface;
+
 /**
- * Builds the options array passed to a SASL mechanism's challenge() call for a specific mechanism.
+ * Builds the options DTO passed to a SASL mechanism's challenge() call for a specific mechanism.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 interface MechanismOptionsBuilderInterface
 {
     /**
-     * Build the options for the next challenge() call.
-     *
-     * @return array<string, mixed>
+     * Build the options for the next challenge() call, or null when no options are needed.
      */
     public function buildOptions(
         ?string $received,
-        string $mechanism,
-    ): array;
+        MechanismName $mechanism,
+    ): ?ChallengeOptionsInterface;
 
-    /**
-     * Whether this builder handles the given mechanism name.
-     */
-    public function supports(string $mechanism): bool;
 }

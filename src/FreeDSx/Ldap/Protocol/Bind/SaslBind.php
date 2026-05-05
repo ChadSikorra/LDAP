@@ -30,7 +30,9 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Ldap\Operation\Request\SaslBindRequest;
 use FreeDSx\Sasl\Challenge\ChallengeInterface;
 use FreeDSx\Sasl\Exception\SaslException;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\Sasl;
+use FreeDSx\Sasl\SaslInterface;
 
 /**
  * Handles a SASL bind request on the server side.
@@ -47,7 +49,7 @@ class SaslBind implements BindInterface
     public function __construct(
         private readonly ServerQueue $queue,
         private readonly SaslExchange $exchange,
-        private readonly Sasl $sasl = new Sasl(),
+        private readonly SaslInterface $sasl = new Sasl(),
         private readonly array $mechanisms = [],
         private readonly ResponseFactory $responseFactory = new ResponseFactory(),
         private readonly SaslUsernameExtractorFactory $usernameExtractorFactory = new SaslUsernameExtractorFactory(),
@@ -70,8 +72,10 @@ class SaslBind implements BindInterface
     public function bind(LdapMessageRequest $message): TokenInterface
     {
         $request = $this->validateRequest($message);
-        $mechName = $request->getMechanism();
-        $this->validateMechanism($mechName);
+        $mechNameStr = $request->getMechanism();
+        $this->validateMechanism($mechNameStr);
+
+        $mechName = MechanismName::from($mechNameStr);
 
         $result = $this->exchange->run(new SaslExchangeInput(
             challenge: $this->getServerChallenge($mechName),
@@ -119,7 +123,7 @@ class SaslBind implements BindInterface
         }
     }
 
-    private function getServerChallenge(string $mechName): ChallengeInterface
+    private function getServerChallenge(MechanismName $mechName): ChallengeInterface
     {
         return $this->sasl
             ->get($mechName)
@@ -133,7 +137,7 @@ class SaslBind implements BindInterface
      */
     private function finalize(
         SaslExchangeResult $result,
-        string $mechName,
+        MechanismName $mechName,
     ): TokenInterface {
         $context = $result->getContext();
         $message = $result->getLastMessage();
@@ -162,7 +166,7 @@ class SaslBind implements BindInterface
 
             if ($usernameCredentials === null) {
                 throw new OperationException(
-                    sprintf('Unable to extract username for mechanism "%s": no credentials were received.', $mechName),
+                    sprintf('Unable to extract username for mechanism "%s": no credentials were received.', $mechName->value),
                     ResultCode::PROTOCOL_ERROR
                 );
             }

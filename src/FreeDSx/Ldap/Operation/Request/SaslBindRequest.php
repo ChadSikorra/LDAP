@@ -20,6 +20,8 @@ use FreeDSx\Asn1\Type\OctetStringType;
 use FreeDSx\Ldap\Exception\BindException;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Protocol\LdapEncoder;
+use FreeDSx\Sasl\Options\ChallengeOptionsInterface;
+use FreeDSx\Sasl\Options\SelectOptions;
 
 /**
  * Represents a SASL bind request consisting of a mechanism challenge / response.
@@ -38,13 +40,11 @@ use FreeDSx\Ldap\Protocol\LdapEncoder;
  */
 class SaslBindRequest extends BindRequest
 {
-    /**
-     * @param array<string, mixed> $options
-     */
     public function __construct(
         private string $mechanism,
         private readonly ?string $credentials = null,
-        private readonly array $options = []
+        private readonly ?ChallengeOptionsInterface $options = null,
+        private readonly ?SelectOptions $selectOptions = null,
     ) {
         $this->username = '';
     }
@@ -66,12 +66,14 @@ class SaslBindRequest extends BindRequest
         return $this->credentials;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function getOptions(): array
+    public function getOptions(): ?ChallengeOptionsInterface
     {
         return $this->options;
+    }
+
+    public function getSelectOptions(): ?SelectOptions
+    {
+        return $this->selectOptions;
     }
 
     /**

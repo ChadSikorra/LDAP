@@ -29,6 +29,9 @@ use FreeDSx\Ldap\Operation\Response\SearchResponse;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Search\Result\EntryResult;
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\CramMD5Options;
+use FreeDSx\Sasl\Options\DigestMD5Options;
 use Throwable;
 
 class LdapClientTest extends LdapTestCase
@@ -101,8 +104,8 @@ class LdapClientTest extends LdapTestCase
             $this->markTestSkipped('CRAM-MD5 not supported on AD.');
         }
         $response = $this->client->bindSasl(
-            $this->getSaslOptions(),
-            'CRAM-MD5'
+            $this->getCramMD5Options(),
+            MechanismName::CRAM_MD5,
         );
         $response = $response->getResponse();
 
@@ -120,7 +123,7 @@ class LdapClientTest extends LdapTestCase
     {
         $response = $this->client->bindSasl(
             $this->getSaslOptions(),
-            'DIGEST-MD5'
+            MechanismName::DIGEST_MD5,
         );
         $response = $response->getResponse();
 
@@ -137,8 +140,8 @@ class LdapClientTest extends LdapTestCase
     public function testSaslBindWithAnIntegritySecurityLayerIsFunctional(): void
     {
         $this->client->bindSasl(
-            array_merge($this->getSaslOptions(), ['use_integrity' => true]),
-            'DIGEST-MD5'
+            (clone $this->getSaslOptions())->setUseIntegrity(true),
+            MechanismName::DIGEST_MD5,
         );
         $entry = $this->client->read('', ['supportedSaslMechanisms']);
 
@@ -564,22 +567,30 @@ class LdapClientTest extends LdapTestCase
         $this->assertTrue($this->client->isConnected());
     }
 
-    /**
-     * @return array<string, string>
-     */
-    protected function getSaslOptions(): array
+    protected function getSaslOptions(): DigestMD5Options
     {
         if ($this->isActiveDirectory()) {
-            return [
-                'username' => 'admin',
-                'password' => (string) getenv('LDAP_PASSWORD'),
-                'host' => 'ADDC3.example.com'
-            ];
-        } else {
-            return [
-                'username' => 'WillifoA',
-                'password' => 'Password1',
-            ];
+            return (new DigestMD5Options())
+                ->setUsername('admin')
+                ->setPassword((string) getenv('LDAP_PASSWORD'))
+                ->setHost('ADDC3.example.com');
         }
+
+        return (new DigestMD5Options())
+            ->setUsername('WillifoA')
+            ->setPassword('Password1');
+    }
+
+    protected function getCramMD5Options(): CramMD5Options
+    {
+        if ($this->isActiveDirectory()) {
+            return (new CramMD5Options())
+                ->setUsername('admin')
+                ->setPassword((string) getenv('LDAP_PASSWORD'));
+        }
+
+        return (new CramMD5Options())
+            ->setUsername('WillifoA')
+            ->setPassword('Password1');
     }
 }

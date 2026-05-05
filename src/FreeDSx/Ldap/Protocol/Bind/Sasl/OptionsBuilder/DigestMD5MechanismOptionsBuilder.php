@@ -16,7 +16,9 @@ namespace FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor\SaslUsernameExtractorInterface;
-use FreeDSx\Sasl\Mechanism\DigestMD5Mechanism;
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\ChallengeOptionsInterface;
+use FreeDSx\Sasl\Options\DigestMD5Options;
 
 /**
  * Builds options for the DIGEST-MD5 SASL mechanism on the server side.
@@ -40,23 +42,21 @@ class DigestMD5MechanismOptionsBuilder implements MechanismOptionsBuilderInterfa
      */
     public function buildOptions(
         ?string $received,
-        string $mechanism)
-    : array {
+        MechanismName $mechanism,
+    ): ?ChallengeOptionsInterface {
         if ($received === null) {
-            return [];
+            return null;
         }
 
-        $username = $this->usernameExtractor->extractUsername(DigestMD5Mechanism::NAME, $received);
-        $password = $this->requirePassword($this->handler->getPassword($username, DigestMD5Mechanism::NAME));
+        $username = $this->usernameExtractor->extractUsername(
+            MechanismName::DIGEST_MD5,
+            $received,
+        );
+        $password = $this->requirePassword($this->handler->getPassword(
+            $username,
+            MechanismName::DIGEST_MD5->value,
+        ));
 
-        return ['password' => $password];
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function supports(string $mechanism): bool
-    {
-        return $mechanism === DigestMD5Mechanism::NAME;
+        return (new DigestMD5Options())->setPassword($password);
     }
 }

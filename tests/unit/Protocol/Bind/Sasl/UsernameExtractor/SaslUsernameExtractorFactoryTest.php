@@ -18,6 +18,7 @@ use FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor\PlainUsernameExtractor;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor\SaslUsernameExtractorFactory;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor\ScramUsernameExtractor;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor\UsernameFieldExtractor;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use PHPUnit\Framework\TestCase;
 
 final class SaslUsernameExtractorFactoryTest extends TestCase
@@ -33,7 +34,7 @@ final class SaslUsernameExtractorFactoryTest extends TestCase
     {
         self::assertInstanceOf(
             PlainUsernameExtractor::class,
-            $this->subject->make('PLAIN')
+            $this->subject->make(MechanismName::PLAIN),
         );
     }
 
@@ -41,7 +42,7 @@ final class SaslUsernameExtractorFactoryTest extends TestCase
     {
         self::assertInstanceOf(
             ScramUsernameExtractor::class,
-            $this->subject->make('SCRAM-SHA-256')
+            $this->subject->make(MechanismName::SCRAM_SHA256),
         );
     }
 
@@ -49,7 +50,7 @@ final class SaslUsernameExtractorFactoryTest extends TestCase
     {
         self::assertInstanceOf(
             UsernameFieldExtractor::class,
-            $this->subject->make('CRAM-MD5')
+            $this->subject->make(MechanismName::CRAM_MD5),
         );
     }
 
@@ -57,14 +58,14 @@ final class SaslUsernameExtractorFactoryTest extends TestCase
     {
         self::assertInstanceOf(
             UsernameFieldExtractor::class,
-            $this->subject->make('DIGEST-MD5')
+            $this->subject->make(MechanismName::DIGEST_MD5),
         );
     }
 
-    public function test_make_unknown_mechanism_throws(): void
+    public function test_make_unsupported_mechanism_throws(): void
     {
         self::expectException(RuntimeException::class);
 
-        $this->subject->make('UNKNOWN');
+        $this->subject->make(MechanismName::ANONYMOUS);
     }
 }

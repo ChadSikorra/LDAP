@@ -15,7 +15,8 @@ namespace Tests\Unit\FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\PlainMechanismOptionsBuilder;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
-use FreeDSx\Sasl\Mechanism\PlainMechanism;
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\PlainOptions;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -31,25 +32,12 @@ final class PlainMechanismOptionsBuilderTest extends TestCase
         $this->subject = new PlainMechanismOptionsBuilder($this->mockAuthenticator);
     }
 
-    public function test_it_supports_the_plain_mechanism(): void
-    {
-        self::assertTrue($this->subject->supports(PlainMechanism::NAME));
-    }
-
-    public function test_it_does_not_support_other_mechanisms(): void
-    {
-        self::assertFalse($this->subject->supports('CRAM-MD5'));
-    }
-
     public function test_it_builds_options_with_a_validate_callable(): void
     {
-        $options = $this->subject->buildOptions(null, PlainMechanism::NAME);
+        $options = $this->subject->buildOptions(null, MechanismName::PLAIN);
 
-        self::assertArrayHasKey(
-            'validate',
-            $options,
-        );
-        self::assertIsCallable($options['validate']);
+        self::assertInstanceOf(PlainOptions::class, $options);
+        self::assertIsCallable($options->getValidate());
     }
 
     public function test_the_validate_callable_delegates_to_backend_verify_password(): void
@@ -60,8 +48,9 @@ final class PlainMechanismOptionsBuilderTest extends TestCase
             ->with('cn=user,dc=foo,dc=bar', '12345')
             ->willReturn(true);
 
-        $options = $this->subject->buildOptions(null, PlainMechanism::NAME);
-        $validate = $options['validate'];
+        $options = $this->subject->buildOptions(null, MechanismName::PLAIN);
+        self::assertInstanceOf(PlainOptions::class, $options);
+        $validate = $options->getValidate();
         assert(is_callable($validate));
         $result = $validate('authzid', 'cn=user,dc=foo,dc=bar', '12345');
 
@@ -74,8 +63,9 @@ final class PlainMechanismOptionsBuilderTest extends TestCase
             ->method('verifyPassword')
             ->willReturn(false);
 
-        $options = $this->subject->buildOptions(null, PlainMechanism::NAME);
-        $validate = $options['validate'];
+        $options = $this->subject->buildOptions(null, MechanismName::PLAIN);
+        self::assertInstanceOf(PlainOptions::class, $options);
+        $validate = $options->getValidate();
         assert(is_callable($validate));
         $result = $validate(null, 'user', 'wrong');
 
@@ -84,10 +74,10 @@ final class PlainMechanismOptionsBuilderTest extends TestCase
 
     public function test_it_builds_the_same_options_regardless_of_received_bytes(): void
     {
-        $optionsWithNull = $this->subject->buildOptions(null, PlainMechanism::NAME);
-        $optionsWithBytes = $this->subject->buildOptions('some-bytes', PlainMechanism::NAME);
+        $optionsWithNull = $this->subject->buildOptions(null, MechanismName::PLAIN);
+        $optionsWithBytes = $this->subject->buildOptions('some-bytes', MechanismName::PLAIN);
 
-        self::assertArrayHasKey('validate', $optionsWithNull);
-        self::assertArrayHasKey('validate', $optionsWithBytes);
+        self::assertInstanceOf(PlainOptions::class, $optionsWithNull);
+        self::assertInstanceOf(PlainOptions::class, $optionsWithBytes);
     }
 }

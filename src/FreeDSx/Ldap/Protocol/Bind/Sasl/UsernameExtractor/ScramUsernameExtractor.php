@@ -15,7 +15,7 @@ namespace FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor;
 
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Sasl\Mechanism\ScramMechanism;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 
 /**
  * Extracts the username from a SCRAM client-first-message.
@@ -31,8 +31,10 @@ class ScramUsernameExtractor implements SaslUsernameExtractorInterface
     /**
      * {@inheritDoc}
      */
-    public function extractUsername(string $mechanism, string $credentials): string
-    {
+    public function extractUsername(
+        MechanismName $mechanism,
+        string $credentials,
+    ): string {
         // Strip the GS2 header (everything up to and including ',,').
         $pos = strpos($credentials, ',,');
         $bare = $pos !== false
@@ -50,20 +52,8 @@ class ScramUsernameExtractor implements SaslUsernameExtractorInterface
         }
 
         throw new OperationException(
-            sprintf('The %s credentials did not contain a username.', $mechanism),
+            sprintf('The %s credentials did not contain a username.', $mechanism->value),
             ResultCode::PROTOCOL_ERROR
-        );
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function supports(string $mechanism): bool
-    {
-        return in_array(
-            $mechanism,
-            ScramMechanism::VARIANTS,
-            true,
         );
     }
 }

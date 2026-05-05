@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\ClientProtocolHandler;
 
 use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Exception\BindException;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\ProtocolException;
@@ -28,8 +29,10 @@ use FreeDSx\Ldap\Protocol\Queue\MessageWrapper\SaslMessageWrapper;
 use FreeDSx\Ldap\Protocol\RootDseLoader;
 use FreeDSx\Sasl\Exception\SaslException;
 use FreeDSx\Sasl\Mechanism\MechanismInterface;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\Sasl;
 use FreeDSx\Sasl\SaslContext;
+use FreeDSx\Sasl\SaslInterface;
 
 /**
  * Logic for handling a SASL bind.
@@ -48,7 +51,7 @@ class ClientSaslBindHandler implements RequestHandlerInterface
     public function __construct(
         private readonly ClientQueue $queue,
         private readonly RootDseLoader $rootDseLoader,
-        private readonly Sasl $sasl = new Sasl(),
+        private readonly SaslInterface $sasl = new Sasl(),
     ) {
     }
 
@@ -106,16 +109,18 @@ class ClientSaslBindHandler implements RequestHandlerInterface
         SaslBindRequest $request,
     ): MechanismInterface {
         if ($request->getMechanism() !== '') {
-            $mech = $this->sasl->get($request->getMechanism());
-            $request->setMechanism($mech->getName());
+            $mech = $this->sasl->get(MechanismName::from($request->getMechanism()));
+            $request->setMechanism($mech->getName()->value);
 
             return $mech;
         }
         $rootDse = $this->rootDseLoader->load();
-        $availableMechs = $rootDse->get('supportedSaslMechanisms');
-        $availableMechs = $availableMechs === null ? [] : $availableMechs->getValues();
-        $mech = $this->sasl->select($availableMechs, $request->getOptions());
-        $request->setMechanism($mech->getName());
+        $choices = $this->parseKnownMechanisms($rootDse->get('supportedSaslMechanisms'));
+        $mech = $this->sasl->select(
+            $choices,
+            $request->getSelectOptions(),
+        );
+        $request->setMechanism($mech->getName()->value);
 
         return $mech;
     }
@@ -134,7 +139,7 @@ class ClientSaslBindHandler implements RequestHandlerInterface
 
         do {
             $context = $challenge->challenge($saslResponse->getSaslCredentials(), $request->getOptions());
-            $saslBind = Operations::bindSasl($request->getOptions(), $request->getMechanism(), $context->getResponse());
+            $saslBind = Operations::bindSasl($request->getOptions(), MechanismName::from($request->getMechanism()), $context->getResponse());
             $response = $this->sendRequestGetResponse($saslBind, $queue);
             $saslResponse = $response->getResponse();
             if (!$saslResponse instanceof BindResponse) {
@@ -179,6 +184,24 @@ class ClientSaslBindHandler implements RequestHandlerInterface
         }
 
         return $response->getResultCode() !== ResultCode::SASL_BIND_IN_PROGRESS;
+    }
+
+    /**
+     * Converts server-advertised mechanism name strings into known MechanismName values, discarding unrecognised ones.
+     *
+     * @return MechanismName[]
+     */
+    private function parseKnownMechanisms(?Attribute $attribute): array
+    {
+        $known = [];
+        foreach ($attribute?->getValues() ?? [] as $name) {
+            $mech = MechanismName::tryFrom($name);
+            if ($mech !== null) {
+                $known[] = $mech;
+            }
+        }
+
+        return $known;
     }
 
     /**

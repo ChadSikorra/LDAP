@@ -25,6 +25,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Sasl\Challenge\ChallengeInterface;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\SaslContext;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -32,9 +33,9 @@ use PHPUnit\Framework\TestCase;
 final class SaslExchangeTest extends TestCase
 {
     /**
-     * Using 'PLAIN' as the mechanism name so that the real MechanismOptionsBuilderFactory
-     * can produce a PlainMechanismOptionsBuilder. The mock challenge ignores the option
-     * array, so the specific mechanism does not affect the exchange-loop behavior under test.
+     * Using PLAIN so that the real MechanismOptionsBuilderFactory can produce a
+     * PlainMechanismOptionsBuilder. The mock challenge ignores the options, so the
+     * specific mechanism does not affect the exchange-loop behavior under test.
      */
     private const MECH = 'PLAIN';
 
@@ -62,7 +63,7 @@ final class SaslExchangeTest extends TestCase
     {
         return new SaslExchangeInput(
             challenge: $this->mockChallenge,
-            mechName: self::MECH,
+            mechName: MechanismName::from(self::MECH),
             initialMessage: new LdapMessageRequest(1, new SaslBindRequest(self::MECH)),
             initialCredentials: $initialCredentials,
         );
