@@ -16,7 +16,9 @@ namespace FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
-use FreeDSx\Sasl\Mechanism\ScramMechanism;
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\ChallengeOptionsInterface;
+use FreeDSx\Sasl\Options\ScramOptions;
 
 /**
  * Builds options for SCRAM SASL mechanisms on the server side.
@@ -40,10 +42,10 @@ class ScramMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
     /**
      * {@inheritDoc}
      */
-    public function buildOptions(?string $received, string $mechanism): array
+    public function buildOptions(?string $received, MechanismName $mechanism): ?ChallengeOptionsInterface
     {
         if ($received === null) {
-            return [];
+            return null;
         }
 
         // Client-final-message contains the proof field 'p='.
@@ -56,25 +58,17 @@ class ScramMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
                 );
             }
 
-            return [
-                'password' => $this->requirePassword(
-                    $this->handler->getPassword($this->username, $mechanism)
+            return (new ScramOptions())->setPassword(
+                $this->requirePassword(
+                    $this->handler->getPassword($this->username, $mechanism->value),
                 ),
-            ];
+            );
         }
 
         // Client-first-message: extract and store the username for the next round.
         $this->username = $this->parseUsername($received);
 
-        return [];
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function supports(string $mechanism): bool
-    {
-        return in_array($mechanism, ScramMechanism::VARIANTS, true);
+        return null;
     }
 
     /**

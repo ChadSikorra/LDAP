@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor;
 
 use FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor\PlainUsernameExtractor;
-use FreeDSx\Sasl\Mechanism\PlainMechanism;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use PHPUnit\Framework\TestCase;
 
 final class PlainUsernameExtractorTest extends TestCase
@@ -26,17 +26,6 @@ final class PlainUsernameExtractorTest extends TestCase
         $this->subject = new PlainUsernameExtractor();
     }
 
-    public function test_it_supports_the_plain_mechanism(): void
-    {
-        self::assertTrue($this->subject->supports(PlainMechanism::NAME));
-    }
-
-    public function test_it_does_not_support_other_mechanisms(): void
-    {
-        self::assertFalse($this->subject->supports('CRAM-MD5'));
-        self::assertFalse($this->subject->supports('DIGEST-MD5'));
-    }
-
     public function test_it_extracts_the_authcid_as_the_username(): void
     {
         // PLAIN format: "authzid\x00authcid\x00passwd"
@@ -44,7 +33,7 @@ final class PlainUsernameExtractorTest extends TestCase
 
         self::assertSame(
             'cn=user,dc=foo,dc=bar',
-            $this->subject->extractUsername(PlainMechanism::NAME, $credentials),
+            $this->subject->extractUsername(MechanismName::PLAIN, $credentials),
         );
     }
 }

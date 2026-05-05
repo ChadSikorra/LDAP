@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Protocol\Bind\Sasl;
 
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Sasl\Challenge\ChallengeInterface;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 
 /**
  * Bundles the per-invocation parameters for SaslExchange::run().
@@ -25,7 +26,7 @@ final class SaslExchangeInput
 {
     public function __construct(
         private readonly ChallengeInterface $challenge,
-        private readonly string $mechName,
+        private readonly MechanismName $mechName,
         private readonly LdapMessageRequest $initialMessage,
         private readonly ?string $initialCredentials,
     ) {
@@ -36,7 +37,7 @@ final class SaslExchangeInput
         return $this->challenge;
     }
 
-    public function getMechName(): string
+    public function getMechName(): MechanismName
     {
         return $this->mechName;
     }

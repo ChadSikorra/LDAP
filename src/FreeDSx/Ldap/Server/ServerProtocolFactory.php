@@ -20,6 +20,8 @@ use FreeDSx\Ldap\Protocol\Bind\Sasl\SaslExchange;
 use FreeDSx\Ldap\Protocol\Bind\SaslBind;
 use FreeDSx\Ldap\Protocol\Bind\SimpleBind;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\SaslOptions;
 use FreeDSx\Sasl\Sasl;
 use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
@@ -62,7 +64,9 @@ class ServerProtocolFactory
                     $responseFactory,
                     new MechanismOptionsBuilderFactory($passwordAuthenticator),
                 ),
-                sasl: new Sasl(['supported' => $saslMechanisms]),
+                sasl: new Sasl(new SaslOptions(
+                    supported: $this->parseKnownMechanisms($saslMechanisms),
+                )),
                 mechanisms: $saslMechanisms,
                 responseFactory: $responseFactory,
             );
@@ -80,5 +84,24 @@ class ServerProtocolFactory
             authenticator: new Authenticator($authenticators),
             logger: $this->options->getLogger(),
         );
+    }
+
+    /**
+     * Converts mechanism name strings into known MechanismName values, discarding unrecognised ones.
+     *
+     * @param string[] $mechanisms
+     * @return MechanismName[]
+     */
+    private function parseKnownMechanisms(array $mechanisms): array
+    {
+        $known = [];
+        foreach ($mechanisms as $name) {
+            $mech = MechanismName::tryFrom($name);
+            if ($mech !== null) {
+                $known[] = $mech;
+            }
+        }
+
+        return $known;
     }
 }

@@ -17,7 +17,8 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\CramMD5MechanismOptionsBuilder;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
-use FreeDSx\Sasl\Mechanism\CramMD5Mechanism;
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\CramMD5Options;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -33,57 +34,41 @@ final class CramMD5MechanismOptionsBuilderTest extends TestCase
         $this->subject = new CramMD5MechanismOptionsBuilder($this->mockHandler);
     }
 
-    public function test_it_supports_the_cram_md5_mechanism(): void
+    public function test_it_returns_null_when_no_bytes_received(): void
     {
-        self::assertTrue($this->subject->supports(CramMD5Mechanism::NAME));
-    }
-
-    public function test_it_does_not_support_other_mechanisms(): void
-    {
-        self::assertFalse($this->subject->supports('PLAIN'));
-        self::assertFalse($this->subject->supports('DIGEST-MD5'));
-    }
-
-    public function test_it_returns_empty_options_when_no_bytes_received(): void
-    {
-        self::assertSame(
-            [],
-            $this->subject->buildOptions(null, CramMD5Mechanism::NAME)
-        );
+        self::assertNull($this->subject->buildOptions(null, MechanismName::CRAM_MD5));
     }
 
     public function test_it_builds_options_with_a_password_callable_when_bytes_are_received(): void
     {
         $options = $this->subject->buildOptions(
             'some-client-response',
-            CramMD5Mechanism::NAME,
+            MechanismName::CRAM_MD5,
         );
 
-        self::assertArrayHasKey(
-            'password',
-            $options
-        );
-        self::assertIsCallable($options['password']);
+        self::assertInstanceOf(CramMD5Options::class, $options);
+        self::assertIsCallable($options->getPasswordCallback());
     }
 
     public function test_the_password_callable_returns_an_hmac_of_the_challenge(): void
     {
         $this->mockHandler
             ->method('getPassword')
-            ->with('cn=user,dc=foo,dc=bar', CramMD5Mechanism::NAME)
+            ->with('cn=user,dc=foo,dc=bar', MechanismName::CRAM_MD5->value)
             ->willReturn('12345');
 
-        $options = $this->subject->buildOptions('some-bytes', CramMD5Mechanism::NAME);
-        $password = $options['password'];
-        assert(is_callable($password));
+        $options = $this->subject->buildOptions('some-bytes', MechanismName::CRAM_MD5);
+        self::assertInstanceOf(CramMD5Options::class, $options);
+        $callback = $options->getPasswordCallback();
+        assert(is_callable($callback));
         // The challenge passed to the callable is the encoded challenge string exactly as the
         // client received it (e.g. "<nonce>"), per RFC 2195.
         $challenge = '<challenge@example.com>';
-        $result = $password('cn=user,dc=foo,dc=bar', $challenge);
+        $result = $callback('cn=user,dc=foo,dc=bar', $challenge);
 
         self::assertSame(
             hash_hmac('md5', '<challenge@example.com>', '12345'),
-            $result
+            $result,
         );
     }
 
@@ -95,14 +80,15 @@ final class CramMD5MechanismOptionsBuilderTest extends TestCase
 
         $options = $this->subject->buildOptions(
             'some-bytes',
-            CramMD5Mechanism::NAME
+            MechanismName::CRAM_MD5,
         );
-        $password = $options['password'];
-        assert(is_callable($password));
+        self::assertInstanceOf(CramMD5Options::class, $options);
+        $callback = $options->getPasswordCallback();
+        assert(is_callable($callback));
 
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
 
-        $password('unknown-user', 'challenge');
+        $callback('unknown-user', 'challenge');
     }
 }

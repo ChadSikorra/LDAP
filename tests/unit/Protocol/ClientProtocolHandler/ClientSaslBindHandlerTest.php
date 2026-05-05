@@ -26,8 +26,9 @@ use FreeDSx\Ldap\Protocol\Queue\ClientQueue;
 use FreeDSx\Ldap\Protocol\RootDseLoader;
 use FreeDSx\Sasl\Challenge\ChallengeInterface;
 use FreeDSx\Sasl\Mechanism\MechanismInterface;
-use FreeDSx\Sasl\Sasl;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\SaslContext;
+use FreeDSx\Sasl\SaslInterface;
 use FreeDSx\Sasl\Security\SecurityLayerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -38,7 +39,7 @@ final class ClientSaslBindHandlerTest extends TestCase
 
     private LdapMessageResponse $saslComplete;
 
-    private Sasl&MockObject $mockSasl;
+    private SaslInterface&MockObject $mockSasl;
 
     private ClientQueue&MockObject $mockQueue;
 
@@ -52,7 +53,7 @@ final class ClientSaslBindHandlerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->mockSasl = $this->createMock(Sasl::class);
+        $this->mockSasl = $this->createMock(SaslInterface::class);
         $this->mockQueue = $this->createMock(ClientQueue::class);
         $this->mockRootDseLoader = $this->createMock(RootDseLoader::class);
         $this->mockMech = $this->createMock(MechanismInterface::class);
@@ -84,7 +85,7 @@ final class ClientSaslBindHandlerTest extends TestCase
     public function test_it_should_handle_a_sasl_bind_request(): void
     {
         $this->withStandardRootDseResponse();
-        $saslBind = Operations::bindSasl(['username' => 'foo', 'password' => 'bar']);
+        $saslBind = Operations::bindSasl();
         $messageRequest = new LdapMessageRequest(1, $saslBind);
 
         $this->mockQueue
@@ -97,19 +98,21 @@ final class ClientSaslBindHandlerTest extends TestCase
         $this->mockSasl
             ->expects($this->once())
             ->method('select')
-            ->with(['DIGEST-MD5', 'CRAM-MD5'], ['username' => 'foo', 'password' => 'bar'])
+            ->with(
+                [MechanismName::DIGEST_MD5, MechanismName::CRAM_MD5],
+                null,
+            )
             ->willReturn($this->mockMech);
 
         $this->mockMech
             ->method('getName')
-            ->willReturn('DIGEST-MD5');
+            ->willReturn(MechanismName::DIGEST_MD5);
         $this->mockMech
             ->method('challenge')
             ->willReturn($this->mockChallenge);
 
         $this->mockChallenge
             ->method('challenge')
-            ->with(self::anything(), ['username' => 'foo', 'password' => 'bar'])
             ->will($this->onConsecutiveCalls(
                 (new SaslContext())->setResponse('foo'),
                 (new SaslContext())->setResponse('foo')->setIsComplete(true)
@@ -128,8 +131,9 @@ final class ClientSaslBindHandlerTest extends TestCase
         );
     }
 
-    public function test_it_should_detect_a_downgrade_attack(): void {
-        $saslBind = Operations::bindSasl(['username' => 'foo', 'password' => 'bar']);
+    public function test_it_should_detect_a_downgrade_attack(): void
+    {
+        $saslBind = Operations::bindSasl();
         $messageRequest = new LdapMessageRequest(1, $saslBind);
 
         $this->mockQueue
@@ -145,14 +149,13 @@ final class ClientSaslBindHandlerTest extends TestCase
 
         $this->mockMech
             ->method('getName')
-            ->willReturn('PLAIN');
+            ->willReturn(MechanismName::PLAIN);
         $this->mockMech
             ->method('challenge')
             ->willReturn($this->mockChallenge);
 
         $this->mockChallenge
             ->method('challenge')
-            ->with(self::anything(), ['username' => 'foo', 'password' => 'bar'])
             ->will($this->onConsecutiveCalls(
                 (new SaslContext())->setResponse('foo'),
                 (new SaslContext())->setResponse('foo')->setIsComplete(true)
@@ -183,7 +186,7 @@ final class ClientSaslBindHandlerTest extends TestCase
 
     public function test_it_should_not_query_the_rootdse_if_the_mechanism_was_explicitly_specified(): void
     {
-        $saslBind = Operations::bindSasl(['username' => 'foo', 'password' => 'bar'], 'DIGEST-MD5');
+        $saslBind = Operations::bindSasl(null, MechanismName::DIGEST_MD5);
         $messageRequest = new LdapMessageRequest(1, $saslBind);
 
         $this->withStandardRootDseResponse();
@@ -196,12 +199,12 @@ final class ClientSaslBindHandlerTest extends TestCase
 
         $this->mockSasl
             ->method('get')
-            ->with('DIGEST-MD5')
+            ->with(MechanismName::DIGEST_MD5)
             ->willReturn($this->mockMech);
 
         $this->mockMech
             ->method('getName')
-            ->willReturn('DIGEST-MD5');
+            ->willReturn(MechanismName::DIGEST_MD5);
         $this->mockMech
             ->method('challenge')
             ->willReturn($this->mockChallenge);
@@ -225,7 +228,7 @@ final class ClientSaslBindHandlerTest extends TestCase
 
     public function test_it_should_set_the_set_the_security_layer_on_the_queue_if_one_was_negotiated(): void
     {
-        $saslBind = Operations::bindSasl(['username' => 'foo', 'password' => 'bar'], 'DIGEST-MD5');
+        $saslBind = Operations::bindSasl(null, MechanismName::DIGEST_MD5);
         $messageRequest = new LdapMessageRequest(1, $saslBind);
 
         $this->mockQueue
@@ -240,7 +243,7 @@ final class ClientSaslBindHandlerTest extends TestCase
             ->willReturn($this->mockMech);
         $this->mockMech
             ->method('getName')
-            ->willReturn('DIGEST-MD5');
+            ->willReturn(MechanismName::DIGEST_MD5);
         $this->mockMech
             ->method('challenge')
             ->willReturn($this->mockChallenge);
@@ -282,6 +285,5 @@ final class ClientSaslBindHandlerTest extends TestCase
                 '',
                 ['supportedSaslMechanisms' => ['DIGEST-MD5', 'CRAM-MD5']]
             ));
-
     }
 }

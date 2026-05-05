@@ -16,8 +16,7 @@ namespace FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor;
 use FreeDSx\Sasl\Encoder\CramMD5Encoder;
 use FreeDSx\Sasl\Encoder\DigestMD5Encoder;
 use FreeDSx\Sasl\Encoder\EncoderInterface;
-use FreeDSx\Sasl\Mechanism\CramMD5Mechanism;
-use FreeDSx\Sasl\Mechanism\DigestMD5Mechanism;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\SaslContext;
 
 /**
@@ -42,8 +41,8 @@ class UsernameFieldExtractor implements SaslUsernameExtractorInterface
     public function __construct(array $encoders = [])
     {
         $this->encoders = $encoders ?: [
-            CramMD5Mechanism::NAME => new CramMD5Encoder(),
-            DigestMD5Mechanism::NAME => new DigestMD5Encoder(),
+            MechanismName::CRAM_MD5->value => new CramMD5Encoder(),
+            MechanismName::DIGEST_MD5->value => new DigestMD5Encoder(),
         ];
     }
 
@@ -51,10 +50,10 @@ class UsernameFieldExtractor implements SaslUsernameExtractorInterface
      * {@inheritDoc}
      */
     public function extractUsername(
-        string $mechanism,
-        string $credentials
+        MechanismName $mechanism,
+        string $credentials,
     ): string {
-        $encoder = $this->encoders[$mechanism];
+        $encoder = $this->encoders[$mechanism->value];
 
         // Always decode as server-side: we are parsing a client response, not a server challenge.
         // For DIGEST-MD5 this is required; for others it is harmless.
@@ -62,14 +61,9 @@ class UsernameFieldExtractor implements SaslUsernameExtractorInterface
         $context->setIsServerMode(true);
         $message = $encoder->decode(
             $credentials,
-            $context
+            $context,
         );
 
-        return $this->requireUsername($message, 'username', $mechanism);
-    }
-
-    public function supports(string $mechanism): bool
-    {
-        return isset($this->encoders[$mechanism]);
+        return $this->requireUsername($message, 'username', $mechanism->value);
     }
 }

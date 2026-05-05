@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor;
 
 use FreeDSx\Sasl\Encoder\PlainEncoder;
-use FreeDSx\Sasl\Mechanism\PlainMechanism;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\SaslContext;
 
 /**
@@ -30,16 +30,11 @@ class PlainUsernameExtractor implements SaslUsernameExtractorInterface
      * {@inheritDoc}
      */
     public function extractUsername(
-        string $mechanism,
-        string $credentials
+        MechanismName $mechanism,
+        string $credentials,
     ): string {
         $message = (new PlainEncoder())->decode($credentials, new SaslContext());
 
-        return $this->requireUsername($message, 'authcid', $mechanism);
-    }
-
-    public function supports(string $mechanism): bool
-    {
-        return $mechanism === PlainMechanism::NAME;
+        return $this->requireUsername($message, 'authcid', $mechanism->value);
     }
 }

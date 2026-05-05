@@ -17,8 +17,7 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor\UsernameFieldExtractor;
 use FreeDSx\Sasl\Encoder\EncoderInterface;
-use FreeDSx\Sasl\Mechanism\CramMD5Mechanism;
-use FreeDSx\Sasl\Mechanism\DigestMD5Mechanism;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\Message;
 use FreeDSx\Sasl\SaslContext;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -35,26 +34,8 @@ final class UsernameFieldExtractorTest extends TestCase
         $this->mockEncoder = $this->createMock(EncoderInterface::class);
 
         $this->subject = new UsernameFieldExtractor([
-            CramMD5Mechanism::NAME => $this->mockEncoder,
+            MechanismName::CRAM_MD5->value => $this->mockEncoder,
         ]);
-    }
-
-    public function test_it_supports_mechanisms_that_have_a_registered_encoder(): void
-    {
-        self::assertTrue($this->subject->supports(CramMD5Mechanism::NAME));
-    }
-
-    public function test_it_does_not_support_mechanisms_without_a_registered_encoder(): void
-    {
-        self::assertFalse($this->subject->supports('PLAIN'));
-    }
-
-    public function test_it_defaults_to_supporting_cram_md5_and_digest_md5(): void
-    {
-        $subject = new UsernameFieldExtractor();
-
-        self::assertTrue($subject->supports(CramMD5Mechanism::NAME));
-        self::assertTrue($subject->supports(DigestMD5Mechanism::NAME));
     }
 
     public function test_it_extracts_the_username_field_from_decoded_credentials(): void
@@ -68,7 +49,7 @@ final class UsernameFieldExtractorTest extends TestCase
 
         self::assertSame(
             'cn=user,dc=foo,dc=bar',
-            $this->subject->extractUsername(CramMD5Mechanism::NAME, $credentials),
+            $this->subject->extractUsername(MechanismName::CRAM_MD5, $credentials),
         );
     }
 
@@ -83,7 +64,7 @@ final class UsernameFieldExtractorTest extends TestCase
             )
             ->willReturn(new Message(['username' => 'user']));
 
-        $this->subject->extractUsername(CramMD5Mechanism::NAME, 'bytes');
+        $this->subject->extractUsername(MechanismName::CRAM_MD5, 'bytes');
     }
 
     public function test_it_throws_a_protocol_error_when_the_username_field_is_missing(): void
@@ -96,8 +77,8 @@ final class UsernameFieldExtractorTest extends TestCase
         self::expectExceptionCode(ResultCode::PROTOCOL_ERROR);
 
         $this->subject->extractUsername(
-            CramMD5Mechanism::NAME,
-            'bytes'
+            MechanismName::CRAM_MD5,
+            'bytes',
         );
     }
 }

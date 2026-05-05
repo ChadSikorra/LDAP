@@ -14,10 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor;
 
 use FreeDSx\Ldap\Exception\RuntimeException;
-use FreeDSx\Sasl\Mechanism\CramMD5Mechanism;
-use FreeDSx\Sasl\Mechanism\DigestMD5Mechanism;
-use FreeDSx\Sasl\Mechanism\PlainMechanism;
-use FreeDSx\Sasl\Mechanism\ScramMechanism;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 
 /**
  * Creates a single SaslUsernameExtractorInterface instance for the requested SASL mechanism.
@@ -29,18 +26,18 @@ final class SaslUsernameExtractorFactory
     /**
      * @throws RuntimeException if no extractor is registered for the given mechanism.
      */
-    public function make(string $mechanism): SaslUsernameExtractorInterface
+    public function make(MechanismName $mechanism): SaslUsernameExtractorInterface
     {
         return match (true) {
-            $mechanism === PlainMechanism::NAME
+            $mechanism === MechanismName::PLAIN
                 => new PlainUsernameExtractor(),
-            in_array($mechanism, ScramMechanism::VARIANTS, true)
+            $mechanism->isScram()
                 => new ScramUsernameExtractor(),
-            $mechanism === CramMD5Mechanism::NAME,
-            $mechanism === DigestMD5Mechanism::NAME
+            $mechanism === MechanismName::CRAM_MD5,
+            $mechanism === MechanismName::DIGEST_MD5
                 => new UsernameFieldExtractor(),
             default => throw new RuntimeException(
-                sprintf('No username extractor is registered for the SASL mechanism "%s".', $mechanism)
+                sprintf('No username extractor is registered for the SASL mechanism "%s".', $mechanism->value)
             ),
         };
     }

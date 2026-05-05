@@ -11,6 +11,27 @@ Upgrading from 0.x to 1.0
 
 ## Client Changes
 
+### SASL Bind
+
+`LdapClient::bindSasl()` and `Operations::bindSasl()` now take `?MechanismName` instead of `string` for the mechanism
+parameter. Pass `null` (or omit it) to auto-select from the server's advertised mechanisms.
+
+**Before**:
+
+```php
+$client->bindSasl($options, 'DIGEST-MD5');
+$client->bindSasl($options); // auto-select
+```
+
+**After**:
+
+```php
+use FreeDSx\Sasl\Mechanism\MechanismName;
+
+$client->bindSasl($options, MechanismName::DIGEST_MD5);
+$client->bindSasl($options); // auto-select (null)
+```
+
 ### Client Options
 
 When instantiating the `LdapClient`, options are now an options object instead of an associative array.

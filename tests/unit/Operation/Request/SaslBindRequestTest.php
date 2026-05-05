@@ -18,6 +18,7 @@ use FreeDSx\Ldap\Exception\BindException;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Operation\Request\BindRequest;
 use FreeDSx\Ldap\Operation\Request\SaslBindRequest;
+use FreeDSx\Sasl\Options\DigestMD5Options;
 use PHPUnit\Framework\TestCase;
 
 final class SaslBindRequestTest extends TestCase
@@ -88,9 +89,10 @@ final class SaslBindRequestTest extends TestCase
 
     public function test_it_returns_options_set_via_constructor(): void
     {
-        $request = new SaslBindRequest('PLAIN', null, ['foo' => 'bar']);
+        $options = new DigestMD5Options();
+        $request = new SaslBindRequest('PLAIN', null, $options);
 
-        self::assertSame(['foo' => 'bar'], $request->getOptions());
+        self::assertSame($options, $request->getOptions());
     }
 
     public function test_bind_request_throws_for_an_unsupported_authentication_tag(): void

@@ -3,15 +3,18 @@ SASL Bind Authentication
 
 * [Mechanisms](#mechanisms)
 * [Options](#options)
-    
-SASL support is provided via the [FreeDSx SASL](https://github.com/FreeDSx/SASL) library. You can initiate a SASL bind
-using the client methods.
 
-An example of letting it auto-detect a mechanism:
+SASL support is provided via the [FreeDSx SASL](https://github.com/FreeDSx/SASL) library. You can initiate a SASL bind
+using the `bindSasl()` method on the client.
+
+## Auto-selecting a Mechanism
+
+Omit the mechanism to let the library select the strongest one advertised by the server:
 
 ```php
 use FreeDSx\Ldap\ClientOptions;
 use FreeDSx\Ldap\LdapClient;
+use FreeDSx\Sasl\Options\DigestMD5Options;
 
 $ldap = new LdapClient(
     (new ClientOptions)
@@ -19,19 +22,22 @@ $ldap = new LdapClient(
         ->setBaseDn('dc=example,dc=local')
 );
 
-# Bind using SASL, let it automatically detect an available supported mechanism.
-# The first parameter to bindSasl is an array of options for SASL to use.
-$ldap->bindSasl([
-    'username' => 'user',
-    'password' => '12345',
-]);
+$ldap->bindSasl(
+    (new DigestMD5Options)
+        ->setUsername('user')
+        ->setPassword('12345'),
+);
 ```
 
-An example of specifying a mechanism:
+## Specifying a Mechanism
+
+Pass a `MechanismName` enum value as the second argument to target a specific mechanism:
 
 ```php
 use FreeDSx\Ldap\ClientOptions;
 use FreeDSx\Ldap\LdapClient;
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\DigestMD5Options;
 
 $ldap = new LdapClient(
     (new ClientOptions)
@@ -39,34 +45,92 @@ $ldap = new LdapClient(
         ->setBaseDn('dc=example,dc=local')
 );
 
-# Use the second parameter of bindSasl to specify a mechanism.
-$ldap->bindSasl([
-    'username' => 'user',
-    'password' => '12345',
-    # Also tell it to install an integrity security layer for further communications...
-    'use_integrity' => true,
-], 'DIGEST-MD5');
+$ldap->bindSasl(
+    (new DigestMD5Options)
+        ->setUsername('user')
+        ->setPassword('12345')
+        ->setUseIntegrity(true),
+    MechanismName::DIGEST_MD5,
+);
 ```
 
 ## Mechanisms
 
-The following table details mechanisms / options that are recognized when doing a SASL bind:
+Each mechanism has its own options class from the `FreeDSx\Sasl\Options` namespace.
 
-|                 | `DIGEST-MD5` | `CRAM-MD5` | `SCRAM-*` | `PLAIN` | `ANONYMOUS` |
-|-----------------|:------------:|:----------:|:---------:|:-------:|:-----------:|
-| `username`      |      X       |     X      |     X     |    X    |      X      |
-| `password`      |      X       |     X      |     X     |    X    |             |
-| `use_integrity` |      X       |            |           |         |             |
-| `trace`         |              |            |           |         |      X      |
-| `host`          |      X       |            |           |         |             |
+### PLAIN
 
-`SCRAM-*` refers to the SCRAM family of mechanisms: `SCRAM-SHA-1`, `SCRAM-SHA-256`, `SCRAM-SHA-384`, `SCRAM-SHA-512`,
+```php
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\PlainOptions;
+
+$ldap->bindSasl(
+    (new PlainOptions)
+        ->setUsername('user')
+        ->setPassword('12345'),
+    MechanismName::PLAIN,
+);
+```
+
+### CRAM-MD5
+
+```php
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\CramMD5Options;
+
+$ldap->bindSasl(
+    (new CramMD5Options)
+        ->setUsername('user')
+        ->setPassword('12345'),
+    MechanismName::CRAM_MD5,
+);
+```
+
+### DIGEST-MD5
+
+```php
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\DigestMD5Options;
+
+$ldap->bindSasl(
+    (new DigestMD5Options)
+        ->setUsername('user')
+        ->setPassword('12345'),
+    MechanismName::DIGEST_MD5,
+);
+```
+
+Use `setUseIntegrity(true)` to negotiate an integrity security layer, or `setHost()` to override the host in
+the DIGEST-MD5 digest-uri.
+
+### SCRAM
+
+`SCRAM-*` refers to the SCRAM family: `SCRAM-SHA-1`, `SCRAM-SHA-256`, `SCRAM-SHA-384`, `SCRAM-SHA-512`,
 `SCRAM-SHA3-512`, and their channel-binding (`-PLUS`) variants. `SCRAM-SHA-256` is recommended for new deployments.
+
+```php
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\ScramOptions;
+
+$ldap->bindSasl(
+    (new ScramOptions)
+        ->setUsername('user')
+        ->setPassword('12345'),
+    MechanismName::SCRAM_SHA256,
+);
+```
 
 ## Options
 
-* `username`: The user to bind with.
-* `password`: The password for the user during the bind.
-* `use_integrity`: A boolean value for whether or not an integrity security layer should be used via SASL.
-* `trace`: If defined during an anonymous bind, this string will be sent to the server for logging.
-* `host`: If defined, this string value will be used as the host part of the digest-uri in DIGEST-MD5.
+| Class             | Setter               | Mechanisms                  | Description                                            |
+|-------------------|----------------------|-----------------------------|--------------------------------------------------------|
+| `PlainOptions`    | `setUsername()`      | `PLAIN`                     | The authentication identity (username).                |
+| `PlainOptions`    | `setPassword()`      | `PLAIN`                     | The password.                                          |
+| `CramMD5Options`  | `setUsername()`      | `CRAM-MD5`                  | The username.                                          |
+| `CramMD5Options`  | `setPassword()`      | `CRAM-MD5`                  | The password.                                          |
+| `DigestMD5Options`| `setUsername()`      | `DIGEST-MD5`                | The username.                                          |
+| `DigestMD5Options`| `setPassword()`      | `DIGEST-MD5`                | The password.                                          |
+| `DigestMD5Options`| `setUseIntegrity()`  | `DIGEST-MD5`                | Negotiate an integrity security layer (`bool`).        |
+| `DigestMD5Options`| `setHost()`          | `DIGEST-MD5`                | Override the host in the digest-uri.                   |
+| `ScramOptions`    | `setUsername()`      | `SCRAM-*`                   | The username.                                          |
+| `ScramOptions`    | `setPassword()`      | `SCRAM-*`                   | The password.                                          |

@@ -17,10 +17,7 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor\UsernameFieldExtractor;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
-use FreeDSx\Sasl\Mechanism\CramMD5Mechanism;
-use FreeDSx\Sasl\Mechanism\DigestMD5Mechanism;
-use FreeDSx\Sasl\Mechanism\PlainMechanism;
-use FreeDSx\Sasl\Mechanism\ScramMechanism;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 
 /**
  * Creates a single MechanismOptionsBuilderInterface instance for the requested SASL mechanism.
@@ -37,19 +34,19 @@ final class MechanismOptionsBuilderFactory
     /**
      * @throws OperationException if the mechanism is unsupported.
      */
-    public function make(string $mechanism): MechanismOptionsBuilderInterface
+    public function make(MechanismName $mechanism): MechanismOptionsBuilderInterface
     {
         return match (true) {
-            $mechanism === PlainMechanism::NAME
+            $mechanism === MechanismName::PLAIN
                 => new PlainMechanismOptionsBuilder($this->authenticator),
-            $mechanism === CramMD5Mechanism::NAME
+            $mechanism === MechanismName::CRAM_MD5
                 => new CramMD5MechanismOptionsBuilder($this->authenticator),
-            $mechanism === DigestMD5Mechanism::NAME
+            $mechanism === MechanismName::DIGEST_MD5
                 => new DigestMD5MechanismOptionsBuilder($this->authenticator, new UsernameFieldExtractor()),
-            in_array($mechanism, ScramMechanism::VARIANTS, true)
+            $mechanism->isScram()
                 => new ScramMechanismOptionsBuilder($this->authenticator),
             default => throw new OperationException(
-                sprintf('The SASL mechanism "%s" is not supported.', $mechanism),
+                sprintf('The SASL mechanism "%s" is not supported.', $mechanism->value),
                 ResultCode::OTHER,
             ),
         };

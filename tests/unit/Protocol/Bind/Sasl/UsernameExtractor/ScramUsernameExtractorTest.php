@@ -16,7 +16,7 @@ namespace Tests\Unit\FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor\ScramUsernameExtractor;
-use FreeDSx\Sasl\Mechanism\ScramMechanism;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use PHPUnit\Framework\TestCase;
 
 final class ScramUsernameExtractorTest extends TestCase
@@ -28,32 +28,15 @@ final class ScramUsernameExtractorTest extends TestCase
         $this->subject = new ScramUsernameExtractor();
     }
 
-    public function test_it_supports_all_scram_variants(): void
-    {
-        foreach (ScramMechanism::VARIANTS as $variant) {
-            self::assertTrue(
-                $this->subject->supports($variant),
-                "Expected support for $variant"
-            );
-        }
-    }
-
-    public function test_it_does_not_support_non_scram_mechanisms(): void
-    {
-        self::assertFalse($this->subject->supports('PLAIN'));
-        self::assertFalse($this->subject->supports('CRAM-MD5'));
-        self::assertFalse($this->subject->supports('DIGEST-MD5'));
-    }
-
     public function test_it_extracts_username_from_standard_client_first(): void
     {
         // n,, GS2 header (no channel binding)
         self::assertSame(
             'testuser',
             $this->subject->extractUsername(
-                ScramMechanism::SHA256,
+                MechanismName::SCRAM_SHA256,
                 'n,,n=testuser,r=clientnonce',
-            )
+            ),
         );
     }
 
@@ -63,8 +46,8 @@ final class ScramUsernameExtractorTest extends TestCase
         self::assertSame(
             'testuser',
             $this->subject->extractUsername(
-                ScramMechanism::SHA256_PLUS,
-                'p=tls-unique,,n=testuser,r=clientnonce'
+                MechanismName::SCRAM_SHA256_PLUS,
+                'p=tls-unique,,n=testuser,r=clientnonce',
             ),
         );
     }
@@ -75,9 +58,9 @@ final class ScramUsernameExtractorTest extends TestCase
         self::assertSame(
             'user,name',
             $this->subject->extractUsername(
-                ScramMechanism::SHA256,
+                MechanismName::SCRAM_SHA256,
                 'n,,n=user=2Cname,r=nonce',
-            )
+            ),
         );
     }
 
@@ -87,9 +70,9 @@ final class ScramUsernameExtractorTest extends TestCase
         self::assertSame(
             'user=name',
             $this->subject->extractUsername(
-                ScramMechanism::SHA256,
-                'n,,n=user=3Dname,r=nonce'
-            )
+                MechanismName::SCRAM_SHA256,
+                'n,,n=user=3Dname,r=nonce',
+            ),
         );
     }
 
@@ -100,8 +83,8 @@ final class ScramUsernameExtractorTest extends TestCase
 
         // Malformed message with no n= field
         $this->subject->extractUsername(
-            ScramMechanism::SHA256,
-            'n,,r=nonce'
+            MechanismName::SCRAM_SHA256,
+            'n,,r=nonce',
         );
     }
 
@@ -111,7 +94,7 @@ final class ScramUsernameExtractorTest extends TestCase
         self::assertSame(
             'testuser',
             $this->subject->extractUsername(
-                ScramMechanism::SHA256,
+                MechanismName::SCRAM_SHA256,
                 'n=testuser,r=nonce',
             ),
         );

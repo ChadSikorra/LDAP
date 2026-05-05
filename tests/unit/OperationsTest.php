@@ -33,43 +33,24 @@ use FreeDSx\Ldap\Operation\Request\UnbindRequest;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Search\Filters;
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\DigestMD5Options;
 use PHPUnit\Framework\TestCase;
 
 class OperationsTest extends TestCase
 {
     public function test_it_should_create_a_sasl_bind(): void
     {
+        $options = new DigestMD5Options();
+
         self::assertEquals(
-            new SaslBindRequest(
-                '',
-                null,
-                [
-                    'username' => 'foo',
-                    'password' => 'bar'
-                ]
-            ),
-            Operations::bindSasl([
-                'username' => 'foo',
-                'password' => 'bar',
-            ])
+            new SaslBindRequest('', null, $options),
+            Operations::bindSasl($options)
         );
 
         self::assertEquals(
-            new SaslBindRequest(
-                'DIGEST-MD5',
-                null,
-                [
-                    'username' => 'foo',
-                    'password' => 'bar',
-                ]
-            ),
-            Operations::bindSasl(
-                [
-                    'username' => 'foo',
-                    'password' => 'bar',
-                ],
-                'DIGEST-MD5'
-            )
+            new SaslBindRequest('DIGEST-MD5', null, $options),
+            Operations::bindSasl($options, MechanismName::DIGEST_MD5)
         );
     }
 

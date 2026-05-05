@@ -31,6 +31,9 @@ use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyRequest;
 use FreeDSx\Ldap\Operation\Request\PasswordModifyRequest;
 use FreeDSx\Ldap\Operation\Request\SaslBindRequest;
+use FreeDSx\Sasl\Mechanism\MechanismName;
+use FreeDSx\Sasl\Options\ChallengeOptionsInterface;
+use FreeDSx\Sasl\Options\SelectOptions;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\Request\SimpleBindRequest;
 use FreeDSx\Ldap\Operation\Request\SyncRequest;
@@ -80,18 +83,18 @@ class Operations
 
     /**
      * A SASL bind request with a specific mechanism and their associated options.
-     *
-     * @param array<string, mixed> $options
      */
     public static function bindSasl(
-        array $options = [],
-        string $mechanism = '',
+        ?ChallengeOptionsInterface $options = null,
+        ?MechanismName $mechanism = null,
         ?string $credentials = null,
+        ?SelectOptions $selectOptions = null,
     ): SaslBindRequest {
         return new SaslBindRequest(
-            mechanism: $mechanism,
+            mechanism: $mechanism !== null ? $mechanism->value : '',
             credentials: $credentials,
             options: $options,
+            selectOptions: $selectOptions,
         );
     }
 
