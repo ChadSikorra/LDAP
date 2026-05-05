@@ -17,6 +17,7 @@ use InvalidArgumentException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Tests\Performance\FreeDSx\Ldap\Report\Report;
 use Tests\Performance\FreeDSx\Ldap\Threshold\CiThresholds;
@@ -207,11 +208,15 @@ final class LoadTestCommand extends Command
         InputInterface $input,
         OutputInterface $output,
     ): int {
+        $errorOutput = $output instanceof ConsoleOutputInterface
+            ? $output->getErrorOutput()
+            : $output;
+
         try {
             $config = $this->buildConfig($input);
             $thresholds = $this->buildThresholds($input);
         } catch (InvalidArgumentException $e) {
-            $output->writeln('<error>Configuration error: ' . $e->getMessage() . '</error>');
+            $errorOutput->writeln('<error>Configuration error: ' . $e->getMessage() . '</error>');
 
             return Command::INVALID;
         }
@@ -219,7 +224,7 @@ final class LoadTestCommand extends Command
         try {
             $snapshot = (new Driver($config))->run($output);
         } catch (Throwable $e) {
-            $output->writeln('<error>Load test failed: ' . $e->getMessage() . '</error>');
+            $errorOutput->writeln('<error>Load test failed: ' . $e->getMessage() . '</error>');
 
             return Command::FAILURE;
         }
@@ -246,7 +251,7 @@ final class LoadTestCommand extends Command
         }
 
         $this->renderThresholdFailure(
-            $output,
+            $errorOutput,
             $result,
         );
 
