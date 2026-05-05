@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Server\Backend\Auth;
 
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use SensitiveParameter;
 
 /**
@@ -61,7 +62,7 @@ final class PasswordAuthenticator implements PasswordAuthenticatableInterface
 
     public function getPassword(
         string $username,
-        string $mechanism,
+        MechanismName $mechanism,
     ): ?string {
         $entry = $this->nameResolver->resolve($username, $this->backend);
 

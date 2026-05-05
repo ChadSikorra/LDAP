@@ -60,7 +60,7 @@ class ScramMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
 
             return (new ScramOptions())->setPassword(
                 $this->requirePassword(
-                    $this->handler->getPassword($this->username, $mechanism->value),
+                    $this->handler->getPassword($this->username, $mechanism),
                 ),
             );
         }

@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Auth;
 
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use SensitiveParameter;
 
 /**
@@ -38,6 +39,6 @@ interface PasswordAuthenticatableInterface
      */
     public function getPassword(
         string $username,
-        string $mechanism,
+        MechanismName $mechanism,
     ): ?string;
 }

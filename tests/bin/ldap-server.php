@@ -11,6 +11,7 @@ use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Write\Command\AddCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
@@ -157,7 +158,7 @@ class LdapServerBackend implements WritableLdapBackendInterface, PasswordAuthent
 
     public function getPassword(
         string $username,
-        string $mechanism,
+        MechanismName $mechanism,
     ): ?string {
         return $this->users[$username] ?? null;
     }

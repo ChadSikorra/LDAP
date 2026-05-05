@@ -52,7 +52,7 @@ final class ScramMechanismOptionsBuilderTest extends TestCase
         $this->mockHandler
             ->expects(self::once())
             ->method('getPassword')
-            ->with('testuser', MechanismName::SCRAM_SHA256->value)
+            ->with('testuser', MechanismName::SCRAM_SHA256)
             ->willReturn('secret');
 
         $this->subject->buildOptions('n,,n=testuser,r=clientnonce123', MechanismName::SCRAM_SHA256);
@@ -67,7 +67,7 @@ final class ScramMechanismOptionsBuilderTest extends TestCase
         $this->mockHandler
             ->expects(self::once())
             ->method('getPassword')
-            ->with('user', MechanismName::SCRAM_SHA512->value)
+            ->with('user', MechanismName::SCRAM_SHA512)
             ->willReturn('pw');
 
         $this->subject->buildOptions('n,,n=user,r=nonce', MechanismName::SCRAM_SHA512);
@@ -102,7 +102,7 @@ final class ScramMechanismOptionsBuilderTest extends TestCase
         $this->mockHandler
             ->expects(self::once())
             ->method('getPassword')
-            ->with('user,name=test', MechanismName::SCRAM_SHA256->value)
+            ->with('user,name=test', MechanismName::SCRAM_SHA256)
             ->willReturn('pw');
 
         // ',' encoded as '=2C', '=' encoded as '=3D'
@@ -128,7 +128,7 @@ final class ScramMechanismOptionsBuilderTest extends TestCase
         $this->mockHandler
             ->expects(self::once())
             ->method('getPassword')
-            ->with('user', MechanismName::SCRAM_SHA256->value)
+            ->with('user', MechanismName::SCRAM_SHA256)
             ->willReturn('pw');
 
         // No ',,' separator — treat the whole string as the bare client-first-message.
