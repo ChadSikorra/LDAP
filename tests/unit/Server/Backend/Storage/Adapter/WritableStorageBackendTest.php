@@ -27,7 +27,9 @@ use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\TimeLimitExceededException;
+use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
+use FreeDSx\Ldap\Server\SearchLimits;
 use Generator;
 use PHPUnit\Framework\MockObject\MockObject;
 use FreeDSx\Ldap\Server\Backend\Write\Command\AddCommand;
@@ -700,5 +702,65 @@ final class WritableStorageBackendTest extends TestCase
 
         self::assertNull($this->subject->get(new Dn('cn=Alice,dc=example,dc=com')));
         self::assertNotNull($this->subject->get(new Dn('cn=Alicia,dc=example,dc=com')));
+    }
+
+    /**
+     * @dataProvider provideMaxSearchTimeLimitCases
+     */
+    public function test_max_search_time_limit_computes_effective_time_limit(
+        int $serverMax,
+        int $requestLimit,
+        int $expectedLimit,
+    ): void {
+        $capturedOptions = null;
+
+        /** @var EntryStorageInterface&MockObject $storage */
+        $storage = $this->createMock(EntryStorageInterface::class);
+        $storage->method('exists')->willReturn(true);
+        $storage
+            ->method('list')
+            ->willReturnCallback(function (StorageListOptions $opts) use (&$capturedOptions): EntryStream {
+                $capturedOptions = $opts;
+
+                return new EntryStream($this->makeGenerator());
+            });
+
+        $subject = new WritableStorageBackend(
+            storage: $storage,
+            limits: new SearchLimits(maxSearchTimeLimit: $serverMax),
+        );
+
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('dc=example,dc=com')
+            ->useSingleLevelScope()
+            ->timeLimit($requestLimit);
+
+        iterator_to_array($subject->search($request)->entries);
+
+        self::assertSame(
+            $expectedLimit,
+            $capturedOptions?->timeLimit,
+        );
+    }
+
+    /**
+     * @return array<string, array{int, int, int}>
+     */
+    public static function provideMaxSearchTimeLimitCases(): array
+    {
+        return [
+            'server cap applies when client requests no limit' => [5, 0, 5],
+            'server cap overrides when client exceeds it'      => [5, 10, 5],
+            'client limit used when below server max'          => [5, 3, 3],
+            'no server cap preserves client limit'             => [0, 10, 10],
+        ];
+    }
+
+    /**
+     * @return Generator<Entry>
+     */
+    private function makeGenerator(Entry ...$entries): Generator
+    {
+        yield from $entries;
     }
 }

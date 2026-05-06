@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
+use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use Psr\Log\LoggerInterface;
@@ -131,6 +132,12 @@ final class ServerOptions
     private bool $useSwooleRunner = false;
 
     private int $maxConnections = 0;
+
+    private int $maxSearchSize = 1000;
+
+    private int $maxSearchTimeLimit = 120;
+
+    private int $maxSearchPageSize = 1000;
 
     private ?\Closure $onServerReady = null;
 
@@ -484,6 +491,60 @@ final class ServerOptions
         $this->maxConnections = $maxConnections;
 
         return $this;
+    }
+
+    /**
+     * Maximum entries returned per search (default 1000). Zero means no server-side limit.
+     */
+    public function getMaxSearchSize(): int
+    {
+        return $this->maxSearchSize;
+    }
+
+    public function setMaxSearchSize(int $maxSearchSize): self
+    {
+        $this->maxSearchSize = $maxSearchSize;
+
+        return $this;
+    }
+
+    /**
+     * Maximum seconds a search may run (default 120). Zero means no server-side limit.
+     */
+    public function getMaxSearchTimeLimit(): int
+    {
+        return $this->maxSearchTimeLimit;
+    }
+
+    public function setMaxSearchTimeLimit(int $maxSearchTimeLimit): self
+    {
+        $this->maxSearchTimeLimit = $maxSearchTimeLimit;
+
+        return $this;
+    }
+
+    /**
+     * Maximum entries per paged-search page (default 1000). Zero means no server-side limit.
+     */
+    public function getMaxSearchPageSize(): int
+    {
+        return $this->maxSearchPageSize;
+    }
+
+    public function setMaxSearchPageSize(int $maxSearchPageSize): self
+    {
+        $this->maxSearchPageSize = $maxSearchPageSize;
+
+        return $this;
+    }
+
+    public function makeSearchLimits(): SearchLimits
+    {
+        return new SearchLimits(
+            maxSearchSize: $this->maxSearchSize,
+            maxSearchTimeLimit: $this->maxSearchTimeLimit,
+            maxSearchPageSize: $this->maxSearchPageSize,
+        );
     }
 
     /**

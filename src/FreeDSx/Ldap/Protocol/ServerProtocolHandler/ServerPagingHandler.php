@@ -28,6 +28,7 @@ use FreeDSx\Ldap\Server\Paging\PagingRequestComparator;
 use FreeDSx\Ldap\Server\Paging\PagingResponse;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
+use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use Generator;
 use Throwable;
@@ -47,6 +48,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         private readonly FilterEvaluatorInterface $filterEvaluator,
         private readonly RequestHistory $requestHistory,
         private readonly PagingRequestComparator $requestComparator = new PagingRequestComparator(),
+        private readonly SearchLimits $limits = new SearchLimits(),
     ) {
     }
 
@@ -260,11 +262,20 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         bool $isPreFiltered = false,
     ): CollectedPage {
         $page = [];
-        $pageLimit = $pageSize > 0 ? $pageSize : PHP_INT_MAX;
-        $sizeLimit = $request->getSizeLimit();
+        $effectivePageSize = $this->effectiveSizeLimit(
+            $pageSize,
+            $this->limits->maxSearchPageSize
+        );
+        $pageLimit = $effectivePageSize > 0
+            ? $effectivePageSize
+            : null;
+        $sizeLimit = $this->effectiveSizeLimit(
+            $request->getSizeLimit(),
+            $this->limits->maxSearchSize,
+        );
         $filter = $request->getFilter();
 
-        while ($generator->valid() && count($page) < $pageLimit) {
+        while ($generator->valid() && $this->pageHasCapacity($page, $pageLimit)) {
             $entry = $generator->current();
 
             if ($entry instanceof Entry && ($isPreFiltered || $this->filterEvaluator->evaluate($entry, $filter))) {
@@ -349,6 +360,17 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
     /**
      * @throws OperationException
      */
+    /**
+     * @param list<Entry> $page
+     */
+    private function pageHasCapacity(
+        array $page,
+        ?int $pageLimit
+    ): bool {
+        return $pageLimit === null
+            || count($page) < $pageLimit;
+    }
+
     private function generateCookie(): string
     {
         try {

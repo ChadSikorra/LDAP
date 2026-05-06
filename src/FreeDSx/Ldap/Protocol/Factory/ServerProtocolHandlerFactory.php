@@ -66,6 +66,7 @@ class ServerProtocolHandlerFactory
                 queue: $this->queue,
                 backend: $this->handlerFactory->makeBackend(),
                 filterEvaluator: $this->handlerFactory->makeFilterEvaluator(),
+                limits: $this->options->makeSearchLimits(),
             );
         } elseif ($request instanceof UnbindRequest) {
             return new ServerProtocolHandler\ServerUnbindHandler($this->queue);
@@ -125,6 +126,7 @@ class ServerProtocolHandlerFactory
             backend: $this->handlerFactory->makeBackend(),
             filterEvaluator: $this->handlerFactory->makeFilterEvaluator(),
             requestHistory: $this->requestHistory,
+            limits: $this->options->makeSearchLimits(),
         );
     }
 }
