@@ -118,6 +118,27 @@ trait ServerSearchTrait
     }
 
     /**
+     * Returns the stricter of the client-requested limit and the server maximum. Zero means no limit.
+     */
+    private function effectiveSizeLimit(
+        int $requestLimit,
+        int $serverMax
+    ): int {
+        if ($serverMax === 0) {
+            return $requestLimit;
+        }
+
+        if ($requestLimit === 0) {
+            return $serverMax;
+        }
+
+        return min(
+            $requestLimit,
+            $serverMax,
+        );
+    }
+
+    /**
      * Returns a ControlBag containing the message controls minus the paging control,
      * which the server consumes itself and must not forward to backends.
      */

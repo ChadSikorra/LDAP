@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
+use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\ServerOptions;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -532,6 +533,77 @@ final class ServerOptionsTest extends TestCase
         self::assertSame(
             $callback,
             $this->subject->getOnServerReady()
+        );
+    }
+
+    public function test_max_search_size_defaults_to_1000(): void
+    {
+        self::assertSame(
+            1000,
+            $this->subject->getMaxSearchSize(),
+        );
+    }
+
+    public function test_it_can_set_max_search_size(): void
+    {
+        $this->subject->setMaxSearchSize(500);
+
+        self::assertSame(
+            500,
+            $this->subject->getMaxSearchSize(),
+        );
+    }
+
+    public function test_max_search_time_limit_defaults_to_120(): void
+    {
+        self::assertSame(
+            120,
+            $this->subject->getMaxSearchTimeLimit(),
+        );
+    }
+
+    public function test_it_can_set_max_search_time_limit(): void
+    {
+        $this->subject->setMaxSearchTimeLimit(60);
+
+        self::assertSame(
+            60,
+            $this->subject->getMaxSearchTimeLimit(),
+        );
+    }
+
+    public function test_max_search_page_size_defaults_to_1000(): void
+    {
+        self::assertSame(
+            1000,
+            $this->subject->getMaxSearchPageSize(),
+        );
+    }
+
+    public function test_it_can_set_max_search_page_size(): void
+    {
+        $this->subject->setMaxSearchPageSize(250);
+
+        self::assertSame(
+            250,
+            $this->subject->getMaxSearchPageSize(),
+        );
+    }
+
+    public function test_make_search_limits_reflects_current_options(): void
+    {
+        $this->subject
+            ->setMaxSearchSize(500)
+            ->setMaxSearchTimeLimit(60)
+            ->setMaxSearchPageSize(250);
+
+        self::assertEquals(
+            new SearchLimits(
+                maxSearchSize: 500,
+                maxSearchTimeLimit: 60,
+                maxSearchPageSize: 250,
+            ),
+            $this->subject->makeSearchLimits(),
         );
     }
 

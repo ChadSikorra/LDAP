@@ -26,6 +26,10 @@ LDAP Server Configuration
     * [ServerOptions:setSslCert](#setsslcert)
     * [ServerOptions:setSslCertKey](#setsslcertkey)
     * [ServerOptions:setSslCertPassphrase](#setsslcertpassphrase)
+* [Search Limits](#search-limits)
+    * [ServerOptions:setMaxSearchSize](#setmaxsearchsize)
+    * [ServerOptions:setMaxSearchTimeLimit](#setmaxsearchtimelimit)
+    * [ServerOptions:setMaxSearchPageSize](#setmaxsearchpagesize)
 * [SASL Options](#sasl-options)
     * [ServerOptions:setSaslMechanisms](#setsaslmechanisms)
 
@@ -376,6 +380,35 @@ to use an encrypted stream only for communication to the server.
 **Note**: LDAP over SSL, commonly referred to as LDAPS, is not an official LDAP standard. Support is dependent on the client / server specific implementations.
 
 **Default**: `false`
+
+## Search Limits
+
+Server-side caps applied independently of what the client requests. When both the client and server specify a limit, the
+stricter value wins. A server value of `0` means no server-side cap.
+
+------------------
+#### setMaxSearchSize
+
+Maximum number of entries the server will return for any single search. When the cap is reached the server returns a
+`SIZE_LIMIT_EXCEEDED` result code and stops sending entries.
+
+**Default**: `1000`
+
+------------------
+#### setMaxSearchTimeLimit
+
+Maximum number of seconds a search operation may run. When exceeded the server returns a `TIME_LIMIT_EXCEEDED` result
+code.
+
+**Default**: `120`
+
+------------------
+#### setMaxSearchPageSize
+
+The maximum number of entries the server will return per page in a paged search. When the client requests a larger page size
+(or sends `0` meaning "server decides"), this cap is applied.
+
+**Default**: `1000`
 
 ## SASL Options
 

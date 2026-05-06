@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
+use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use Generator;
 
@@ -38,6 +39,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         private readonly ServerQueue $queue,
         private readonly LdapBackendInterface $backend,
         private readonly FilterEvaluatorInterface $filterEvaluator,
+        private readonly SearchLimits $limits = new SearchLimits(),
     ) {
     }
 
@@ -93,7 +95,10 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         SearchRequest $request,
         SearchResultState $state,
     ): Generator {
-        $sizeLimit = $request->getSizeLimit();
+        $sizeLimit = $this->effectiveSizeLimit(
+            $request->getSizeLimit(),
+            $this->limits->maxSearchSize,
+        );
         $filter = $request->getFilter();
         $isPreFiltered = $backend->isPreFiltered;
         $emitted = 0;

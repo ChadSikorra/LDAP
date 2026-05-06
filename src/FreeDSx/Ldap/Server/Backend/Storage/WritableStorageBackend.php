@@ -32,6 +32,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Exception\TimeLimitExceededException;
 use FreeDSx\Ldap\Server\Backend\Write\WritableBackendTrait;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
+use FreeDSx\Ldap\Server\SearchLimits;
 use Generator;
 
 /**
@@ -54,6 +55,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     public function __construct(
         private readonly EntryStorageInterface $storage,
         private readonly WriteEntryOperationHandler $entryHandler = new WriteEntryOperationHandler(),
+        private readonly SearchLimits $limits = new SearchLimits(),
         array $namingContexts = [],
     ) {
         $normalised = [];
@@ -132,7 +134,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             baseDn: $normBase,
             subtree: $subtree,
             filter: $request->getFilter(),
-            timeLimit: $request->getTimeLimit(),
+            timeLimit: $this->effectiveTimeLimit($request->getTimeLimit()),
             sizeLimit: $request->getSizeLimit(),
         );
 
@@ -158,6 +160,24 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     private function yieldSingle(Entry $entry): Generator
     {
         yield $entry;
+    }
+
+    private function effectiveTimeLimit(int $requestLimit): int
+    {
+        $serverMax = $this->limits->maxSearchTimeLimit;
+
+        if ($serverMax === 0) {
+            return $requestLimit;
+        }
+
+        if ($requestLimit === 0) {
+            return $serverMax;
+        }
+
+        return min(
+            $requestLimit,
+            $serverMax,
+        );
     }
 
     /**

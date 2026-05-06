@@ -32,6 +32,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Paging\PagingRequest;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
+use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use Generator;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -388,6 +389,124 @@ class ServerPagingHandlerTest extends TestCase
         }
 
         self::assertTrue($sizeLimitExceededSeen, 'Expected SIZE_LIMIT_EXCEEDED on the second page.');
+    }
+
+    public function test_server_max_search_size_applies_to_paged_search_when_client_requests_no_limit(): void
+    {
+        $searchRequest = (new SearchRequest(Filters::raw('(foo=bar)')))
+            ->base('dc=foo,dc=bar')
+            ->sizeLimit(0);
+        $message = $this->makeSearchMessage(size: 10, searchRequest: $searchRequest);
+
+        $entry1 = Entry::create('cn=1,dc=foo,dc=bar', ['cn' => '1']);
+        $entry2 = Entry::create('cn=2,dc=foo,dc=bar', ['cn' => '2']);
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
+
+        $subject = new ServerPagingHandler(
+            queue: $this->mockQueue,
+            backend: $this->mockBackend,
+            filterEvaluator: $this->mockFilterEvaluator,
+            requestHistory: $this->requestHistory,
+            limits: new SearchLimits(maxSearchSize: 1),
+        );
+        $subject->handleRequest($message, $this->mockToken);
+
+        self::assertEquals(
+            [new LdapMessageResponse(2, new SearchResultEntry($entry1))],
+            $this->entryMessages(),
+        );
+
+        $done = $this->doneMessage()->getResponse();
+        self::assertInstanceOf(SearchResultDone::class, $done);
+        self::assertSame(ResultCode::SIZE_LIMIT_EXCEEDED, $done->getResultCode());
+    }
+
+    public function test_server_max_page_size_caps_client_page_size(): void
+    {
+        $message = $this->makeSearchMessage(size: 10);
+
+        $entry1 = Entry::create('cn=1,dc=foo,dc=bar', ['cn' => '1']);
+        $entry2 = Entry::create('cn=2,dc=foo,dc=bar', ['cn' => '2']);
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
+
+        $subject = new ServerPagingHandler(
+            queue: $this->mockQueue,
+            backend: $this->mockBackend,
+            filterEvaluator: $this->mockFilterEvaluator,
+            requestHistory: $this->requestHistory,
+            limits: new SearchLimits(maxSearchPageSize: 1),
+        );
+        $subject->handleRequest($message, $this->mockToken);
+
+        // Only 1 entry returned despite client requesting page size 10.
+        self::assertEquals(
+            [new LdapMessageResponse(2, new SearchResultEntry($entry1))],
+            $this->entryMessages(),
+        );
+        // Non-empty cookie means entry2 is still waiting.
+        self::assertNotSame('', $this->donePagingControl()->getCookie());
+    }
+
+    public function test_server_max_page_size_is_used_when_client_sends_zero(): void
+    {
+        // pageSize=0 at the start means "server chooses".
+        $message = $this->makeSearchMessage(size: 0);
+
+        $entry1 = Entry::create('cn=1,dc=foo,dc=bar', ['cn' => '1']);
+        $entry2 = Entry::create('cn=2,dc=foo,dc=bar', ['cn' => '2']);
+        $entry3 = Entry::create('cn=3,dc=foo,dc=bar', ['cn' => '3']);
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2, $entry3)));
+
+        $subject = new ServerPagingHandler(
+            queue: $this->mockQueue,
+            backend: $this->mockBackend,
+            filterEvaluator: $this->mockFilterEvaluator,
+            requestHistory: $this->requestHistory,
+            limits: new SearchLimits(maxSearchPageSize: 2),
+        );
+        $subject->handleRequest($message, $this->mockToken);
+
+        // Server applies its max of 2 entries per page.
+        self::assertCount(2, $this->entryMessages());
+        // entry3 still waiting.
+        self::assertNotSame('', $this->donePagingControl()->getCookie());
+    }
+
+    public function test_client_page_size_is_honoured_when_below_server_max(): void
+    {
+        $message = $this->makeSearchMessage(size: 1);
+
+        $entry1 = Entry::create('cn=1,dc=foo,dc=bar', ['cn' => '1']);
+        $entry2 = Entry::create('cn=2,dc=foo,dc=bar', ['cn' => '2']);
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
+
+        $subject = new ServerPagingHandler(
+            queue: $this->mockQueue,
+            backend: $this->mockBackend,
+            filterEvaluator: $this->mockFilterEvaluator,
+            requestHistory: $this->requestHistory,
+            limits: new SearchLimits(maxSearchPageSize: 5),
+        );
+        $subject->handleRequest($message, $this->mockToken);
+
+        // Client requested 1 per page; server max is 5 — client's lower value wins.
+        self::assertEquals(
+            [new LdapMessageResponse(2, new SearchResultEntry($entry1))],
+            $this->entryMessages(),
+        );
+        self::assertNotSame('', $this->donePagingControl()->getCookie());
     }
 
     private function makeExistingPagingRequest(

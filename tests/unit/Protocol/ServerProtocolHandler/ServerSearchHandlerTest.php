@@ -27,6 +27,7 @@ use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
+use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use Generator;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -257,6 +258,108 @@ final class ServerSearchHandlerTest extends TestCase
             new LdapMessageResponse(2, new SearchResultEntry($entry1)),
             new LdapMessageResponse(2, new SearchResultEntry($entry2)),
             new LdapMessageResponse(2, new SearchResultDone(0, 'dc=foo,dc=bar')),
+        ]);
+    }
+
+    public function test_server_max_search_size_applies_when_client_requests_no_limit(): void
+    {
+        $entry1 = Entry::create('dc=foo,dc=bar', ['cn' => 'foo']);
+        $entry2 = Entry::create('dc=bar,dc=foo', ['cn' => 'bar']);
+
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::equal('foo', 'bar')))
+                ->base('dc=foo,dc=bar')
+                ->sizeLimit(0)
+        );
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
+
+        $this->mockFilterEvaluator
+            ->method('evaluate')
+            ->willReturn(true);
+
+        $subject = new ServerSearchHandler(
+            queue: $this->mockQueue,
+            backend: $this->mockBackend,
+            filterEvaluator: $this->mockFilterEvaluator,
+            limits: new SearchLimits(maxSearchSize: 1),
+        );
+        $subject->handleRequest($search, $this->mockToken);
+
+        $this->assertSentMessages([
+            new LdapMessageResponse(2, new SearchResultEntry($entry1)),
+            new LdapMessageResponse(2, new SearchResultDone(ResultCode::SIZE_LIMIT_EXCEEDED, 'dc=foo,dc=bar')),
+        ]);
+    }
+
+    public function test_client_size_limit_is_used_when_below_server_max(): void
+    {
+        $entry1 = Entry::create('dc=foo,dc=bar', ['cn' => 'foo']);
+        $entry2 = Entry::create('dc=bar,dc=foo', ['cn' => 'bar']);
+
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::equal('foo', 'bar')))
+                ->base('dc=foo,dc=bar')
+                ->sizeLimit(1)
+        );
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
+
+        $this->mockFilterEvaluator
+            ->method('evaluate')
+            ->willReturn(true);
+
+        $subject = new ServerSearchHandler(
+            queue: $this->mockQueue,
+            backend: $this->mockBackend,
+            filterEvaluator: $this->mockFilterEvaluator,
+            limits: new SearchLimits(maxSearchSize: 5),
+        );
+        $subject->handleRequest($search, $this->mockToken);
+
+        $this->assertSentMessages([
+            new LdapMessageResponse(2, new SearchResultEntry($entry1)),
+            new LdapMessageResponse(2, new SearchResultDone(ResultCode::SIZE_LIMIT_EXCEEDED, 'dc=foo,dc=bar')),
+        ]);
+    }
+
+    public function test_server_max_search_size_caps_client_limit_when_exceeded(): void
+    {
+        $entry1 = Entry::create('dc=foo,dc=bar', ['cn' => 'foo']);
+        $entry2 = Entry::create('dc=bar,dc=foo', ['cn' => 'bar']);
+
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::equal('foo', 'bar')))
+                ->base('dc=foo,dc=bar')
+                ->sizeLimit(5)
+        );
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
+
+        $this->mockFilterEvaluator
+            ->method('evaluate')
+            ->willReturn(true);
+
+        $subject = new ServerSearchHandler(
+            queue: $this->mockQueue,
+            backend: $this->mockBackend,
+            filterEvaluator: $this->mockFilterEvaluator,
+            limits: new SearchLimits(maxSearchSize: 1),
+        );
+        $subject->handleRequest($search, $this->mockToken);
+
+        $this->assertSentMessages([
+            new LdapMessageResponse(2, new SearchResultEntry($entry1)),
+            new LdapMessageResponse(2, new SearchResultDone(ResultCode::SIZE_LIMIT_EXCEEDED, 'dc=foo,dc=bar')),
         ]);
     }
 

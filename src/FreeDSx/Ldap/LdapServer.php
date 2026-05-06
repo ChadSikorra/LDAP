@@ -74,6 +74,7 @@ class LdapServer
     {
         return $this->useBackend(new WritableStorageBackend(
             storage: $storage,
+            limits: $this->options->makeSearchLimits(),
             namingContexts: $this->options->getDseNamingContexts(),
         ));
     }
