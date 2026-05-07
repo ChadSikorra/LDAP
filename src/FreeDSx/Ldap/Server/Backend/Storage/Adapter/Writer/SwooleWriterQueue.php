@@ -33,8 +33,13 @@ final class SwooleWriterQueue implements WriterQueueInterface
 
     private bool $started = false;
 
-    public function __construct(private readonly int $capacity = 1024)
-    {
+    /**
+     * @param Closure(Closure(): void): void|null $batchWrapper Wraps a batch of jobs in an outer transaction.
+     */
+    public function __construct(
+        private readonly int $capacity = 1024,
+        private readonly ?Closure $batchWrapper = null,
+    ) {
     }
 
     /**
@@ -81,22 +86,82 @@ final class SwooleWriterQueue implements WriterQueueInterface
      */
     private function spawnWriter(Channel $jobs): void
     {
-        Coroutine::create(static function () use ($jobs): void {
+        $batchWrapper = $this->batchWrapper;
+        $executeBatch = self::executeBatch(...);
+
+        Coroutine::create(static function () use ($jobs, $batchWrapper, $executeBatch): void {
             while (true) {
-                $job = $jobs->pop();
-                if ($job === false) {
+                $first = $jobs->pop();
+                if ($first === false) {
                     return;
                 }
 
-                [$closure, $reply] = $job;
+                $batch = [$first];
+                while (!$jobs->isEmpty()) {
+                    $next = $jobs->pop();
+                    if ($next === false) {
+                        break;
+                    }
+                    $batch[] = $next;
+                }
 
-                try {
-                    $closure();
-                    $reply->push(true);
-                } catch (Throwable $e) {
-                    $reply->push($e);
+                if (count($batch) === 1 || $batchWrapper === null) {
+                    foreach ($batch as [$closure, $reply]) {
+                        try {
+                            $closure();
+                            $reply->push(true);
+                        } catch (Throwable $e) {
+                            $reply->push($e);
+                        }
+                    }
+                } else {
+                    $executeBatch(
+                        $batch,
+                        $batchWrapper,
+                    );
                 }
             }
         });
+    }
+
+    /**
+     * Executes a batch under a single outer transaction, isolating per-job failures via savepoints.
+     *
+     * @internal
+     *
+     * @param list<array{Closure, Channel<mixed>}> $batch
+     * @param Closure(Closure(): void): void $batchWrapper
+     */
+    public static function executeBatch(
+        array $batch,
+        Closure $batchWrapper,
+    ): void {
+        $results = array_fill(
+            0,
+            count($batch),
+            true,
+        );
+
+        try {
+            $batchWrapper(static function () use ($batch, &$results): void {
+                foreach ($batch as $i => [$closure]) {
+                    try {
+                        $closure();
+                    } catch (Throwable $e) {
+                        $results[$i] = $e;
+                    }
+                }
+            });
+        } catch (Throwable $e) {
+            foreach ($batch as [, $reply]) {
+                $reply->push($e);
+            }
+
+            return;
+        }
+
+        foreach ($batch as $i => [, $reply]) {
+            $reply->push($results[$i]);
+        }
     }
 }

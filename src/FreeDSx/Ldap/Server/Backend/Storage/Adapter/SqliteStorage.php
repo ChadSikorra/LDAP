@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter;
 
+use Closure;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\SqliteDialect;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactoryInterface;
@@ -55,11 +56,14 @@ final class SqliteStorage implements PdoStorageFactoryInterface
     public static function forSwoole(string $dbPath): EntryStorageInterface
     {
         $factory = new self($dbPath);
+        $writesStorage = $factory->createShared();
 
         return new WriteSerializingStorage(
             reads: $factory->createPerCoroutine(),
-            writes: $factory->createShared(),
-            queue: new SwooleWriterQueue(),
+            writes: $writesStorage,
+            queue: new SwooleWriterQueue(
+                batchWrapper: static fn(Closure $cb) => $writesStorage->atomic(static fn() => $cb()),
+            ),
         );
     }
 
