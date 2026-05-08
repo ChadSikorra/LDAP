@@ -1,0 +1,66 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * This file is part of the FreeDSx LDAP package.
+ *
+ * (c) Chad Sikorra <Chad.Sikorra@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Tests\Unit\FreeDSx\Ldap\Schema\Matching;
+
+use FreeDSx\Ldap\Schema\Matching\CaseIgnoreIa5Comparator;
+use FreeDSx\Ldap\Schema\Matching\SubstringAssertion;
+use PHPUnit\Framework\TestCase;
+
+final class CaseIgnoreIa5ComparatorTest extends TestCase
+{
+    private CaseIgnoreIa5Comparator $subject;
+
+    protected function setUp(): void
+    {
+        $this->subject = new CaseIgnoreIa5Comparator();
+    }
+
+    public function test_equals_case_insensitive(): void
+    {
+        $result = $this->subject->equals('user@example.com', 'USER@EXAMPLE.COM');
+
+        self::assertTrue($result);
+    }
+
+    public function test_equals_different_values(): void
+    {
+        $result = $this->subject->equals('foo@example.com', 'bar@example.com');
+
+        self::assertFalse($result);
+    }
+
+    public function test_compare_equal(): void
+    {
+        $result = $this->subject->compare('foo', 'FOO');
+
+        self::assertSame(0, $result);
+    }
+
+    public function test_compare_less_than(): void
+    {
+        $result = $this->subject->compare('a', 'B');
+
+        self::assertLessThan(0, $result);
+    }
+
+    public function test_substring_case_insensitive_match(): void
+    {
+        $result = $this->subject->substringMatches(
+            'user@example.com',
+            new SubstringAssertion(initial: 'USER'),
+        );
+
+        self::assertTrue($result);
+    }
+}

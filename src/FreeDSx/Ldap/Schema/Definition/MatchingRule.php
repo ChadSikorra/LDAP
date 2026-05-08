@@ -1,0 +1,59 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * This file is part of the FreeDSx LDAP package.
+ *
+ * (c) Chad Sikorra <Chad.Sikorra@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace FreeDSx\Ldap\Schema\Definition;
+
+use FreeDSx\Ldap\Schema\Matching\MatchingRuleComparatorInterface;
+
+/**
+ * A matching rule definition per RFC 4512 §4.1.3; carries its comparator strategy.
+ */
+final readonly class MatchingRule
+{
+    use DefinitionStringTrait;
+
+    /**
+     * @param list<string> $names
+     * @param array<string, list<string>> $extensions
+     */
+    public function __construct(
+        public string $oid,
+        public array $names,
+        public string $syntaxOid,
+        public MatchingRuleComparatorInterface $comparator,
+        public ?string $desc = null,
+        public bool $obsolete = false,
+        public array $extensions = [],
+    ) {
+    }
+
+    /**
+     * Produces the description string used in the subschema matchingRules attribute.
+     */
+    public function toDescriptionString(): string
+    {
+        $parts = array_filter([
+            '( ' . $this->oid,
+            $this->names !== [] ? DefinitionKeyword::NAME . ' ' . $this->formatDescriptors($this->names) : null,
+            $this->token(DefinitionKeyword::DESC, $this->desc !== null ? $this->quoteString($this->desc) : null),
+            $this->obsolete ? DefinitionKeyword::OBSOLETE : null,
+            DefinitionKeyword::SYNTAX . ' ' . $this->syntaxOid,
+        ]);
+
+        foreach ($this->extensions as $name => $values) {
+            $parts[] = $name . ' ' . $this->formatDescriptors($values);
+        }
+
+        return implode(' ', $parts) . ' )';
+    }
+}
