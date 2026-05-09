@@ -64,7 +64,7 @@ final class ClientSaslBindHandlerTest extends TestCase
             ->willReturnSelf();
         $this->mockQueue
             ->method('generateId')
-            ->will($this->onConsecutiveCalls(2, 3, 4, 5, 6));
+            ->willReturnOnConsecutiveCalls(2, 3, 4, 5, 6);
 
         $this->saslChallenge = new LdapMessageResponse(
             1,
@@ -90,10 +90,10 @@ final class ClientSaslBindHandlerTest extends TestCase
 
         $this->mockQueue
             ->method('getMessage')
-            ->will(self::onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 $this->saslChallenge,
                 $this->saslComplete,
-            ));
+            );
 
         $this->mockSasl
             ->expects($this->once())
@@ -113,10 +113,10 @@ final class ClientSaslBindHandlerTest extends TestCase
 
         $this->mockChallenge
             ->method('challenge')
-            ->will($this->onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 (new SaslContext())->setResponse('foo'),
                 (new SaslContext())->setResponse('foo')->setIsComplete(true),
-            ));
+            );
 
         $this->mockRootDseLoader
             ->method('load')
@@ -138,10 +138,10 @@ final class ClientSaslBindHandlerTest extends TestCase
 
         $this->mockQueue
             ->method('getMessage')
-            ->will($this->onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 $this->saslChallenge,
                 $this->saslComplete,
-            ));
+            );
 
         $this->mockSasl
             ->method('select')
@@ -156,15 +156,15 @@ final class ClientSaslBindHandlerTest extends TestCase
 
         $this->mockChallenge
             ->method('challenge')
-            ->will($this->onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 (new SaslContext())->setResponse('foo'),
                 (new SaslContext())->setResponse('foo')->setIsComplete(true),
-            ));
+            );
 
         $this->mockRootDseLoader
             ->method('load')
             ->with($this->anything())
-            ->will(self::onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 Entry::fromArray('', [
                     'supportedSaslMechanisms' => ['DIGEST-MD5', 'CRAM-MD5'],
                 ]),
@@ -174,7 +174,7 @@ final class ClientSaslBindHandlerTest extends TestCase
                 Entry::fromArray('', [
                     'supportedSaslMechanisms' => ['DIGEST-MD5', 'CRAM-MD5'],
                 ]),
-            ));
+            );
 
         self::expectException(BindException::class);
         self::expectExceptionMessageMatches(
@@ -192,10 +192,10 @@ final class ClientSaslBindHandlerTest extends TestCase
         $this->withStandardRootDseResponse();
         $this->mockQueue
             ->method('getMessage')
-            ->will($this->onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 $this->saslChallenge,
                 $this->saslComplete,
-            ));
+            );
 
         $this->mockSasl
             ->method('get')
@@ -211,10 +211,10 @@ final class ClientSaslBindHandlerTest extends TestCase
 
         $this->mockChallenge
             ->method('challenge')
-            ->will(self::onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 (new SaslContext())->setResponse('foo'),
                 (new SaslContext())->setResponse('foo')->setIsComplete(true),
-            ));
+            );
 
         $this->mockRootDseLoader
             ->expects(self::never())
@@ -233,10 +233,10 @@ final class ClientSaslBindHandlerTest extends TestCase
 
         $this->mockQueue
             ->method('getMessage')
-            ->will(self::onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 $this->saslChallenge,
                 $this->saslComplete,
-            ));
+            );
 
         $this->mockSasl
             ->method('get')
@@ -256,10 +256,10 @@ final class ClientSaslBindHandlerTest extends TestCase
 
         $this->mockChallenge
             ->method('challenge')
-            ->will(self::onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 (new SaslContext())->setResponse('foo'),
                 $completedContext,
-            ));
+            );
 
         $mockSecurityLayer = $this->createMock(SecurityLayerInterface::class);
         $this->mockMech

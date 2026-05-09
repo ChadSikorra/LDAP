@@ -191,10 +191,10 @@ final class DirSyncTest extends TestCase
         $this->client
             ->expects($this->any())
             ->method('send')
-            ->will($this->onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 $this->initialResponse,
                 $this->secondResponse,
-            ));
+            );
 
         $this->subject->getChanges();
         self::assertSame(
@@ -258,10 +258,10 @@ final class DirSyncTest extends TestCase
         $this->client
             ->expects($this->any())
             ->method('send')
-            ->will($this->onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 $this->initialResponse,
                 $this->secondResponse,
-            ));
+            );
 
         $this->subject->getChanges();
         $this->subject->getChanges();

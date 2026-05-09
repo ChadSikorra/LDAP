@@ -23,6 +23,7 @@ use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Server\Token\AnonToken;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Ldap\Operation\Request\SaslBindRequest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class ServerAuthorizationTest extends TestCase
@@ -89,17 +90,13 @@ final class ServerAuthorizationTest extends TestCase
         ));
     }
 
-    /**
-     * @dataProvider authExpectedRequestsDataProvider
-     */
+    #[DataProvider('authExpectedRequestsDataProvider')]
     public function test_it_should_require_authentication_for_all_other_operations(RequestInterface $request): void
     {
         self::assertTrue($this->subject->isAuthenticationRequired($request));
     }
 
-    /**
-     * @dataProvider authExpectedRequestsDataProvider
-     */
+    #[DataProvider('authExpectedRequestsDataProvider')]
     public function test_it_should_not_require_authentication_if_it_has_been_explicitly_disabled(RequestInterface $request): void
     {
         $this->subject = new ServerAuthorization(
@@ -172,9 +169,7 @@ final class ServerAuthorizationTest extends TestCase
         self::assertTrue($this->subject->isAuthenticationRequest(Operations::bind('foo', 'bar')));
     }
 
-    /**
-     * @dataProvider authExpectedRequestsDataProvider
-     */
+    #[DataProvider('authExpectedRequestsDataProvider')]
     public function test_it_should_tell_if_a_request_is_not_an_authentication_type(RequestInterface $request): void
     {
         self::assertFalse($this->subject->isAuthenticationRequest($request));

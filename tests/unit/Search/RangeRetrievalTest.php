@@ -169,10 +169,10 @@ final class RangeRetrievalTest extends TestCase
         $this->mockClient
             ->expects($this->exactly(2))
             ->method('readOrFail')
-            ->will($this->onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 $entry1,
                 $entry2,
-            ));
+            );
 
         self::assertEquals(
             ['foo', 'bar'],

@@ -19,6 +19,7 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Rdn;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class ModifyDnRequestTest extends TestCase
@@ -137,10 +138,9 @@ final class ModifyDnRequestTest extends TestCase
     }
 
     /**
-     * @dataProvider malformedAsn1DataProvider
-     *
      * @param AbstractType<mixed> $type
      */
+    #[DataProvider('malformedAsn1DataProvider')]
     public function test_it_should_not_be_constructed_from_invalid_asn1(AbstractType $type): void
     {
         $this->expectException(ProtocolException::class);

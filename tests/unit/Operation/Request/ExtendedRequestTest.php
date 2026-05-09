@@ -17,6 +17,7 @@ use FreeDSx\Asn1\Asn1;
 use FreeDSx\Asn1\Type\AbstractType;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class ExtendedRequestTest extends TestCase
@@ -95,10 +96,9 @@ final class ExtendedRequestTest extends TestCase
     }
 
     /**
-     * @dataProvider malformedAsn1DataProvider
-     *
      * @param AbstractType<mixed> $type
      */
+    #[DataProvider('malformedAsn1DataProvider')]
     public function test_it_should_detect_invalid_asn1(AbstractType $type): void
     {
         $this->expectException(ProtocolException::class);

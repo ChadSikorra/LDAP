@@ -313,14 +313,14 @@ final class VlvTest extends TestCase
         $this->mockClient
             ->expects($this->atMost(2))
             ->method('sendAndReceive')
-            ->will($this->onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 $this::makeSearchResponseFromEntries(
                     controls: [new VlvResponseControl(1, 200, 0, 'foo')],
                 ),
                 $this::makeSearchResponseFromEntries(
                     controls: [new VlvResponseControl(20, 200, 0, 'foo')],
                 ),
-            ));
+            );
 
         $this->subject->asPercentage();
         $this->subject->getEntries();
@@ -343,14 +343,14 @@ final class VlvTest extends TestCase
         $this->mockClient
             ->expects($this->atMost(2))
             ->method('sendAndReceive')
-            ->will($this->onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 $this::makeSearchResponseFromEntries(
                     controls: [new VlvResponseControl(100, 200, 0, 'foo')],
                 ),
                 $this::makeSearchResponseFromEntries(
                     controls: [new VlvResponseControl(80, 200, 0, 'foo')],
                 ),
-            ));
+            );
 
         $this->subject->asPercentage(true);
         $this->subject->startAt(50);

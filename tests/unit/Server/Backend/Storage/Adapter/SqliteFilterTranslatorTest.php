@@ -25,6 +25,7 @@ use FreeDSx\Ldap\Search\Filter\PresentFilter;
 use FreeDSx\Ldap\Search\Filter\SubstringFilter;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqliteFilterTranslator;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\InvalidAttributeException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class SqliteFilterTranslatorTest extends TestCase
@@ -315,9 +316,7 @@ final class SqliteFilterTranslatorTest extends TestCase
         );
     }
 
-    /**
-     * @dataProvider provideInvalidAttributeDescriptions
-     */
+    #[DataProvider('provideInvalidAttributeDescriptions')]
     public function test_invalid_attribute_description_throws(string $attribute): void
     {
         $this->expectException(InvalidAttributeException::class);

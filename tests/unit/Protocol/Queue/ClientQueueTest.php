@@ -57,10 +57,10 @@ final class ClientQueueTest extends TestCase
 
         $this->mockSocket
             ->method('read')
-            ->will(self::onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 'foo',
                 false,
-            ));
+            );
 
         $this->subject = new ClientQueue(
             $this->mockPool,

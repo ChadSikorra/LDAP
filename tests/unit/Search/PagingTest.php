@@ -89,12 +89,12 @@ final class PagingTest extends TestCase
             ->expects($this->atMost(2))
             ->method('sendAndReceive')
             ->with($this->search, $this->anything())
-            ->will($this->onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 self::makeSearchResponseFromEntries(
                     controls: [new PagingControl(100, 'foo')],
                 ),
                 self::makeSearchResponseFromEntries(),
-            ));
+            );
 
         $this->subject->getEntries();
         $this->subject->end();

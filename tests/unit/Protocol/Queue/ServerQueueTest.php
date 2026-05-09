@@ -42,10 +42,10 @@ final class ServerQueueTest extends TestCase
 
         $this->mockSocket
             ->method('read')
-            ->will(self::onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 'foo',
                 false,
-            ));
+            );
 
         $this->mockEncoder
             ->method('getLastPosition')

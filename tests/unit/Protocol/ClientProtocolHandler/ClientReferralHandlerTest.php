@@ -93,10 +93,10 @@ class ClientReferralHandlerTest extends TestCase
 
         $this->mockLdapClient
             ->method('send')
-            ->will(self::onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 null,
                 $message,
-            ));
+            );
 
         self::assertEquals(
             $message,
@@ -183,13 +183,17 @@ class ClientReferralHandlerTest extends TestCase
 
         $message = new LdapMessageResponse(2, new DeleteResponse(0));
 
+        $callCount = 0;
         $this->mockLdapClient
             ->method('send')
-            ->will(self::onConsecutiveCalls(
-                self::throwException(new ConnectionException()),
-                $message,
-                $message,
-            ));
+            ->willReturnCallback(static function () use (&$callCount, $message): mixed {
+                $callCount++;
+                if ($callCount === 1) {
+                    throw new ConnectionException();
+                }
+
+                return $message;
+            });
 
         self::assertEquals(
             $message,
@@ -227,13 +231,17 @@ class ClientReferralHandlerTest extends TestCase
 
         $message = new LdapMessageResponse(2, new DeleteResponse(0));
 
+        $callCount = 0;
         $this->mockLdapClient
             ->method('send')
-            ->will(self::onConsecutiveCalls(
-                self::throwException(new OperationException('fail', ResultCode::REFERRAL)),
-                $message,
-                $message,
-            ));
+            ->willReturnCallback(static function () use (&$callCount, $message): mixed {
+                $callCount++;
+                if ($callCount === 1) {
+                    throw new OperationException('fail', ResultCode::REFERRAL);
+                }
+
+                return $message;
+            });
 
         self::assertEquals(
             $message,

@@ -34,6 +34,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\SearchLimits;
 use Generator;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Server\Backend\Write\Command\AddCommand;
@@ -820,9 +821,7 @@ final class WritableStorageBackendTest extends TestCase
         self::assertNotNull($this->subject->get(new Dn('cn=Alicia,dc=example,dc=com')));
     }
 
-    /**
-     * @dataProvider provideMaxSearchTimeLimitCases
-     */
+    #[DataProvider('provideMaxSearchTimeLimitCases')]
     public function test_max_search_time_limit_computes_effective_time_limit(
         int $serverMax,
         int $requestLimit,

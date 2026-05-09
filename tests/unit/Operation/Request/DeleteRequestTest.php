@@ -18,6 +18,7 @@ use FreeDSx\Asn1\Type\AbstractType;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Operation\Request\DeleteRequest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class DeleteRequestTest extends TestCase
@@ -65,10 +66,9 @@ final class DeleteRequestTest extends TestCase
     }
 
     /**
-     * @dataProvider malformedAsn1DataProvider
-     *
      * @param AbstractType<mixed> $type
      */
+    #[DataProvider('malformedAsn1DataProvider')]
     public function test_it_should_not_be_constructed_from_invalid_asn1(AbstractType $type): void
     {
         $this->expectException(ProtocolException::class);
