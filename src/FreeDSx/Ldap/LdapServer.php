@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap;
 
+use FreeDSx\Ldap\Schema\SchemaValidationMode;
+use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
@@ -67,8 +69,11 @@ class LdapServer
     /**
      * Specify an entry storage implementation to back the LDAP server.
      *
-     * Use useBackend() instead when implementing a fully custom backend (e.g.
-     * a proxy) that handles LDAP semantics itself.
+     * Schema validation is applied automatically. If you don't want it, set {@see SchemaValidationMode::Off} in your
+     * server options.
+     *
+     * Use {@see useBackend()} instead when implementing a fully custom backend (e.g. a proxy) that handles LDAP
+     * semantics itself.
      */
     public function useStorage(EntryStorageInterface $storage): self
     {
@@ -76,7 +81,22 @@ class LdapServer
             storage: $storage,
             limits: $this->options->makeSearchLimits(),
             namingContexts: $this->options->getDseNamingContexts(),
+            validator: $this->buildSchemaValidator(),
         ));
+    }
+
+    private function buildSchemaValidator(): ?SchemaValidator
+    {
+        $mode = $this->options->getSchemaValidationMode();
+
+        if ($mode === SchemaValidationMode::Off) {
+            return null;
+        }
+
+        return new SchemaValidator(
+            $this->options->getSchema(),
+            $mode,
+        );
     }
 
     /**
