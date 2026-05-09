@@ -26,5 +26,6 @@
         <exclude name="PSR2.Classes.ClassDeclaration.OpenBraceNewLine"/>
         <!-- PER CS 3.0 types_spaces enforces no spaces in union/intersection types; phpcs cannot distinguish type-union | from bitwise | -->
         <exclude name="PSR12.Operators.OperatorSpacing"/>
+        <exclude name="Generic.Files.LineLength"/>
     </rule>
 </ruleset>
