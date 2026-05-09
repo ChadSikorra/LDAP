@@ -23,6 +23,7 @@ use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Search\Result\EntryResult;
 use FreeDSx\Ldap\Search\Result\ReferralResult;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class SearchRequestTest extends TestCase
@@ -273,10 +274,9 @@ final class SearchRequestTest extends TestCase
     }
 
     /**
-     * @dataProvider malformedAsn1DataProvider
-     *
      * @param AbstractType<mixed> $type
      */
+    #[DataProvider('malformedAsn1DataProvider')]
     public function test_it_should_not_be_constructed_from_invalid_asn1(AbstractType $type): void
     {
         $this->expectException(ProtocolException::class);

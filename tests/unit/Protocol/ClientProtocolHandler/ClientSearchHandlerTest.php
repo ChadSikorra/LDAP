@@ -149,7 +149,7 @@ final class ClientSearchHandlerTest extends TestCase
 
         $this->mockQueue
             ->method('getMessage')
-            ->will($this->onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 new LdapMessageResponse(1, $entries[0]),
                 new LdapMessageResponse(1, $entries[1]),
                 new LdapMessageResponse(1, $referrals[0]),
@@ -159,7 +159,7 @@ final class ClientSearchHandlerTest extends TestCase
                     'cn=foo',
                     'bar',
                 )),
-            ));
+            );
 
         $this->mockQueue
             ->expects($this->exactly(5))

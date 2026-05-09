@@ -90,12 +90,16 @@ final class ServerProtocolHandlerTest extends TestCase
 
     public function test_it_should_enforce_anonymous_bind_requirements(): void
     {
+        $messages = [new LdapMessageRequest(1, new AnonBindRequest('foo'))];
         $this->mockQueue
             ->method('getMessage')
-            ->will($this->onConsecutiveCalls(
-                new LdapMessageRequest(1, new AnonBindRequest('foo')),
-                $this->throwException(new ConnectionException()),
-            ));
+            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
+                if ($messages === []) {
+                    throw new ConnectionException();
+                }
+
+                return array_shift($messages);
+            });
 
         $this->mockQueue
             ->expects(self::once())
@@ -120,13 +124,19 @@ final class ServerProtocolHandlerTest extends TestCase
 
     public function test_it_should_not_allow_a_previous_message_ID_from_a_new_request(): void
     {
+        $messages = [
+            new LdapMessageRequest(1, new SimpleBindRequest('foo', 'bar')),
+            new LdapMessageRequest(1, new ExtendedRequest(ExtendedRequest::OID_WHOAMI)),
+        ];
         $this->mockQueue
             ->method('getMessage')
-            ->will($this->onConsecutiveCalls(
-                new LdapMessageRequest(1, new SimpleBindRequest('foo', 'bar')),
-                new LdapMessageRequest(1, new ExtendedRequest(ExtendedRequest::OID_WHOAMI)),
-                $this->throwException(new ConnectionException()),
-            ));
+            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
+                if ($messages === []) {
+                    throw new ConnectionException();
+                }
+
+                return array_shift($messages);
+            });
 
         $this->mockAuthenticator
             ->method('bind')
@@ -156,17 +166,18 @@ final class ServerProtocolHandlerTest extends TestCase
         $this->mockQueue
             ->method('isConnected')
             ->willReturn(true);
+        $messages = [
+            new LdapMessageRequest(1, new ModifyDnRequest('cn=foo,dc=bar', 'cn=bar', true)),
+        ];
         $this->mockQueue
             ->method('getMessage')
-            ->will(
-                $this->onConsecutiveCalls(
-                    new LdapMessageRequest(
-                        1,
-                        new ModifyDnRequest('cn=foo,dc=bar', 'cn=bar', true),
-                    ),
-                    $this->throwException(new ConnectionException()),
-                ),
-            );
+            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
+                if ($messages === []) {
+                    throw new ConnectionException();
+                }
+
+                return array_shift($messages);
+            });
 
         $this->mockQueue
             ->expects($this->atLeast(1))
@@ -246,15 +257,18 @@ final class ServerProtocolHandlerTest extends TestCase
 
     public function test_it_should_not_allow_a_message_with_an_ID_of_zero(): void
     {
+        $messages = [
+            new LdapMessageRequest(0, new ExtendedRequest(ExtendedRequest::OID_START_TLS)),
+        ];
         $this->mockQueue
             ->method('getMessage')
-            ->will($this->onConsecutiveCalls(
-                new LdapMessageRequest(
-                    0,
-                    new ExtendedRequest(ExtendedRequest::OID_START_TLS),
-                ),
-                $this->throwException(new ConnectionException()),
-            ));
+            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
+                if ($messages === []) {
+                    throw new ConnectionException();
+                }
+
+                return array_shift($messages);
+            });
 
         $this->mockQueue
             ->expects($this->atLeast(1))
@@ -272,15 +286,18 @@ final class ServerProtocolHandlerTest extends TestCase
 
     public function test_it_should_send_a_bind_request_to_the_bind_request_handler(): void
     {
+        $messages = [
+            new LdapMessageRequest(1, new SimpleBindRequest('foo@bar', 'bar')),
+        ];
         $this->mockQueue
             ->method('getMessage')
-            ->will($this->onConsecutiveCalls(
-                new LdapMessageRequest(
-                    1,
-                    new SimpleBindRequest('foo@bar', 'bar'),
-                ),
-                $this->throwException(new ConnectionException()),
-            ));
+            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
+                if ($messages === []) {
+                    throw new ConnectionException();
+                }
+
+                return array_shift($messages);
+            });
 
         $this->mockAuthenticator
             ->expects($this->once())
@@ -298,15 +315,21 @@ final class ServerProtocolHandlerTest extends TestCase
     {
         $this->mockQueue
             ->method('isConnected')
-            ->will($this->onConsecutiveCalls(true, false));
+            ->willReturnOnConsecutiveCalls(true, false);
 
+        $messages = [
+            new LdapMessageRequest(1, new SimpleBindRequest('foo@bar', 'bar')),
+            new LdapMessageRequest(2, new ModifyRequest('cn=foo,dc=bar')),
+        ];
         $this->mockQueue
             ->method('getMessage')
-            ->will($this->onConsecutiveCalls(
-                new LdapMessageRequest(1, new SimpleBindRequest('foo@bar', 'bar')),
-                new LdapMessageRequest(2, new ModifyRequest('cn=foo,dc=bar')),
-                $this->throwException(new ConnectionException()),
-            ));
+            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
+                if ($messages === []) {
+                    throw new ConnectionException();
+                }
+
+                return array_shift($messages);
+            });
 
         $this->mockAuthenticator
             ->expects($this->once())

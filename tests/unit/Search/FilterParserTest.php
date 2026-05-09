@@ -16,6 +16,7 @@ namespace Tests\Unit\FreeDSx\Ldap\Search;
 use FreeDSx\Ldap\Exception\FilterParseException;
 use FreeDSx\Ldap\Search\FilterParser;
 use FreeDSx\Ldap\Search\Filters;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class FilterParserTest extends TestCase
@@ -118,9 +119,7 @@ final class FilterParserTest extends TestCase
         );
     }
 
-    /**
-     * @dataProvider invalidMatchingRuleDataProvider
-     */
+    #[DataProvider('invalidMatchingRuleDataProvider')]
     public function test_it_should_error_on_invalid_matching_rule_syntax(string $filter): void
     {
         self::expectException(FilterParseException::class);
@@ -249,9 +248,7 @@ final class FilterParserTest extends TestCase
         FilterParser::parse('foo=bar)');
     }
 
-    /**
-     * @dataProvider malformedFilterDataProvider
-     */
+    #[DataProvider('malformedFilterDataProvider')]
     public function test_it_should_error_on_unrecognized_values_at_the_end_of_the_filter(string $filter): void
     {
         self::expectException(FilterParseException::class);

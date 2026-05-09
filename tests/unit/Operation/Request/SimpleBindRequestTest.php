@@ -18,6 +18,7 @@ use FreeDSx\Asn1\Type\AbstractType;
 use FreeDSx\Ldap\Exception\BindException;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Operation\Request\SimpleBindRequest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class SimpleBindRequestTest extends TestCase
@@ -72,9 +73,7 @@ final class SimpleBindRequestTest extends TestCase
         );
     }
 
-    /**
-     * @dataProvider unallowedUsernamePasswordProvider
-     */
+    #[DataProvider('unallowedUsernamePasswordProvider')]
     public function test_it_should_not_allow_empty_username_and_password_combos(
         string $username,
         string $password,
@@ -126,10 +125,9 @@ final class SimpleBindRequestTest extends TestCase
     }
 
     /**
-     * @dataProvider malformedAsn1DataProvider
-     *
      * @param AbstractType<mixed> $type
      */
+    #[DataProvider('malformedAsn1DataProvider')]
     public function test_it_should_detect_invalid_asn1_from_asn1(AbstractType $type): void
     {
         $this->expectException(ProtocolException::class);

@@ -40,10 +40,10 @@ final class LdapQueueTest extends TestCase
         $this->mockSocket
             ->expects($this->any())
             ->method('read')
-            ->will($this->onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 'foo',
                 false,
-            ));
+            );
 
         $this->subject = new LdapQueue(
             $this->mockSocket,

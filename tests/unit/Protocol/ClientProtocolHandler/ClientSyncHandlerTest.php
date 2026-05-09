@@ -123,7 +123,7 @@ final class ClientSyncHandlerTest extends TestCase
             ->expects($this->exactly(5))
             ->method('getMessage')
             ->with(1)
-            ->will(self::onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 new LdapMessageResponse(1, $entries[0]),
                 new LdapMessageResponse(1, $entries[1]),
                 new LdapMessageResponse(1, $referrals[0]),
@@ -137,7 +137,7 @@ final class ClientSyncHandlerTest extends TestCase
                     ),
                     new SyncDoneControl('foo'),
                 ),
-            ));
+            );
 
         self::assertEquals(
             self::makeSearchResponseFromEntries(

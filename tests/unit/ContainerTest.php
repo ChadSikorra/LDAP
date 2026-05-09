@@ -27,6 +27,7 @@ use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use FreeDSx\Ldap\Server\SocketServerFactory;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\SocketPool;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class ContainerTest extends TestCase
@@ -68,9 +69,8 @@ class ContainerTest extends TestCase
 
     /**
      * @param class-string $class
-     *
-     * @dataProvider buildableDependenciesDataProvider
      */
+    #[DataProvider('buildableDependenciesDataProvider')]
     public function test_it_builds_the_dependencies(
         string $class,
     ): void {

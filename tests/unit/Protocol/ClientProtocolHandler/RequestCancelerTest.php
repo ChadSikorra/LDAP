@@ -55,11 +55,11 @@ final class RequestCancelerTest extends TestCase
         $cancelResponse = new ExtendedResponse(new LdapResult(ResultCode::CANCELED));
         $this->mockQueue
             ->method('getMessage')
-            ->will($this->onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 new LdapMessageResponse(1, new SearchResultEntry(Entry::create(''))),
                 new LdapMessageResponse(1, new SearchResultReference()),
                 new LdapMessageResponse(2, $cancelResponse),
-            ));
+            );
 
         $this->mockQueue
             ->method('generateId')
@@ -92,11 +92,11 @@ final class RequestCancelerTest extends TestCase
 
         $this->mockQueue
             ->method('getMessage')
-            ->will($this->onConsecutiveCalls(
+            ->willReturnOnConsecutiveCalls(
                 new LdapMessageResponse(1, new SearchResultEntry(Entry::create(''))),
                 new LdapMessageResponse(1, new SearchResultReference()),
                 new LdapMessageResponse(2, new ExtendedResponse(new LdapResult(ResultCode::CANCELED))),
-            ));
+            );
 
         $this->mockQueue
             ->method('generateId')
