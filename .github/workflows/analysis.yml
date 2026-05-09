@@ -59,6 +59,9 @@ jobs:
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
 
+      - name: Run Coding Standards Check
+        run: composer run-script cs-check
+
       - name: Run Static Analysis
         run: |
           composer run-script analyse
