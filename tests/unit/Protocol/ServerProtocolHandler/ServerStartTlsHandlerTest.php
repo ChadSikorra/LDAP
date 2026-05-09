@@ -67,8 +67,8 @@ final class ServerStartTlsHandlerTest extends TestCase
                 1,
                 new ExtendedResponse(
                     new LdapResult(0),
-                    ExtendedRequest::OID_START_TLS
-                )
+                    ExtendedRequest::OID_START_TLS,
+                ),
             ));
 
         $startTls = new LdapMessageRequest(1, new ExtendedRequest(ExtendedRequest::OID_START_TLS));
@@ -98,8 +98,8 @@ final class ServerStartTlsHandlerTest extends TestCase
                 1,
                 new ExtendedResponse(
                     new LdapResult(ResultCode::OPERATIONS_ERROR, '', 'The current LDAP session is already encrypted.'),
-                    ExtendedRequest::OID_START_TLS
-                )
+                    ExtendedRequest::OID_START_TLS,
+                ),
             )));
 
         $startTls = new LdapMessageRequest(1, new ExtendedRequest(ExtendedRequest::OID_START_TLS));
@@ -127,8 +127,8 @@ final class ServerStartTlsHandlerTest extends TestCase
                 1,
                 new ExtendedResponse(
                     new LdapResult(ResultCode::PROTOCOL_ERROR),
-                    ExtendedRequest::OID_START_TLS
-                )
+                    ExtendedRequest::OID_START_TLS,
+                ),
             )));
 
         $startTls = new LdapMessageRequest(1, new ExtendedRequest(ExtendedRequest::OID_START_TLS));

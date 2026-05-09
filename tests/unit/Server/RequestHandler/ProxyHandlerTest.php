@@ -45,7 +45,8 @@ final class ProxyHandlerTest extends TestCase
             ->method('token')
             ->willReturn(new BindToken('foo', 'bar'));
 
-        $this->subject = new ProxyHandler($this->mockClient);;
+        $this->subject = new ProxyHandler($this->mockClient);
+        ;
     }
 
     public function test_it_should_handle_a_root_dse_request(): void
@@ -62,8 +63,8 @@ final class ProxyHandlerTest extends TestCase
             $this->subject->rootDse(
                 $this->mockContext,
                 $this->createMock(SearchRequest::class),
-                new Entry('')
-            )
+                new Entry(''),
+            ),
         );
     }
 
@@ -79,7 +80,7 @@ final class ProxyHandlerTest extends TestCase
         $this->subject->rootDse(
             $this->mockContext,
             $this->createMock(SearchRequest::class),
-            new Entry('')
+            new Entry(''),
         );
     }
 }

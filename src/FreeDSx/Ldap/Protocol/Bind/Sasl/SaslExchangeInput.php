@@ -29,8 +29,7 @@ final class SaslExchangeInput
         private readonly MechanismName $mechName,
         private readonly LdapMessageRequest $initialMessage,
         private readonly ?string $initialCredentials,
-    ) {
-    }
+    ) {}
 
     public function getChallenge(): ChallengeInterface
     {

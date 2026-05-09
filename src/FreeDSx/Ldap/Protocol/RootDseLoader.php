@@ -27,9 +27,7 @@ class RootDseLoader
 
     private ?Entry $rootDse = null;
 
-    public function __construct(private readonly LdapClient $client)
-    {
-    }
+    public function __construct(private readonly LdapClient $client) {}
 
     /**
      * Make a single search request to fetch the RootDSE. Handle the various errors that could occur.

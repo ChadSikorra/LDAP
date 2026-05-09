@@ -30,7 +30,8 @@ final class RootDseLoaderTest extends TestCase
     {
         $this->mockLdapClient = $this->createMock(LdapClient::class);
 
-        $this->subject = new RootDseLoader($this->mockLdapClient);;
+        $this->subject = new RootDseLoader($this->mockLdapClient);
+        ;
     }
 
     public function test_it_should_load_the_root_dse(): void

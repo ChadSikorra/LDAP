@@ -104,7 +104,7 @@ class ServerPagingHandlerTest extends TestCase
     {
         return array_values(array_filter(
             $this->sentMessages,
-            static fn (LdapMessageResponse $m): bool => $m->getResponse() instanceof SearchResultEntry,
+            static fn(LdapMessageResponse $m): bool => $m->getResponse() instanceof SearchResultEntry,
         ));
     }
 
@@ -258,9 +258,9 @@ class ServerPagingHandlerTest extends TestCase
                     new SearchResultDone(
                         ResultCode::OPERATIONS_ERROR,
                         'dc=foo,dc=bar',
-                        "The search request and controls must be identical between paging requests."
+                        "The search request and controls must be identical between paging requests.",
                     ),
-                    new PagingControl(0, '')
+                    new PagingControl(0, ''),
                 ),
             ],
             $this->sentMessages,
@@ -293,7 +293,7 @@ class ServerPagingHandlerTest extends TestCase
 
         $this->subject->handleRequest(
             $message,
-            $this->mockToken
+            $this->mockToken,
         );
 
         self::assertSame([], $this->entryMessages());
@@ -513,7 +513,7 @@ class ServerPagingHandlerTest extends TestCase
         int $size = 10,
         string $cookie = 'bar',
         string $nextCookie = 'foo',
-        ?SearchRequest $searchRequest = null
+        ?SearchRequest $searchRequest = null,
     ): PagingRequest {
         $searchReq = $searchRequest ?? $this->makeSearchRequest();
 
@@ -521,7 +521,7 @@ class ServerPagingHandlerTest extends TestCase
             new PagingControl($size, $cookie),
             $searchReq,
             new ControlBag(),
-            $nextCookie
+            $nextCookie,
         );
 
         $pagingReq->markProcessed();
@@ -534,12 +534,12 @@ class ServerPagingHandlerTest extends TestCase
     private function makeSearchMessage(
         int $size = 10,
         string $cookie = '',
-        ?SearchRequest $searchRequest = null
+        ?SearchRequest $searchRequest = null,
     ): LdapMessageRequest {
         return new LdapMessageRequest(
             2,
             $searchRequest ?? $this->makeSearchRequest(),
-            new PagingControl($size, $cookie)
+            new PagingControl($size, $cookie),
         );
     }
 

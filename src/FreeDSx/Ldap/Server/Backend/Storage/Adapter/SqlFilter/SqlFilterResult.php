@@ -31,6 +31,5 @@ final class SqlFilterResult
         public readonly array $params,
         public readonly bool $isExact = true,
         public readonly array $referencedAttributes = [],
-    ) {
-    }
+    ) {}
 }

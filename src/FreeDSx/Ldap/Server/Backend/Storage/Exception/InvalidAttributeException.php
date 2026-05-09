@@ -21,6 +21,4 @@ use FreeDSx\Ldap\Exception\RuntimeException;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class InvalidAttributeException extends RuntimeException
-{
-}
+final class InvalidAttributeException extends RuntimeException {}

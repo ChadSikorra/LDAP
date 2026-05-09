@@ -22,19 +22,19 @@ final class SyncRequestTest extends TestCase
     {
         self::assertEquals(
             Filters::present('objectClass'),
-            $this->subject->getFilter()
+            $this->subject->getFilter(),
         );
     }
 
     public function test_it_should_set_and_get_the_setId_handler(): void
     {
-        $handler = fn (SyncIdSetResult $result) => $result->getEntryUuids();
+        $handler = fn(SyncIdSetResult $result) => $result->getEntryUuids();
 
         $this->subject->useIdSetHandler($handler);
 
         self::assertSame(
             $handler,
-            $this->subject->getIdSetHandler()
+            $this->subject->getIdSetHandler(),
         );
     }
 }

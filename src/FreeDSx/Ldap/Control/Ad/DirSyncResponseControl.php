@@ -40,7 +40,7 @@ class DirSyncResponseControl extends Control
     public function __construct(
         private readonly int $moreResults,
         private readonly int $unused = 0,
-        private readonly string $cookie = ''
+        private readonly string $cookie = '',
     ) {
         parent::__construct(self::OID_DIR_SYNC);
     }
@@ -94,12 +94,12 @@ class DirSyncResponseControl extends Control
         $control = new static(
             $more->getValue(),
             $unused->getValue(),
-            $cookie->getValue()
+            $cookie->getValue(),
         );
 
         return self::mergeControlData(
             $control,
-            $type
+            $type,
         );
     }
 
@@ -108,7 +108,7 @@ class DirSyncResponseControl extends Control
         $this->controlValue = Asn1::sequence(
             Asn1::integer($this->moreResults),
             Asn1::integer($this->unused),
-            Asn1::octetString($this->cookie)
+            Asn1::octetString($this->cookie),
         );
 
         return parent::toAsn1();

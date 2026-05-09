@@ -109,7 +109,7 @@ final class Config
         if ($backend === 'memory' && $runner === 'pcntl') {
             throw new InvalidArgumentException(
                 'InMemoryStorage requires the Swoole runner: pcntl fork children each hold their own copy '
-                . 'of the seed entries, so writes never propagate between connections.'
+                . 'of the seed entries, so writes never propagate between connections.',
             );
         }
     }
@@ -127,7 +127,7 @@ final class Config
             'Invalid --%s value "%s". Expected one of: %s.',
             $name,
             $value,
-            implode(', ', $allowed)
+            implode(', ', $allowed),
         ));
     }
 

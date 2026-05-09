@@ -73,7 +73,7 @@ class ResponseFactory
 
         return new LdapMessageResponse(
             $message->getMessageId(),
-            $response
+            $response,
         );
     }
 
@@ -87,7 +87,7 @@ class ResponseFactory
     ): LdapMessageResponse {
         return new LdapMessageResponse(
             0,
-            new ExtendedResponse(new LdapResult($errorCode, '', $message), $responseName)
+            new ExtendedResponse(new LdapResult($errorCode, '', $message), $responseName),
         );
     }
 }

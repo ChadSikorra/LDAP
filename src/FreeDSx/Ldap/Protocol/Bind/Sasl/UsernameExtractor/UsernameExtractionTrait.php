@@ -30,14 +30,14 @@ trait UsernameExtractionTrait
     private function requireUsername(
         Message $message,
         string $field,
-        string $mechanism
+        string $mechanism,
     ): string {
         $value = $message->get($field);
 
         if (!is_string($value) || $value === '') {
             throw new OperationException(
                 sprintf('The %s credentials did not contain a username.', $mechanism),
-                ResultCode::PROTOCOL_ERROR
+                ResultCode::PROTOCOL_ERROR,
             );
         }
 

@@ -29,7 +29,7 @@ final class ModifyResponseTest extends TestCase
     {
         self::assertSame(
             7,
-            $this->subject->toAsn1()->getTagNumber()
+            $this->subject->toAsn1()->getTagNumber(),
         );
     }
 }

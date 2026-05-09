@@ -26,8 +26,7 @@ final class LdapImporter
 {
     public function __construct(
         private readonly EntryStorageInterface $storage,
-    ) {
-    }
+    ) {}
 
     /**
      * Persist all entries in one atomic batch; no-op when the list is empty.
@@ -67,7 +66,7 @@ final class LdapImporter
     {
         usort(
             $entries,
-            static fn (Entry $a, Entry $b): int => $a->getDn()->count() <=> $b->getDn()->count(),
+            static fn(Entry $a, Entry $b): int => $a->getDn()->count() <=> $b->getDn()->count(),
         );
 
         return $entries;

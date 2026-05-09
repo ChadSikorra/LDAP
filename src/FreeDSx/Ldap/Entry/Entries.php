@@ -18,6 +18,7 @@ use Countable;
 use IteratorAggregate;
 use Stringable;
 use Traversable;
+
 use function array_merge;
 use function array_search;
 use function count;
@@ -71,7 +72,7 @@ class Entries implements Countable, IteratorAggregate
             return in_array(
                 $entry,
                 $this->entries,
-                true
+                true,
             );
         }
 

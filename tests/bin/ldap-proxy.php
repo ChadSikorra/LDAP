@@ -12,7 +12,7 @@ $server = LdapServer::makeProxy(
     serverOptions: (new ServerOptions())
         ->setPort(10389)
         ->setSocketAcceptTimeout(0.1)
-        ->setOnServerReady(fn () => fwrite(STDOUT, 'server starting...' . PHP_EOL)),
+        ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL)),
 );
 
 $server->run();

@@ -100,13 +100,13 @@ class ClientSyncHandler extends ClientBasicHandler
                         $searchDone
                             ->controls()
                             ->getByClass(SyncDoneControl::class)
-                            ?->getCookie()
+                            ?->getCookie(),
                     );
                     $this->session->resetRefreshState();
                     $messageTo = new LdapMessageRequest(
                         $this->queue->generateId(),
                         $this->syncRequest,
-                        ...$messageTo->controls()->toArray()
+                        ...$messageTo->controls()->toArray(),
                     );
                     $messageFrom = $this->queue->sendMessage($messageTo)
                         ->getMessage($messageTo->getMessageId());
@@ -277,7 +277,7 @@ class ClientSyncHandler extends ClientBasicHandler
         if ($this->cookieHandler !== null) {
             call_user_func(
                 $this->cookieHandler,
-                $cookie
+                $cookie,
             );
         }
     }

@@ -29,7 +29,7 @@ final class CompareRequestTest extends TestCase
     {
         $this->subject = new CompareRequest(
             'dc=foo,dc=bar',
-            new EqualityFilter('foo', 'bar')
+            new EqualityFilter('foo', 'bar'),
         );
     }
 
@@ -68,7 +68,7 @@ final class CompareRequestTest extends TestCase
         self::assertEquals(
             Asn1::application(14, Asn1::sequence(
                 Asn1::octetString('dc=foo,dc=bar'),
-                Asn1::universal(AbstractType::TAG_TYPE_SEQUENCE, (new EqualityFilter('foo', 'bar'))->toAsn1())
+                Asn1::universal(AbstractType::TAG_TYPE_SEQUENCE, (new EqualityFilter('foo', 'bar'))->toAsn1()),
             )),
             $this->subject->toAsn1(),
         );

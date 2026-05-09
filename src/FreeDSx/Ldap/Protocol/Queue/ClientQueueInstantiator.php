@@ -24,9 +24,7 @@ class ClientQueueInstantiator
 {
     private ?ClientQueue $clientQueue = null;
 
-    public function __construct(private readonly SocketPool $socketPool)
-    {
-    }
+    public function __construct(private readonly SocketPool $socketPool) {}
 
     public function make(): ClientQueue
     {

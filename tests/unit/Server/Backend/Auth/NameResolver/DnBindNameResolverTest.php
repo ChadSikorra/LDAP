@@ -46,12 +46,12 @@ final class DnBindNameResolverTest extends TestCase
         $subject = new DnBindNameResolver();
         $result = $subject->resolve(
             'cn=Alice,dc=example,dc=com',
-            $this->mockBackend
+            $this->mockBackend,
         );
 
         self::assertSame(
             $entry,
-            $result
+            $result,
         );
     }
 

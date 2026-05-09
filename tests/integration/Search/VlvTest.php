@@ -36,13 +36,13 @@ class VlvTest extends LdapTestCase
 
         $this->search = Operations::search(Filters::and(
             Filters::equal('objectClass', 'inetOrgPerson'),
-            Filters::startsWith('cn', 'B')
+            Filters::startsWith('cn', 'B'),
         ), 'sn', 'givenName');
 
         $this->vlv = new Vlv(
             $this->client,
             $this->search,
-            'sn'
+            'sn',
         );
     }
 
@@ -58,15 +58,15 @@ class VlvTest extends LdapTestCase
     {
         $this->assertCount(
             101,
-            $this->vlv->getEntries()
+            $this->vlv->getEntries(),
         );
         $this->assertSame(
             453,
-            $this->vlv->listSize()
+            $this->vlv->listSize(),
         );
         $this->assertSame(
             1,
-            $this->vlv->listOffset()
+            $this->vlv->listOffset(),
         );
         $this->assertTrue($this->vlv->isAtStartOfList());
 
@@ -74,40 +74,40 @@ class VlvTest extends LdapTestCase
 
         $this->assertCount(
             101,
-            $this->vlv->getEntries()
+            $this->vlv->getEntries(),
         );
         $this->assertSame(
             101,
-            $this->vlv->listOffset()
+            $this->vlv->listOffset(),
         );
 
         $this->vlv->moveTo(300);
 
         $this->assertCount(
             101,
-            $this->vlv->getEntries()
+            $this->vlv->getEntries(),
         );
         $this->assertSame(
             300,
-            $this->vlv->listOffset()
+            $this->vlv->listOffset(),
         );
 
         $this->vlv->moveBackward(100);
 
         $this->assertCount(
             101,
-            $this->vlv->getEntries()
+            $this->vlv->getEntries(),
         );
         $this->assertSame(
             200,
-            $this->vlv->listOffset()
+            $this->vlv->listOffset(),
         );
 
         $this->vlv->moveTo((int) $this->vlv->listSize());
 
         $this->assertCount(
             1,
-            $this->vlv->getEntries()
+            $this->vlv->getEntries(),
         );
         $this->assertTrue($this->vlv->isAtEndOfList());
     }
@@ -116,12 +116,12 @@ class VlvTest extends LdapTestCase
     {
         $this->search = Operations::search(Filters::and(
             Filters::equal('objectClass', 'inetOrgPerson'),
-            Filters::startsWith('cn', 'E')
+            Filters::startsWith('cn', 'E'),
         ), 'sn', 'givenName');
         $this->vlv = new Vlv(
             $this->client,
             $this->search,
-            'sn'
+            'sn',
         );
 
         $this->vlv->asPercentage();
@@ -130,54 +130,54 @@ class VlvTest extends LdapTestCase
 
         $this->assertCount(
             201,
-            $this->vlv->getEntries()
+            $this->vlv->getEntries(),
         );
         $this->assertGreaterThan(
             215,
-            $this->vlv->listOffset()
+            $this->vlv->listOffset(),
         );
         $this->assertLessThan(
             225,
-            $this->vlv->listOffset()
+            $this->vlv->listOffset(),
         );
 
         $this->vlv->moveForward(25);
 
         $this->assertCount(
             201,
-            $this->vlv->getEntries()
+            $this->vlv->getEntries(),
         );
         $this->assertGreaterThan(
             325,
-            $this->vlv->listOffset()
+            $this->vlv->listOffset(),
         );
         $this->assertLessThan(
             335,
-            $this->vlv->listOffset()
+            $this->vlv->listOffset(),
         );
 
         $this->vlv->moveBackward(50);
 
         $this->assertCount(
             201,
-            $this->vlv->getEntries()
+            $this->vlv->getEntries(),
         );
         $this->assertGreaterThan(
             105,
-            $this->vlv->listOffset()
+            $this->vlv->listOffset(),
         );
         $this->assertLessThan(
             115,
-            $this->vlv->listOffset()
+            $this->vlv->listOffset(),
         );
 
         $this->assertSame(
             25,
-            $this->vlv->position()
+            $this->vlv->position(),
         );
         $this->assertSame(
             440,
-            $this->vlv->listSize()
+            $this->vlv->listSize(),
         );
 
         $this->vlv->moveTo(100);

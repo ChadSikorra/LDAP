@@ -57,17 +57,18 @@ final class ExtendedResponseFactoryTest extends TestCase
                     Asn1::octetString('foo'),
                     Asn1::context(3, (new IncompleteType(
                         $encoder->encode(Asn1::octetString('ldap://foo'))
-                        . $encoder->encode(Asn1::octetString('ldap://bar'))
+                        . $encoder->encode(Asn1::octetString('ldap://bar')),
                     ))->setIsConstructed(true)),
                     Asn1::context(11, Asn1::octetString($encoder->encode(Asn1::sequence(
-                        Asn1::context(0, Asn1::octetString('bleep-blorp'))
-                    ))))
-                )), ExtendedRequest::OID_PWD_MODIFY
+                        Asn1::context(0, Asn1::octetString('bleep-blorp')),
+                    )))),
+                )),
+                ExtendedRequest::OID_PWD_MODIFY,
             ),
             new PasswordModifyResponse(
                 new LdapResult(0, 'dc=foo,dc=bar', 'foo', new LdapUrl('foo'), new LdapUrl('bar')),
-                'bleep-blorp'
-            )
+                'bleep-blorp',
+            ),
         );
     }
 }

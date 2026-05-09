@@ -99,7 +99,7 @@ final class ServerOptionsTest extends TestCase
     {
         self::assertSame(
             '0.0.0.0',
-            $this->subject->getIp()
+            $this->subject->getIp(),
         );
     }
 
@@ -109,7 +109,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             '127.0.0.1',
-            $this->subject->getIp()
+            $this->subject->getIp(),
         );
     }
 
@@ -117,7 +117,7 @@ final class ServerOptionsTest extends TestCase
     {
         self::assertSame(
             389,
-            $this->subject->getPort()
+            $this->subject->getPort(),
         );
     }
 
@@ -127,7 +127,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             33389,
-            $this->subject->getPort()
+            $this->subject->getPort(),
         );
     }
 
@@ -135,7 +135,7 @@ final class ServerOptionsTest extends TestCase
     {
         self::assertSame(
             'tcp',
-            $this->subject->getTransport()
+            $this->subject->getTransport(),
         );
     }
 
@@ -145,7 +145,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             'unix',
-            $this->subject->getTransport()
+            $this->subject->getTransport(),
         );
     }
 
@@ -153,7 +153,7 @@ final class ServerOptionsTest extends TestCase
     {
         self::assertSame(
             '/var/run/ldap.socket',
-            $this->subject->getUnixSocket()
+            $this->subject->getUnixSocket(),
         );
     }
 
@@ -168,7 +168,7 @@ final class ServerOptionsTest extends TestCase
     {
         self::assertSame(
             600,
-            $this->subject->getIdleTimeout()
+            $this->subject->getIdleTimeout(),
         );
     }
 
@@ -178,7 +178,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             120,
-            $this->subject->getIdleTimeout()
+            $this->subject->getIdleTimeout(),
         );
     }
 
@@ -229,7 +229,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             '/path/to/cert.pem',
-            $this->subject->getSslCert()
+            $this->subject->getSslCert(),
         );
     }
 
@@ -244,7 +244,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             '/path/to/key.pem',
-            $this->subject->getSslCertKey()
+            $this->subject->getSslCertKey(),
         );
     }
 
@@ -259,7 +259,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             'secret',
-            $this->subject->getSslCertPassphrase()
+            $this->subject->getSslCertPassphrase(),
         );
     }
 
@@ -274,7 +274,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             'ldap://backup.example.com',
-            $this->subject->getDseAltServer()
+            $this->subject->getDseAltServer(),
         );
     }
 
@@ -282,7 +282,7 @@ final class ServerOptionsTest extends TestCase
     {
         self::assertSame(
             'cn=Subschema',
-            $this->subject->getSubschemaEntry()->toString()
+            $this->subject->getSubschemaEntry()->toString(),
         );
     }
 
@@ -292,7 +292,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             'cn=Subschema,dc=example,dc=com',
-            $this->subject->getSubschemaEntry()->toString()
+            $this->subject->getSubschemaEntry()->toString(),
         );
     }
 
@@ -300,7 +300,7 @@ final class ServerOptionsTest extends TestCase
     {
         self::assertSame(
             ['dc=FreeDSx,dc=local'],
-            $this->subject->getDseNamingContexts()
+            $this->subject->getDseNamingContexts(),
         );
     }
 
@@ -310,7 +310,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             ['dc=example,dc=com', 'dc=other,dc=com'],
-            $this->subject->getDseNamingContexts()
+            $this->subject->getDseNamingContexts(),
         );
     }
 
@@ -318,7 +318,7 @@ final class ServerOptionsTest extends TestCase
     {
         self::assertSame(
             'FreeDSx',
-            $this->subject->getDseVendorName()
+            $this->subject->getDseVendorName(),
         );
     }
 
@@ -328,7 +328,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             'Acme',
-            $this->subject->getDseVendorName()
+            $this->subject->getDseVendorName(),
         );
     }
 
@@ -343,7 +343,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             '1.0.0',
-            $this->subject->getDseVendorVersion()
+            $this->subject->getDseVendorVersion(),
         );
     }
 
@@ -360,7 +360,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             $backend,
-            $this->subject->getBackend()
+            $this->subject->getBackend(),
         );
     }
 
@@ -377,7 +377,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             $authenticator,
-            $this->subject->getPasswordAuthenticator()
+            $this->subject->getPasswordAuthenticator(),
         );
     }
 
@@ -394,7 +394,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             $resolver,
-            $this->subject->getBindNameResolver()
+            $this->subject->getBindNameResolver(),
         );
     }
 
@@ -411,7 +411,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             $handler,
-            $this->subject->getRootDseHandler()
+            $this->subject->getRootDseHandler(),
         );
     }
 
@@ -419,7 +419,7 @@ final class ServerOptionsTest extends TestCase
     {
         self::assertSame(
             [],
-            $this->subject->getWriteHandlers()
+            $this->subject->getWriteHandlers(),
         );
     }
 
@@ -434,7 +434,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             [$handler1, $handler2],
-            $this->subject->getWriteHandlers()
+            $this->subject->getWriteHandlers(),
         );
     }
 
@@ -451,7 +451,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             $evaluator,
-            $this->subject->getFilterEvaluator()
+            $this->subject->getFilterEvaluator(),
         );
     }
 
@@ -468,7 +468,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             $logger,
-            $this->subject->getLogger()
+            $this->subject->getLogger(),
         );
     }
 
@@ -485,7 +485,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             $runner,
-            $this->subject->getServerRunner()
+            $this->subject->getServerRunner(),
         );
     }
 
@@ -505,7 +505,7 @@ final class ServerOptionsTest extends TestCase
     {
         self::assertSame(
             0.5,
-            $this->subject->getSocketAcceptTimeout()
+            $this->subject->getSocketAcceptTimeout(),
         );
     }
 
@@ -515,7 +515,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             1.0,
-            $this->subject->getSocketAcceptTimeout()
+            $this->subject->getSocketAcceptTimeout(),
         );
     }
 
@@ -532,7 +532,7 @@ final class ServerOptionsTest extends TestCase
 
         self::assertSame(
             $callback,
-            $this->subject->getOnServerReady()
+            $this->subject->getOnServerReady(),
         );
     }
 

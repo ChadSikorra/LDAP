@@ -57,35 +57,35 @@ final class ServerAuthorizationTest extends TestCase
     public function test_it_should_not_require_authentication_for_a_start_tls_request(): void
     {
         self::assertFalse($this->subject->isAuthenticationRequired(
-            Operations::extended(ExtendedRequest::OID_START_TLS)
+            Operations::extended(ExtendedRequest::OID_START_TLS),
         ));
     }
 
     public function test_it_should_not_require_authentication_for_a_whoami_request(): void
     {
         self::assertFalse($this->subject->isAuthenticationRequired(
-            Operations::extended(ExtendedRequest::OID_WHOAMI)
+            Operations::extended(ExtendedRequest::OID_WHOAMI),
         ));
     }
 
     public function test_it_should_not_require_authentication_for_a_bind_request(): void
     {
         self::assertFalse($this->subject->isAuthenticationRequired(
-            Operations::bind('foo', 'bar')
+            Operations::bind('foo', 'bar'),
         ));
     }
 
     public function test_it_should_not_require_authentication_for_an_unbind_request(): void
     {
         self::assertFalse($this->subject->isAuthenticationRequired(
-            Operations::unbind()
+            Operations::unbind(),
         ));
     }
 
     public function test_it_should_not_require_authentication_for_a_rootdse_request(): void
     {
         self::assertFalse($this->subject->isAuthenticationRequired(
-            Operations::read('')
+            Operations::read(''),
         ));
     }
 
@@ -106,7 +106,7 @@ final class ServerAuthorizationTest extends TestCase
             (new ServerOptions())
                 ->setAllowAnonymous(false)
                 ->setRequireAuthentication(false),
-            new AnonToken()
+            new AnonToken(),
         );
 
         self::assertFalse($this->subject->isAuthenticationRequired($request));
@@ -122,7 +122,7 @@ final class ServerAuthorizationTest extends TestCase
         $this->subject = new ServerAuthorization(
             (new ServerOptions())
                 ->setAllowAnonymous(true),
-            new AnonToken()
+            new AnonToken(),
         );
 
         self::assertTrue($this->subject->isAuthenticationTypeSupported(Operations::bindAnonymously()));
@@ -131,14 +131,14 @@ final class ServerAuthorizationTest extends TestCase
     public function test_it_should_allow_simple_bind_types(): void
     {
         self::assertTrue($this->subject->isAuthenticationTypeSupported(
-            Operations::bind('foo', 'bar')
+            Operations::bind('foo', 'bar'),
         ));
     }
 
     public function test_it_should_not_allow_sasl_bind_when_no_mechanisms_are_configured(): void
     {
         self::assertFalse($this->subject->isAuthenticationTypeSupported(
-            new SaslBindRequest(ServerOptions::SASL_PLAIN)
+            new SaslBindRequest(ServerOptions::SASL_PLAIN),
         ));
     }
 
@@ -150,7 +150,7 @@ final class ServerAuthorizationTest extends TestCase
         );
 
         self::assertTrue($this->subject->isAuthenticationTypeSupported(
-            new SaslBindRequest(ServerOptions::SASL_PLAIN)
+            new SaslBindRequest(ServerOptions::SASL_PLAIN),
         ));
     }
 
@@ -162,7 +162,7 @@ final class ServerAuthorizationTest extends TestCase
         );
 
         self::assertFalse($this->subject->isAuthenticationTypeSupported(
-            new SaslBindRequest(ServerOptions::SASL_CRAM_MD5)
+            new SaslBindRequest(ServerOptions::SASL_CRAM_MD5),
         ));
     }
 

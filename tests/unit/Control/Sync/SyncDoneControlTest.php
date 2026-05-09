@@ -55,9 +55,9 @@ class SyncDoneControlTest extends TestCase
                 Asn1::octetString(
                     $encoder->encode(Asn1::sequence(
                         Asn1::octetString('omnomnom'),
-                        Asn1::boolean(false)
-                    ))
-                )
+                        Asn1::boolean(false),
+                    )),
+                ),
             ),
             $this->subject->toAsn1(),
         );
@@ -72,8 +72,8 @@ class SyncDoneControlTest extends TestCase
             Asn1::boolean(true),
             Asn1::octetString($encoder->encode(Asn1::sequence(
                 Asn1::octetString('omnomnom'),
-                Asn1::boolean(false)
-            )))
+                Asn1::boolean(false),
+            ))),
         ));
 
         self::assertFalse($result->getRefreshDeletes());

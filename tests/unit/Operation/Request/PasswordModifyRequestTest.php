@@ -29,7 +29,7 @@ final class PasswordModifyRequestTest extends TestCase
         $this->subject = new PasswordModifyRequest(
             'foo',
             'bar',
-            '12345'
+            '12345',
         );
     }
 
@@ -52,14 +52,14 @@ final class PasswordModifyRequestTest extends TestCase
     {
         self::assertEquals(
             'bar',
-            $this->subject->getOldPassword()
+            $this->subject->getOldPassword(),
         );
 
         $this->subject->setOldPassword('foo');
 
         self::assertEquals(
             'foo',
-            $this->subject->getOldPassword()
+            $this->subject->getOldPassword(),
         );
     }
 
@@ -67,7 +67,7 @@ final class PasswordModifyRequestTest extends TestCase
     {
         self::assertEquals(
             'foo',
-            $this->subject->getUsername()
+            $this->subject->getUsername(),
         );
 
         $this->subject->setUsername('bar');
@@ -88,8 +88,8 @@ final class PasswordModifyRequestTest extends TestCase
                 Asn1::context(1, Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::context(0, Asn1::octetString('foo')),
                     Asn1::context(1, Asn1::octetString('bar')),
-                    Asn1::context(2, Asn1::octetString('12345'))
-                ))))
+                    Asn1::context(2, Asn1::octetString('12345')),
+                )))),
             )),
             $this->subject->toAsn1(),
         );
@@ -101,8 +101,8 @@ final class PasswordModifyRequestTest extends TestCase
                 Asn1::context(0, Asn1::octetString(ExtendedRequest::OID_PWD_MODIFY)),
                 Asn1::context(1, Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::context(1, Asn1::octetString('bar')),
-                    Asn1::context(2, Asn1::octetString('12345'))
-                ))))
+                    Asn1::context(2, Asn1::octetString('12345')),
+                )))),
             )),
             $this->subject->toAsn1(),
         );
@@ -113,8 +113,8 @@ final class PasswordModifyRequestTest extends TestCase
             Asn1::application(23, Asn1::sequence(
                 Asn1::context(0, Asn1::octetString(ExtendedRequest::OID_PWD_MODIFY)),
                 Asn1::context(1, Asn1::octetString($encoder->encode(Asn1::sequence(
-                    Asn1::context(2, Asn1::octetString('12345'))
-                ))))
+                    Asn1::context(2, Asn1::octetString('12345')),
+                )))),
             )),
             $this->subject->toAsn1(),
         );
@@ -124,7 +124,7 @@ final class PasswordModifyRequestTest extends TestCase
         self::assertEquals(
             Asn1::application(23, Asn1::sequence(
                 Asn1::context(0, Asn1::octetString(ExtendedRequest::OID_PWD_MODIFY)),
-                Asn1::context(1, Asn1::octetString($encoder->encode(Asn1::sequence())))
+                Asn1::context(1, Asn1::octetString($encoder->encode(Asn1::sequence()))),
             )),
             $this->subject->toAsn1(),
         );
@@ -162,7 +162,7 @@ final class PasswordModifyRequestTest extends TestCase
         PasswordModifyRequest::fromAsn1(
             (new ExtendedRequest('foo'))
                 ->setValue(Asn1::set())
-                ->toAsn1()
+                ->toAsn1(),
         );
     }
 }

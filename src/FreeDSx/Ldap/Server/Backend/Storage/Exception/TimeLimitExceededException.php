@@ -20,6 +20,4 @@ use FreeDSx\Ldap\Exception\RuntimeException;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class TimeLimitExceededException extends RuntimeException
-{
-}
+final class TimeLimitExceededException extends RuntimeException {}

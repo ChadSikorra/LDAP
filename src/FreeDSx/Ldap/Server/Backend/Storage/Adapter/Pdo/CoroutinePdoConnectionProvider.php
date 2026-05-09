@@ -38,9 +38,7 @@ final class CoroutinePdoConnectionProvider implements PdoConnectionProviderInter
     /**
      * @param Closure(): PDO $factory  Creates and fully initialises a fresh PDO each time it is invoked.
      */
-    public function __construct(private readonly Closure $factory)
-    {
-    }
+    public function __construct(private readonly Closure $factory) {}
 
     public function get(): PDO
     {
@@ -75,9 +73,7 @@ final class CoroutinePdoConnectionProvider implements PdoConnectionProviderInter
     /**
      * No-op: connections are already isolated per coroutine, and coroutines do not cross fork boundaries.
      */
-    public function reset(): void
-    {
-    }
+    public function reset(): void {}
 
     private function requireCoroutineId(): int
     {

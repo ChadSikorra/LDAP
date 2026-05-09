@@ -49,8 +49,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         private readonly RequestHistory $requestHistory,
         private readonly PagingRequestComparator $requestComparator = new PagingRequestComparator(),
         private readonly SearchLimits $limits = new SearchLimits(),
-    ) {
-    }
+    ) {}
 
     /**
      * @inheritDoc
@@ -58,7 +57,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
      */
     public function handleRequest(
         LdapMessageRequest $message,
-        TokenInterface $token
+        TokenInterface $token,
     ): void {
         $pagingRequest = $this->findOrMakePagingRequest($message);
         $searchRequest = $this->getSearchRequestFromMessage($message);
@@ -76,20 +75,20 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             } else {
                 $searchResult = SearchResult::makeSuccessResult(
                     $response->getEntries(),
-                    (string) $searchRequest->getBaseDn()
+                    (string) $searchRequest->getBaseDn(),
                 );
                 $controls[] = new PagingControl(
                     $response->getRemaining(),
                     $response->isComplete()
                         ? ''
-                        : $pagingRequest->getNextCookie()
+                        : $pagingRequest->getNextCookie(),
                 );
             }
         } catch (OperationException $e) {
             $searchResult = SearchResult::makeErrorResult(
                 $e->getCode(),
                 (string) $searchRequest->getBaseDn(),
-                $e->getMessage()
+                $e->getMessage(),
             );
             $controls[] = new PagingControl(0, '');
         }
@@ -116,7 +115,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $searchResult,
             $message,
             $this->queue,
-            ...$controls
+            ...$controls,
         );
     }
 
@@ -125,7 +124,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
      */
     private function handlePaging(
         PagingRequest $pagingRequest,
-        LdapMessageRequest $message
+        LdapMessageRequest $message,
     ): PagingResponse {
         if (!$pagingRequest->isPagingStart()) {
             return $this->handleExistingCookie($pagingRequest, $message);
@@ -170,14 +169,14 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
      */
     private function handleExistingCookie(
         PagingRequest $pagingRequest,
-        LdapMessageRequest $message
+        LdapMessageRequest $message,
     ): PagingResponse {
         $newPagingRequest = $this->makePagingRequest($message);
 
         if (!$this->requestComparator->compare($pagingRequest, $newPagingRequest)) {
             throw new OperationException(
                 'The search request and controls must be identical between paging requests.',
-                ResultCode::OPERATIONS_ERROR
+                ResultCode::OPERATIONS_ERROR,
             );
         }
 
@@ -193,7 +192,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         if ($generator === null) {
             throw new OperationException(
                 'The paging session could not be resumed.',
-                ResultCode::OPERATIONS_ERROR
+                ResultCode::OPERATIONS_ERROR,
             );
         }
 
@@ -212,7 +211,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $collected,
             $pagingRequest,
             $generator,
-            $isPreFiltered
+            $isPreFiltered,
         );
     }
 
@@ -244,7 +243,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         );
 
         return PagingResponse::make(
-            new Entries(...$collected->entries)
+            new Entries(...$collected->entries),
         );
     }
 
@@ -264,7 +263,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         $page = [];
         $effectivePageSize = $this->effectiveSizeLimit(
             $pageSize,
-            $this->limits->maxSearchPageSize
+            $this->limits->maxSearchPageSize,
         );
         $pageLimit = $effectivePageSize > 0
             ? $effectivePageSize
@@ -336,7 +335,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $pagingControl,
             $request,
             $this->nonPagingControls($message),
-            $this->generateCookie()
+            $this->generateCookie(),
         );
     }
 
@@ -352,7 +351,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         } catch (ProtocolException $e) {
             throw new OperationException(
                 $e->getMessage(),
-                ResultCode::OPERATIONS_ERROR
+                ResultCode::OPERATIONS_ERROR,
             );
         }
     }
@@ -365,7 +364,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
      */
     private function pageHasCapacity(
         array $page,
-        ?int $pageLimit
+        ?int $pageLimit,
     ): bool {
         return $pageLimit === null
             || count($page) < $pageLimit;
@@ -378,7 +377,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         } catch (Throwable) {
             throw new OperationException(
                 'Internal server error.',
-                ResultCode::OPERATIONS_ERROR
+                ResultCode::OPERATIONS_ERROR,
             );
         }
     }

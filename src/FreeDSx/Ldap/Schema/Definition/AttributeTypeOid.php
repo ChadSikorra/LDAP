@@ -216,7 +216,5 @@ final class AttributeTypeOid
     public const NAME_NAME_FORMS = 'nameForms';
     public const DESC_NAME_FORMS = 'name forms';
 
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 }

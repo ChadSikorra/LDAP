@@ -41,11 +41,11 @@ class ClientQueue extends LdapQueue
      */
     public function __construct(
         private readonly SocketPool $socketPool,
-        ?EncoderInterface $encoder = null
+        ?EncoderInterface $encoder = null,
     ) {
         parent::__construct(
             $socketPool->connect(),
-            $encoder
+            $encoder,
         );
     }
 
@@ -62,7 +62,7 @@ class ClientQueue extends LdapQueue
         if (!$message instanceof LdapMessageResponse) {
             throw new ProtocolException(sprintf(
                 'Expected an instance of LdapMessageResponse but got: %s',
-                get_class($message)
+                get_class($message),
             ));
         }
 
@@ -99,7 +99,7 @@ class ClientQueue extends LdapQueue
      */
     protected function constructMessage(
         Message $message,
-        ?int $id = null
+        ?int $id = null,
     ): LdapMessageResponse {
         $type = $message->getMessage();
 

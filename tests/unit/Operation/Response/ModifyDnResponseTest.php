@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Operation\Response;
 
-use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Response\ModifyDnResponse;
 use PHPUnit\Framework\TestCase;
 
@@ -30,7 +29,7 @@ final class ModifyDnResponseTest extends TestCase
     {
         self::assertSame(
             13,
-            $this->subject->toAsn1()->getTagNumber()
+            $this->subject->toAsn1()->getTagNumber(),
         );
     }
 }

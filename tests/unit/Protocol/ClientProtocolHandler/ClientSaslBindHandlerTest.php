@@ -68,11 +68,11 @@ final class ClientSaslBindHandlerTest extends TestCase
 
         $this->saslChallenge = new LdapMessageResponse(
             1,
-            new BindResponse(new LdapResult(ResultCode::SASL_BIND_IN_PROGRESS))
+            new BindResponse(new LdapResult(ResultCode::SASL_BIND_IN_PROGRESS)),
         );
         $this->saslComplete = new LdapMessageResponse(
             2,
-            new BindResponse(new LdapResult(ResultCode::SUCCESS), 'foo')
+            new BindResponse(new LdapResult(ResultCode::SUCCESS), 'foo'),
         );
 
         $this->subject = new ClientSaslBindHandler(
@@ -115,14 +115,14 @@ final class ClientSaslBindHandlerTest extends TestCase
             ->method('challenge')
             ->will($this->onConsecutiveCalls(
                 (new SaslContext())->setResponse('foo'),
-                (new SaslContext())->setResponse('foo')->setIsComplete(true)
+                (new SaslContext())->setResponse('foo')->setIsComplete(true),
             ));
 
         $this->mockRootDseLoader
             ->method('load')
             ->willReturn(Entry::fromArray(
                 '',
-                ['supportedSaslMechanisms' => ['DIGEST-MD5', 'CRAM-MD5']]
+                ['supportedSaslMechanisms' => ['DIGEST-MD5', 'CRAM-MD5']],
             ));
 
         self::assertSame(
@@ -158,7 +158,7 @@ final class ClientSaslBindHandlerTest extends TestCase
             ->method('challenge')
             ->will($this->onConsecutiveCalls(
                 (new SaslContext())->setResponse('foo'),
-                (new SaslContext())->setResponse('foo')->setIsComplete(true)
+                (new SaslContext())->setResponse('foo')->setIsComplete(true),
             ));
 
         $this->mockRootDseLoader
@@ -178,7 +178,7 @@ final class ClientSaslBindHandlerTest extends TestCase
 
         self::expectException(BindException::class);
         self::expectExceptionMessageMatches(
-            '/Possible SASL downgrade attack detected/i'
+            '/Possible SASL downgrade attack detected/i',
         );
 
         $this->subject->handleRequest($messageRequest);
@@ -213,7 +213,7 @@ final class ClientSaslBindHandlerTest extends TestCase
             ->method('challenge')
             ->will(self::onConsecutiveCalls(
                 (new SaslContext())->setResponse('foo'),
-                (new SaslContext())->setResponse('foo')->setIsComplete(true)
+                (new SaslContext())->setResponse('foo')->setIsComplete(true),
             ));
 
         $this->mockRootDseLoader
@@ -283,7 +283,7 @@ final class ClientSaslBindHandlerTest extends TestCase
             ->method('load')
             ->willReturn(Entry::fromArray(
                 '',
-                ['supportedSaslMechanisms' => ['DIGEST-MD5', 'CRAM-MD5']]
+                ['supportedSaslMechanisms' => ['DIGEST-MD5', 'CRAM-MD5']],
             ));
     }
 }

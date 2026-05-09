@@ -69,7 +69,7 @@ class SyncReplTest extends LdapTestCase
     public function testItCanCancelTheSync(): void
     {
         $client = $this->getClient(
-            $this->makeOptions()->setTimeoutRead(180)
+            $this->makeOptions()->setTimeoutRead(180),
         );
         $this->bindClient($client);
 
@@ -86,7 +86,7 @@ class SyncReplTest extends LdapTestCase
         $this->assertSame(
             10,
             $count,
-            'It stopped on the 10th result.'
+            'It stopped on the 10th result.',
         );
     }
 
@@ -101,7 +101,7 @@ class SyncReplTest extends LdapTestCase
         $state = new SyncListenState();
 
         $listenClient = $this->getClient(
-            $this->makeOptions()->setTimeoutRead(180)
+            $this->makeOptions()->setTimeoutRead(180),
         );
         $this->bindClient($listenClient);
 
@@ -129,15 +129,15 @@ class SyncReplTest extends LdapTestCase
 
         $this->assertTrue(
             $process->isSuccessful(),
-            'The sync write should run successfully. Instead received: '. $process->getErrorOutput(),
+            'The sync write should run successfully. Instead received: ' . $process->getErrorOutput(),
         );
         $this->assertTrue(
             $state->seenRefreshPhase,
-            'Entries were received during the refresh phase.'
+            'Entries were received during the refresh phase.',
         );
         $this->assertTrue(
             $state->seenPersistPhase,
-            'An entry was received during the persist phase.'
+            'An entry was received during the persist phase.',
         );
     }
 
@@ -166,7 +166,7 @@ class SyncReplTest extends LdapTestCase
                 $port,
                 $errno,
                 $errstr,
-                1.0
+                1.0,
             );
 
             if ($connection !== false) {

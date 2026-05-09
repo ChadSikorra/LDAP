@@ -24,7 +24,7 @@ final class SessionTest extends TestCase
     {
         $this->subject = new Session(
             Session::MODE_POLL,
-            null
+            null,
         );
     }
 

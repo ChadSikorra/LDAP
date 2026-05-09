@@ -35,9 +35,9 @@ final class SyncEntryResultTest extends TestCase
                 new SyncStateControl(
                     SyncStateControl::STATE_ADD,
                     'foo',
-                    'bar'
-                )
-            )
+                    'bar',
+                ),
+            ),
         ));
     }
 
@@ -76,14 +76,14 @@ final class SyncEntryResultTest extends TestCase
     public function test_it_should_be_able_to_check_what_the_state_is(): void
     {
         self::assertTrue(
-            $this->subject->isState(SyncStateControl::STATE_ADD)
+            $this->subject->isState(SyncStateControl::STATE_ADD),
         );
     }
 
     public function test_it_should_be_able_to_check_what_the_state_is_not(): void
     {
         self::assertFalse(
-            $this->subject->isState(SyncStateControl::STATE_MODIFY)
+            $this->subject->isState(SyncStateControl::STATE_MODIFY),
         );
     }
 
@@ -98,10 +98,10 @@ final class SyncEntryResultTest extends TestCase
                     new SyncStateControl(
                         SyncStateControl::STATE_PRESENT,
                         'foo',
-                        'bar'
-                    )
-                )
-            )
+                        'bar',
+                    ),
+                ),
+            ),
         );
 
         self::assertTrue($this->subject->isPresent());
@@ -116,9 +116,9 @@ final class SyncEntryResultTest extends TestCase
                 new SyncStateControl(
                     SyncStateControl::STATE_ADD,
                     'foo',
-                    'bar'
-                )
-            )
+                    'bar',
+                ),
+            ),
         ));
 
         self::assertTrue($this->subject->isAdd());
@@ -134,10 +134,10 @@ final class SyncEntryResultTest extends TestCase
                     new SyncStateControl(
                         SyncStateControl::STATE_MODIFY,
                         'foo',
-                        'bar'
-                    )
-                )
-            )
+                        'bar',
+                    ),
+                ),
+            ),
         );
 
         self::assertTrue($this->subject->isModify());
@@ -153,10 +153,10 @@ final class SyncEntryResultTest extends TestCase
                     new SyncStateControl(
                         SyncStateControl::STATE_DELETE,
                         'foo',
-                        'bar'
-                    )
-                )
-            )
+                        'bar',
+                    ),
+                ),
+            ),
         );
 
         self::assertTrue($this->subject->isDelete());
@@ -171,8 +171,8 @@ final class SyncEntryResultTest extends TestCase
                 new SyncStateControl(
                     SyncStateControl::STATE_ADD,
                     'foo',
-                    'bar'
-                )
+                    'bar',
+                ),
             ),
             $this->subject->getMessage(),
         );
@@ -187,7 +187,7 @@ final class SyncEntryResultTest extends TestCase
             new LdapMessageResponse(
                 1,
                 new SearchResultEntry(new Entry('cn=foo')),
-            )
+            ),
         ));
 
         $this->subject->getState();

@@ -41,8 +41,7 @@ class Paging
         private LdapClient $client,
         private SearchRequest $search,
         private int $size = 1000,
-    ) {
-    }
+    ) {}
 
     /**
      * Set the criticality of the control. Setting this will cause the LDAP server to return an error if paging is not
@@ -60,7 +59,7 @@ class Paging
      */
     public function start(
         SearchRequest $search,
-        ?int $size = null
+        ?int $size = null,
     ): void {
         $this->size = $size ?? $this->size;
         $this->search = $search;
@@ -124,7 +123,7 @@ class Paging
         $message = $this->client->sendAndReceive(
             $this->search,
             Controls::paging($size ?? $this->size, $cookie)
-                ->setCriticality($this->isCritical)
+                ->setCriticality($this->isCritical),
         );
         $control = $message->controls()
             ->get(Control::OID_PAGING);
@@ -132,7 +131,7 @@ class Paging
         if ($control !== null && !$control instanceof PagingControl) {
             throw new ProtocolException(sprintf(
                 'Expected a paging control, but received: %s.',
-                get_class($control)
+                get_class($control),
             ));
         }
         # OpenLDAP returns no paging control in response to an abandon request. However, other LDAP implementations do;

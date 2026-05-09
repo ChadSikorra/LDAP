@@ -37,10 +37,10 @@ class ControlsTest extends TestCase
     {
         $result = Controls::paging(100);
         $expected = new PagingControl(100, '');
-        
+
         $this->assertEquals(
             $expected,
-            $result
+            $result,
         );
     }
 
@@ -48,7 +48,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::vlv(10, 12);
         $expected = new VlvControl(10, 12, 1, 0);
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -57,16 +57,16 @@ class ControlsTest extends TestCase
         $result = Controls::vlvFilter(
             10,
             12,
-            Filters::gte('foo', 'bar')
+            Filters::gte('foo', 'bar'),
         );
         $expected = new VlvControl(
             10,
             12,
             null,
             null,
-            new GreaterThanOrEqualFilter('foo', 'bar')
+            new GreaterThanOrEqualFilter('foo', 'bar'),
         );
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -74,7 +74,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::sdFlags(7);
         $expected = new SdFlagsControl(7);
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -82,7 +82,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::pwdPolicy();
         $expected = new Control(Control::OID_PWD_POLICY, true);
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -90,7 +90,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::subtreeDelete();
         $expected = new Control(Control::OID_SUBTREE_DELETE);
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -98,7 +98,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::sort('cn');
         $expected = new SortingControl(new SortKey('cn'));
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -106,7 +106,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::sort(new SortKey('foo'));
         $expected = new SortingControl(new SortKey('foo'));
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -114,7 +114,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::extendedDn();
         $expected = new ExtendedDnControl();
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -122,7 +122,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::dirSync();
         $expected = new DirSyncRequestControl();
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -131,14 +131,14 @@ class ControlsTest extends TestCase
         $result = Controls::dirSync(
             DirSyncRequestControl::FLAG_INCREMENTAL_VALUES
             | DirSyncRequestControl::FLAG_OBJECT_SECURITY,
-            'foo'
+            'foo',
         );
         $expected = new DirSyncRequestControl(
             DirSyncRequestControl::FLAG_INCREMENTAL_VALUES
             | DirSyncRequestControl::FLAG_OBJECT_SECURITY,
-            'foo'
+            'foo',
         );
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -146,7 +146,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::expectedEntryCount(1, 100);
         $expected = new ExpectedEntryCountControl(1, 100);
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -154,7 +154,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::policyHints();
         $expected = new PolicyHintsControl();
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -162,7 +162,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::setOwner('foo');
         $expected = new SetOwnerControl('foo');
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -170,7 +170,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::showDeleted();
         $expected = new Control(Control::OID_SHOW_DELETED, true);
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -178,7 +178,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::showRecycled();
         $expected = new Control(Control::OID_SHOW_RECYCLED, true);
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -186,7 +186,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::subentries();
         $expected = new SubentriesControl(true);
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -194,7 +194,7 @@ class ControlsTest extends TestCase
     {
         $result = Controls::manageDsaIt();
         $expected = new Control(Control::OID_MANAGE_DSA_IT, true);
-        
+
         $this->assertEquals($expected, $result);
     }
 
@@ -202,18 +202,18 @@ class ControlsTest extends TestCase
     {
         $result = Controls::syncRequest();
         $expected = new SyncRequestControl();
-        
+
         $this->assertEquals($expected, $result);
 
         $result = Controls::syncRequest(
             'foo',
-            SyncRequestControl::MODE_REFRESH_AND_PERSIST
+            SyncRequestControl::MODE_REFRESH_AND_PERSIST,
         );
         $expected = new SyncRequestControl(
             SyncRequestControl::MODE_REFRESH_AND_PERSIST,
             'foo',
         );
-        
+
         $this->assertEquals($expected, $result);
     }
 }

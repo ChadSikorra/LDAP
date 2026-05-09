@@ -37,7 +37,7 @@ final class HandlerFactoryTest extends TestCase
 
         self::assertInstanceOf(
             GenericBackend::class,
-            $this->subject->makeBackend()
+            $this->subject->makeBackend(),
         );
     }
 
@@ -48,7 +48,7 @@ final class HandlerFactoryTest extends TestCase
 
         self::assertSame(
             $backend,
-            $this->subject->makeBackend()
+            $this->subject->makeBackend(),
         );
     }
 
@@ -58,7 +58,7 @@ final class HandlerFactoryTest extends TestCase
 
         self::assertInstanceOf(
             FilterEvaluator::class,
-            $this->subject->makeFilterEvaluator()
+            $this->subject->makeFilterEvaluator(),
         );
     }
 
@@ -69,7 +69,7 @@ final class HandlerFactoryTest extends TestCase
 
         self::assertSame(
             $evaluator,
-            $this->subject->makeFilterEvaluator()
+            $this->subject->makeFilterEvaluator(),
         );
     }
 
@@ -80,14 +80,14 @@ final class HandlerFactoryTest extends TestCase
 
         self::assertSame(
             $rootDseHandler,
-            $this->subject->makeRootDseHandler()
+            $this->subject->makeRootDseHandler(),
         );
     }
 
     public function test_it_should_allow_a_null_rootdse_handler(): void
     {
         $this->subject = new HandlerFactory(
-            (new ServerOptions())->setRootDseHandler(null)
+            (new ServerOptions())->setRootDseHandler(null),
         );
 
         self::assertNull($this->subject->makeRootDseHandler());
@@ -105,7 +105,7 @@ final class HandlerFactoryTest extends TestCase
 
         self::assertSame(
             $backend,
-            $this->subject->makeRootDseHandler()
+            $this->subject->makeRootDseHandler(),
         );
     }
 
@@ -121,7 +121,7 @@ final class HandlerFactoryTest extends TestCase
         $this->subject = new HandlerFactory(
             (new ServerOptions())
                 ->setBackend($backend)
-                ->setRootDseHandler($explicit)
+                ->setRootDseHandler($explicit),
         );
 
         self::assertSame($explicit, $this->subject->makeRootDseHandler());
@@ -139,7 +139,7 @@ final class HandlerFactoryTest extends TestCase
         $authenticator = $this->createMock(PasswordAuthenticatableInterface::class);
 
         $subject = new HandlerFactory(
-            (new ServerOptions())->setPasswordAuthenticator($authenticator)
+            (new ServerOptions())->setPasswordAuthenticator($authenticator),
         );
 
         self::assertSame($authenticator, $subject->makePasswordAuthenticator());
@@ -171,7 +171,7 @@ final class HandlerFactoryTest extends TestCase
         $subject = new HandlerFactory(
             (new ServerOptions())
                 ->setBackend($backend)
-                ->setPasswordAuthenticator($authenticator)
+                ->setPasswordAuthenticator($authenticator),
         );
 
         self::assertSame($authenticator, $subject->makePasswordAuthenticator());

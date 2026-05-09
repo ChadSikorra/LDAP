@@ -116,7 +116,7 @@ class SaslBindRequest extends BindRequest
 
         return Asn1::context(
             tagNumber: 3,
-            type: $sasl
+            type: $sasl,
         );
     }
 

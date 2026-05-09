@@ -33,12 +33,12 @@ final class FiltersTest extends TestCase
         self::assertEquals(
             new AndFilter(
                 new EqualityFilter('foo', 'bar'),
-                new EqualityFilter('bar', 'foo')
+                new EqualityFilter('bar', 'foo'),
             ),
             Filters::and(
                 new EqualityFilter('foo', 'bar'),
                 new EqualityFilter('bar', 'foo'),
-            )
+            ),
         );
     }
 
@@ -52,7 +52,7 @@ final class FiltersTest extends TestCase
             Filters::or(
                 new EqualityFilter('foo', 'bar'),
                 new EqualityFilter('bar', 'foo'),
-            )
+            ),
         );
     }
 

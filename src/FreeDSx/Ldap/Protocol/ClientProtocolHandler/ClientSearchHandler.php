@@ -64,7 +64,7 @@ class ClientSearchHandler extends ClientBasicHandler
 
         return parent::handleResponse(
             $messageTo,
-            $finalResponse
+            $finalResponse,
         );
     }
 }

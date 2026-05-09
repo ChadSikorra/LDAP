@@ -120,7 +120,7 @@ class VlvResponseControl extends Control
         $this->controlValue = Asn1::sequence(
             Asn1::integer((int) $this->offset),
             Asn1::integer((int) $this->count),
-            Asn1::enumerated($this->result)
+            Asn1::enumerated($this->result),
         );
         if ($this->contextId !== null) {
             $this->controlValue->addChild(new OctetStringType($this->contextId));

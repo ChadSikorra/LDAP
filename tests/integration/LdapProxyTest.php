@@ -66,9 +66,9 @@ class LdapProxyTest extends ServerTestCase
         $search = Operations::search(
             Filters::equal(
                 'objectClass',
-                'organizationalUnit'
+                'organizationalUnit',
             ),
-            'ou'
+            'ou',
         );
         $paging = $this->ldapClient()
             ->paging($search);
@@ -77,7 +77,7 @@ class LdapProxyTest extends ServerTestCase
 
         $this->assertCount(
             4,
-            $entries
+            $entries,
         );
 
         while ($paging->hasEntries()) {
@@ -86,7 +86,7 @@ class LdapProxyTest extends ServerTestCase
 
         $this->assertCount(
             12,
-            $entries
+            $entries,
         );
     }
 

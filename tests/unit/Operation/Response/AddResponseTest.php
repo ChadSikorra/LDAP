@@ -25,7 +25,7 @@ final class AddResponseTest extends TestCase
         $this->subject = new AddResponse(
             0,
             'foo',
-            'bar'
+            'bar',
         );
     }
 

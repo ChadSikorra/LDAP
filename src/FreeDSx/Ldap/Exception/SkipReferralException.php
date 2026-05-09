@@ -20,6 +20,4 @@ use Exception;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class SkipReferralException extends Exception
-{
-}
+class SkipReferralException extends Exception {}

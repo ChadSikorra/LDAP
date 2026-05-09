@@ -74,8 +74,8 @@ final class FileLockTest extends TestCase
     {
         $lock = new FileLock($this->tempFile);
 
-        $lock->withLock(fn (string $_): string => 'first');
-        $lock->withLock(fn (string $contents): string => $contents . '|second');
+        $lock->withLock(fn(string $_): string => 'first');
+        $lock->withLock(fn(string $contents): string => $contents . '|second');
 
         self::assertSame(
             'first|second',
@@ -86,7 +86,7 @@ final class FileLockTest extends TestCase
     public function test_creates_sidecar_lock_file_alongside_main_file(): void
     {
         $lock = new FileLock($this->tempFile);
-        $lock->withLock(fn (string $_): string => 'payload');
+        $lock->withLock(fn(string $_): string => 'payload');
 
         self::assertFileExists($this->tempFile . '.lock');
     }
@@ -95,13 +95,13 @@ final class FileLockTest extends TestCase
     {
         $lock = new FileLock($this->tempFile);
 
-        $lock->withLock(fn (string $_): string => 'v1');
+        $lock->withLock(fn(string $_): string => 'v1');
         self::assertSame(
             'v1',
             file_get_contents($this->tempFile),
         );
 
-        $lock->withLock(fn (string $_): string => 'v2 (larger payload)');
+        $lock->withLock(fn(string $_): string => 'v2 (larger payload)');
         self::assertSame(
             'v2 (larger payload)',
             file_get_contents($this->tempFile),
@@ -114,10 +114,10 @@ final class FileLockTest extends TestCase
 
         self::expectException(StorageIoException::class);
 
-        set_error_handler(static fn (): bool => true);
+        set_error_handler(static fn(): bool => true);
 
         try {
-            $lock->withLock(fn (string $_): string => 'payload');
+            $lock->withLock(fn(string $_): string => 'payload');
         } finally {
             restore_error_handler();
         }
@@ -146,7 +146,7 @@ final class FileLockTest extends TestCase
         );
 
         $second = new FileLock($this->tempFile);
-        $second->withLock(fn (string $contents): string => $contents . '|recovered');
+        $second->withLock(fn(string $contents): string => $contents . '|recovered');
 
         self::assertSame(
             'original|recovered',

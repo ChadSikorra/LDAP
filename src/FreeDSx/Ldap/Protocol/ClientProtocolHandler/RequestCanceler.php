@@ -37,7 +37,7 @@ class RequestCanceler
         private readonly string $strategy = SearchRequest::CANCEL_STOP,
         ?Closure $messageProcessor = null,
     ) {
-        $this->messageProcessor = $messageProcessor ?? fn () => null;
+        $this->messageProcessor = $messageProcessor ?? fn() => null;
     }
 
     /**
@@ -49,7 +49,7 @@ class RequestCanceler
 
         $this->queue->sendMessage(new LdapMessageRequest(
             $cancelId,
-            Operations::cancel($idToCancel)
+            Operations::cancel($idToCancel),
         ));
 
         do {
@@ -82,7 +82,7 @@ class RequestCanceler
         if (!$result instanceof ExtendedResponse) {
             throw new ProtocolException(sprintf(
                 'Expected an extended response from a cancel operation, but received: %s',
-                get_class($result)
+                get_class($result),
             ));
         }
 
@@ -93,7 +93,7 @@ class RequestCanceler
 
         throw new OperationException(
             $result->getDiagnosticMessage(),
-            $result->getResultCode()
+            $result->getResultCode(),
         );
     }
 }

@@ -27,9 +27,7 @@ class CramMD5MechanismOptionsBuilder implements MechanismOptionsBuilderInterface
 {
     use RequiresPasswordTrait;
 
-    public function __construct(private readonly PasswordAuthenticatableInterface $handler)
-    {
-    }
+    public function __construct(private readonly PasswordAuthenticatableInterface $handler) {}
 
     /**
      * {@inheritDoc}

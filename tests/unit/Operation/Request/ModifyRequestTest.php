@@ -29,7 +29,7 @@ final class ModifyRequestTest extends TestCase
         $this->subject = new ModifyRequest(
             'cn=foo,dc=foo,dc=bar',
             Change::replace('foo', 'bar'),
-            Change::add('sn', 'bleep', 'blorp')
+            Change::add('sn', 'bleep', 'blorp'),
         );
     }
 
@@ -53,7 +53,7 @@ final class ModifyRequestTest extends TestCase
         self::assertEquals(
             [
                 Change::replace('foo', 'bar'),
-                Change::add('sn', 'bleep', 'blorp')
+                Change::add('sn', 'bleep', 'blorp'),
             ],
             $this->subject->getChanges(),
         );
@@ -77,9 +77,9 @@ final class ModifyRequestTest extends TestCase
                         Asn1::sequence(
                             Asn1::octetString('foo'),
                             Asn1::setOf(
-                                Asn1::octetString('bar')
-                            )
-                        )
+                                Asn1::octetString('bar'),
+                            ),
+                        ),
                     ),
                     Asn1::sequence(
                         Asn1::enumerated(0),
@@ -87,11 +87,11 @@ final class ModifyRequestTest extends TestCase
                             Asn1::octetString('sn'),
                             Asn1::setOf(
                                 Asn1::octetString('bleep'),
-                                Asn1::octetString('blorp')
-                            )
-                        )
-                    )
-                )
+                                Asn1::octetString('blorp'),
+                            ),
+                        ),
+                    ),
+                ),
             )),
             $this->subject->toAsn1(),
         );
@@ -103,7 +103,7 @@ final class ModifyRequestTest extends TestCase
             'foo',
             Change::add('foo', 'bar'),
             Change::delete('bar', 'foo'),
-            Change::replace('foobar', 'foo')
+            Change::replace('foobar', 'foo'),
         );
 
         self::assertEquals(
@@ -111,9 +111,9 @@ final class ModifyRequestTest extends TestCase
                 'foo',
                 Change::add('foo', 'bar'),
                 Change::delete('bar', 'foo'),
-                Change::replace('foobar', 'foo')
+                Change::replace('foobar', 'foo'),
             ),
-            ModifyRequest::fromAsn1($req->toAsn1())
+            ModifyRequest::fromAsn1($req->toAsn1()),
         );
     }
 
@@ -123,7 +123,7 @@ final class ModifyRequestTest extends TestCase
 
         $this->subject->fromAsn1(Asn1::sequence(
             Asn1::integer(1),
-            Asn1::sequence()
+            Asn1::sequence(),
         ));
     }
 
@@ -133,7 +133,7 @@ final class ModifyRequestTest extends TestCase
 
         $this->subject->fromAsn1(Asn1::set(
             Asn1::octetString('dc=foo'),
-            Asn1::sequence()
+            Asn1::sequence(),
         ));
     }
 
@@ -143,7 +143,7 @@ final class ModifyRequestTest extends TestCase
 
         $this->subject->fromAsn1(Asn1::sequence(
             Asn1::integer(1),
-            Asn1::sequence()
+            Asn1::sequence(),
         ));
     }
 
@@ -159,11 +159,11 @@ final class ModifyRequestTest extends TestCase
                     Asn1::sequence(
                         Asn1::octetString('foo'),
                         Asn1::sequence(
-                            Asn1::octetString('bar')
-                        )
-                    )
-                )
-            )
+                            Asn1::octetString('bar'),
+                        ),
+                    ),
+                ),
+            ),
         ));
     }
 
@@ -178,11 +178,11 @@ final class ModifyRequestTest extends TestCase
                     Asn1::enumerated(2),
                     Asn1::sequence(
                         Asn1::setOf(
-                            Asn1::octetString('bar')
-                        )
-                    )
-                )
-            )
+                            Asn1::octetString('bar'),
+                        ),
+                    ),
+                ),
+            ),
         ));
     }
 
@@ -197,11 +197,11 @@ final class ModifyRequestTest extends TestCase
                     Asn1::integer(999),
                     Asn1::sequence(
                         Asn1::setOf(
-                            Asn1::octetString('bar')
-                        )
-                    )
-                )
-            )
+                            Asn1::octetString('bar'),
+                        ),
+                    ),
+                ),
+            ),
         ));
     }
 }

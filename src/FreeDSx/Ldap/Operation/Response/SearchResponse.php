@@ -44,7 +44,7 @@ class SearchResponse extends SearchResultDone
             $result->getResultCode(),
             $result->getDn()->toString(),
             $result->getDiagnosticMessage(),
-            ...$result->getReferrals()
+            ...$result->getReferrals(),
         );
     }
 

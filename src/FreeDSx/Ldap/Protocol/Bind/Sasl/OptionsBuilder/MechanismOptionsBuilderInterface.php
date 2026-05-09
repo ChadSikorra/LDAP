@@ -30,5 +30,4 @@ interface MechanismOptionsBuilderInterface
         ?string $received,
         MechanismName $mechanism,
     ): ?ChallengeOptionsInterface;
-
 }

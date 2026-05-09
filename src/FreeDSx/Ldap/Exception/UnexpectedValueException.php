@@ -13,6 +13,6 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Exception;
 
-class UnexpectedValueException extends \UnexpectedValueException
-{
-}
+use UnexpectedValueException as BaseUnexpectedValueException;
+
+class UnexpectedValueException extends BaseUnexpectedValueException {}

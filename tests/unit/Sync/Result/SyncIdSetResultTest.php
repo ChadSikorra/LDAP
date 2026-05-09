@@ -24,9 +24,9 @@ final class SyncIdSetResultTest extends TestCase
                 new SyncIdSet(
                     ['foo', 'bar'],
                     true,
-                    'tasty'
+                    'tasty',
                 ),
-            )
+            ),
         );
     }
 
@@ -68,7 +68,7 @@ final class SyncIdSetResultTest extends TestCase
                 new SyncIdSet(
                     ['foo', 'bar'],
                     true,
-                    'tasty'
+                    'tasty',
                 ),
             ),
             $this->subject->getMessage(),
@@ -91,9 +91,9 @@ final class SyncIdSetResultTest extends TestCase
                 new SyncIdSet(
                     ['foo', 'bar'],
                     true,
-                    'tasty'
+                    'tasty',
                 ),
-            )
+            ),
         );
 
         self::assertTrue($this->subject->isDeleted());
@@ -108,9 +108,9 @@ final class SyncIdSetResultTest extends TestCase
                 new SyncIdSet(
                     ['foo', 'bar'],
                     false,
-                    'tasty'
+                    'tasty',
                 ),
-            )
+            ),
         );
 
         self::assertTrue($this->subject->isPresent());
@@ -123,9 +123,9 @@ final class SyncIdSetResultTest extends TestCase
             new LdapMessageResponse(
                 1,
                 new SearchResultReference(
-                    new LdapUrl('foo')
+                    new LdapUrl('foo'),
                 ),
-            )
+            ),
         );
 
         self::expectException(UnexpectedValueException::class);

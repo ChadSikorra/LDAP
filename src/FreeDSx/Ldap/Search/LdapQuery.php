@@ -51,9 +51,7 @@ final class LdapQuery
 
     private ?int $timeLimit = null;
 
-    public function __construct(private readonly LdapClient $client)
-    {
-    }
+    public function __construct(private readonly LdapClient $client) {}
 
     /**
      * Set the base DN to search from.
@@ -101,7 +99,7 @@ final class LdapQuery
     public function select(Attribute|string ...$attributes): self
     {
         $this->attributes = array_map(
-            fn (Attribute|string $attr) => $attr instanceof Attribute
+            fn(Attribute|string $attr) => $attr instanceof Attribute
                 ? $attr
                 : new Attribute($attr),
             $attributes,

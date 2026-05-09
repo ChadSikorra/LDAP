@@ -71,7 +71,7 @@ final class ServerRootDseHandlerTest extends TestCase
 
         $search = new LdapMessageRequest(
             1,
-            (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope()
+            (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope(),
         );
 
         $this->mockQueue
@@ -87,7 +87,7 @@ final class ServerRootDseHandlerTest extends TestCase
                     'supportedLDAPVersion' => ['3'],
                     'vendorName' => 'Foo',
                 ])))),
-                self::equalTo(new LdapMessageResponse(1, new SearchResultDone(0)))
+                self::equalTo(new LdapMessageResponse(1, new SearchResultDone(0))),
             );
 
         $this->subject->handleRequest(
@@ -105,7 +105,7 @@ final class ServerRootDseHandlerTest extends TestCase
 
         $search = new LdapMessageRequest(
             1,
-            (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope()
+            (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope(),
         );
 
         $this->mockQueue
@@ -137,7 +137,7 @@ final class ServerRootDseHandlerTest extends TestCase
 
         $search = new LdapMessageRequest(
             1,
-            (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope()
+            (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope(),
         );
 
         $this->mockQueue
@@ -178,7 +178,7 @@ final class ServerRootDseHandlerTest extends TestCase
         $searchReqeust = (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope();
         $search = new LdapMessageRequest(
             1,
-            $searchReqeust
+            $searchReqeust,
         );
         $rootDse = Entry::create('', [
             'namingContexts' => 'dc=Foo,dc=Bar',
@@ -207,7 +207,7 @@ final class ServerRootDseHandlerTest extends TestCase
             ->method('sendMessage')
             ->with(
                 new LdapMessageResponse(1, new SearchResultEntry($handlerRootDse)),
-                new LdapMessageResponse(1, new SearchResultDone(0))
+                new LdapMessageResponse(1, new SearchResultDone(0)),
             );
 
         $this->subject->handleRequest(
@@ -223,7 +223,7 @@ final class ServerRootDseHandlerTest extends TestCase
 
         $search = new LdapMessageRequest(
             1,
-            (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope()
+            (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope(),
         );
 
         $this->mockQueue
@@ -241,7 +241,7 @@ final class ServerRootDseHandlerTest extends TestCase
                 }),
                 new LdapMessageResponse(
                     1,
-                    new SearchResultDone(0)
+                    new SearchResultDone(0),
                 ),
             );
 
@@ -262,7 +262,7 @@ final class ServerRootDseHandlerTest extends TestCase
             (new SearchRequest(Filters::present('objectClass')))
                 ->base('')
                 ->useBaseScope()
-                ->setAttributesOnly(true)
+                ->setAttributesOnly(true),
         );
 
         $this->mockQueue
@@ -276,7 +276,7 @@ final class ServerRootDseHandlerTest extends TestCase
                     'supportedLDAPVersion' => [],
                     'vendorName' => [],
                 ]))),
-                new LdapMessageResponse(1, new SearchResultDone(0))
+                new LdapMessageResponse(1, new SearchResultDone(0)),
             );
 
         $this->subject->handleRequest(
@@ -289,7 +289,7 @@ final class ServerRootDseHandlerTest extends TestCase
     {
         $search = new LdapMessageRequest(
             1,
-            (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope()
+            (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope(),
         );
 
         $this->mockQueue
@@ -315,7 +315,7 @@ final class ServerRootDseHandlerTest extends TestCase
 
         $search = new LdapMessageRequest(
             1,
-            (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope()
+            (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope(),
         );
 
         $this->mockQueue
@@ -346,7 +346,7 @@ final class ServerRootDseHandlerTest extends TestCase
             (new SearchRequest(Filters::present('objectClass')))
                 ->base('')
                 ->useBaseScope()
-                ->setAttributes('namingcontexts')
+                ->setAttributes('namingcontexts'),
         );
 
         # The reset below is needed, unfortunately, to properly test due to how the objects change...
@@ -360,9 +360,9 @@ final class ServerRootDseHandlerTest extends TestCase
             ->with(
                 new LdapMessageResponse(
                     1,
-                    new SearchResultEntry($entry)
+                    new SearchResultEntry($entry),
                 ),
-                new LdapMessageResponse(1, new SearchResultDone(0))
+                new LdapMessageResponse(1, new SearchResultDone(0)),
             );
 
         $this->subject->handleRequest(

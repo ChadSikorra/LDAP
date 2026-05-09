@@ -23,6 +23,5 @@ final class SearchResultState
     public function __construct(
         public int $resultCode = ResultCode::SUCCESS,
         public string $diagnosticMessage = '',
-    ) {
-    }
+    ) {}
 }

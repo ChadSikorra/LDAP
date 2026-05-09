@@ -55,7 +55,7 @@ final class DeleteRequestTest extends TestCase
     public function test_it_should_be_constructed_from_asn1(): void
     {
         $this->subject = DeleteRequest::fromAsn1(Asn1::application(10, Asn1::octetString(
-            'dc=foo,dc=bar'
+            'dc=foo,dc=bar',
         )));
 
         self::assertEquals(
@@ -83,10 +83,10 @@ final class DeleteRequestTest extends TestCase
     {
         return [
             [Asn1::application(11, Asn1::octetString(
-                'dc=foo,dc=bar'
+                'dc=foo,dc=bar',
             ))],
             [Asn1::application(11, Asn1::integer(
-                2
+                2,
             ))],
         ];
     }

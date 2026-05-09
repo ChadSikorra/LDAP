@@ -35,11 +35,7 @@ use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Protocol\ClientProtocolHandler;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ClientQueueInstantiator;
-use FreeDSx\Ldap\Search\DirSync;
 use FreeDSx\Ldap\Search\Filters;
-use FreeDSx\Ldap\Search\Paging;
-use FreeDSx\Ldap\Search\RangeRetrieval;
-use FreeDSx\Ldap\Search\Vlv;
 use FreeDSx\Ldap\Sync\SyncRepl;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -56,7 +52,8 @@ class LdapClientTest extends TestCase
 
     private LdapClient $subject;
 
-    protected function setUp(): void {
+    protected function setUp(): void
+    {
         $this->mockHandler = $this->createMock(ClientProtocolHandler::class);
         $this->mockQueueInstantiator = $this->createMock(ClientQueueInstantiator::class);
 
@@ -68,7 +65,7 @@ class LdapClientTest extends TestCase
             [
                 ClientProtocolHandler::class => $this->mockHandler,
                 ClientQueueInstantiator::class => $this->mockQueueInstantiator,
-            ]
+            ],
         );
 
         $this->subject = new LdapClient(
@@ -88,7 +85,8 @@ class LdapClientTest extends TestCase
         $this->subject->sendAndReceive(Operations::read(''));
     }
 
-    public function test_it_should_send_a_message_and_return_the_response_on_sendAndReceive(): void {
+    public function test_it_should_send_a_message_and_return_the_response_on_sendAndReceive(): void
+    {
         $mockResponse = $this->createMock(LdapMessageResponse::class);
 
         $this->mockHandler
@@ -109,13 +107,13 @@ class LdapClientTest extends TestCase
             ->method('send')
             ->willReturn(
                 $this::makeSearchResponseFromEntries(new Entries(
-                    Entry::create('dc=foo,dc=bar')
-                ))
+                    Entry::create('dc=foo,dc=bar'),
+                )),
             );
 
         $search = Operations::search(Filters::equal(
             'foo',
-            'bar'
+            'bar',
         ));
 
         self::assertEquals(
@@ -130,8 +128,8 @@ class LdapClientTest extends TestCase
             1,
             new BindResponse(new LdapResult(
                 0,
-                ''
-            ))
+                '',
+            )),
         );
 
         $this->mockHandler
@@ -140,7 +138,7 @@ class LdapClientTest extends TestCase
             ->with(new SimpleBindRequest(
                 'foo',
                 'bar',
-                3
+                3,
             ))
             ->willReturn($response);
 
@@ -149,7 +147,7 @@ class LdapClientTest extends TestCase
             $this->subject->bind(
                 'foo',
                 'bar',
-            )
+            ),
         );
     }
 
@@ -157,11 +155,13 @@ class LdapClientTest extends TestCase
     {
         self::expectNotToPerformAssertions();
 
-        $this->subject->paging(Operations::search(
-            Filters::equal(
-                'foo',
-                'bar'
-            ))
+        $this->subject->paging(
+            Operations::search(
+                Filters::equal(
+                    'foo',
+                    'bar',
+                ),
+            ),
         );
     }
 
@@ -172,10 +172,10 @@ class LdapClientTest extends TestCase
         $this->subject->vlv(
             Operations::search(Filters::equal(
                 'foo',
-                'bar'
+                'bar',
             )),
             'cn',
-            100
+            100,
         );
     }
 
@@ -192,7 +192,7 @@ class LdapClientTest extends TestCase
 
         $this->subject->range();
     }
-    
+
     public function test_it_should_start_tls(): void
     {
         $this->mockHandler
@@ -201,7 +201,8 @@ class LdapClientTest extends TestCase
             ->with(Operations::extended(ExtendedRequest::OID_START_TLS))
             ->willReturn(null);
 
-        $this->subject->startTls();;
+        $this->subject->startTls();
+        ;
     }
 
     public function test_it_should_unbind_if_requested(): void
@@ -226,8 +227,8 @@ class LdapClientTest extends TestCase
                 new ExtendedResponse(
                     new LdapResult(0, ''),
                     null,
-                    'foo'
-                )
+                    'foo',
+                ),
             ));
 
         self::assertSame(
@@ -244,11 +245,11 @@ class LdapClientTest extends TestCase
             ->with(Operations::compare(
                 'cn=foo',
                 'foo',
-                'bar'
+                'bar',
             ))
             ->willReturn(new LdapMessageResponse(
                 1,
-                new CompareResponse(ResultCode::COMPARE_TRUE)
+                new CompareResponse(ResultCode::COMPARE_TRUE),
             ));
 
         self::assertTrue(
@@ -256,7 +257,7 @@ class LdapClientTest extends TestCase
                 'cn=foo',
                 'foo',
                 'bar',
-            )
+            ),
         );
     }
 
@@ -272,15 +273,15 @@ class LdapClientTest extends TestCase
             ))
             ->willReturn(new LdapMessageResponse(
                 1,
-                new CompareResponse(ResultCode::COMPARE_FALSE)
+                new CompareResponse(ResultCode::COMPARE_FALSE),
             ));
 
         self::assertFalse(
             $this->subject->compare(
                 'cn=foo',
                 'foo',
-                'bar'
-            )
+                'bar',
+            ),
         );
     }
 
@@ -294,11 +295,11 @@ class LdapClientTest extends TestCase
             ->method('send')
             ->with(Operations::modify(
                 $entry->getDn(),
-                ...$entry->changes()
+                ...$entry->changes(),
             ))
             ->willReturn(new LdapMessageResponse(
                 1,
-                new ModifyResponse(ResultCode::SUCCESS)
+                new ModifyResponse(ResultCode::SUCCESS),
             ));
 
         $this->subject->update($entry);
@@ -314,7 +315,7 @@ class LdapClientTest extends TestCase
             ->with(Operations::add($entry))
             ->willReturn(new LdapMessageResponse(
                 1,
-                new AddResponse(ResultCode::SUCCESS)
+                new AddResponse(ResultCode::SUCCESS),
             ));
 
         $this->subject->create($entry);
@@ -330,7 +331,7 @@ class LdapClientTest extends TestCase
             ->with(Operations::delete('cn=foo,dc=local'))
             ->willReturn(new LdapMessageResponse(
                 1,
-                new DeleteResponse(ResultCode::SUCCESS)
+                new DeleteResponse(ResultCode::SUCCESS),
             ));
 
         $this->subject->delete($entry->getDn()->toString());
@@ -347,7 +348,7 @@ class LdapClientTest extends TestCase
             ->with(Operations::move('cn=foo,dc=local', 'cn=bar,dc=local'))
             ->willReturn(new LdapMessageResponse(
                 1,
-                new ModifyDnResponse(ResultCode::SUCCESS)
+                new ModifyDnResponse(ResultCode::SUCCESS),
             ));
 
         $this->subject->move(
@@ -367,7 +368,7 @@ class LdapClientTest extends TestCase
             ->with(Operations::rename('cn=foo,dc=local', 'cn=bar'))
             ->willReturn(new LdapMessageResponse(
                 1,
-                new ModifyDnResponse(ResultCode::SUCCESS)
+                new ModifyDnResponse(ResultCode::SUCCESS),
             ));
 
         $this->subject->rename(
@@ -388,7 +389,7 @@ class LdapClientTest extends TestCase
 
         self::assertEquals(
             $entry,
-            $this->subject->read($entry->getDn()->toString())
+            $this->subject->read($entry->getDn()->toString()),
         );
     }
 
@@ -404,7 +405,7 @@ class LdapClientTest extends TestCase
 
         self::assertSame(
             $entry,
-            $this->subject->read()
+            $this->subject->read(),
         );
     }
 
@@ -416,13 +417,13 @@ class LdapClientTest extends TestCase
             ->with(Operations::read('cn=foo,dc=local'))
             ->willThrowException(new OperationException(
                 '',
-                ResultCode::NO_SUCH_OBJECT
+                ResultCode::NO_SUCH_OBJECT,
             ));
 
         $entry = new Entry('cn=foo,dc=local');
 
         self::assertNull(
-            $this->subject->read($entry->getDn()->toString())
+            $this->subject->read($entry->getDn()->toString()),
         );
     }
 
@@ -438,7 +439,8 @@ class LdapClientTest extends TestCase
 
         $this->expectExceptionObject($exception);
 
-        $this->subject->readOrFail('cn=foo,dc=local');;
+        $this->subject->readOrFail('cn=foo,dc=local');
+        ;
     }
 
     public function test_it_should_return_an_entry_on_a_readOrFail_if_it_exists(): void
@@ -467,12 +469,13 @@ class LdapClientTest extends TestCase
             ->with(Operations::read('cn=foo,dc=local'))
             ->willThrowException(new OperationException(
                 '',
-                ResultCode::INSUFFICIENT_ACCESS_RIGHTS
+                ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
             ));
 
         $this->expectException(OperationException::class);
 
-        $this->subject->read($entry->getDn()->toString());;
+        $this->subject->read($entry->getDn()->toString());
+        ;
     }
 
     public function test_it_should_get_the_default_options(): void

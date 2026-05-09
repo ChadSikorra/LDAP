@@ -30,7 +30,7 @@ class RequestContext
 
     public function __construct(
         ControlBag $controls,
-        TokenInterface $token
+        TokenInterface $token,
     ) {
         $this->controls = $controls;
         $this->token = $token;

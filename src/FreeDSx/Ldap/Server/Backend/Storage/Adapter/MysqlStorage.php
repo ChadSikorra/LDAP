@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactoryTrait;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\MysqlFilterTranslator;
 use PDO;
+use SensitiveParameter;
 
 /**
  * MySQL/MariaDB factory for PdoStorage; use forPcntl()/forSwoole() to select the runner. Requires MySQL 8.0+ or MariaDB 10.6+.
@@ -33,15 +34,14 @@ final class MysqlStorage implements PdoStorageFactoryInterface
     public function __construct(
         private readonly string $dsn,
         private readonly string $username,
-        #[\SensitiveParameter]
+        #[SensitiveParameter]
         private readonly string $password,
-    ) {
-    }
+    ) {}
 
     public static function forPcntl(
         string $dsn,
         string $username,
-        #[\SensitiveParameter]
+        #[SensitiveParameter]
         string $password,
     ): PdoStorage {
         return (new self(
@@ -54,7 +54,7 @@ final class MysqlStorage implements PdoStorageFactoryInterface
     public static function forSwoole(
         string $dsn,
         string $username,
-        #[\SensitiveParameter]
+        #[SensitiveParameter]
         string $password,
     ): PdoStorage {
         return (new self(

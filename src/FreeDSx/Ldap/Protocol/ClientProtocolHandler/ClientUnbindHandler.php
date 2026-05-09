@@ -28,9 +28,7 @@ class ClientUnbindHandler implements RequestHandlerInterface
 {
     use MessageCreationTrait;
 
-    public function __construct(private readonly ClientQueue $queue)
-    {
-    }
+    public function __construct(private readonly ClientQueue $queue) {}
 
     /**
      * {@inheritDoc}

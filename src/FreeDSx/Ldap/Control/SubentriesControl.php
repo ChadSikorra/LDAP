@@ -30,7 +30,7 @@ class SubentriesControl extends Control
     {
         parent::__construct(
             self::OID_SUBENTRIES,
-            true
+            true,
         );
     }
 
@@ -67,7 +67,7 @@ class SubentriesControl extends Control
 
         return self::mergeControlData(
             new static($isVisible->getValue()),
-            $type
+            $type,
         );
     }
 }

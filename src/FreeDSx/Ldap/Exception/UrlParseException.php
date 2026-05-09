@@ -20,6 +20,4 @@ use Exception;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class UrlParseException extends Exception
-{
-}
+class UrlParseException extends Exception {}

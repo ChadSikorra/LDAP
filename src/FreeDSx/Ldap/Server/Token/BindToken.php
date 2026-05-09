@@ -32,7 +32,7 @@ class BindToken implements TokenInterface
         string $username,
         #[SensitiveParameter]
         string $password,
-        int $version = 3
+        int $version = 3,
     ) {
         $this->username = $username;
         $this->password = $password;

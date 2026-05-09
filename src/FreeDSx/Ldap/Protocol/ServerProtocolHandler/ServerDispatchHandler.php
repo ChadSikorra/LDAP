@@ -38,8 +38,7 @@ class ServerDispatchHandler implements ServerProtocolHandlerInterface
         private readonly WriteOperationDispatcher $writeDispatcher,
         private readonly WriteCommandFactory $commandFactory = new WriteCommandFactory(),
         private readonly ResponseFactory $responseFactory = new ResponseFactory(),
-    ) {
-    }
+    ) {}
 
     /**
      * {@inheritDoc}

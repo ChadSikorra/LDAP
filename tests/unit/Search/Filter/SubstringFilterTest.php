@@ -29,7 +29,7 @@ final class SubstringFilterTest extends TestCase
             'f',
             'o',
             'o',
-            'bar'
+            'bar',
         );
     }
 
@@ -81,8 +81,8 @@ final class SubstringFilterTest extends TestCase
                     Asn1::context(0, Asn1::octetString('f')),
                     Asn1::context(1, Asn1::octetString('o')),
                     Asn1::context(1, Asn1::octetString('bar')),
-                    Asn1::context(2, Asn1::octetString('o'))
-                )
+                    Asn1::context(2, Asn1::octetString('o')),
+                ),
             )),
             $this->subject->toAsn1(),
         );
@@ -94,8 +94,8 @@ final class SubstringFilterTest extends TestCase
                 Asn1::sequenceOf(
                     Asn1::context(1, Asn1::octetString('o')),
                     Asn1::context(1, Asn1::octetString('bar')),
-                    Asn1::context(2, Asn1::octetString('o'))
-                )
+                    Asn1::context(2, Asn1::octetString('o')),
+                ),
             )),
             $this->subject->toAsn1(),
         );
@@ -106,8 +106,8 @@ final class SubstringFilterTest extends TestCase
                 Asn1::octetString('foo'),
                 Asn1::sequenceOf(
                     Asn1::context(1, Asn1::octetString('o')),
-                    Asn1::context(1, Asn1::octetString('bar'))
-                )
+                    Asn1::context(1, Asn1::octetString('bar')),
+                ),
             )),
             $this->subject->toAsn1(),
         );
@@ -135,7 +135,7 @@ final class SubstringFilterTest extends TestCase
         );
         self::assertEquals(
             $substring,
-            SubstringFilter::fromAsn1($substring->toAsn1())
+            SubstringFilter::fromAsn1($substring->toAsn1()),
         );
 
         $substring = new SubstringFilter(
@@ -145,7 +145,7 @@ final class SubstringFilterTest extends TestCase
         );
         self::assertEquals(
             $substring,
-            SubstringFilter::fromAsn1($substring->toAsn1())
+            SubstringFilter::fromAsn1($substring->toAsn1()),
         );
 
         $substring = new SubstringFilter(
@@ -154,17 +154,17 @@ final class SubstringFilterTest extends TestCase
         );
         self::assertEquals(
             $substring,
-            SubstringFilter::fromAsn1($substring->toAsn1())
+            SubstringFilter::fromAsn1($substring->toAsn1()),
         );
 
         $substring = new SubstringFilter(
             'foo',
             null,
-            'foo'
+            'foo',
         );
         self::assertEquals(
             $substring,
-            SubstringFilter::fromAsn1($substring->toAsn1())
+            SubstringFilter::fromAsn1($substring->toAsn1()),
         );
 
         $substring = new SubstringFilter(
@@ -172,11 +172,11 @@ final class SubstringFilterTest extends TestCase
             null,
             null,
             'foo',
-            'bar'
+            'bar',
         );
         self::assertEquals(
             $substring,
-            SubstringFilter::fromAsn1($substring->toAsn1())
+            SubstringFilter::fromAsn1($substring->toAsn1()),
         );
     }
 

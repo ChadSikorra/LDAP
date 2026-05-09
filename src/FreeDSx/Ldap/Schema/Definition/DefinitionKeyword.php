@@ -48,7 +48,5 @@ final class DefinitionKeyword
 
     public const APPLIES = 'APPLIES';
 
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 }

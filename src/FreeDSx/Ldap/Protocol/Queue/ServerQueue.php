@@ -44,7 +44,7 @@ class ServerQueue extends LdapQueue
         if (!$message instanceof LdapMessageRequest) {
             throw new ProtocolException(sprintf(
                 'Expected an instance of LdapMessageResponse but got: %s',
-                get_class($message)
+                get_class($message),
             ));
         }
 

@@ -39,14 +39,14 @@ class PagingTest extends LdapTestCase
         $this->search = Operations::search(
             Filters::equal(
                 'objectClass',
-                'organizationalUnit'
+                'organizationalUnit',
             ),
-            'ou'
+            'ou',
         );
 
         $this->paging = new Paging(
             $this->client,
-            $this->search
+            $this->search,
         );
     }
 
@@ -64,7 +64,7 @@ class PagingTest extends LdapTestCase
 
         $this->assertCount(
             4,
-            $entries
+            $entries,
         );
 
         while ($this->paging->hasEntries()) {
@@ -73,7 +73,7 @@ class PagingTest extends LdapTestCase
 
         $this->assertCount(
             12,
-            $entries
+            $entries,
         );
     }
 
@@ -84,11 +84,11 @@ class PagingTest extends LdapTestCase
         $operation = Operations::search(
             Filters::equal(
                 'objectClass',
-                'organizationalUnit'
+                'organizationalUnit',
             ),
-            'ou'
+            'ou',
         );
-        $operation->useEntryHandler(fn (EntryResult $result) => $entries->add($result->getEntry()));
+        $operation->useEntryHandler(fn(EntryResult $result) => $entries->add($result->getEntry()));
 
         $this->paging = $this->client->paging($operation);
 
@@ -98,7 +98,7 @@ class PagingTest extends LdapTestCase
 
         $this->assertCount(
             12,
-            $entries
+            $entries,
         );
     }
 
@@ -108,7 +108,7 @@ class PagingTest extends LdapTestCase
 
         $this->assertCount(
             4,
-            $entries
+            $entries,
         );
 
         $this->assertTrue($this->paging->hasEntries());

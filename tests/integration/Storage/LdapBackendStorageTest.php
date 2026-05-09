@@ -70,7 +70,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $this->authenticateUser();
 
         self::assertTrue(
-            $this->ldapClient()->compare('cn=user,dc=foo,dc=bar', 'cn', 'user')
+            $this->ldapClient()->compare('cn=user,dc=foo,dc=bar', 'cn', 'user'),
         );
     }
 
@@ -95,7 +95,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $entries = $this->ldapClient()->search(
             Operations::search(Filters::present('objectClass'))
                 ->base('dc=foo,dc=bar')
-                ->useBaseScope()
+                ->useBaseScope(),
         );
 
         self::assertCount(1, $entries);
@@ -109,7 +109,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $entries = $this->ldapClient()->search(
             Operations::search(Filters::present('objectClass'))
                 ->base('dc=foo,dc=bar')
-                ->useSingleLevelScope()
+                ->useSingleLevelScope(),
         );
 
         // cn=user and ou=people are direct children; cn=alice is not
@@ -123,13 +123,13 @@ class LdapBackendStorageTest extends ServerTestCase
         $entries = $this->ldapClient()->search(
             Operations::search(Filters::equal('cn', 'alice'))
                 ->base('dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
 
         self::assertCount(1, $entries);
         self::assertSame(
             'cn=alice,ou=people,dc=foo,dc=bar',
-            $entries->first()?->getDn()->toString()
+            $entries->first()?->getDn()->toString(),
         );
     }
 
@@ -140,7 +140,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $entries = $this->ldapClient()->search(
             Operations::search(Filters::equal('cn', 'alice'))
                 ->base('dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
 
         $alice = $entries->first();
@@ -174,7 +174,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $entries = $this->ldapClient()->search(
             Operations::search(Filters::equal('cn', 'nobody'))
                 ->base('dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
 
         self::assertCount(0, $entries);
@@ -186,13 +186,13 @@ class LdapBackendStorageTest extends ServerTestCase
 
         $this->ldapClient()->create(Entry::fromArray(
             'cn=charlie,dc=foo,dc=bar',
-            ['cn' => 'charlie', 'sn' => 'Charlie', 'objectClass' => 'inetOrgPerson']
+            ['cn' => 'charlie', 'sn' => 'Charlie', 'objectClass' => 'inetOrgPerson'],
         ));
 
         $entries = $this->ldapClient()->search(
             Operations::search(Filters::equal('cn', 'charlie'))
                 ->base('dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
         self::assertCount(1, $entries);
     }
@@ -206,7 +206,7 @@ class LdapBackendStorageTest extends ServerTestCase
 
         $this->ldapClient()->create(Entry::fromArray(
             'cn=user,dc=foo,dc=bar',
-            ['cn' => 'user', 'sn' => 'User', 'objectClass' => 'inetOrgPerson']
+            ['cn' => 'user', 'sn' => 'User', 'objectClass' => 'inetOrgPerson'],
         ));
     }
 
@@ -218,7 +218,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $entries = $this->ldapClient()->search(
             Operations::search(Filters::equal('cn', 'alice'))
                 ->base('dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
         self::assertCount(0, $entries);
     }
@@ -245,7 +245,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $entries = $this->ldapClient()->search(
             Operations::search(Filters::equal('sn', 'Jones'))
                 ->base('dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
         self::assertCount(1, $entries);
         self::assertSame(['Jones'], $entries->first()?->get('sn')?->getValues());
@@ -259,7 +259,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $found = $this->ldapClient()->search(
             Operations::search(Filters::equal('cn', 'bob'))
                 ->base('dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
         self::assertCount(1, $found);
         self::assertSame('cn=bob,ou=people,dc=foo,dc=bar', $found->first()?->getDn()->toString());
@@ -268,7 +268,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $notFound = $this->ldapClient()->search(
             Operations::search(Filters::equal('cn', 'alice'))
                 ->base('dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
         self::assertCount(0, $notFound);
     }
@@ -280,7 +280,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $result = $this->ldapClient()->compare(
             'cn=alice,ou=people,dc=foo,dc=bar',
             'sn',
-            'Smith'
+            'Smith',
         );
 
         self::assertTrue($result);
@@ -293,7 +293,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $result = $this->ldapClient()->compare(
             'cn=alice,ou=people,dc=foo,dc=bar',
             'sn',
-            'Jones'
+            'Jones',
         );
 
         self::assertFalse($result);
@@ -346,7 +346,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $entries = $this->ldapClient()->search(
             Operations::search(Filters::startsWith('cn', 'al'))
                 ->base('ou=people,dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
 
         self::assertCount(1, $entries);
@@ -363,7 +363,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $entries = $this->ldapClient()->search(
             Operations::search(Filters::contains('cn', 'lic'))
                 ->base('ou=people,dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
 
         self::assertCount(1, $entries);
@@ -380,7 +380,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $entries = $this->ldapClient()->search(
             Operations::search(Filters::endsWith('cn', 'ice'))
                 ->base('ou=people,dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
 
         self::assertCount(1, $entries);
@@ -398,7 +398,7 @@ class LdapBackendStorageTest extends ServerTestCase
         $entries = $this->ldapClient()->search(
             Operations::search(Filters::gte('cn', 'alicf'))
                 ->base('ou=people,dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
 
         // 'alice' < 'alicf' lexicographically
@@ -415,7 +415,7 @@ class LdapBackendStorageTest extends ServerTestCase
                 Filters::lte('cn', 'alice'),
             ))
                 ->base('ou=people,dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
 
         self::assertCount(1, $entries);
@@ -435,7 +435,7 @@ class LdapBackendStorageTest extends ServerTestCase
                 Filters::not(Filters::equal('cn', 'alice')),
             ))
                 ->base('ou=people,dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
 
         // Under ou=people only alice exists in the seed; NOT-equal alice leaves zero matches.

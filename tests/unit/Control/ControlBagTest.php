@@ -55,7 +55,8 @@ class ControlBagTest extends TestCase
     {
         $this->subject->add(new Control('foobar'));
 
-        self::assertTrue($this->subject->has('foobar'));;
+        self::assertTrue($this->subject->has('foobar'));
+        ;
     }
 
     public function test_it_should_check_if_a_control_exists_with_has(): void

@@ -34,7 +34,7 @@ final class ReferralResultTest extends TestCase
                 new SearchResultReference(
                     new LdapUrl('foo'),
                 ),
-            )
+            ),
         );
     }
 
@@ -58,7 +58,7 @@ final class ReferralResultTest extends TestCase
     {
         self::assertEquals(
             new \ArrayIterator([
-                new LdapUrl('foo')
+                new LdapUrl('foo'),
             ]),
             $this->subject->getIterator(),
         );
@@ -85,9 +85,9 @@ final class ReferralResultTest extends TestCase
             new LdapMessageResponse(
                 1,
                 new SearchResultEntry(
-                    new Entry('cn=foo')
+                    new Entry('cn=foo'),
                 ),
-            )
+            ),
         );
 
         $this->subject->getReferrals();

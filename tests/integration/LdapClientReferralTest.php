@@ -47,7 +47,7 @@ final class LdapClientReferralTest extends LdapTestCase
     public function test_it_throws_a_referral_exception_when_an_operation_targets_a_referral_entry(): void
     {
         $this->client = $this->getClient(
-            $this->makeOptions()->setReferral(LdapClient::REFERRAL_THROW)
+            $this->makeOptions()->setReferral(LdapClient::REFERRAL_THROW),
         );
         $this->bindClient($this->client);
 
@@ -59,14 +59,14 @@ final class LdapClientReferralTest extends LdapTestCase
     public function test_it_ignores_a_referral_when_ignore_is_set(): void
     {
         $this->client = $this->getClient(
-            $this->makeOptions()->setReferral(LdapClient::REFERRAL_IGNORE)
+            $this->makeOptions()->setReferral(LdapClient::REFERRAL_IGNORE),
         );
         $this->bindClient($this->client);
 
         $result = $this->client->send(Operations::compare(
             self::REFERRAL_DN,
             'ou',
-            'Referral-Test'
+            'Referral-Test',
         ));
 
         self::assertNull($result);
@@ -82,7 +82,7 @@ final class LdapClientReferralTest extends LdapTestCase
         $this->client = $this->getClient(
             $this->makeOptions()
                 ->setReferral(LdapClient::REFERRAL_FOLLOW)
-                ->setReferralChaser($chaser)
+                ->setReferralChaser($chaser),
         );
         $this->bindClient($this->client);
 
@@ -91,16 +91,16 @@ final class LdapClientReferralTest extends LdapTestCase
         $response = $this->client->send(Operations::compare(
             self::REFERRAL_DN,
             'ou',
-            'Accounting'
+            'Accounting',
         ));
 
         self::assertInstanceOf(
             CompareResponse::class,
-            $response?->getResponse()
+            $response?->getResponse(),
         );
         self::assertSame(
             ResultCode::COMPARE_TRUE,
-            $response->getResponse()->getResultCode()
+            $response->getResponse()->getResultCode(),
         );
     }
 
@@ -114,7 +114,7 @@ final class LdapClientReferralTest extends LdapTestCase
         $this->client = $this->getClient(
             $this->makeOptions()
                 ->setReferral(LdapClient::REFERRAL_FOLLOW)
-                ->setReferralChaser($chaser)
+                ->setReferralChaser($chaser),
         );
         $this->bindClient($this->client);
 
@@ -123,16 +123,16 @@ final class LdapClientReferralTest extends LdapTestCase
         $response = $this->client->send(Operations::compare(
             self::MULTI_REFERRAL_DN,
             'ou',
-            'Accounting'
+            'Accounting',
         ));
 
         self::assertInstanceOf(
             CompareResponse::class,
-            $response?->getResponse()
+            $response?->getResponse(),
         );
         self::assertSame(
             ResultCode::COMPARE_TRUE,
-            $response->getResponse()->getResultCode()
+            $response->getResponse()->getResultCode(),
         );
     }
 
@@ -146,7 +146,7 @@ final class LdapClientReferralTest extends LdapTestCase
         $this->client = $this->getClient(
             $this->makeOptions()
                 ->setReferral(LdapClient::REFERRAL_FOLLOW)
-                ->setReferralChaser($chaser)
+                ->setReferralChaser($chaser),
         );
         $this->bindClient($this->client);
 
@@ -156,16 +156,16 @@ final class LdapClientReferralTest extends LdapTestCase
         $response = $this->client->send(Operations::compare(
             self::REFERRAL_CHAIN_DN,
             'ou',
-            'Accounting'
+            'Accounting',
         ));
 
         self::assertInstanceOf(
             CompareResponse::class,
-            $response?->getResponse()
+            $response?->getResponse(),
         );
         self::assertSame(
             ResultCode::COMPARE_TRUE,
-            $response->getResponse()->getResultCode()
+            $response->getResponse()->getResultCode(),
         );
     }
 }

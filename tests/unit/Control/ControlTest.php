@@ -68,7 +68,7 @@ class ControlTest extends TestCase
         self::assertEquals(
             Asn1::sequence(
                 Asn1::octetString('foo'),
-                Asn1::boolean(false)
+                Asn1::boolean(false),
             ),
             $this->subject->toAsn1(),
         );
@@ -78,7 +78,7 @@ class ControlTest extends TestCase
     {
         $result = Control::fromAsn1(Asn1::sequence(
             Asn1::octetString('foobar'),
-            Asn1::boolean(true)
+            Asn1::boolean(true),
         ));
 
         self::assertSame(

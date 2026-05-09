@@ -42,7 +42,7 @@ class ExpectedEntryCountControl extends Control
     ) {
         parent::__construct(
             self::OID_EXPECTED_ENTRY_COUNT,
-            true
+            true,
         );
     }
 
@@ -106,7 +106,7 @@ class ExpectedEntryCountControl extends Control
     {
         $this->controlValue = Asn1::sequence(
             Asn1::integer($this->min),
-            Asn1::integer($this->max)
+            Asn1::integer($this->max),
         );
 
         return parent::toAsn1();

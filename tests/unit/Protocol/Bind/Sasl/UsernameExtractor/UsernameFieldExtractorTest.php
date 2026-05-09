@@ -60,7 +60,7 @@ final class UsernameFieldExtractorTest extends TestCase
             ->method('decode')
             ->with(
                 self::anything(),
-                self::callback(fn (SaslContext $ctx): bool => $ctx->isServerMode()),
+                self::callback(fn(SaslContext $ctx): bool => $ctx->isServerMode()),
             )
             ->willReturn(new Message(['username' => 'user']));
 

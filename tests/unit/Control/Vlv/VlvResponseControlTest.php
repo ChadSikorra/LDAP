@@ -74,9 +74,9 @@ class VlvResponseControlTest extends TestCase
                     Asn1::integer(1),
                     Asn1::integer(300),
                     Asn1::enumerated(0),
-                    Asn1::octetString('foo')
-                )))
-            ))->setValue(null)
+                    Asn1::octetString('foo'),
+                ))),
+            ))->setValue(null),
         );
     }
 }

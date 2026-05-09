@@ -36,8 +36,7 @@ final class SchemaValidator
     public function __construct(
         private readonly Schema $schema,
         private readonly SchemaValidationMode $mode,
-    ) {
-    }
+    ) {}
 
     /**
      * Validates an entry before it is added to storage.
@@ -109,7 +108,7 @@ final class SchemaValidator
     {
         return array_values(array_filter(
             array_map(
-                fn (string $name) => $this->schema->getObjectClass($name),
+                fn(string $name) => $this->schema->getObjectClass($name),
                 $entry->get('objectClass')?->getValues() ?? [],
             ),
         ));

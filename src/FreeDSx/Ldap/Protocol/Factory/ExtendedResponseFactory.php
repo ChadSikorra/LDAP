@@ -47,27 +47,27 @@ class ExtendedResponseFactory
         if (!self::has($oid)) {
             throw new ProtocolException(sprintf(
                 'There is no extended response mapped for %s.',
-                $oid
+                $oid,
             ));
         }
         $responseConstruct = self::$map[$oid] . '::fromAsn1';
         if (!is_callable($responseConstruct)) {
             throw new RuntimeException(sprintf(
                 'The extended response construct is not callable: %s',
-                $responseConstruct
+                $responseConstruct,
             ));
         }
 
         $response = call_user_func(
             $responseConstruct,
-            $asn1
+            $asn1,
         );
 
         if (!$response instanceof ExtendedResponse) {
             throw new RuntimeException(sprintf(
                 'Expected an instance of %s, but received: %s',
                 ExtendedResponse::class,
-                is_object($response) ? $response::class : gettype($response)
+                is_object($response) ? $response::class : gettype($response),
             ));
         }
 
@@ -93,13 +93,13 @@ class ExtendedResponseFactory
             throw new InvalidArgumentException(sprintf(
                 'The class for the extended response %s does not exist: %s',
                 $oid,
-                $className
+                $className,
             ));
         }
         if (!is_subclass_of($className, ExtendedResponse::class)) {
             throw new InvalidArgumentException(sprintf(
                 'The class must extend the ExtendedResponse, but it does not: %s',
-                $className
+                $className,
             ));
         }
         self::$map[$oid] = $className;

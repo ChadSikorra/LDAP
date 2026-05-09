@@ -29,7 +29,7 @@ class OptionTest extends TestCase
     {
         self::assertFalse($this->subject->isLanguageTag());
     }
-    
+
     public function test_it_should_detect_if_it_is_a_language_option(): void
     {
         $this->subject = new Option('lang-en');
@@ -48,7 +48,7 @@ class OptionTest extends TestCase
 
         self::assertTrue($this->subject->isRange());
     }
-    
+
     public function test_it_should_get_the_high_range_value_of_an_option(): void
     {
         $this->subject = new Option('range=0-1500');
@@ -58,7 +58,7 @@ class OptionTest extends TestCase
             $this->subject->getHighRange(),
         );
     }
-    
+
     public function test_it_should_return_an_empty_string_if_the_high_range_cannot_be_parsed(): void
     {
         self::assertSame(
@@ -66,7 +66,7 @@ class OptionTest extends TestCase
             $this->subject->getHighRange(),
         );
     }
-    
+
     public function test_it_should_get_the_low_range_value_of_an_option(): void
     {
         $this->subject = new Option('range=0-1500');
@@ -81,7 +81,7 @@ class OptionTest extends TestCase
     {
         self::assertNull($this->subject->getLowRange());
     }
-    
+
     public function test_it_should_have_a_factory_method_for_a_range(): void
     {
         $this->subject = Option::fromRange('0');
@@ -96,13 +96,13 @@ class OptionTest extends TestCase
             $this->subject->getHighRange(),
         );
     }
-    
+
     public function test_it_should_return_whether_the_option_starts_with_a_string(): void
     {
         self::assertTrue($this->subject->startsWith('fo'));
         self::assertFalse($this->subject->startsWith('bar'));
     }
-    
+
     public function test_it_should_get_the_string_option_with_toString(): void
     {
         self::assertSame(
@@ -110,7 +110,7 @@ class OptionTest extends TestCase
             $this->subject->toString(),
         );
     }
-    
+
     public function test_it_should_have_a_string_representation(): void
     {
         self::assertSame(
@@ -118,7 +118,7 @@ class OptionTest extends TestCase
             (string) $this->subject,
         );
     }
-    
+
     public function test_it_should_check_for_equality_with_another_option(): void
     {
         self::assertTrue($this->subject->equals(new Option('FOO')));

@@ -39,8 +39,7 @@ class ClientProtocolHandler
         private readonly ClientOptions $options,
         private readonly ClientQueueInstantiator $clientQueueInstantiator,
         private readonly ClientProtocolHandlerFactory $protocolHandlerFactory,
-    ) {
-    }
+    ) {}
 
     /**
      * @throws ConnectionException
@@ -51,7 +50,7 @@ class ClientProtocolHandler
      */
     public function send(
         RequestInterface $request,
-        Control ...$controls
+        Control ...$controls,
     ): ?LdapMessageResponse {
         try {
             $messageTo = new LdapMessageRequest(
@@ -67,7 +66,7 @@ class ClientProtocolHandler
             if ($messageFrom !== null) {
                 $messageFrom = $this->protocolHandlerFactory->forResponse(
                     $messageTo->getRequest(),
-                    $messageFrom->getResponse()
+                    $messageFrom->getResponse(),
                 )->handleResponse(
                     $messageTo,
                     $messageFrom,
@@ -93,7 +92,7 @@ class ClientProtocolHandler
             throw new ConnectionException(
                 $exception->getMessage(),
                 $exception->getCode(),
-                $exception
+                $exception,
             );
         }
     }

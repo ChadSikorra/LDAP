@@ -39,8 +39,7 @@ final class SwooleWriterQueue implements WriterQueueInterface
     public function __construct(
         private readonly int $capacity = 1024,
         private readonly ?Closure $batchWrapper = null,
-    ) {
-    }
+    ) {}
 
     /**
      * Submit a write closure and block the caller until the writer reports completion.

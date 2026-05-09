@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use IteratorAggregate;
 use Stringable;
 use Traversable;
+
 use function count;
 use function implode;
 
@@ -35,9 +36,7 @@ final class ReferralResult implements Countable, IteratorAggregate, Stringable
      */
     private ?array $referrals = null;
 
-    public function __construct(private readonly LdapMessageResponse $response)
-    {
-    }
+    public function __construct(private readonly LdapMessageResponse $response) {}
 
     /**
      * The raw message response returned from the server, which contains any controls
@@ -63,7 +62,7 @@ final class ReferralResult implements Countable, IteratorAggregate, Stringable
             throw new UnexpectedValueException(sprintf(
                 'Expected an instance of "%s", but got "%s".',
                 SearchResultReference::class,
-                get_class($reference)
+                get_class($reference),
             ));
         }
 

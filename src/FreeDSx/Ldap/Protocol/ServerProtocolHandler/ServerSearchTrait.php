@@ -35,7 +35,7 @@ trait ServerSearchTrait
         SearchResult $searchResult,
         LdapMessageRequest $message,
         ServerQueue $queue,
-        Control ...$controls
+        Control ...$controls,
     ): void {
         $queue->sendMessages($this->buildResponseStream(
             $searchResult,
@@ -81,7 +81,7 @@ trait ServerSearchTrait
         if (!$request instanceof SearchRequest) {
             throw new RuntimeException(sprintf(
                 'Expected a search request, but got %s.',
-                get_class($request)
+                get_class($request),
             ));
         }
         return $request;
@@ -97,7 +97,7 @@ trait ServerSearchTrait
         if (!$pagingControl instanceof PagingControl) {
             throw new OperationException(
                 'The paging control was expected, but not received.',
-                ResultCode::PROTOCOL_ERROR
+                ResultCode::PROTOCOL_ERROR,
             );
         }
 
@@ -122,7 +122,7 @@ trait ServerSearchTrait
      */
     private function effectiveSizeLimit(
         int $requestLimit,
-        int $serverMax
+        int $serverMax,
     ): int {
         if ($serverMax === 0) {
             return $requestLimit;
@@ -146,7 +146,7 @@ trait ServerSearchTrait
     {
         $filtered = array_filter(
             $message->controls()->toArray(),
-            static fn (Control $control): bool => $control->getTypeOid() !== Control::OID_PAGING,
+            static fn(Control $control): bool => $control->getTypeOid() !== Control::OID_PAGING,
         );
 
         return new ControlBag(...$filtered);
@@ -171,7 +171,7 @@ trait ServerSearchTrait
 
         $names = array_map(
             static fn(Attribute $a): string => strtolower($a->getDescription()),
-            $requestedAttrs
+            $requestedAttrs,
         );
 
         $returnAll = count($names) === 0 || in_array('*', $names, true);

@@ -23,7 +23,6 @@ use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Protocol\LdapEncoder;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ClientQueue;
 use FreeDSx\Ldap\Protocol\Queue\MessageWrapperInterface;
 use FreeDSx\Socket\Queue\Buffer;
@@ -60,7 +59,7 @@ final class ClientQueueTest extends TestCase
             ->method('read')
             ->will(self::onConsecutiveCalls(
                 'foo',
-                false
+                false,
             ));
 
         $this->subject = new ClientQueue(
@@ -83,7 +82,7 @@ final class ClientQueueTest extends TestCase
 
         $this->subject->sendMessage(new LdapMessageRequest(
             1,
-            Operations::whoami()
+            Operations::whoami(),
         ));
     }
 
@@ -98,10 +97,10 @@ final class ClientQueueTest extends TestCase
                     Asn1::application(11, Asn1::sequence(
                         Asn1::enumerated(0),
                         Asn1::octetString('dc=foo,dc=bar'),
-                        Asn1::octetString('')
+                        Asn1::octetString(''),
                     )),
-                    Asn1::context(0, (new IncompleteType((new LdapEncoder())->encode((new Control('foo'))->toAsn1())))->setIsConstructed(true))
-                )
+                    Asn1::context(0, (new IncompleteType((new LdapEncoder())->encode((new Control('foo'))->toAsn1())))->setIsConstructed(true)),
+                ),
             );
 
         $this->subject->getMessage();
@@ -118,9 +117,9 @@ final class ClientQueueTest extends TestCase
                         Asn1::enumerated(0),
                         Asn1::octetString('dc=foo,dc=bar'),
                         Asn1::octetString('foo'),
-                        Asn1::context(10, Asn1::octetString(ExtendedResponse::OID_NOTICE_OF_DISCONNECTION))
-                    ))
-                )
+                        Asn1::context(10, Asn1::octetString(ExtendedResponse::OID_NOTICE_OF_DISCONNECTION)),
+                    )),
+                ),
             );
 
         self::expectException(UnsolicitedNotificationException::class);
@@ -138,10 +137,10 @@ final class ClientQueueTest extends TestCase
                     Asn1::application(11, Asn1::sequence(
                         Asn1::enumerated(0),
                         Asn1::octetString('dc=foo,dc=bar'),
-                        Asn1::octetString('')
+                        Asn1::octetString(''),
                     )),
-                    Asn1::context(0, (new IncompleteType((new LdapEncoder())->encode((new Control('foo'))->toAsn1())))->setIsConstructed(true))
-                )
+                    Asn1::context(0, (new IncompleteType((new LdapEncoder())->encode((new Control('foo'))->toAsn1())))->setIsConstructed(true)),
+                ),
             );
 
         self::expectException(ProtocolException::class);
@@ -180,9 +179,9 @@ final class ClientQueueTest extends TestCase
             Asn1::application(11, Asn1::sequence(
                 Asn1::enumerated(0),
                 Asn1::octetString('dc=foo,dc=bar'),
-                Asn1::octetString('')
+                Asn1::octetString(''),
             )),
-            Asn1::context(0, (new IncompleteType((new LdapEncoder())->encode((new Control('foo'))->toAsn1())))->setIsConstructed(true))
+            Asn1::context(0, (new IncompleteType((new LdapEncoder())->encode((new Control('foo'))->toAsn1())))->setIsConstructed(true)),
         );
 
         $this->mockEncoder

@@ -73,7 +73,8 @@ final class ClientQueueInstantiatorTest extends TestCase
         self::assertTrue($this->subject->isInstantiatedAndConnected());
     }
 
-    public function test_it_should_return_an_instantiated_socket_on_make(): void {
+    public function test_it_should_return_an_instantiated_socket_on_make(): void
+    {
         $this->mockPool
             ->method('connect')
             ->willReturn($this->mockSocket);

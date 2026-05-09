@@ -62,7 +62,7 @@ class ClientReferralHandlerTest extends TestCase
     public function test_it_should_throw_an_exception_on_referrals(): void
     {
         $this->subject = new ClientReferralHandler(
-            $this->options->setReferral('throw')
+            $this->options->setReferral('throw'),
         );
 
         $response = new LdapMessageResponse(1, new DeleteResponse(ResultCode::REFERRAL, '', 'foo', new LdapUrl('foo')));
@@ -95,15 +95,15 @@ class ClientReferralHandlerTest extends TestCase
             ->method('send')
             ->will(self::onConsecutiveCalls(
                 null,
-                $message
+                $message,
             ));
 
         self::assertEquals(
             $message,
             $this->subject->handleResponse(
                 new LdapMessageRequest(2, new DeleteRequest('foo')),
-                new LdapMessageResponse(1, new DeleteResponse(ResultCode::REFERRAL, '', '', new LdapUrl('foo')))
-            )
+                new LdapMessageResponse(1, new DeleteResponse(ResultCode::REFERRAL, '', '', new LdapUrl('foo'))),
+            ),
         );
     }
 
@@ -115,13 +115,13 @@ class ClientReferralHandlerTest extends TestCase
             ->setReferralChaser($this->mockChaser);
 
         self::expectExceptionObject(new OperationException(
-            'The referral limit of -1 has been reached.'
+            'The referral limit of -1 has been reached.',
         ));
 
         $this->subject->handleResponse(
             new LdapMessageRequest(
                 2,
-                new DeleteRequest('foo')
+                new DeleteRequest('foo'),
             ),
             new LdapMessageResponse(
                 1,
@@ -129,8 +129,8 @@ class ClientReferralHandlerTest extends TestCase
                     ResultCode::REFERRAL,
                     '',
                     '',
-                    new LdapUrl('foo')
-                )
+                    new LdapUrl('foo'),
+                ),
             ),
         );
     }
@@ -148,13 +148,13 @@ class ClientReferralHandlerTest extends TestCase
 
         self::expectExceptionObject(new OperationException(
             'All referral attempts have been exhausted. ',
-            ResultCode::REFERRAL
+            ResultCode::REFERRAL,
         ));
 
         $this->subject->handleResponse(
             new LdapMessageRequest(
                 2,
-                new DeleteRequest('foo')
+                new DeleteRequest('foo'),
             ),
             new LdapMessageResponse(
                 1,
@@ -162,8 +162,8 @@ class ClientReferralHandlerTest extends TestCase
                     ResultCode::REFERRAL,
                     '',
                     '',
-                    new LdapUrl('foo')
-                )
+                    new LdapUrl('foo'),
+                ),
             ),
         );
     }
@@ -196,7 +196,7 @@ class ClientReferralHandlerTest extends TestCase
             $this->subject->handleResponse(
                 new LdapMessageRequest(
                     1,
-                    new DeleteRequest('foo')
+                    new DeleteRequest('foo'),
                 ),
                 new LdapMessageResponse(
                     1,
@@ -206,7 +206,7 @@ class ClientReferralHandlerTest extends TestCase
                         '',
                         new LdapUrl('foo'),
                         new LdapUrl('bar'),
-                    )
+                    ),
                 ),
             ),
         );
@@ -240,7 +240,7 @@ class ClientReferralHandlerTest extends TestCase
             $this->subject->handleResponse(
                 new LdapMessageRequest(
                     1,
-                    new DeleteRequest('foo')
+                    new DeleteRequest('foo'),
                 ),
                 new LdapMessageResponse(
                     1,
@@ -250,7 +250,7 @@ class ClientReferralHandlerTest extends TestCase
                         '',
                         new LdapUrl('foo'),
                         new LdapUrl('bar'),
-                    )
+                    ),
                 ),
             ),
         );
@@ -282,8 +282,8 @@ class ClientReferralHandlerTest extends TestCase
                     1,
                     new SimpleBindRequest(
                         'foo',
-                        'bar'
-                    )
+                        'bar',
+                    ),
                 ),
                 new LdapMessageResponse(
                     1,
@@ -292,25 +292,25 @@ class ClientReferralHandlerTest extends TestCase
                             ResultCode::REFERRAL,
                             '',
                             '',
-                            new LdapUrl('foo')
-                        )
-                    )
-                )
-            )
+                            new LdapUrl('foo'),
+                        ),
+                    ),
+                ),
+            ),
         );
     }
 
     public function test_it_should_ignore_referrals_and_return_null_when_ignore_is_set(): void
     {
         $this->subject = new ClientReferralHandler(
-            $this->options->setReferral('ignore')
+            $this->options->setReferral('ignore'),
         );
 
         $response = new LdapMessageResponse(1, new DeleteResponse(ResultCode::REFERRAL, '', 'foo', new LdapUrl('foo')));
         $request = new LdapMessageRequest(1, new DeleteRequest('cn=foo'));
 
         self::assertNull(
-            $this->subject->handleResponse($request, $response)
+            $this->subject->handleResponse($request, $response),
         );
     }
 
@@ -337,7 +337,7 @@ class ClientReferralHandlerTest extends TestCase
 
         $this->subject->handleResponse(
             new LdapMessageRequest(1, new SearchRequest(Filters::present('objectClass'))),
-            new LdapMessageResponse(1, new SearchResultDone(ResultCode::REFERRAL, '', '', $referralUrl))
+            new LdapMessageResponse(1, new SearchResultDone(ResultCode::REFERRAL, '', '', $referralUrl)),
         );
 
         self::assertInstanceOf(SearchRequest::class, $sentRequest);
@@ -370,7 +370,7 @@ class ClientReferralHandlerTest extends TestCase
 
         $this->subject->handleResponse(
             new LdapMessageRequest(1, new SearchRequest(Filters::present('objectClass'))),
-            new LdapMessageResponse(1, new SearchResultDone(ResultCode::REFERRAL, '', '', $referralUrl))
+            new LdapMessageResponse(1, new SearchResultDone(ResultCode::REFERRAL, '', '', $referralUrl)),
         );
 
         self::assertInstanceOf(SearchRequest::class, $sentRequest);
@@ -405,7 +405,7 @@ class ClientReferralHandlerTest extends TestCase
 
         $this->subject->handleResponse(
             new LdapMessageRequest(1, $originalRequest),
-            new LdapMessageResponse(1, new SearchResultDone(ResultCode::REFERRAL, '', '', $referralUrl))
+            new LdapMessageResponse(1, new SearchResultDone(ResultCode::REFERRAL, '', '', $referralUrl)),
         );
 
         self::assertInstanceOf(SearchRequest::class, $sentRequest);

@@ -18,6 +18,7 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Exception\UrlParseException;
 use Stringable;
+
 use function array_map;
 use function count;
 use function end;
@@ -130,7 +131,7 @@ class LdapUrl implements Stringable
                 $scope,
                 self::SCOPE_BASE,
                 self::SCOPE_ONE,
-                self::SCOPE_SUB
+                self::SCOPE_SUB,
             ));
         }
         $this->scope = $scope;
@@ -273,12 +274,12 @@ class LdapUrl implements Stringable
             # Check for query parameters but no path...
             if (strlen($matches[2]) > 0 && $matches[2][0] === '?') {
                 $query = substr($matches[2], 1);
-            # Check if there are any query parameters and a possible path...
+                # Check if there are any query parameters and a possible path...
             } elseif (str_contains($matches[2], '?')) {
                 $parts = explode('?', $matches[2], 2);
                 $path = $parts[0];
                 $query = $parts[1] ?? null;
-            # A path only...
+                # A path only...
             } else {
                 $path = $matches[2];
             }
@@ -294,7 +295,7 @@ class LdapUrl implements Stringable
         if (!($pieces['scheme'] === 'ldap' || $pieces['scheme'] === 'ldaps')) {
             throw new UrlParseException(sprintf(
                 'The URL scheme "%s" is not valid. It must be "ldap" or "ldaps".',
-                $pieces['scheme']
+                $pieces['scheme'],
             ));
         }
 

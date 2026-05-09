@@ -452,8 +452,8 @@ final class SqliteStorageTest extends TestCase
         $dialect = new SqliteDialect();
         PdoStorage::initialize($pdo, $dialect);
         $pdo->exec(
-            "INSERT INTO entries (lc_dn, dn, lc_parent_dn, attributes) VALUES " .
-            "('cn=corrupt,dc=example,dc=com', 'cn=Corrupt,dc=example,dc=com', 'dc=example,dc=com', 'NOT_VALID_BLOB')"
+            "INSERT INTO entries (lc_dn, dn, lc_parent_dn, attributes) VALUES "
+            . "('cn=corrupt,dc=example,dc=com', 'cn=Corrupt,dc=example,dc=com', 'dc=example,dc=com', 'NOT_VALID_BLOB')",
         );
 
         $storage = new PdoStorage(
@@ -474,12 +474,12 @@ final class SqliteStorageTest extends TestCase
         PdoStorage::initialize($pdo, $dialect);
         $validBlob = serialize(['cn' => ['Valid']]);
         $pdo->exec(
-            "INSERT INTO entries (lc_dn, dn, lc_parent_dn, attributes) VALUES " .
-            "('cn=valid,dc=example,dc=com', 'cn=Valid,dc=example,dc=com', 'dc=example,dc=com', '{$validBlob}')"
+            "INSERT INTO entries (lc_dn, dn, lc_parent_dn, attributes) VALUES "
+            . "('cn=valid,dc=example,dc=com', 'cn=Valid,dc=example,dc=com', 'dc=example,dc=com', '{$validBlob}')",
         );
         $pdo->exec(
-            "INSERT INTO entries (lc_dn, dn, lc_parent_dn, attributes) VALUES " .
-            "('cn=corrupt,dc=example,dc=com', 'cn=Corrupt,dc=example,dc=com', 'dc=example,dc=com', 'NOT_VALID_BLOB')"
+            "INSERT INTO entries (lc_dn, dn, lc_parent_dn, attributes) VALUES "
+            . "('cn=corrupt,dc=example,dc=com', 'cn=Corrupt,dc=example,dc=com', 'dc=example,dc=com', 'NOT_VALID_BLOB')",
         );
 
         $storage = new PdoStorage(
@@ -491,7 +491,7 @@ final class SqliteStorageTest extends TestCase
         $this->expectException(StorageIoException::class);
 
         iterator_to_array(
-            $storage->list(StorageListOptions::matchAll(new Dn('dc=example,dc=com'), false))->entries
+            $storage->list(StorageListOptions::matchAll(new Dn('dc=example,dc=com'), false))->entries,
         );
     }
 

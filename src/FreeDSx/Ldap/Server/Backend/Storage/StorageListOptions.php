@@ -30,8 +30,7 @@ final class StorageListOptions
         public readonly FilterInterface $filter,
         public readonly int $timeLimit = 0,
         public readonly int $sizeLimit = 0,
-    ) {
-    }
+    ) {}
 
     /**
      * Match-all options for internal callers (e.g. hasChildren) and tests that do not need a meaningful filter.

@@ -45,12 +45,12 @@ class OperationsTest extends TestCase
 
         self::assertEquals(
             new SaslBindRequest('', null, $options),
-            Operations::bindSasl($options)
+            Operations::bindSasl($options),
         );
 
         self::assertEquals(
             new SaslBindRequest('DIGEST-MD5', null, $options),
-            Operations::bindSasl($options, MechanismName::DIGEST_MD5)
+            Operations::bindSasl($options, MechanismName::DIGEST_MD5),
         );
     }
 
@@ -76,9 +76,9 @@ class OperationsTest extends TestCase
                 'foo',
                 Change::replace(
                     'foo',
-                    'bar'
-                )
-            )
+                    'bar',
+                ),
+            ),
         );
     }
 
@@ -88,7 +88,7 @@ class OperationsTest extends TestCase
             new ModifyDnRequest(
                 'cn=foo,dc=bar,dc=foo',
                 'foo=bar',
-                true
+                true,
             ),
             Operations::rename(
                 'cn=foo,dc=bar,dc=foo',
@@ -108,7 +108,7 @@ class OperationsTest extends TestCase
                 'cn=foo,dc=example,dc=local',
                 'cn=foo',
                 true,
-                'ou=foo,dc=example,dc=local'
+                'ou=foo,dc=example,dc=local',
             ),
             Operations::move(
                 new Dn('cn=foo,dc=example,dc=local'),
@@ -131,17 +131,17 @@ class OperationsTest extends TestCase
             new SearchRequest(
                 Filters::equal(
                     'foo',
-                    'bar'
+                    'bar',
                 ),
                 'cn',
             ),
             Operations::search(
                 new EqualityFilter(
                     'foo',
-                    'bar'
+                    'bar',
                 ),
                 'cn',
-            )
+            ),
         );
     }
 
@@ -153,7 +153,7 @@ class OperationsTest extends TestCase
                 new EqualityFilter(
                     'foo',
                     'bar',
-                )
+                ),
             ),
             Operations::compare(
                 'cn=foo,dc=example,dc=local',
@@ -244,10 +244,10 @@ class OperationsTest extends TestCase
             Operations::list(
                 Filters::equal(
                     'foo',
-                    'bar'
+                    'bar',
                 ),
                 'dc=foo,dc=bar',
-                'cn'
+                'cn',
             ),
         );
     }
@@ -264,7 +264,7 @@ class OperationsTest extends TestCase
                 'foo',
                 '12345',
                 '6789',
-            )
+            ),
         );
     }
 }

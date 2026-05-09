@@ -51,7 +51,8 @@ final class PagingResponseTest extends TestCase
     {
         $this->subject = PagingResponse::makeFinal(new Entries());
 
-        self::assertTrue($this->subject->isComplete());;
+        self::assertTrue($this->subject->isComplete());
+        ;
     }
 
     public function test_it_should_make_a_regular_response(): void

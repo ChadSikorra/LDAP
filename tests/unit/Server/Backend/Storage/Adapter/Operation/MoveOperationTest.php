@@ -50,7 +50,7 @@ final class MoveOperationTest extends TestCase
 
         self::assertSame(
             'cn=alicia,dc=example,dc=com',
-            $result->getDn()->toString()
+            $result->getDn()->toString(),
         );
     }
 
@@ -69,11 +69,11 @@ final class MoveOperationTest extends TestCase
         self::assertNotNull($cn);
         self::assertNotContains(
             'alice',
-            $cn->getValues()
+            $cn->getValues(),
         );
         self::assertContains(
             'alicia',
-            $cn->getValues()
+            $cn->getValues(),
         );
     }
 
@@ -93,11 +93,11 @@ final class MoveOperationTest extends TestCase
         self::assertNotNull($cn);
         self::assertContains(
             'alice',
-            $cn->getValues()
+            $cn->getValues(),
         );
         self::assertContains(
             'alicia',
-            $cn->getValues()
+            $cn->getValues(),
         );
     }
 
@@ -114,7 +114,7 @@ final class MoveOperationTest extends TestCase
 
         self::assertSame(
             ['alice'],
-            $result->get('uid')?->getValues()
+            $result->get('uid')?->getValues(),
         );
     }
 
@@ -139,11 +139,11 @@ final class MoveOperationTest extends TestCase
         self::assertNotNull($uid);
         self::assertContains(
             'existing',
-            $uid->getValues()
+            $uid->getValues(),
         );
         self::assertContains(
             'alice',
-            $uid->getValues()
+            $uid->getValues(),
         );
     }
 
@@ -160,7 +160,7 @@ final class MoveOperationTest extends TestCase
 
         self::assertSame(
             'cn=alice,ou=People,dc=example,dc=com',
-            $result->getDn()->toString()
+            $result->getDn()->toString(),
         );
     }
 
@@ -177,7 +177,7 @@ final class MoveOperationTest extends TestCase
 
         self::assertSame(
             'cn=alicia,dc=example,dc=com',
-            $result->getDn()->toString()
+            $result->getDn()->toString(),
         );
     }
 
@@ -194,7 +194,7 @@ final class MoveOperationTest extends TestCase
 
         self::assertSame(
             ['alice@example.com'],
-            $result->get('mail')?->getValues()
+            $result->get('mail')?->getValues(),
         );
     }
 

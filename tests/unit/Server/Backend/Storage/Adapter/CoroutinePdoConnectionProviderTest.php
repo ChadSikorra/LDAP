@@ -33,7 +33,7 @@ final class CoroutinePdoConnectionProviderTest extends TestCase
     public function test_throws_when_called_outside_a_coroutine(): void
     {
         $provider = new CoroutinePdoConnectionProvider(
-            fn (): PDO => $this->newPdo(),
+            fn(): PDO => $this->newPdo(),
         );
 
         $this->expectException(RuntimeException::class);
@@ -43,7 +43,7 @@ final class CoroutinePdoConnectionProviderTest extends TestCase
     public function test_txState_throws_when_called_outside_a_coroutine(): void
     {
         $provider = new CoroutinePdoConnectionProvider(
-            fn (): PDO => $this->newPdo(),
+            fn(): PDO => $this->newPdo(),
         );
 
         $this->expectException(RuntimeException::class);
@@ -53,7 +53,7 @@ final class CoroutinePdoConnectionProviderTest extends TestCase
     public function test_returns_same_pdo_on_repeat_calls_within_same_coroutine(): void
     {
         $provider = new CoroutinePdoConnectionProvider(
-            fn (): PDO => $this->newPdo(),
+            fn(): PDO => $this->newPdo(),
         );
 
         $captured = [];
@@ -138,7 +138,7 @@ final class CoroutinePdoConnectionProviderTest extends TestCase
     public function test_tx_state_depth_is_isolated_per_coroutine(): void
     {
         $provider = new CoroutinePdoConnectionProvider(
-            fn (): PDO => $this->newPdo(),
+            fn(): PDO => $this->newPdo(),
         );
 
         $depths = [];

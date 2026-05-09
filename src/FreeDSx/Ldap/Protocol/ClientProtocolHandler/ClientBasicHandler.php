@@ -25,6 +25,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ClientQueue;
 use FreeDSx\Socket\Exception\ConnectionException;
+
 use function in_array;
 
 /**
@@ -34,9 +35,7 @@ use function in_array;
  */
 class ClientBasicHandler implements RequestHandlerInterface, ResponseHandlerInterface
 {
-    public function __construct(private readonly ClientQueue $queue)
-    {
-    }
+    public function __construct(private readonly ClientQueue $queue) {}
 
     /**
      * RFC 4511, A.1. These are considered result codes that do not indicate an error condition.
@@ -69,7 +68,7 @@ class ClientBasicHandler implements RequestHandlerInterface, ResponseHandlerInte
      */
     public function handleResponse(
         LdapMessageRequest $messageTo,
-        LdapMessageResponse $messageFrom
+        LdapMessageResponse $messageFrom,
     ): ?LdapMessageResponse {
         $result = $messageFrom->getResponse();
 
@@ -87,13 +86,13 @@ class ClientBasicHandler implements RequestHandlerInterface, ResponseHandlerInte
         if ($messageTo->getRequest() instanceof BindRequest) {
             throw new BindException(
                 sprintf('Unable to bind to LDAP. %s', $result->getDiagnosticMessage()),
-                $result->getResultCode()
+                $result->getResultCode(),
             );
         }
 
         throw new OperationException(
             $result->getDiagnosticMessage(),
-            $result->getResultCode()
+            $result->getResultCode(),
         );
     }
 }

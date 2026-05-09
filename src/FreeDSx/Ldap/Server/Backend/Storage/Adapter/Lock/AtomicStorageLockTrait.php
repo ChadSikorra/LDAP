@@ -23,9 +23,7 @@ use Throwable;
  */
 trait AtomicStorageLockTrait
 {
-    public function __construct(private readonly string $filePath)
-    {
-    }
+    public function __construct(private readonly string $filePath) {}
 
     final public function withLock(callable $mutation): void
     {

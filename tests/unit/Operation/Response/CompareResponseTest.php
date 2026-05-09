@@ -29,7 +29,7 @@ final class CompareResponseTest extends TestCase
     {
         self::assertSame(
             15,
-            $this->subject->toAsn1()->getTagNumber()
+            $this->subject->toAsn1()->getTagNumber(),
         );
     }
 }

@@ -52,7 +52,7 @@ class MatchingRuleFilter implements FilterInterface, Stringable
         ?string $matchingRule,
         ?string $attribute,
         string $value,
-        bool $useDnAttributes = false
+        bool $useDnAttributes = false,
     ) {
         $this->matchingRule = $matchingRule;
         $this->attribute = $attribute;
@@ -112,7 +112,7 @@ class MatchingRuleFilter implements FilterInterface, Stringable
     {
         $matchingRule = Asn1::context(
             tagNumber: self::CHOICE_TAG,
-            type: Asn1::sequence()
+            type: Asn1::sequence(),
         );
 
         if ($this->matchingRule !== null) {
@@ -218,7 +218,7 @@ class MatchingRuleFilter implements FilterInterface, Stringable
             $matchingRule,
             $matchingType,
             $matchValue->getValue(),
-            $useDnAttr
+            $useDnAttr,
         );
     }
 }

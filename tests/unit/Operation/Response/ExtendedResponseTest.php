@@ -30,10 +30,10 @@ final class ExtendedResponseTest extends TestCase
             new LdapResult(
                 0,
                 'dc=foo,dc=bar',
-                'foo'
+                'foo',
             ),
             'foo',
-            'bar'
+            'bar',
         );
     }
 
@@ -63,10 +63,10 @@ final class ExtendedResponseTest extends TestCase
             Asn1::octetString('foo'),
             Asn1::context(3, (new IncompleteType(
                 $encoder->encode(Asn1::octetString('ldap://foo'))
-                . $encoder->encode(Asn1::octetString('ldap://bar'))
+                . $encoder->encode(Asn1::octetString('ldap://bar')),
             )))->setIsConstructed(true),
             Asn1::context(10, Asn1::octetString('foo')),
-            Asn1::context(11, Asn1::octetString('bar'))
+            Asn1::context(11, Asn1::octetString('bar')),
         )));
 
         self::assertSame(

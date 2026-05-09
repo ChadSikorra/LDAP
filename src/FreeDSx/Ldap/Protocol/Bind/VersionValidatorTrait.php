@@ -28,7 +28,7 @@ trait VersionValidatorTrait
         if ($request->getVersion() !== 3) {
             throw new OperationException(
                 'Only LDAP version 3 is supported.',
-                ResultCode::PROTOCOL_ERROR
+                ResultCode::PROTOCOL_ERROR,
             );
         }
     }

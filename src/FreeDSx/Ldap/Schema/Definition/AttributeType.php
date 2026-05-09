@@ -39,8 +39,7 @@ final readonly class AttributeType
         public ?string $desc = null,
         public bool $obsolete = false,
         public array $extensions = [],
-    ) {
-    }
+    ) {}
 
     /**
      * Produces the description string used in the subschema attributeTypes attribute.

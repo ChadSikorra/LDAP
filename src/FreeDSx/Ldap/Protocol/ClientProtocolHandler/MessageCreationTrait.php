@@ -31,12 +31,12 @@ trait MessageCreationTrait
     protected function makeRequest(
         LdapQueue $queue,
         RequestInterface $request,
-        array $controls
+        array $controls,
     ): LdapMessageRequest {
         return new LdapMessageRequest(
             $queue->generateId(),
             $request,
-            ...$controls
+            ...$controls,
         );
     }
 }

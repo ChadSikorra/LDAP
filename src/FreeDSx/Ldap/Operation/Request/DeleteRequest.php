@@ -79,7 +79,7 @@ class DeleteRequest implements RequestInterface, DnRequestInterface
             throw new ProtocolException(sprintf(
                 'The delete request must have an app tag of %s, received: %s',
                 self::APP_TAG,
-                $type->getTagNumber()
+                $type->getTagNumber(),
             ));
         }
     }

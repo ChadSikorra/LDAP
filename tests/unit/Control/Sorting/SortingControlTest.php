@@ -79,8 +79,8 @@ class SortingControlTest extends TestCase
             new SortKey(
                 'foobar',
                 true,
-                'bleh'
-            )
+                'bleh',
+            ),
         );
 
         $encoder = new LdapEncoder();
@@ -95,9 +95,9 @@ class SortingControlTest extends TestCase
                     Asn1::sequence(
                         Asn1::octetString('foobar'),
                         Asn1::context(0, Asn1::octetString('bleh')),
-                        Asn1::context(1, Asn1::boolean(true))
-                    )
-                )))
+                        Asn1::context(1, Asn1::boolean(true)),
+                    ),
+                ))),
             ),
             $this->subject->toAsn1(),
         );
@@ -111,7 +111,7 @@ class SortingControlTest extends TestCase
             new SortingControl(
                 new SortKey('foo'),
                 new SortKey('bar'),
-                new SortKey('foobar', true, 'bleh')
+                new SortKey('foobar', true, 'bleh'),
             ),
             SortingControl::fromAsn1(Asn1::sequence(
                 Asn1::octetString(Control::OID_SORTING),
@@ -122,10 +122,10 @@ class SortingControlTest extends TestCase
                     Asn1::sequence(
                         Asn1::octetString('foobar'),
                         Asn1::context(0, Asn1::octetString('bleh')),
-                        Asn1::context(1, Asn1::boolean(true))
-                    )
-                )))
-            ))->setValue(null)
+                        Asn1::context(1, Asn1::boolean(true)),
+                    ),
+                ))),
+            ))->setValue(null),
         );
     }
 
@@ -139,8 +139,8 @@ class SortingControlTest extends TestCase
             Asn1::octetString(Control::OID_SORTING),
             Asn1::boolean(false),
             Asn1::octetString($encoder->encode(Asn1::sequenceOf(
-                Asn1::sequence(Asn1::octetString(''))
-            )))
+                Asn1::sequence(Asn1::octetString('')),
+            ))),
         ));
     }
 
@@ -154,8 +154,8 @@ class SortingControlTest extends TestCase
             Asn1::octetString(Control::OID_SORTING),
             Asn1::boolean(false),
             Asn1::octetString($encoder->encode(Asn1::sequenceOf(
-                Asn1::sequence(Asn1::octetString('foo'), Asn1::enumerated(1))
-            )))
+                Asn1::sequence(Asn1::octetString('foo'), Asn1::enumerated(1)),
+            ))),
         ));
     }
 }

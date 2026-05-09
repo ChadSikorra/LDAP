@@ -42,7 +42,7 @@ class Change
     public function __construct(
         private int $modType,
         Attribute|string $attribute,
-        string ...$values
+        string ...$values,
     ) {
         $this->attribute = $attribute instanceof Attribute
             ? $attribute
@@ -99,7 +99,7 @@ class Change
      */
     public static function add(
         Attribute|string $attribute,
-        string ...$values
+        string ...$values,
     ): Change {
         $attribute = $attribute instanceof Attribute
             ? $attribute
@@ -107,7 +107,7 @@ class Change
 
         return new self(
             self::TYPE_ADD,
-            $attribute
+            $attribute,
         );
     }
 
@@ -117,18 +117,18 @@ class Change
      */
     public static function delete(
         Attribute|string $attribute,
-        string ...$values
+        string ...$values,
     ): Change {
         $attribute = $attribute instanceof Attribute
             ? $attribute
             : new Attribute(
                 $attribute,
-                ...$values
+                ...$values,
             );
 
         return new self(
             self::TYPE_DELETE,
-            $attribute
+            $attribute,
         );
     }
 
@@ -138,18 +138,18 @@ class Change
      */
     public static function replace(
         Attribute|string $attribute,
-        string ...$values
+        string ...$values,
     ): Change {
         $attribute = $attribute instanceof Attribute
             ? $attribute
             : new Attribute(
                 $attribute,
-                ...$values
+                ...$values,
             );
 
         return new self(
             self::TYPE_REPLACE,
-            $attribute
+            $attribute,
         );
     }
 
@@ -165,7 +165,7 @@ class Change
 
         return new self(
             self::TYPE_DELETE,
-            $attribute
+            $attribute,
         );
     }
 }

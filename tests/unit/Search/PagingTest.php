@@ -43,7 +43,7 @@ final class PagingTest extends TestCase
         $this->subject = new Paging(
             $this->client,
             $this->search,
-            1000
+            1000,
         );
     }
 
@@ -62,7 +62,7 @@ final class PagingTest extends TestCase
                     Entry::create('bar'),
                 ),
                 controls: [new PagingControl(100, 'foo')],
-            )
+            ),
         );
         $this->subject->getEntries();
 
@@ -74,8 +74,8 @@ final class PagingTest extends TestCase
         $this->expectPagingControl(
             new PagingControl(100, ''),
             self::makeSearchResponseFromEntries(
-                controls: [new PagingControl(0, '')]
-            )
+                controls: [new PagingControl(0, '')],
+            ),
         );
 
         $this->subject->getEntries(100);
@@ -91,7 +91,7 @@ final class PagingTest extends TestCase
             ->with($this->search, $this->anything())
             ->will($this->onConsecutiveCalls(
                 self::makeSearchResponseFromEntries(
-                    controls: [new PagingControl(100, 'foo')]
+                    controls: [new PagingControl(100, 'foo')],
                 ),
                 self::makeSearchResponseFromEntries(),
             ));
@@ -112,7 +112,7 @@ final class PagingTest extends TestCase
                     Entry::create('bar'),
                 ),
                 controls: [new PagingControl(100, 'foo')],
-            )
+            ),
         );
 
         self::assertNull($this->subject->sizeEstimate());
@@ -121,7 +121,7 @@ final class PagingTest extends TestCase
 
         self::assertSame(
             100,
-            $this->subject->sizeEstimate()
+            $this->subject->sizeEstimate(),
         );
     }
 
@@ -135,7 +135,7 @@ final class PagingTest extends TestCase
                     Entry::create('bar'),
                 ),
                 controls: [new PagingControl(100, 'foo')],
-            )
+            ),
         );
 
         self::assertEquals(
@@ -151,9 +151,9 @@ final class PagingTest extends TestCase
             self::makeSearchResponseFromEntries(
                 entries: new Entries(
                     Entry::create('foo'),
-                    Entry::create('bar')
+                    Entry::create('bar'),
                 ),
-            )
+            ),
         );
 
         self::assertEquals(
@@ -174,9 +174,9 @@ final class PagingTest extends TestCase
             self::makeSearchResponseFromEntries(
                 entries: new Entries(
                     Entry::create('foo'),
-                    Entry::create('bar')
+                    Entry::create('bar'),
                 ),
-            )
+            ),
         );
 
         $this->subject->isCritical();
@@ -188,7 +188,7 @@ final class PagingTest extends TestCase
         ?LdapMessageResponse $response = null,
     ): void {
         $response ??= $this::makeSearchResponseFromEntries(
-            controls: [new PagingControl(0, 'foo')]
+            controls: [new PagingControl(0, 'foo')],
         );
 
         $this->client

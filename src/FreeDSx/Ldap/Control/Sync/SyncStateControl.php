@@ -20,6 +20,7 @@ use FreeDSx\Asn1\Type\OctetStringType;
 use FreeDSx\Asn1\Type\SequenceType;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Exception\ProtocolException;
+
 use function bin2hex;
 use function count;
 use function implode;
@@ -57,7 +58,7 @@ class SyncStateControl extends Control
     public function __construct(
         private readonly int $state,
         private readonly string $entryUuid,
-        private readonly ?string $cookie = null
+        private readonly ?string $cookie = null,
     ) {
         parent::__construct(self::OID_SYNC_STATE);
     }
@@ -91,7 +92,7 @@ class SyncStateControl extends Control
                 substr($hex, 8, 4),
                 substr($hex, 12, 4),
                 substr($hex, 16, 4),
-                substr($hex, 20)
+                substr($hex, 20),
             ]);
         }
 
@@ -179,7 +180,7 @@ class SyncStateControl extends Control
     {
         $this->controlValue = Asn1::sequence(
             Asn1::enumerated($this->state),
-            Asn1::octetString($this->entryUuid)
+            Asn1::octetString($this->entryUuid),
         );
         if ($this->cookie !== null) {
             $this->controlValue->addChild(Asn1::octetString($this->cookie));
@@ -215,9 +216,9 @@ class SyncStateControl extends Control
             new static(
                 $state->getValue(),
                 $entryUuid->getValue(),
-                $cookie ? $cookie->getValue() : null
+                $cookie ? $cookie->getValue() : null,
             ),
-            $type
+            $type,
         );
     }
 }

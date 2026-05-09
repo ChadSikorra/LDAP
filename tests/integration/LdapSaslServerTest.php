@@ -31,7 +31,7 @@ final class LdapSaslServerTest extends ServerTestCase
 
         $this->createServerProcess(
             'tcp',
-            'sasl'
+            'sasl',
         );
     }
 
@@ -86,11 +86,11 @@ final class LdapSaslServerTest extends ServerTestCase
 
         $this->assertInstanceOf(
             BindResponse::class,
-            $response
+            $response,
         );
         $this->assertSame(
             0,
-            $response->getResultCode()
+            $response->getResultCode(),
         );
     }
 

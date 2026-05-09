@@ -23,7 +23,5 @@ use FreeDSx\Ldap\Server\Backend\Write\WriteRequestInterface;
  */
 final class DeleteCommand implements WriteRequestInterface
 {
-    public function __construct(readonly public Dn $dn)
-    {
-    }
+    public function __construct(public readonly Dn $dn) {}
 }

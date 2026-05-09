@@ -44,9 +44,7 @@ final class SqliteStorage implements PdoStorageFactoryInterface
 
     private const PRAGMA_FOREIGN_KEYS_ON = 'PRAGMA foreign_keys = ON';
 
-    public function __construct(private readonly string $dbPath)
-    {
-    }
+    public function __construct(private readonly string $dbPath) {}
 
     public static function forPcntl(string $dbPath): PdoStorage
     {

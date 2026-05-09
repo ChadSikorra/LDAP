@@ -27,8 +27,7 @@ final readonly class LdapSyntax
         public string $oid,
         public ?string $desc = null,
         public array $extensions = [],
-    ) {
-    }
+    ) {}
 
     /**
      * Produces the description string used in the subschema ldapSyntaxes attribute.

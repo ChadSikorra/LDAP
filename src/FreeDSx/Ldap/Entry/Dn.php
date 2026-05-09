@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Exception\UnexpectedValueException;
 use IteratorAggregate;
 use Stringable;
 use Traversable;
+
 use function array_slice;
 use function count;
 use function implode;
@@ -40,9 +41,7 @@ class Dn implements IteratorAggregate, Countable, Stringable
      */
     private ?array $pieces = null;
 
-    public function __construct(private readonly string $dn)
-    {
-    }
+    public function __construct(private readonly string $dn) {}
 
     /**
      * @throws UnexpectedValueException
@@ -128,7 +127,7 @@ class Dn implements IteratorAggregate, Countable, Stringable
             (new self((string) $dn))->toArray();
 
             return true;
-        } catch (UnexpectedValueException | InvalidArgumentException) {
+        } catch (UnexpectedValueException|InvalidArgumentException) {
             return false;
         }
     }
@@ -207,7 +206,7 @@ class Dn implements IteratorAggregate, Countable, Stringable
         if (count($pieces) === 0) {
             throw new UnexpectedValueException(sprintf(
                 'The DN value "%s" is not valid.',
-                $this->dn
+                $this->dn,
             ));
         }
 

@@ -20,6 +20,7 @@ use FreeDSx\Asn1\Type\OctetStringType;
 use FreeDSx\Asn1\Type\SequenceType;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Operation\Response\IntermediateResponse;
+
 use function count;
 
 trait SyncRefreshDoneTrait
@@ -51,17 +52,17 @@ trait SyncRefreshDoneTrait
     {
         $asn1 = Asn1::context(
             static::VALUE_TAG,
-            Asn1::sequence()
+            Asn1::sequence(),
         );
 
         if ($this->cookie !== null) {
             $asn1->addChild(Asn1::octetString(
-                $this->cookie
+                $this->cookie,
             ));
         }
 
         $asn1->addChild(Asn1::boolean(
-            $this->refreshDone
+            $this->refreshDone,
         ));
 
         $this->setResponseValueToEncode($asn1);
@@ -81,14 +82,14 @@ trait SyncRefreshDoneTrait
             $type,
             [
                 AbstractType::TAG_CLASS_CONTEXT_SPECIFIC => [
-                    self::VALUE_TAG => AbstractType::TAG_TYPE_SEQUENCE
-                ]
-            ]
+                    self::VALUE_TAG => AbstractType::TAG_TYPE_SEQUENCE,
+                ],
+            ],
         );
 
         if (!$responseValue instanceof SequenceType || count($type->getChildren()) >= 3) {
             throw new ProtocolException(
-                'Expected a sequence type with 2 or less children for a refreshPresent.'
+                'Expected a sequence type with 2 or less children for a refreshPresent.',
             );
         }
 

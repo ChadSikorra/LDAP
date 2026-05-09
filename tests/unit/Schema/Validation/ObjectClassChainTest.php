@@ -224,7 +224,7 @@ final class ObjectClassChainTest extends TestCase
 
         self::assertCount(
             1,
-            array_filter($chain->must, fn (string $a) => $a === 'objectclass'),
+            array_filter($chain->must, fn(string $a) => $a === 'objectclass'),
         );
     }
 

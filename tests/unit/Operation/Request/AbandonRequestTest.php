@@ -50,12 +50,12 @@ final class AbandonRequestTest extends TestCase
     public function testItShouldNotAllowNonIntegersFromAsn1(): void
     {
         $this->expectException(ProtocolException::class);
-        
+
         AbandonRequest::fromAsn1(
             Asn1::application(
                 16,
-                Asn1::octetString('foo')
-            )
+                Asn1::octetString('foo'),
+            ),
         );
     }
 }

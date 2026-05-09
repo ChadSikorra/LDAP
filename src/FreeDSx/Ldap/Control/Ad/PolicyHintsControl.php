@@ -38,7 +38,7 @@ class PolicyHintsControl extends Control
     {
         parent::__construct(
             self::OID_POLICY_HINTS,
-            true
+            true,
         );
     }
 
@@ -82,7 +82,7 @@ class PolicyHintsControl extends Control
 
         return self::mergeControlData(
             $control,
-            $type
+            $type,
         );
     }
 }

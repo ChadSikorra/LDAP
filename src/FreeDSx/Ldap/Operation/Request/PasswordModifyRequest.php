@@ -35,7 +35,7 @@ class PasswordModifyRequest extends ExtendedRequest
     public function __construct(
         private ?string $userIdentity = null,
         private ?string $oldPassword = null,
-        private ?string $newPassword = null
+        private ?string $newPassword = null,
     ) {
         parent::__construct(self::OID_PWD_MODIFY);
     }
@@ -83,19 +83,19 @@ class PasswordModifyRequest extends ExtendedRequest
         if ($this->userIdentity !== null) {
             $this->requestValue->addChild(Asn1::context(
                 tagNumber: 0,
-                type: Asn1::octetString($this->userIdentity)
+                type: Asn1::octetString($this->userIdentity),
             ));
         }
         if ($this->oldPassword !== null) {
             $this->requestValue->addChild(Asn1::context(
                 tagNumber: 1,
-                type: Asn1::octetString($this->oldPassword)
+                type: Asn1::octetString($this->oldPassword),
             ));
         }
         if ($this->newPassword !== null) {
             $this->requestValue->addChild(Asn1::context(
                 tagNumber: 2,
-                type: Asn1::octetString($this->newPassword)
+                type: Asn1::octetString($this->newPassword),
             ));
         }
 
@@ -138,7 +138,7 @@ class PasswordModifyRequest extends ExtendedRequest
         return new static(
             $userIdentity?->getValue(),
             $oldPasswd?->getValue(),
-            $newPasswd?->getValue()
+            $newPasswd?->getValue(),
         );
     }
 }

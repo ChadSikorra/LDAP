@@ -54,12 +54,12 @@ class DirSync
         private readonly LdapClient $client,
         private ?string $namingContext = null,
         ?FilterInterface $filter = null,
-        Attribute|string ...$attributes
+        Attribute|string ...$attributes,
     ) {
         $this->dirSyncRequest = Controls::dirSync();
         $this->search = new SearchRequest(
             $filter ?? Filters::present('objectClass'),
-            ...$attributes
+            ...$attributes,
         );
     }
 
@@ -79,7 +79,7 @@ class DirSync
      */
     public function watch(
         Closure $handler,
-        int $checkInterval = 10
+        int $checkInterval = 10,
     ): never {
         $handler($this->getChanges(), true);
         while ($this->hasChanges()) {
@@ -250,7 +250,7 @@ class DirSync
         if ($this->defaultRootNc === null) {
             $this->defaultRootNc = (string) $this->client->readOrFail(
                 '',
-                ['defaultNamingContext']
+                ['defaultNamingContext'],
             )->get('defaultNamingContext');
         }
         if ($this->defaultRootNc === '') {

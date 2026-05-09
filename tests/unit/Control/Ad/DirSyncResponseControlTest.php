@@ -32,7 +32,7 @@ class DirSyncResponseControlTest extends TestCase
     {
         self::assertSame(
             0,
-            $this->subject->getMoreResults()
+            $this->subject->getMoreResults(),
         );
     }
 
@@ -75,8 +75,8 @@ class DirSyncResponseControlTest extends TestCase
                 Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::integer(0),
                     Asn1::integer(0),
-                    Asn1::octetString('')
-                )))
+                    Asn1::octetString(''),
+                ))),
             ),
             $this->subject->toAsn1(),
         );
@@ -94,7 +94,7 @@ class DirSyncResponseControlTest extends TestCase
                 Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::integer(0),
                     Asn1::integer(0),
-                    Asn1::octetString('')
+                    Asn1::octetString(''),
                 ))),
             ))->setValue(null),
         );

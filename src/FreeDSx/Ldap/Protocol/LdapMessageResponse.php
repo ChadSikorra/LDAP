@@ -29,11 +29,11 @@ class LdapMessageResponse extends LdapMessage
     public function __construct(
         int $messageId,
         private ResponseInterface $response,
-        Control ...$controls
+        Control ...$controls,
     ) {
         parent::__construct(
             $messageId,
-            ...$controls
+            ...$controls,
         );
     }
 

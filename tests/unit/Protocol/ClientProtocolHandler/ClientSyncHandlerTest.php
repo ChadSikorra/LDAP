@@ -107,7 +107,7 @@ final class ClientSyncHandlerTest extends TestCase
         );
         $response = new LdapMessageResponse(
             1,
-            new SearchResultEntry(new Entry('bar'))
+            new SearchResultEntry(new Entry('bar')),
         );
 
         $entries = [
@@ -133,10 +133,10 @@ final class ClientSyncHandlerTest extends TestCase
                     new SearchResultDone(
                         0,
                         'cn=foo',
-                        'bar'
+                        'bar',
                     ),
-                    new SyncDoneControl('foo')
-                )
+                    new SyncDoneControl('foo'),
+                ),
             ));
 
         self::assertEquals(
@@ -145,7 +145,7 @@ final class ClientSyncHandlerTest extends TestCase
                 diagnostic: 'bar',
                 controls: [
                     new SyncDoneControl('foo'),
-                ]
+                ],
             ),
             $this->subject->handleResponse(
                 $messageTo,
@@ -168,7 +168,7 @@ final class ClientSyncHandlerTest extends TestCase
             ),
             new LdapMessageResponse(
                 1,
-                new SearchResultEntry(new Entry('bar'))
+                new SearchResultEntry(new Entry('bar')),
             ),
         );
     }
@@ -179,7 +179,7 @@ final class ClientSyncHandlerTest extends TestCase
         $syncState = new SyncStateControl(
             SyncStateControl::STATE_ADD,
             'foo',
-            'bar'
+            'bar',
         );
 
         $entyProcessed = null;
@@ -209,10 +209,10 @@ final class ClientSyncHandlerTest extends TestCase
                     new SearchResultDone(
                         0,
                         'cn=foo',
-                        'bar'
+                        'bar',
                     ),
-                    new SyncDoneControl('foo')
-                )
+                    new SyncDoneControl('foo'),
+                ),
             );
 
         self::assertEquals(
@@ -221,12 +221,12 @@ final class ClientSyncHandlerTest extends TestCase
                 diagnostic: 'bar',
                 controls: [
                     new SyncDoneControl('foo'),
-                ]
+                ],
             ),
             $this->subject->handleResponse(
                 $messageTo,
                 $response,
-            )
+            ),
         );
         self::assertSame(
             $entry,
@@ -261,10 +261,10 @@ final class ClientSyncHandlerTest extends TestCase
                     new SearchResultDone(
                         0,
                         'cn=foo',
-                        'bar'
+                        'bar',
                     ),
-                    new SyncDoneControl('foo')
-                )
+                    new SyncDoneControl('foo'),
+                ),
             );
 
         self::assertEquals(
@@ -273,12 +273,12 @@ final class ClientSyncHandlerTest extends TestCase
                 diagnostic: 'bar',
                 controls: [
                     new SyncDoneControl('foo'),
-                ]
+                ],
             ),
             $this->subject->handleResponse(
                 $messageTo,
                 $response,
-            )
+            ),
         );
         self::assertSame(
             ['bar'],
@@ -322,7 +322,7 @@ final class ClientSyncHandlerTest extends TestCase
 
         self::assertSame(
             Session::PHASE_DELETE,
-            $capturedSession?->getPhase()
+            $capturedSession?->getPhase(),
         );
         self::assertFalse($capturedSession->isRefreshComplete());
     }
@@ -401,7 +401,7 @@ final class ClientSyncHandlerTest extends TestCase
 
         self::assertSame(
             Session::PHASE_PRESENT,
-            $capturedSession?->getPhase()
+            $capturedSession?->getPhase(),
         );
         self::assertFalse($capturedSession->isRefreshComplete());
     }
@@ -450,7 +450,7 @@ final class ClientSyncHandlerTest extends TestCase
         $syncState = new SyncStateControl(
             SyncStateControl::STATE_ADD,
             'foo',
-            'bar'
+            'bar',
         );
 
         $referralsProcessed = null;
@@ -480,10 +480,10 @@ final class ClientSyncHandlerTest extends TestCase
                     new SearchResultDone(
                         0,
                         'cn=foo',
-                        'bar'
+                        'bar',
                     ),
-                    new SyncDoneControl('foo')
-                )
+                    new SyncDoneControl('foo'),
+                ),
             );
 
         self::assertEquals(
@@ -492,12 +492,12 @@ final class ClientSyncHandlerTest extends TestCase
                 diagnostic: 'bar',
                 controls: [
                     new SyncDoneControl('foo'),
-                ]
+                ],
             ),
             $this->subject->handleResponse(
                 $messageTo,
                 $response,
-            )
+            ),
         );
         self::assertSame(
             [$referral],
@@ -545,7 +545,7 @@ final class ClientSyncHandlerTest extends TestCase
         self::assertInstanceOf(SearchResultDone::class, $result->getResponse());
         self::assertSame(
             ResultCode::CANCELED,
-            $result->getResponse()->getResultCode()
+            $result->getResponse()->getResultCode(),
         );
     }
 
@@ -583,7 +583,7 @@ final class ClientSyncHandlerTest extends TestCase
                     $drainCallCount++;
 
                     return $drainCallCount === 1 ? $searchDone : $cancelResponse;
-                }
+                },
             );
 
         $result = $this->subject->handleResponse(

@@ -106,9 +106,9 @@ final class ServerProtocolHandlerTest extends TestCase
                     new BindResponse(new LdapResult(
                         ResultCode::AUTH_METHOD_UNSUPPORTED,
                         '',
-                        'The requested authentication type is not supported.'
-                    ))
-                )
+                        'The requested authentication type is not supported.',
+                    )),
+                ),
             ));
 
         $this->mockProtocolHandlerFactory
@@ -125,7 +125,7 @@ final class ServerProtocolHandlerTest extends TestCase
             ->will($this->onConsecutiveCalls(
                 new LdapMessageRequest(1, new SimpleBindRequest('foo', 'bar')),
                 new LdapMessageRequest(1, new ExtendedRequest(ExtendedRequest::OID_WHOAMI)),
-                $this->throwException(new ConnectionException())
+                $this->throwException(new ConnectionException()),
             ));
 
         $this->mockAuthenticator
@@ -144,8 +144,8 @@ final class ServerProtocolHandlerTest extends TestCase
                 new ExtendedResponse(new LdapResult(
                     ResultCode::PROTOCOL_ERROR,
                     '',
-                    'The message ID 1 is not valid.'
-                ))
+                    'The message ID 1 is not valid.',
+                )),
             )));
 
         $this->subject->handle();
@@ -162,10 +162,10 @@ final class ServerProtocolHandlerTest extends TestCase
                 $this->onConsecutiveCalls(
                     new LdapMessageRequest(
                         1,
-                        new ModifyDnRequest('cn=foo,dc=bar', 'cn=bar', true)
+                        new ModifyDnRequest('cn=foo,dc=bar', 'cn=bar', true),
                     ),
-                    $this->throwException(new ConnectionException())
-                )
+                    $this->throwException(new ConnectionException()),
+                ),
             );
 
         $this->mockQueue
@@ -176,8 +176,8 @@ final class ServerProtocolHandlerTest extends TestCase
                 new ModifyDnResponse(
                     ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
                     'cn=foo,dc=bar',
-                    'Authentication required.'
-                )
+                    'Authentication required.',
+                ),
             )))
             ->willReturnSelf();
 
@@ -200,8 +200,8 @@ final class ServerProtocolHandlerTest extends TestCase
             ->with($this->equalTo(
                 new LdapMessageResponse(0, new ExtendedResponse(
                     new LdapResult(ResultCode::PROTOCOL_ERROR, '', 'The message encoding is malformed.'),
-                    ExtendedResponse::OID_NOTICE_OF_DISCONNECTION
-                ))
+                    ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
+                )),
             ));
 
         $this->subject->handle();
@@ -219,7 +219,7 @@ final class ServerProtocolHandlerTest extends TestCase
             ->with(
                 LogLevel::INFO,
                 'Ending LDAP client due to client connection issues.',
-                $this->anything()
+                $this->anything(),
             );
 
         $this->subject->handle();
@@ -237,8 +237,8 @@ final class ServerProtocolHandlerTest extends TestCase
             ->with($this->equalTo(
                 new LdapMessageResponse(0, new ExtendedResponse(
                     new LdapResult(ResultCode::PROTOCOL_ERROR, '', 'The message encoding is malformed.'),
-                    ExtendedResponse::OID_NOTICE_OF_DISCONNECTION
-                ))
+                    ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
+                )),
             ));
 
         $this->subject->handle();
@@ -251,9 +251,9 @@ final class ServerProtocolHandlerTest extends TestCase
             ->will($this->onConsecutiveCalls(
                 new LdapMessageRequest(
                     0,
-                    new ExtendedRequest(ExtendedRequest::OID_START_TLS)
+                    new ExtendedRequest(ExtendedRequest::OID_START_TLS),
                 ),
-                $this->throwException(new ConnectionException())
+                $this->throwException(new ConnectionException()),
             ));
 
         $this->mockQueue
@@ -263,8 +263,8 @@ final class ServerProtocolHandlerTest extends TestCase
                 new LdapMessageResponse(0, new ExtendedResponse(new LdapResult(
                     ResultCode::PROTOCOL_ERROR,
                     '',
-                    'The message ID 0 cannot be used in a client request.'
-                )))
+                    'The message ID 0 cannot be used in a client request.',
+                ))),
             ));
 
         $this->subject->handle();
@@ -277,9 +277,9 @@ final class ServerProtocolHandlerTest extends TestCase
             ->will($this->onConsecutiveCalls(
                 new LdapMessageRequest(
                     1,
-                    new SimpleBindRequest('foo@bar', 'bar')
+                    new SimpleBindRequest('foo@bar', 'bar'),
                 ),
-                $this->throwException(new ConnectionException())
+                $this->throwException(new ConnectionException()),
             ));
 
         $this->mockAuthenticator
@@ -318,7 +318,7 @@ final class ServerProtocolHandlerTest extends TestCase
             ->method('handleRequest')
             ->willThrowException(new OperationException(
                 'Foo.',
-                ResultCode::CONFIDENTIALITY_REQUIRED
+                ResultCode::CONFIDENTIALITY_REQUIRED,
             ));
 
         $this->mockQueue
@@ -330,9 +330,9 @@ final class ServerProtocolHandlerTest extends TestCase
                     new ModifyResponse(
                         ResultCode::CONFIDENTIALITY_REQUIRED,
                         'cn=foo,dc=bar',
-                        'Foo.'
-                    )
-                )
+                        'Foo.',
+                    ),
+                ),
             ));
 
         $this->subject->handle();
@@ -346,8 +346,8 @@ final class ServerProtocolHandlerTest extends TestCase
             ->with($this->equalTo(
                 new LdapMessageResponse(0, new ExtendedResponse(
                     new LdapResult(ResultCode::UNAVAILABLE, '', 'The server is shutting down.'),
-                    ExtendedResponse::OID_NOTICE_OF_DISCONNECTION
-                ))
+                    ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
+                )),
             ));
 
         $this->mockQueue

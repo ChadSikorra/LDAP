@@ -60,10 +60,10 @@ final class VlvTest extends TestCase
             ->with(
                 $this->anything(),
                 $this->anything(),
-                $this->equalTo(new SortingControl(new SortKey('foo')))
+                $this->equalTo(new SortingControl(new SortKey('foo'))),
             )
             ->willReturn($this::makeSearchResponseFromEntries(
-                controls: [new VlvResponseControl(50, 150, 0, 'foo')]
+                controls: [new VlvResponseControl(50, 150, 0, 'foo')],
             ));
 
         $this->subject->getEntries();
@@ -89,9 +89,9 @@ final class VlvTest extends TestCase
                 $this->equalTo(new SortingControl(
                     new SortKey('foo'),
                     new SortKey('bar'),
-                ))
+                )),
             )->willReturn($this::makeSearchResponseFromEntries(
-                controls: [new VlvResponseControl(50, 150, 0, 'foo')]
+                controls: [new VlvResponseControl(50, 150, 0, 'foo')],
             ));
 
         $this->subject->getEntries();
@@ -110,11 +110,11 @@ final class VlvTest extends TestCase
                     1000,
                     0,
                     null,
-                    null
+                    null,
                 )),
                 $this->anything(),
             )->willReturn($this::makeSearchResponseFromEntries(
-                controls: [new VlvResponseControl(50, 150, 0, 'foo')]
+                controls: [new VlvResponseControl(50, 150, 0, 'foo')],
             ));
 
         $this->subject->startAt(1000);
@@ -134,11 +134,11 @@ final class VlvTest extends TestCase
                     1000,
                     0,
                     null,
-                    null
+                    null,
                 )),
                 $this->anything(),
             )->willReturn($this::makeSearchResponseFromEntries(
-                controls: [new VlvResponseControl(50, 150, 0, 'foo')]
+                controls: [new VlvResponseControl(50, 150, 0, 'foo')],
             ));
 
         $this->subject->moveTo(1000);
@@ -156,7 +156,7 @@ final class VlvTest extends TestCase
             ->expects($this->once())
             ->method('sendAndReceive')
             ->willReturn($this::makeSearchResponseFromEntries(
-                controls: [new VlvResponseControl(250, 150, 0, 'foo')]
+                controls: [new VlvResponseControl(250, 150, 0, 'foo')],
             ));
 
         $this->subject->getEntries();
@@ -173,7 +173,7 @@ final class VlvTest extends TestCase
             ->expects($this->once())
             ->method('sendAndReceive')
             ->willReturn($this::makeSearchResponseFromEntries(
-                controls: [new VlvResponseControl(0, 200, 0, 'foo')]
+                controls: [new VlvResponseControl(0, 200, 0, 'foo')],
             ));
 
         $this->subject->getEntries();
@@ -190,7 +190,7 @@ final class VlvTest extends TestCase
             ->expects($this->once())
             ->method('sendAndReceive')
             ->willReturn($this::makeSearchResponseFromEntries(
-                controls: [new VlvResponseControl(10, 200, 0, 'foo')]
+                controls: [new VlvResponseControl(10, 200, 0, 'foo')],
             ));
 
         $this->subject->getEntries();
@@ -319,7 +319,7 @@ final class VlvTest extends TestCase
                 ),
                 $this::makeSearchResponseFromEntries(
                     controls: [new VlvResponseControl(20, 200, 0, 'foo')],
-                )
+                ),
             ));
 
         $this->subject->asPercentage();
@@ -349,7 +349,7 @@ final class VlvTest extends TestCase
                 ),
                 $this::makeSearchResponseFromEntries(
                     controls: [new VlvResponseControl(80, 200, 0, 'foo')],
-                )
+                ),
             ));
 
         $this->subject->asPercentage(true);

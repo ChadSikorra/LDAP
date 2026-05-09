@@ -49,7 +49,7 @@ abstract class SyncInfoMessage extends IntermediateResponse
     {
         parent::__construct(
             self::OID_SYNC_INFO,
-            null
+            null,
         );
     }
 
@@ -78,7 +78,7 @@ abstract class SyncInfoMessage extends IntermediateResponse
             3 => SyncIdSet::fromAsn1($type),
             default => throw new ProtocolException(sprintf(
                 'The tag number %s for a SyncInfoMessage was unexpected.',
-                $value->getTagNumber()
+                $value->getTagNumber(),
             )),
         };
     }

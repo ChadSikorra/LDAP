@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Protocol\LdapEncoder;
 use FreeDSx\Ldap\Protocol\ProtocolElementInterface;
 use Stringable;
+
 use function count;
 
 /**
@@ -84,9 +85,8 @@ class Control implements ProtocolElementInterface, Stringable
     public function __construct(
         private string $controlType,
         private bool $criticality = false,
-        protected AbstractType | ProtocolElementInterface | string | null $controlValue = null
-    ) {
-    }
+        protected AbstractType|ProtocolElementInterface|string|null $controlValue = null,
+    ) {}
 
     public function setTypeOid(string $oid): static
     {
@@ -134,7 +134,7 @@ class Control implements ProtocolElementInterface, Stringable
     {
         $asn1 = Asn1::sequence(
             Asn1::octetString($this->controlType),
-            Asn1::boolean($this->criticality)
+            Asn1::boolean($this->criticality),
         );
 
         if ($this->controlValue !== null) {
@@ -167,7 +167,7 @@ class Control implements ProtocolElementInterface, Stringable
         if (!$type instanceof SequenceType) {
             throw new ProtocolException(sprintf(
                 'Protocol encoding issue. Expected a sequence type but received: %s',
-                get_class($type)
+                get_class($type),
             ));
         }
 
@@ -183,12 +183,12 @@ class Control implements ProtocolElementInterface, Stringable
      */
     protected static function mergeControlData(
         Control $control,
-        AbstractType $type
+        AbstractType $type,
     ): Control {
         if (!($type instanceof SequenceType && count($type->getChildren()) <= 3)) {
             throw new ProtocolException(sprintf(
                 'The received control is malformed. Expected at least 3 sequence values. Received %s.',
-                count($type->getChildren())
+                count($type->getChildren()),
             ));
         }
         [0 => $control->controlType, 1 => $control->criticality, 2 => $control->controlValue] = self::parseAsn1ControlValues($type);

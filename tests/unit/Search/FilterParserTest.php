@@ -190,8 +190,8 @@ final class FilterParserTest extends TestCase
                     Filters::or(
                         Filters::present('bar'),
                         Filters::equal('cn', 'Chad'),
-                    )
-                )
+                    ),
+                ),
             ),
             FilterParser::parse('(&(|(foo=*bar)(bar<=5))(foo~=bar)(&(foo=bar)(|(bar=*)(cn=Chad))))'),
         );
@@ -308,7 +308,7 @@ final class FilterParserTest extends TestCase
     {
         return [
             ['(foo=bar)(foo)'],
-            ['(foo=bar)foo']
+            ['(foo=bar)foo'],
         ];
     }
 
@@ -320,7 +320,7 @@ final class FilterParserTest extends TestCase
         return [
             [':dn::=Chad'],
             ['&^]:=Chad'],
-            ['?:=Chad']
+            ['?:=Chad'],
         ];
     }
 }

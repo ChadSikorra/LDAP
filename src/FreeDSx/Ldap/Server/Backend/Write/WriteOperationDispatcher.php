@@ -48,7 +48,7 @@ final class WriteOperationDispatcher
 
         throw new OperationException(
             'This operation is not supported.',
-            ResultCode::UNWILLING_TO_PERFORM
+            ResultCode::UNWILLING_TO_PERFORM,
         );
     }
 }

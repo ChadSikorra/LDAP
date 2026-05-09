@@ -28,6 +28,7 @@ use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Exception\UnexpectedValueException;
 use FreeDSx\Ldap\Protocol\Factory\FilterFactory;
 use FreeDSx\Ldap\Search\Filter\FilterInterface;
+
 use function array_map;
 
 /**
@@ -130,7 +131,7 @@ class SearchRequest implements RequestInterface
 
     public function __construct(
         private FilterInterface $filter,
-        Attribute|string ...$attributes
+        Attribute|string ...$attributes,
     ) {
         $this->setAttributes(...$attributes);
     }
@@ -346,8 +347,8 @@ class SearchRequest implements RequestInterface
                     [
                         self::CANCEL_CONTINUE,
                         self::CANCEL_STOP,
-                    ]
-                )
+                    ],
+                ),
             ));
         }
         $this->cancelStrategy = $strategy;
@@ -451,7 +452,7 @@ class SearchRequest implements RequestInterface
             $this->filter->toAsn1(),
             Asn1::sequenceOf(...array_map(function (Attribute $attr) {
                 return Asn1::octetString($attr->getDescription());
-            }, $this->attributes))
+            }, $this->attributes)),
         ));
     }
 }

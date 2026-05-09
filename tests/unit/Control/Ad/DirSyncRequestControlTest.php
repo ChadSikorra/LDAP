@@ -93,9 +93,9 @@ class DirSyncRequestControlTest extends \PHPUnit\Framework\TestCase
                 Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::integer(-0x80000000),
                     Asn1::integer(2147483647),
-                    Asn1::octetString('')
-                )))
-            )
+                    Asn1::octetString(''),
+                ))),
+            ),
         );
     }
 
@@ -111,9 +111,9 @@ class DirSyncRequestControlTest extends \PHPUnit\Framework\TestCase
                 Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::integer(-0x80000000),
                     Asn1::integer(2147483647),
-                    Asn1::octetString('')
-                )))
-            ))->setValue(null)
+                    Asn1::octetString(''),
+                ))),
+            ))->setValue(null),
         );
     }
 }

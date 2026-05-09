@@ -37,7 +37,7 @@ class PagingControl extends Control
 {
     public function __construct(
         private int $size,
-        private string $cookie = ''
+        private string $cookie = '',
     ) {
         parent::__construct(self::OID_PAGING);
     }
@@ -89,12 +89,12 @@ class PagingControl extends Control
         }
         $control = new static(
             $count->getValue(),
-            $cookie->getValue()
+            $cookie->getValue(),
         );
 
         return self::mergeControlData(
             $control,
-            $type
+            $type,
         );
     }
 
@@ -102,7 +102,7 @@ class PagingControl extends Control
     {
         $this->controlValue = Asn1::sequence(
             Asn1::integer($this->size),
-            Asn1::octetString($this->cookie)
+            Asn1::octetString($this->cookie),
         );
 
         return parent::toAsn1();

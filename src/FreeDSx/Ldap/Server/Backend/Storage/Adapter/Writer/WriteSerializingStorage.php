@@ -30,9 +30,8 @@ final readonly class WriteSerializingStorage implements EntryStorageInterface, R
     public function __construct(
         private EntryStorageInterface $reads,
         private EntryStorageInterface $writes,
-        private WriterQueueInterface  $queue,
-    ) {
-    }
+        private WriterQueueInterface $queue,
+    ) {}
 
     public function find(Dn $dn): ?Entry
     {

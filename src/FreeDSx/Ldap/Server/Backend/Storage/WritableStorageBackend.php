@@ -237,7 +237,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 throw new OperationException(
                     sprintf(
                         'Entry "%s" has subordinate entries and cannot be deleted.',
-                        $command->dn->toString()
+                        $command->dn->toString(),
                     ),
                     ResultCode::NOT_ALLOWED_ON_NON_LEAF,
                 );
@@ -378,7 +378,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         throw new OperationException(
             sprintf(
                 'Entry "%s" is a naming context and cannot be deleted or renamed.',
-                $dn->toString()
+                $dn->toString(),
             ),
             ResultCode::UNWILLING_TO_PERFORM,
         );

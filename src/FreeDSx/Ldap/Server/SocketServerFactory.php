@@ -26,8 +26,7 @@ class SocketServerFactory
     public function __construct(
         private readonly ServerOptions $options,
         private readonly ?LoggerInterface $logger,
-    ) {
-    }
+    ) {}
 
     public function makeAndBind(): SocketServer
     {
@@ -66,14 +65,14 @@ class SocketServerFactory
         if (!is_writeable($socket)) {
             $this->logAndThrow(sprintf(
                 'The socket "%s" already exists and is not writeable. To run the LDAP server, you must remove the existing socket.',
-                $socket
+                $socket,
             ));
         }
 
         if (!unlink($socket)) {
             $this->logAndThrow(sprintf(
                 'The existing socket "%s" could not be removed. To run the LDAP server, you must remove the existing socket.',
-                $socket
+                $socket,
             ));
         }
     }

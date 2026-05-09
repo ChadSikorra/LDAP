@@ -23,6 +23,7 @@ use FreeDSx\Socket\Exception\ConnectionException;
 use FreeDSx\Socket\Queue\Asn1MessageQueue;
 use FreeDSx\Socket\Queue\Buffer;
 use FreeDSx\Socket\Socket;
+
 use function strlen;
 use function substr;
 
@@ -41,11 +42,11 @@ class LdapQueue extends Asn1MessageQueue
 
     public function __construct(
         Socket $socket,
-        ?EncoderInterface $encoder = null
+        ?EncoderInterface $encoder = null,
     ) {
         parent::__construct(
             $socket,
-            $encoder ?? new LdapEncoder()
+            $encoder ?? new LdapEncoder(),
         );
     }
 
@@ -160,7 +161,7 @@ class LdapQueue extends Asn1MessageQueue
         if (!$message instanceof LdapMessage) {
             throw new ProtocolException(sprintf(
                 'Expected instance of LdapMessage, received %s',
-                is_object($message) ? $message::class : gettype($message)
+                is_object($message) ? $message::class : gettype($message),
             ));
         }
 
@@ -175,14 +176,14 @@ class LdapQueue extends Asn1MessageQueue
                 $response->getDiagnosticMessage(),
                 $response->getResultCode(),
                 null,
-                (string) $response->getName()
+                (string) $response->getName(),
             );
         }
         if ($id !== null && $message->getMessageId() !== $id) {
             throw new ProtocolException(sprintf(
                 'Expected message ID %s, but received %s',
                 $id,
-                $message->getMessageId()
+                $message->getMessageId(),
             ));
         }
 

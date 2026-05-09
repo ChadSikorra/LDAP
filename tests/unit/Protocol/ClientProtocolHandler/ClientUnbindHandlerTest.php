@@ -43,7 +43,7 @@ final class ClientUnbindHandlerTest extends TestCase
             ->method('close');
 
         self::assertNull($this->subject->handleRequest(
-            new LdapMessageRequest(1, new UnbindRequest())
+            new LdapMessageRequest(1, new UnbindRequest()),
         ));
     }
 }

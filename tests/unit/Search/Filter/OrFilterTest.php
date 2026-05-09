@@ -49,7 +49,7 @@ final class OrFilterTest extends TestCase
     {
         $this->subject->set(Filters::equal(
             'bar',
-            'foo'
+            'foo',
         ));
 
         self::assertEquals(
@@ -103,7 +103,7 @@ final class OrFilterTest extends TestCase
         self::assertEquals(
             Asn1::context(1, Asn1::setOf(
                 Filters::equal('foo', 'bar')->toAsn1(),
-                Filters::gte('foo', '2')->toAsn1()
+                Filters::gte('foo', '2')->toAsn1(),
             )),
             $this->subject->toAsn1(),
         );
@@ -131,7 +131,8 @@ final class OrFilterTest extends TestCase
     {
         $this->expectException(ProtocolException::class);
 
-        $this->subject->fromAsn1($type);;
+        $this->subject->fromAsn1($type);
+        ;
     }
 
     public function test_it_should_get_the_string_filter_representation(): void
@@ -145,7 +146,7 @@ final class OrFilterTest extends TestCase
     public function test_it_should_get_the_string_filter_representation_with_nested_containers(): void
     {
         $this->subject->add(
-            Filters::and(Filters::equal('foo', 'bar'))
+            Filters::and(Filters::equal('foo', 'bar')),
         );
 
         self::assertSame(

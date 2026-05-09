@@ -50,7 +50,7 @@ final class UpdateOperation
 
     private function applyAdd(
         Entry $entry,
-        Change $change
+        Change $change,
     ): void {
         $attribute = $change->getAttribute();
         $attrName = $attribute->getName();
@@ -78,7 +78,7 @@ final class UpdateOperation
      */
     private function applyDelete(
         Entry $entry,
-        Change $change
+        Change $change,
     ): void {
         $attrName = $change->getAttribute()->getName();
         $values = $change->getAttribute()->getValues();
@@ -96,7 +96,7 @@ final class UpdateOperation
      */
     private function deleteWholeAttribute(
         Entry $entry,
-        string $attrName
+        string $attrName,
     ): void {
         if ($entry->get($attrName) === null) {
             throw new OperationException(
@@ -161,7 +161,7 @@ final class UpdateOperation
 
         $existing->removeValues(
             $values,
-            caseSensitive: false
+            caseSensitive: false,
         );
     }
 
@@ -177,7 +177,7 @@ final class UpdateOperation
         if (count($values) === 0) {
             $this->clearAttribute(
                 $entry,
-                $attrName
+                $attrName,
             );
 
             return;
@@ -204,7 +204,7 @@ final class UpdateOperation
      */
     private function clearAttribute(
         Entry $entry,
-        string $attrName
+        string $attrName,
     ): void {
         if ($this->isRdnAttribute($entry, $attrName)) {
             throw new OperationException(

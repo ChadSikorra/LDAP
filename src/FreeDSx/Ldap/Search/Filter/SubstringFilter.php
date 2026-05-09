@@ -57,7 +57,7 @@ class SubstringFilter implements FilterInterface, Stringable
         string $attribute,
         ?string $startsWith = null,
         ?string $endsWith = null,
-        string ...$contains
+        string ...$contains,
     ) {
         $this->attribute = $attribute;
         $this->startsWith = $startsWith;
@@ -134,7 +134,7 @@ class SubstringFilter implements FilterInterface, Stringable
         if ($this->startsWith !== null) {
             $substrings->addChild(Asn1::context(
                 tagNumber: 0,
-                type: Asn1::octetString($this->startsWith)
+                type: Asn1::octetString($this->startsWith),
             ));
         }
 
@@ -156,8 +156,8 @@ class SubstringFilter implements FilterInterface, Stringable
             tagNumber: self::CHOICE_TAG,
             type: Asn1::sequence(
                 Asn1::octetString($this->attribute),
-                $substrings
-            )
+                $substrings,
+            ),
         );
     }
 
@@ -212,7 +212,7 @@ class SubstringFilter implements FilterInterface, Stringable
             $attrType->getValue(),
             $startsWith,
             $endsWith,
-            ...$contains
+            ...$contains,
         );
     }
 
@@ -263,7 +263,7 @@ class SubstringFilter implements FilterInterface, Stringable
         return [
             is_string($startsWith) ? $startsWith : null,
             is_string($endsWith) ? $endsWith : null,
-            $contains
+            $contains,
         ];
     }
 }

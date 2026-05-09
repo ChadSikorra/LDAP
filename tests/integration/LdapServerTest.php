@@ -50,17 +50,17 @@ class LdapServerTest extends ServerTestCase
     {
         $this->ldapClient()->bind(
             'cn=user,dc=foo,dc=bar',
-            '12345'
+            '12345',
         );
         $output = $this->waitForServerOutput('---bind---');
 
         $this->assertStringContainsString(
             'username => cn=user,dc=foo,dc=bar',
-            $output
+            $output,
         );
         $this->assertStringContainsString(
             'password => 12345',
-            $output
+            $output,
         );
     }
 
@@ -71,7 +71,7 @@ class LdapServerTest extends ServerTestCase
         try {
             $this->ldapClient()->bind(
                 'cn=fake,dc=foo,dc=bar',
-                'also-fake'
+                'also-fake',
             );
         } catch (BindException $exception) {
             $bindException = $exception;
@@ -87,17 +87,17 @@ class LdapServerTest extends ServerTestCase
             'cn=meh,dc=foo,dc=bar',
             [
                 'foo' => 'bar',
-            ]
+            ],
         ));
         $output = $this->waitForServerOutput('---add---');
 
         $this->assertStringContainsString(
             'dn => cn=meh,dc=foo,dc=bar',
-            $output
+            $output,
         );
         $this->assertStringContainsString(
             'Attributes: foo => bar',
-            $output
+            $output,
         );
     }
 
@@ -109,7 +109,7 @@ class LdapServerTest extends ServerTestCase
 
         $this->assertStringContainsString(
             'dn => cn=meh,dc=foo,dc=bar',
-            $output
+            $output,
         );
     }
 
@@ -124,7 +124,7 @@ class LdapServerTest extends ServerTestCase
                 'email' => 'meh@bleh.local',
                 'surname' => 'oh',
                 'givenName' => 'fake',
-            ]
+            ],
         );
         $entry->add('email', 'foo@bar.local');
         $entry->remove('givenName', 'FirstName');
@@ -136,11 +136,11 @@ class LdapServerTest extends ServerTestCase
 
         $this->assertStringContainsString(
             'dn => cn=meh,dc=foo,dc=bar',
-            $output
+            $output,
         );
         $this->assertStringContainsString(
             'Changes: (0)email => foo@bar.local, (1)givenName => FirstName, (2)surname => LastName, (1)phone => ',
-            $output
+            $output,
         );
     }
 
@@ -154,11 +154,11 @@ class LdapServerTest extends ServerTestCase
         $this->assertNotNull($response);
         $this->assertStringContainsString(
             'dn => cn=meh,dc=foo,dc=bar',
-            $output
+            $output,
         );
         $this->assertStringContainsString(
             'filter => (objectClass=*)',
-            $output
+            $output,
         );
     }
 
@@ -169,7 +169,7 @@ class LdapServerTest extends ServerTestCase
         $result = $this->ldapClient()->compare(
             'cn=meh,dc=foo,dc=bar',
             'foo',
-            'bar'
+            'bar',
         );
 
         $this->assertTrue($result);
@@ -181,21 +181,21 @@ class LdapServerTest extends ServerTestCase
 
         $this->ldapClient()->move(
             'cn=meh,dc=foo,dc=bar',
-            'cn=bleh,dc=foo,dc=bar'
+            'cn=bleh,dc=foo,dc=bar',
         );
         $output = $this->waitForServerOutput('---modify-dn---');
 
         $this->assertStringContainsString(
             'dn => cn=meh,dc=foo,dc=bar',
-            $output
+            $output,
         );
         $this->assertStringContainsString(
             'ParentDn => cn=bleh,dc=foo,dc=bar',
-            $output
+            $output,
         );
         $this->assertStringContainsString(
             'ParentRdn => cn=meh',
-            $output
+            $output,
         );
     }
 
@@ -226,7 +226,7 @@ class LdapServerTest extends ServerTestCase
                     '1.2.840.113556.1.4.319',
                 ],
             ],
-            $rootDse->toArray()
+            $rootDse->toArray(),
         );
     }
 
@@ -313,7 +313,7 @@ class LdapServerTest extends ServerTestCase
             $entries = $paging->getEntries(100);
             $allEntries = array_merge(
                 $allEntries,
-                $entries->toArray()
+                $entries->toArray(),
             );
         }
 

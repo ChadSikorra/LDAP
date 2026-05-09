@@ -18,6 +18,4 @@ use Exception;
 /**
  * Thrown during a client operation to indicate that the current operation should be canceled.
  */
-class CancelRequestException extends Exception
-{
-}
+class CancelRequestException extends Exception {}

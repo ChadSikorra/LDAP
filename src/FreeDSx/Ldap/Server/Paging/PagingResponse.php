@@ -31,8 +31,7 @@ final class PagingResponse
         private readonly bool $isComplete = false,
         private readonly int $remaining = 0,
         private readonly bool $sizeLimitExceeded = false,
-    ) {
-    }
+    ) {}
 
     /**
      * @return Entries<Entry>
@@ -65,12 +64,12 @@ final class PagingResponse
      */
     public static function make(
         Entries $entries,
-        int $remaining = 0
+        int $remaining = 0,
     ): self {
         return new self(
             $entries,
             false,
-            $remaining
+            $remaining,
         );
     }
 
@@ -83,7 +82,7 @@ final class PagingResponse
     {
         return new self(
             $entries,
-            true
+            true,
         );
     }
 

@@ -26,8 +26,7 @@ final class SearchResult
         private readonly iterable $entries,
         private readonly SearchResultState $state,
         private readonly string $baseDn = '',
-    ) {
-    }
+    ) {}
 
     /**
      * Successful server search result. The final result code may still be flipped to

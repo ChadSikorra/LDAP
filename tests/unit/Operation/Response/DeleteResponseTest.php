@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Operation\Response;
 
-use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Response\DeleteResponse;
 use PHPUnit\Framework\TestCase;
 
@@ -26,7 +25,7 @@ final class DeleteResponseTest extends TestCase
         $this->subject = new DeleteResponse(
             0,
             'foo',
-            'bar'
+            'bar',
         );
     }
 

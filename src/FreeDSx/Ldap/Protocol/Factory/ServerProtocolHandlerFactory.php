@@ -38,12 +38,11 @@ class ServerProtocolHandlerFactory
         private readonly ServerOptions $options,
         private readonly RequestHistory $requestHistory,
         private readonly ServerQueue $queue,
-    ) {
-    }
+    ) {}
 
     public function get(
         RequestInterface $request,
-        ControlBag $controls
+        ControlBag $controls,
     ): ServerProtocolHandlerInterface {
         if ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_WHOAMI) {
             return new ServerProtocolHandler\ServerWhoAmIHandler($this->queue);
@@ -97,12 +96,12 @@ class ServerProtocolHandlerFactory
         }
 
         return $request->getScope() === SearchRequest::SCOPE_BASE_OBJECT
-                && ((string)$request->getBaseDn() === '');
+                && ((string) $request->getBaseDn() === '');
     }
 
     private function isPagingSearch(
         RequestInterface $request,
-        ControlBag $controls
+        ControlBag $controls,
     ): bool {
         return $request instanceof SearchRequest
             && $controls->has(Control::OID_PAGING);

@@ -29,9 +29,7 @@ class AbandonRequest implements RequestInterface
 {
     protected const APP_TAG = 16;
 
-    public function __construct(private int $messageID)
-    {
-    }
+    public function __construct(private int $messageID) {}
 
     public function setMessageId(int $messageID): self
     {
@@ -68,7 +66,7 @@ class AbandonRequest implements RequestInterface
     {
         return Asn1::application(
             self::APP_TAG,
-            Asn1::integer($this->messageID)
+            Asn1::integer($this->messageID),
         );
     }
 }

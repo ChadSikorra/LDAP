@@ -72,7 +72,7 @@ final class SwooleWriterQueueTest extends TestCase
         self::assertNotNull($thrown);
         self::assertSame(
             'job failed',
-            $thrown->getMessage()
+            $thrown->getMessage(),
         );
     }
 
@@ -107,9 +107,15 @@ final class SwooleWriterQueueTest extends TestCase
         Coroutine\run(function () use ($batchWrapper, &$executed): void {
             $replies = [new Channel(1), new Channel(1), new Channel(1)];
             $batch = [
-                [static function () use (&$executed): void { $executed[] = 'a'; }, $replies[0]],
-                [static function () use (&$executed): void { $executed[] = 'b'; }, $replies[1]],
-                [static function () use (&$executed): void { $executed[] = 'c'; }, $replies[2]],
+                [static function () use (&$executed): void {
+                    $executed[] = 'a';
+                }, $replies[0]],
+                [static function () use (&$executed): void {
+                    $executed[] = 'b';
+                }, $replies[1]],
+                [static function () use (&$executed): void {
+                    $executed[] = 'c';
+                }, $replies[2]],
             ];
 
             SwooleWriterQueue::executeBatch($batch, $batchWrapper);
@@ -140,7 +146,9 @@ final class SwooleWriterQueueTest extends TestCase
             $replies = [new Channel(1), new Channel(1), new Channel(1)];
             $batch = [
                 [static fn() => null, $replies[0]],
-                [static function (): void { throw new LogicException('b failed'); }, $replies[1]],
+                [static function (): void {
+                    throw new LogicException('b failed');
+                }, $replies[1]],
                 [static fn() => null, $replies[2]],
             ];
 
@@ -235,7 +243,7 @@ final class SwooleWriterQueueTest extends TestCase
         self::assertInstanceOf(LogicException::class, $results['b']);
         self::assertSame(
             'job b failed',
-            $results['b']->getMessage()
+            $results['b']->getMessage(),
         );
         self::assertTrue($results['c']);
     }

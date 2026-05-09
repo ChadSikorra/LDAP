@@ -30,7 +30,7 @@ class OptionsSpec extends TestCase
             'range=1500-*',
         );
     }
-    
+
     public function test_it_should_get_the_first_option(): void
     {
         self::assertEquals(
@@ -38,7 +38,7 @@ class OptionsSpec extends TestCase
             $this->subject->first(),
         );
     }
-    
+
     public function test_it_should_get_the_last_option(): void
     {
         self::assertEquals(
@@ -46,21 +46,21 @@ class OptionsSpec extends TestCase
             $this->subject->last(),
         );
     }
-    
+
     public function test_it_should_return_null_for_the_first_option_when_there_are_none(): void
     {
         $this->subject = new Options();
-        
+
         self::assertNull($this->subject->first());
     }
-    
+
     public function test_it_should_return_null_for_the_last_option_when_there_are_none(): void
     {
         $this->subject = new Options();
 
         self::assertNull($this->subject->last());
     }
-    
+
     public function test_it_should_get_a_semi_colon_separated_string_representation_calling_toString(): void
     {
         self::assertSame(
@@ -68,7 +68,7 @@ class OptionsSpec extends TestCase
             $this->subject->toString(),
         );
     }
-    
+
     public function test_it_should_sort_and_lowercase_the_string_representation_if_requested(): void
     {
         self::assertSame(
@@ -84,7 +84,7 @@ class OptionsSpec extends TestCase
             (string) $this->subject,
         );
     }
-    
+
     public function test_it_should_get_the_count(): void
     {
         self::assertCount(
@@ -100,26 +100,27 @@ class OptionsSpec extends TestCase
                 new Option('foo'),
                 new Option('Bar'),
                 new Option('lang-en'),
-                new Option('range=1500-*')
+                new Option('range=1500-*'),
             ],
             $this->subject->toArray(),
         );
     }
-    
+
     public function test_it_should_add_an_option(): void
     {
         $this->subject->add('x-bar');
 
-        self::assertTrue($this->subject->has('x-bar'));;
+        self::assertTrue($this->subject->has('x-bar'));
+        ;
     }
-    
+
     public function test_it_should_remove_an_option(): void
     {
         $this->subject->remove('foo');
 
         self::assertFalse($this->subject->has('foo'));
     }
-    
+
     public function test_it_should_set_the_options(): void
     {
         $this->subject->set('foo');
@@ -129,7 +130,7 @@ class OptionsSpec extends TestCase
             $this->subject,
         );
     }
-    
+
     public function test_it_should_check_for_an_option(): void
     {
         self::assertTrue($this->subject->has('foo'));

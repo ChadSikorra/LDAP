@@ -25,6 +25,5 @@ final class ChallengeAdvancement
     public function __construct(
         public readonly SaslContext $context,
         public readonly bool $complete,
-    ) {
-    }
+    ) {}
 }

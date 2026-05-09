@@ -29,13 +29,13 @@ class UnsolicitedNotificationException extends ProtocolException
         string $message = "",
         int $code = 0,
         ?Throwable $previous = null,
-        string $oid = ""
+        string $oid = "",
     ) {
         $this->oid = $oid;
         parent::__construct(
             $message,
             $code,
-            $previous
+            $previous,
         );
     }
 

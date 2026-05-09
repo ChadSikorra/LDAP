@@ -37,7 +37,7 @@ class SyncNewCookie extends SyncInfoMessage
     {
         $this->setResponseValueToEncode(Asn1::context(
             self::VALUE_TAG,
-            Asn1::octetString((string) $this->cookie)
+            Asn1::octetString((string) $this->cookie),
         ));
 
         return parent::toAsn1();
@@ -54,9 +54,9 @@ class SyncNewCookie extends SyncInfoMessage
             $type,
             [
                 AbstractType::TAG_CLASS_CONTEXT_SPECIFIC => [
-                    self::VALUE_TAG => AbstractType::TAG_TYPE_OCTET_STRING
-                ]
-            ]
+                    self::VALUE_TAG => AbstractType::TAG_TYPE_OCTET_STRING,
+                ],
+            ],
         );
         if (!$cookie instanceof OctetStringType) {
             throw new ProtocolException('The syncCookie must be an octet string.');

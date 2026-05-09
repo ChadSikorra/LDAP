@@ -47,7 +47,7 @@ trait TestFactoryTrait
         foreach ($searchEntryResults as $entry) {
             $entryResults[] = new EntryResult(new LdapMessageResponse(
                 $messageId,
-                $entry
+                $entry,
             ));
         }
         foreach ($referrals as $referral) {

@@ -33,7 +33,7 @@ final class BindResponseTest extends TestCase
                 0,
                 'foo',
                 'bar',
-                new LdapUrl('foo')
+                new LdapUrl('foo'),
             ),
             'foo',
         );
@@ -76,10 +76,10 @@ final class BindResponseTest extends TestCase
             Asn1::octetString('dc=foo,dc=bar'),
             Asn1::octetString('foo'),
             Asn1::context(3, (new IncompleteType($encoder->encode(
-                Asn1::octetString('ldap://foo')
+                Asn1::octetString('ldap://foo'),
             ))
             )->setIsConstructed(true)),
-            Asn1::context(7, Asn1::octetString('foo'))
+            Asn1::context(7, Asn1::octetString('foo')),
         )));
 
         self::assertSame(

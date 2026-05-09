@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Protocol\LdapEncoder;
 use FreeDSx\Ldap\Protocol\ProtocolElementInterface;
+
 use function is_string;
 
 /**
@@ -53,7 +54,7 @@ class ExtendedResponse extends LdapResult
     public function __construct(
         LdapResult $result,
         ?string $responseName = null,
-        ?string $responseValue = null
+        ?string $responseValue = null,
     ) {
         $this->responseValue = $responseValue;
         $this->responseName = $responseName;
@@ -61,7 +62,7 @@ class ExtendedResponse extends LdapResult
             $result->getResultCode(),
             $result->getDn(),
             $result->getDiagnosticMessage(),
-            ...$result->getReferrals()
+            ...$result->getReferrals(),
         );
     }
 
@@ -91,7 +92,7 @@ class ExtendedResponse extends LdapResult
     {
         return new static(
             self::createLdapResult($type),
-            ...self::parseExtendedResponse($type)
+            ...self::parseExtendedResponse($type),
         );
     }
 
@@ -162,7 +163,7 @@ class ExtendedResponse extends LdapResult
             $resultCode,
             $dn,
             $diagnosticMessage,
-            ...$referrals
+            ...$referrals,
         );
     }
 

@@ -47,7 +47,7 @@ final class ServerWhoAmIHandlerTest extends TestCase
             ->method('sendMessage')
             ->with($this->equalTo(new LdapMessageResponse(
                 2,
-                new ExtendedResponse(new LdapResult(0), null, 'dn:cn=foo,dc=foo,dc=bar')
+                new ExtendedResponse(new LdapResult(0), null, 'dn:cn=foo,dc=foo,dc=bar'),
             )));
 
         $this->subject->handleRequest(
@@ -65,7 +65,7 @@ final class ServerWhoAmIHandlerTest extends TestCase
             ->method('sendMessage')
             ->with($this->equalTo(new LdapMessageResponse(
                 2,
-                new ExtendedResponse(new LdapResult(0), null, 'u:foo@bar.local')
+                new ExtendedResponse(new LdapResult(0), null, 'u:foo@bar.local'),
             )));
 
         $this->subject->handleRequest(
@@ -83,14 +83,14 @@ final class ServerWhoAmIHandlerTest extends TestCase
             ->method('sendMessage')
             ->with($this->equalTo(new LdapMessageResponse(
                 2,
-                new ExtendedResponse(new LdapResult(0), null, '')
+                new ExtendedResponse(new LdapResult(0), null, ''),
             )));
 
         $this->mockQueue
             ->method('getMessage')
             ->willReturn(new LdapMessageRequest(
                 2,
-                new ExtendedRequest(ExtendedRequest::OID_WHOAMI)
+                new ExtendedRequest(ExtendedRequest::OID_WHOAMI),
             ));
 
         $this->subject->handleRequest(

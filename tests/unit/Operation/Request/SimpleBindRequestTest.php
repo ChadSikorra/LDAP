@@ -28,7 +28,7 @@ final class SimpleBindRequestTest extends TestCase
     {
         $this->subject = new SimpleBindRequest(
             '',
-            ''
+            '',
         );
     }
 
@@ -109,7 +109,7 @@ final class SimpleBindRequestTest extends TestCase
             Asn1::application(0, Asn1::sequence(
                 Asn1::integer(3),
                 Asn1::octetString('foo'),
-                Asn1::context(0, Asn1::octetString('bar'))
+                Asn1::context(0, Asn1::octetString('bar')),
             )),
             $this->subject->toAsn1(),
         );
@@ -146,7 +146,7 @@ final class SimpleBindRequestTest extends TestCase
             [Asn1::octetString('foo')],
             [Asn1::sequence(
                 Asn1::octetString('foo'),
-                Asn1::integer(3)
+                Asn1::integer(3),
             )],
         ];
     }

@@ -69,12 +69,12 @@ final class RequestCancelerTest extends TestCase
             ->expects($this->once())
             ->method('sendMessage')
             ->with(self::callback(
-                fn (LdapMessageRequest $message) => $message->getRequest() instanceof CancelRequest
+                fn(LdapMessageRequest $message) => $message->getRequest() instanceof CancelRequest,
             ));
 
         self::assertSame(
             $cancelResponse,
-            $this->subject->cancel(1)
+            $this->subject->cancel(1),
         );
     }
 
@@ -115,7 +115,7 @@ final class RequestCancelerTest extends TestCase
         $cancelResponse = new ExtendedResponse(new LdapResult(
             ResultCode::TOO_LATE,
             '',
-            'Fail'
+            'Fail',
         ));
 
         $this->mockQueue

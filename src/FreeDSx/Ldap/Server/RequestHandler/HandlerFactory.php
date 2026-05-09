@@ -33,9 +33,7 @@ use FreeDSx\Ldap\ServerOptions;
  */
 class HandlerFactory implements HandlerFactoryInterface
 {
-    public function __construct(private readonly ServerOptions $options)
-    {
-    }
+    public function __construct(private readonly ServerOptions $options) {}
 
     /**
      * @inheritDoc
@@ -92,7 +90,7 @@ class HandlerFactory implements HandlerFactoryInterface
 
         return new PasswordAuthenticator(
             $nameResolver,
-            $backend
+            $backend,
         );
     }
 

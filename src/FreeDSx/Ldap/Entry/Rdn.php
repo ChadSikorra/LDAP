@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Entry;
 
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use Stringable;
+
 use function array_keys;
 use function array_values;
 use function count;
@@ -50,9 +51,8 @@ class Rdn implements Stringable
 
     public function __construct(
         private readonly string $name,
-        private readonly string $value
-    ) {
-    }
+        private readonly string $value,
+    ) {}
 
     public function getName(): string
     {
@@ -127,12 +127,12 @@ class Rdn implements Stringable
     {
         $pieces = preg_split(
             '/(?<!\\\\)\+/',
-            $rdn
+            $rdn,
         );
         if ($pieces === false) {
             throw new InvalidArgumentException(sprintf(
                 'The RDN "%s" is invalid.',
-                $rdn
+                $rdn,
             ));
         }
 
@@ -142,18 +142,18 @@ class Rdn implements Stringable
             $parts = explode(
                 separator: '=',
                 string: $piece,
-                limit: 2
+                limit: 2,
             );
             if (count($parts) !== 2) {
                 throw new InvalidArgumentException(sprintf(
                     'The RDN "%s" is invalid.',
-                    $piece
+                    $piece,
                 ));
             }
             if ($obj === null) {
                 $obj = new self(
                     name: $parts[0],
-                    value: $parts[1]
+                    value: $parts[1],
                 );
             } else {
                 $obj->additional[] = new self(
@@ -166,7 +166,7 @@ class Rdn implements Stringable
         if ($obj === null) {
             throw new InvalidArgumentException(sprintf(
                 "The RDN '%s' is not valid.",
-                $rdn
+                $rdn,
             ));
         }
 

@@ -28,6 +28,6 @@ interface BindNameResolverInterface
      */
     public function resolve(
         string $name,
-        LdapBackendInterface $backend
+        LdapBackendInterface $backend,
     ): ?Entry;
 }

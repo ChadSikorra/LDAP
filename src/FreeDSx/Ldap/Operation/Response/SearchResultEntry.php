@@ -39,9 +39,7 @@ class SearchResultEntry implements ResponseInterface
 {
     protected const TAG_NUMBER = 4;
 
-    public function __construct(private readonly Entry $entry)
-    {
-    }
+    public function __construct(private readonly Entry $entry) {}
 
     public function getEntry(): Entry
     {
@@ -107,7 +105,7 @@ class SearchResultEntry implements ResponseInterface
                 Asn1::octetString($attribute->getDescription()),
                 Asn1::setOf(...array_map(function ($v) {
                     return Asn1::octetString($v);
-                }, $attribute->getValues()))
+                }, $attribute->getValues())),
             ));
         }
         $asn1->addChild(Asn1::octetString($this->entry->getDn()->toString()));

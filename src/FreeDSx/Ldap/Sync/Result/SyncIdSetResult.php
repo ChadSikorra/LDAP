@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Operation\Response\SyncInfo\SyncIdSet;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use IteratorAggregate;
 use Traversable;
+
 use function count;
 
 /**
@@ -29,9 +30,7 @@ class SyncIdSetResult implements Countable, IteratorAggregate
 {
     private ?SyncIdSet $idSet = null;
 
-    public function __construct(private readonly LdapMessageResponse $message)
-    {
-    }
+    public function __construct(private readonly LdapMessageResponse $message) {}
 
     public function getMessage(): LdapMessageResponse
     {

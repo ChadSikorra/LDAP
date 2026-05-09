@@ -107,8 +107,8 @@ class SyncStateControlTest extends TestCase
                 Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::enumerated(0),
                     Asn1::octetString('foo'),
-                    Asn1::octetString('omnomnom')
-                )))
+                    Asn1::octetString('omnomnom'),
+                ))),
             ),
             $this->subject->toAsn1(),
         );
@@ -124,8 +124,8 @@ class SyncStateControlTest extends TestCase
             Asn1::octetString($encoder->encode(Asn1::sequence(
                 Asn1::enumerated(0),
                 Asn1::octetString('foo'),
-                Asn1::octetString('omnomnom')
-            )))
+                Asn1::octetString('omnomnom'),
+            ))),
         ));
 
         self::assertSame(

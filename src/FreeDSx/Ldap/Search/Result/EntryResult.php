@@ -23,9 +23,7 @@ final class EntryResult implements Stringable
 {
     private ?Entry $entry = null;
 
-    public function __construct(private readonly LdapMessageResponse $response)
-    {
-    }
+    public function __construct(private readonly LdapMessageResponse $response) {}
 
     /**
      * The raw message response returned from the server, which contains any controls
@@ -49,7 +47,7 @@ final class EntryResult implements Stringable
             throw new UnexpectedValueException(sprintf(
                 'Expected an instance of "%s", but got "%s".',
                 SearchResultEntry::class,
-                get_class($entry)
+                get_class($entry),
             ));
         }
 

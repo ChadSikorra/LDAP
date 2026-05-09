@@ -20,6 +20,4 @@ use Exception;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class FilterParseException extends Exception
-{
-}
+class FilterParseException extends Exception {}

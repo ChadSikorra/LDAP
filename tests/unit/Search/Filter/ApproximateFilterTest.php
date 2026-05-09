@@ -50,7 +50,7 @@ final class ApproximateFilterTest extends TestCase
         self::assertEquals(
             Asn1::context(8, Asn1::sequence(
                 Asn1::octetString('foo'),
-                Asn1::octetString('bar')
+                Asn1::octetString('bar'),
             )),
             $this->subject->toAsn1(),
         );
@@ -60,7 +60,7 @@ final class ApproximateFilterTest extends TestCase
     {
         self::assertEquals(
             new ApproximateFilter('foo', 'bar'),
-            ApproximateFilter::fromAsn1((new ApproximateFilter('foo', 'bar'))->toAsn1())
+            ApproximateFilter::fromAsn1((new ApproximateFilter('foo', 'bar'))->toAsn1()),
         );
     }
 

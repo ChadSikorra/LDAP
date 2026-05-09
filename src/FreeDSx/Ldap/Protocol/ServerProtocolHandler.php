@@ -27,6 +27,7 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
 use Psr\Log\LoggerInterface;
 use Throwable;
+
 use function array_merge;
 use function in_array;
 
@@ -50,9 +51,8 @@ class ServerProtocolHandler
         private readonly ServerAuthorization $authorizer,
         private readonly Authenticator $authenticator,
         private readonly ?LoggerInterface $logger,
-        private readonly ResponseFactory $responseFactory = new ResponseFactory()
-    ) {
-    }
+        private readonly ResponseFactory $responseFactory = new ResponseFactory(),
+    ) {}
 
     /**
      * Listens for messages from the socket and handles the responses/actions needed.
@@ -78,31 +78,31 @@ class ServerProtocolHandler
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(
                 $message,
                 $e->getCode(),
-                $e->getMessage()
+                $e->getMessage(),
             ));
         } catch (ConnectionException $e) {
             $this->logInfo(
                 'Ending LDAP client due to client connection issues.',
                 array_merge(
                     ['message' => $e->getMessage()],
-                    $defaultContext
-                )
+                    $defaultContext,
+                ),
             );
-        } catch (EncoderException | ProtocolException) {
+        } catch (EncoderException|ProtocolException) {
             # Per RFC 4511, 4.1.1 if the PDU cannot be parsed or is otherwise malformed a disconnect should be sent with
             # a result code of protocol error.
             $this->sendNoticeOfDisconnect('The message encoding is malformed.');
             $this->logError(
                 'The client sent a malformed request. Terminating their connection.',
-                $defaultContext
+                $defaultContext,
             );
         } catch (Throwable $e) {
             $this->logError(
                 'An unexpected exception was caught while handling the client. Terminating their connection.',
                 array_merge(
                     $defaultContext,
-                    ['exception' => $e]
-                )
+                    ['exception' => $e],
+                ),
             );
             if ($this->queue->isConnected()) {
                 $this->sendNoticeOfDisconnect();
@@ -124,12 +124,12 @@ class ServerProtocolHandler
     {
         $this->sendNoticeOfDisconnect(
             'The server is shutting down.',
-            ResultCode::UNAVAILABLE
+            ResultCode::UNAVAILABLE,
         );
         $this->queue->close();
         $this->logInfo(
             'Sent notice of disconnect to client and closed the connection.',
-            $context
+            $context,
         );
     }
 
@@ -159,7 +159,7 @@ class ServerProtocolHandler
         $request = $message->getRequest();
         $handler = $this->protocolHandlerFactory->get(
             $request,
-            $message->controls()
+            $message->controls(),
         );
 
         # They are authenticated or authentication is not required, so pass the request along...
@@ -168,12 +168,12 @@ class ServerProtocolHandler
                 $message,
                 $this->authorizer->getToken(),
             );
-        # Authentication is required, but they have not authenticated...
+            # Authentication is required, but they have not authenticated...
         } else {
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(
                 $message,
                 ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
-                'Authentication required.'
+                'Authentication required.',
             ));
         }
     }
@@ -189,7 +189,7 @@ class ServerProtocolHandler
         if ($message->getMessageId() === 0) {
             $this->queue->sendMessage($this->responseFactory->getExtendedError(
                 'The message ID 0 cannot be used in a client request.',
-                ResultCode::PROTOCOL_ERROR
+                ResultCode::PROTOCOL_ERROR,
             ));
 
             return false;
@@ -197,7 +197,7 @@ class ServerProtocolHandler
         if (in_array($message->getMessageId(), $this->messageIds, true)) {
             $this->queue->sendMessage($this->responseFactory->getExtendedError(
                 sprintf('The message ID %s is not valid.', $message->getMessageId()),
-                ResultCode::PROTOCOL_ERROR
+                ResultCode::PROTOCOL_ERROR,
             ));
 
             return false;
@@ -217,7 +217,7 @@ class ServerProtocolHandler
         if (!$this->authorizer->isAuthenticationTypeSupported($message->getRequest())) {
             throw new OperationException(
                 'The requested authentication type is not supported.',
-                ResultCode::AUTH_METHOD_UNSUPPORTED
+                ResultCode::AUTH_METHOD_UNSUPPORTED,
             );
         }
 
@@ -229,12 +229,12 @@ class ServerProtocolHandler
      */
     private function sendNoticeOfDisconnect(
         string $message = '',
-        int $reasonCode = ResultCode::PROTOCOL_ERROR
+        int $reasonCode = ResultCode::PROTOCOL_ERROR,
     ): void {
         $this->queue->sendMessage($this->responseFactory->getExtendedError(
             $message,
             $reasonCode,
-            ExtendedResponse::OID_NOTICE_OF_DISCONNECTION
+            ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
         ));
     }
 }

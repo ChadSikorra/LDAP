@@ -31,9 +31,7 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  */
 class ServerWhoAmIHandler implements ServerProtocolHandlerInterface
 {
-    public function __construct(private readonly ServerQueue $queue)
-    {
-    }
+    public function __construct(private readonly ServerQueue $queue) {}
 
     /**
      * {@inheritDoc}
@@ -41,7 +39,7 @@ class ServerWhoAmIHandler implements ServerProtocolHandlerInterface
      */
     public function handleRequest(
         LdapMessageRequest $message,
-        TokenInterface $token
+        TokenInterface $token,
     ): void {
         $userId = $token->getUsername();
 
@@ -56,7 +54,7 @@ class ServerWhoAmIHandler implements ServerProtocolHandlerInterface
 
         $this->queue->sendMessage(new LdapMessageResponse(
             $message->getMessageId(),
-            new ExtendedResponse(new LdapResult(ResultCode::SUCCESS), null, $userId)
+            new ExtendedResponse(new LdapResult(ResultCode::SUCCESS), null, $userId),
         ));
     }
 }

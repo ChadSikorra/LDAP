@@ -29,5 +29,4 @@ interface SaslUsernameExtractorInterface
      * @throws OperationException if the username cannot be extracted from the credentials.
      */
     public function extractUsername(MechanismName $mechanism, string $credentials): string;
-
 }

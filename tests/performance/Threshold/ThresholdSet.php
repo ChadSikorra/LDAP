@@ -23,8 +23,7 @@ final class ThresholdSet
         public readonly ?int $maxErrors = null,
         public readonly ?float $minThroughput = null,
         public readonly ?float $maxP99Ms = null,
-    ) {
-    }
+    ) {}
 
     public function isEmpty(): bool
     {

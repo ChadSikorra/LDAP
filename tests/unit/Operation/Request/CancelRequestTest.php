@@ -53,8 +53,8 @@ final class CancelRequestTest extends TestCase
             Asn1::application(23, Asn1::sequence(
                 Asn1::context(0, Asn1::octetString(ExtendedRequest::OID_CANCEL)),
                 Asn1::context(1, Asn1::octetString($encoder->encode(Asn1::sequence(
-                    Asn1::integer(1)
-                ))))
+                    Asn1::integer(1),
+                )))),
             )),
             $this->subject->toAsn1(),
         );
@@ -90,7 +90,7 @@ final class CancelRequestTest extends TestCase
         return [
             [$req->toAsn1()],
             [$req->setValue(Asn1::sequence())->toAsn1()],
-            [$req->setValue(Asn1::sequence(Asn1::octetString('bar')))->toAsn1()]
+            [$req->setValue(Asn1::sequence(Asn1::octetString('bar')))->toAsn1()],
         ];
     }
 }

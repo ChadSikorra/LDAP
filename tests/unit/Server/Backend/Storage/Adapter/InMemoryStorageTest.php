@@ -94,8 +94,8 @@ final class InMemoryStorageTest extends TestCase
         $entries = iterator_to_array(
             $storage->list(StorageListOptions::matchAll(
                 new Dn('dc=example,dc=com'),
-                true
-            ))->entries
+                true,
+            ))->entries,
         );
 
         self::assertCount(
@@ -175,11 +175,13 @@ final class InMemoryStorageTest extends TestCase
 
         self::assertCount(
             1,
-            iterator_to_array($this->subject->list(
-                StorageListOptions::matchAll(
-                    new Dn(''),
-                    true
-                ))->entries
+            iterator_to_array(
+                $this->subject->list(
+                    StorageListOptions::matchAll(
+                        new Dn(''),
+                        true,
+                    ),
+                )->entries,
             ),
         );
     }

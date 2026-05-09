@@ -36,8 +36,7 @@ class ServerProtocolFactory
         private readonly HandlerFactoryInterface $handlerFactory,
         private readonly ServerOptions $options,
         private readonly ServerAuthorization $serverAuthorization,
-    ) {
-    }
+    ) {}
 
     public function make(Socket $socket): ServerProtocolHandler
     {

@@ -28,8 +28,7 @@ final class MechanismOptionsBuilderFactory
 {
     public function __construct(
         private readonly PasswordAuthenticatableInterface $authenticator,
-    ) {
-    }
+    ) {}
 
     /**
      * @throws OperationException if the mechanism is unsupported.

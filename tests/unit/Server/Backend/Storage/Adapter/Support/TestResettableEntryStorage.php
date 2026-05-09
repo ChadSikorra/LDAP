@@ -19,6 +19,4 @@ use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 /**
  * Mock target that combines the storage contract with the resettable hook.
  */
-interface TestResettableEntryStorage extends EntryStorageInterface, ResettableInterface
-{
-}
+interface TestResettableEntryStorage extends EntryStorageInterface, ResettableInterface {}

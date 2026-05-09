@@ -32,9 +32,8 @@ class AnonymousBind implements BindInterface
 
     public function __construct(
         private readonly ServerQueue $queue,
-        private readonly ResponseFactory $responseFactory = new ResponseFactory()
-    ) {
-    }
+        private readonly ResponseFactory $responseFactory = new ResponseFactory(),
+    ) {}
 
     /**
      * {@inheritDoc}
@@ -45,7 +44,7 @@ class AnonymousBind implements BindInterface
         if (!$request instanceof AnonBindRequest) {
             throw new RuntimeException(sprintf(
                 'Expected an AnonBindRequest, got: %s',
-                get_class($request)
+                get_class($request),
             ));
         }
 

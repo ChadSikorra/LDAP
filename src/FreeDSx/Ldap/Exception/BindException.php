@@ -20,6 +20,4 @@ use Exception;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class BindException extends Exception
-{
-}
+class BindException extends Exception {}

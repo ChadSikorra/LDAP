@@ -25,9 +25,7 @@ use FreeDSx\Sasl\Options\PlainOptions;
  */
 class PlainMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
 {
-    public function __construct(private readonly PasswordAuthenticatableInterface $authenticator)
-    {
-    }
+    public function __construct(private readonly PasswordAuthenticatableInterface $authenticator) {}
 
     /**
      * {@inheritDoc}
@@ -37,8 +35,8 @@ class PlainMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
         MechanismName $mechanism,
     ): ?ChallengeOptionsInterface {
         return (new PlainOptions())->setValidate(
-            fn (?string $authzId, string $authcId, string $password): bool =>
-                $this->authenticator->verifyPassword($authcId, $password),
+            fn(?string $authzId, string $authcId, string $password): bool
+                => $this->authenticator->verifyPassword($authcId, $password),
         );
     }
 }

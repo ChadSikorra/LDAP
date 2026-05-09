@@ -28,7 +28,7 @@ final class LdapMessageRequestTest extends TestCase
         $this->subject = new LdapMessageRequest(
             1,
             new DeleteRequest('dc=foo,dc=bar'),
-            new Control('foo')
+            new Control('foo'),
         );
     }
 
@@ -59,7 +59,7 @@ final class LdapMessageRequestTest extends TestCase
             Asn1::sequence(
                 Asn1::integer(1),
                 Asn1::application(10, Asn1::octetString('dc=foo,dc=bar')),
-                Asn1::context(0, Asn1::sequenceOf((new Control('foo'))->toAsn1()))
+                Asn1::context(0, Asn1::sequenceOf((new Control('foo'))->toAsn1())),
             ),
             $this->subject->toAsn1(),
         );

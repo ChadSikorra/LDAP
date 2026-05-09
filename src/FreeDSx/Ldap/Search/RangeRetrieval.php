@@ -42,7 +42,7 @@ class RangeRetrieval
      */
     public function getRanged(
         Entry $entry,
-        Attribute|string $attribute
+        Attribute|string $attribute,
     ): ?Attribute {
         $attribute = $attribute instanceof Attribute
             ? new Attribute($attribute->getName())
@@ -86,7 +86,7 @@ class RangeRetrieval
      */
     public function hasRanged(
         Entry $entry,
-        Attribute|string|null $attribute = null
+        Attribute|string|null $attribute = null,
     ): bool {
         return $attribute !== null
             ? (bool) $this->getRanged($entry, $attribute)
@@ -114,7 +114,7 @@ class RangeRetrieval
     public function getMoreValues(
         Stringable|Entry|Dn|string $entry,
         Attribute $attribute,
-        string|int $amount = '*'
+        string|int $amount = '*',
     ): Attribute {
         if (($range = $this->getRangeOption($attribute)) === null || !$this->hasMoreValues($attribute)) {
             return new Attribute($attribute->getName());
@@ -127,21 +127,21 @@ class RangeRetrieval
         $attrReq->getOptions()->set(Option::fromRange((string) $startAt, (string) $amount));
         $result = $this->client->readOrFail(
             (string) $entry,
-            [$attrReq]
+            [$attrReq],
         );
 
         $attrResult = $result->get($attribute->getName());
         if ($attrResult === null) {
             throw new RuntimeException(sprintf(
                 'The attribute %s was not returned from LDAP',
-                $attribute->getName()
+                $attribute->getName(),
             ));
         }
         if ($this->getRangeOption($attrResult) === null) {
             throw new RuntimeException(sprintf(
                 'No ranged option received for attribute "%s" on "%s".',
                 $attribute->getName(),
-                $result->getDn()->toString()
+                $result->getDn()->toString(),
             ));
         }
 
@@ -165,17 +165,17 @@ class RangeRetrieval
 
         $entry = $this->client->readOrFail(
             (string) $entry,
-            [$attrResult]
+            [$attrResult],
         );
         $attribute = $this->getRanged(
             $entry,
-            $attrResult
+            $attrResult,
         );
         if ($attribute === null) {
             throw new RuntimeException(sprintf(
                 'No ranged result received for "%s" on entry "%s".',
                 $attrResult->getName(),
-                $entry->getDn()->toString()
+                $entry->getDn()->toString(),
             ));
         }
 

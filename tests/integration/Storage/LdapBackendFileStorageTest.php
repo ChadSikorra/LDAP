@@ -65,7 +65,7 @@ final class LdapBackendFileStorageTest extends LdapBackendStorageTest
             $this->stopServer();
             $this->createServerProcess(
                 'tcp',
-                'file'
+                'file',
             );
         }
     }
@@ -76,7 +76,7 @@ final class LdapBackendFileStorageTest extends LdapBackendStorageTest
 
         $this->ldapClient()->create(Entry::fromArray(
             'cn=persistent,dc=foo,dc=bar',
-            ['cn' => 'persistent', 'sn' => 'Persistent', 'objectClass' => 'inetOrgPerson']
+            ['cn' => 'persistent', 'sn' => 'Persistent', 'objectClass' => 'inetOrgPerson'],
         ));
 
         // Close the first connection so the PCNTL child exits and flushes.
@@ -89,7 +89,7 @@ final class LdapBackendFileStorageTest extends LdapBackendStorageTest
         $entries = $secondClient->search(
             Operations::search(Filters::equal('cn', 'persistent'))
                 ->base('dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
 
         $secondClient->unbind();
@@ -97,7 +97,7 @@ final class LdapBackendFileStorageTest extends LdapBackendStorageTest
         self::assertCount(1, $entries);
         self::assertSame(
             'cn=persistent,dc=foo,dc=bar',
-            $entries->first()?->getDn()->toString()
+            $entries->first()?->getDn()->toString(),
         );
     }
 }

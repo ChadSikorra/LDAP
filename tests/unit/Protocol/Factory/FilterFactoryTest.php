@@ -36,7 +36,7 @@ final class FilterFactoryTest extends TestCase
     {
         self::assertEquals(
             new EqualityFilter('foo', 'bar'),
-            FilterFactory::get((new EqualityFilter('foo', 'bar'))->toAsn1())
+            FilterFactory::get((new EqualityFilter('foo', 'bar'))->toAsn1()),
         );
     }
 }

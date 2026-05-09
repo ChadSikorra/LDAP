@@ -38,19 +38,19 @@ class DirSyncTest extends LdapTestCase
         $this->filter = Filters::and(
             Filters::equal(
                 'objectClass',
-                'inetOrgPerson'
+                'inetOrgPerson',
             ),
             Filters::not(Filters::equal(
                 'isDeleted',
-                'TRUE'
-            ))
+                'TRUE',
+            )),
         );
 
         $this->dirSync = new DirSync(
             $this->client,
             null,
             $this->filter,
-            'description'
+            'description',
         );
     }
 
@@ -66,13 +66,13 @@ class DirSyncTest extends LdapTestCase
         $entry = $this->client->readOrFail('cn=Vivie Niebudek,ou=Administrative,ou=FreeDSx-Test,dc=example,dc=com');
         $entry->set(
             'description',
-            'foobar ' . rand()
+            'foobar ' . rand(),
         );
         $this->client->update($entry);
 
         $this->assertCount(
             1,
-            $this->dirSync->getChanges()
+            $this->dirSync->getChanges(),
         );
     }
 }

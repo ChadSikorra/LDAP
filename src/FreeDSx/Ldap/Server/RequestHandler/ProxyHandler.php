@@ -38,19 +38,19 @@ class ProxyHandler extends ProxyBackend implements RootDseHandlerInterface
     public function rootDse(
         RequestContext $context,
         SearchRequest $request,
-        Entry $rootDse
+        Entry $rootDse,
     ): Entry {
         $rootDse = $this->ldap()
             ->search(
                 $request,
-                ...$context->controls()->toArray()
+                ...$context->controls()->toArray(),
             )
             ->first();
 
         if (!$rootDse) {
             throw new OperationException(
                 'Entry not found.',
-                ResultCode::NO_SUCH_OBJECT
+                ResultCode::NO_SUCH_OBJECT,
             );
         }
 

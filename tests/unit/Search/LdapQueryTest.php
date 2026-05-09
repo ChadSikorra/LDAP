@@ -379,7 +379,7 @@ final class LdapQueryTest extends TestCase
             ->expects(self::once())
             ->method('search')
             ->with(self::callback(
-                fn (SearchRequest $r) => $r->getSizeLimit() === 1
+                fn(SearchRequest $r) => $r->getSizeLimit() === 1,
             ))
             ->willReturn(new Entries());
 
@@ -392,7 +392,7 @@ final class LdapQueryTest extends TestCase
             ->expects(self::once())
             ->method('search')
             ->with(self::callback(
-                fn (SearchRequest $r) => $r->getSizeLimit() === 10
+                fn(SearchRequest $r) => $r->getSizeLimit() === 10,
             ))
             ->willReturn(new Entries());
 
@@ -466,7 +466,7 @@ final class LdapQueryTest extends TestCase
         $results = iterator_to_array(
             $this->subject
                 ->andWhere(Filters::equal('objectClass', 'user'))
-                ->stream()
+                ->stream(),
         );
 
         self::assertSame([$result1, $result2], $results);

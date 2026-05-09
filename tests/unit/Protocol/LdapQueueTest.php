@@ -42,7 +42,7 @@ final class LdapQueueTest extends TestCase
             ->method('read')
             ->will($this->onConsecutiveCalls(
                 'foo',
-                false
+                false,
             ));
 
         $this->subject = new LdapQueue(

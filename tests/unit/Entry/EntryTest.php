@@ -30,7 +30,7 @@ class EntryTest extends TestCase
             new Attribute('cn', 'foo'),
             new Attribute('telephoneNumber', '123', '456'),
             new Attribute('cn;lang-en-us', 'bar'),
-            new Attribute('member;range=0-*', 'dc=foo')
+            new Attribute('member;range=0-*', 'dc=foo'),
         );
     }
 
@@ -59,7 +59,7 @@ class EntryTest extends TestCase
             [
                 'cn' => 'foobar',
                 'telephoneNumber' => ['123', '456'],
-            ]
+            ],
         );
 
         self::assertEquals(
@@ -69,7 +69,7 @@ class EntryTest extends TestCase
         self::assertEquals(
             [
                 new Attribute('cn', 'foobar'),
-                new Attribute('telephoneNumber', '123', '456')
+                new Attribute('telephoneNumber', '123', '456'),
             ],
             $this->subject->getAttributes(),
         );
@@ -82,7 +82,7 @@ class EntryTest extends TestCase
             [
                 'cn' => 'foobar',
                 'telephoneNumber' => ['123', '456'],
-            ]
+            ],
         );
 
         self::assertEquals(
@@ -92,7 +92,7 @@ class EntryTest extends TestCase
         self::assertEquals(
             [
                 new Attribute('cn', 'foobar'),
-                new Attribute('telephoneNumber', '123', '456')
+                new Attribute('telephoneNumber', '123', '456'),
             ],
             $this->subject->getAttributes(),
         );
@@ -106,7 +106,7 @@ class EntryTest extends TestCase
                 'cn' => 'foobar',
                 'telephoneNumber' => [123, 456],
                 'is_bad_idea' => true,
-            ]
+            ],
         );
 
         self::assertEquals(
@@ -117,7 +117,7 @@ class EntryTest extends TestCase
             [
                 new Attribute('cn', 'foobar'),
                 new Attribute('telephoneNumber', '123', '456'),
-                new Attribute('is_bad_idea', '1')
+                new Attribute('is_bad_idea', '1'),
             ],
             $this->subject->getAttributes(),
         );
@@ -130,7 +130,7 @@ class EntryTest extends TestCase
                 'cn' => ['foo'],
                 'telephoneNumber' => [ '123', '456'],
                 'cn;lang-en-us' => ['bar'],
-                'member;range=0-*' => ['dc=foo']
+                'member;range=0-*' => ['dc=foo'],
             ],
             $this->subject->toArray(),
         );
@@ -140,7 +140,7 @@ class EntryTest extends TestCase
     {
         self::assertCount(
             4,
-            $this->subject
+            $this->subject,
         );
     }
 
@@ -172,7 +172,7 @@ class EntryTest extends TestCase
             $this->subject->get(new Attribute('cn'))?->getName(),
         );
     }
-    
+
     public function test_it_should_get_an_attribute_with_options_using_only_the_name(): void
     {
         self::assertSame(
@@ -180,29 +180,29 @@ class EntryTest extends TestCase
             $this->subject->get('cn')?->getValues(),
         );
     }
-    
+
     public function test_it_should_get_an_attribute_with_options_using_the_options(): void
     {
         self::assertSame(
             ['bar'],
-            $this->subject->get('cn;lang-en-us')?->getValues()
+            $this->subject->get('cn;lang-en-us')?->getValues(),
         );
     }
-    
+
     public function test_it_should_not_get_an_attribute_with_the_same_name_if_the_requested_options_are_not_the_same(): void
     {
         self::assertNull($this->subject->get('member;foo'));
     }
-    
+
     public function test_it_should_respect_the_strict_option_for_getting_an_attribute(): void
     {
         self::assertNull($this->subject->get('member', true));
         self::assertInstanceOf(
             Attribute::class,
-            $this->subject->get('member')
+            $this->subject->get('member'),
         );
     }
-    
+
     public function test_it_should_reset_an_attribute_using_a_string(): void
     {
         $this->subject->reset('cn');
@@ -300,7 +300,7 @@ class EntryTest extends TestCase
 
         self::assertNotContains(
             '123',
-            (array) $this->subject->get('telephoneNumber')?->getValues()
+            (array) $this->subject->get('telephoneNumber')?->getValues(),
         );
 
         $this->subject->remove(new Attribute('telephonenumber', '456'));

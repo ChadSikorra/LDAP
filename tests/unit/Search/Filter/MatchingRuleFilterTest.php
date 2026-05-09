@@ -110,7 +110,7 @@ final class MatchingRuleFilterTest extends TestCase
             Asn1::context(9, Asn1::sequence(
                 Asn1::context(2, Asn1::octetString('bar')),
                 Asn1::context(3, Asn1::octetString('foobar')),
-                Asn1::context(4, Asn1::boolean(true))
+                Asn1::context(4, Asn1::boolean(true)),
             )),
             $this->subject->toAsn1(),
         );
@@ -120,7 +120,7 @@ final class MatchingRuleFilterTest extends TestCase
         self::assertEquals(
             Asn1::context(9, Asn1::sequence(
                 Asn1::context(3, Asn1::octetString('foobar')),
-                Asn1::context(4, Asn1::boolean(true))
+                Asn1::context(4, Asn1::boolean(true)),
             )),
             $this->subject->toAsn1(),
         );
@@ -165,7 +165,8 @@ final class MatchingRuleFilterTest extends TestCase
     public function test_it_should_escape_values_on_the_string_representation(): void
     {
         $this->subject = new MatchingRuleFilter(
-            'foo', 'bar',
+            'foo',
+            'bar',
             ')(bar=*5',
         );
 

@@ -25,6 +25,5 @@ final readonly class SubstringAssertion
         public ?string $initial = null,
         public array $any = [],
         public ?string $final = null,
-    ) {
-    }
+    ) {}
 }

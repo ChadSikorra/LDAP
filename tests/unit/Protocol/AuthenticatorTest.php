@@ -55,7 +55,7 @@ final class AuthenticatorTest extends TestCase
 
         $this->subject->bind(new LdapMessageRequest(
             1,
-            new DeleteRequest('foo')
+            new DeleteRequest('foo'),
         ));
     }
 
@@ -84,7 +84,7 @@ final class AuthenticatorTest extends TestCase
 
         self::assertSame(
             $token,
-            $this->subject->bind($message)
+            $this->subject->bind($message),
         );
     }
 }

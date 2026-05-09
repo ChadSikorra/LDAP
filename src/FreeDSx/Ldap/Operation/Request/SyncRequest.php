@@ -26,7 +26,7 @@ class SyncRequest extends SearchRequest
 
     public function __construct(
         ?FilterInterface $filter = null,
-        string|Attribute ...$attributes
+        string|Attribute ...$attributes,
     ) {
         parent::__construct(
             $filter ?? Filters::present('objectClass'),

@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap;
 
 use FreeDSx\Ldap\Exception\UrlParseException;
 use Stringable;
+
 use function explode;
 use function str_ireplace;
 use function str_replace;
@@ -38,7 +39,7 @@ class LdapUrlExtension implements Stringable
     public function __construct(
         string $name,
         ?string $value = null,
-        bool $isCritical = false
+        bool $isCritical = false,
     ) {
         $this->name = $name;
         $this->value = $value;
@@ -109,13 +110,13 @@ class LdapUrlExtension implements Stringable
         if (preg_match('/!?\w+(=.*)?/', $extension) !== 1) {
             throw new UrlParseException(sprintf(
                 'The LDAP URL extension is malformed: %s',
-                $extension
+                $extension,
             ));
         }
         $pieces = explode(
             separator: '=',
             string: $extension,
-            limit: 2
+            limit: 2,
         );
 
         $isCritical = isset($pieces[0][0]) && $pieces[0][0] === '!';
@@ -131,14 +132,14 @@ class LdapUrlExtension implements Stringable
             ? str_ireplace(
                 search: '%2c',
                 replace: ',',
-                subject: self::decode($pieces[1])
+                subject: self::decode($pieces[1]),
             )
             : null;
 
         return new self(
             $name,
             $value,
-            $isCritical
+            $isCritical,
         );
     }
 }

@@ -37,24 +37,24 @@ final class SearchResponseTest extends TestCase
                 0,
                 'dc=foo,dc=bar',
                 'foo',
-                new LdapUrl('foo')
+                new LdapUrl('foo'),
             ),
             [
                 new EntryResult(new LdapMessageResponse(
                     1,
-                    new SearchResultEntry(Entry::create('foo'))
+                    new SearchResultEntry(Entry::create('foo')),
                 )),
                 new EntryResult(new LdapMessageResponse(
                     1,
-                    new SearchResultEntry(Entry::create('bar'))
+                    new SearchResultEntry(Entry::create('bar')),
                 )),
             ],
             [
                 new ReferralResult(new LdapMessageResponse(
                     1,
-                    new SearchResultReference(new LdapUrl('ldap://foo'))
+                    new SearchResultReference(new LdapUrl('ldap://foo')),
                 )),
-            ]
+            ],
         );
     }
 
@@ -83,7 +83,7 @@ final class SearchResponseTest extends TestCase
         self::assertEquals(
             new Entries(
                 Entry::create('foo'),
-                Entry::create('bar')
+                Entry::create('bar'),
             ),
             $this->subject->getEntries(),
         );
@@ -95,7 +95,7 @@ final class SearchResponseTest extends TestCase
             [
                 new ReferralResult(new LdapMessageResponse(
                     1,
-                    new SearchResultReference(new LdapUrl('ldap://foo'))
+                    new SearchResultReference(new LdapUrl('ldap://foo')),
                 )),
             ],
             $this->subject->getReferralResults(),
@@ -108,11 +108,11 @@ final class SearchResponseTest extends TestCase
             [
                 new EntryResult(new LdapMessageResponse(
                     1,
-                    new SearchResultEntry(Entry::create('foo'))
+                    new SearchResultEntry(Entry::create('foo')),
                 )),
                 new EntryResult(new LdapMessageResponse(
                     1,
-                    new SearchResultEntry(Entry::create('bar'))
+                    new SearchResultEntry(Entry::create('bar')),
                 )),
             ],
             $this->subject->getEntryResults(),

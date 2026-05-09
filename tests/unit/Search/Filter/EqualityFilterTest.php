@@ -15,7 +15,6 @@ namespace Tests\Unit\FreeDSx\Ldap\Search\Filter;
 
 use FreeDSx\Asn1\Asn1;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
-use FreeDSx\Ldap\Search\Filter\FilterInterface;
 use PHPUnit\Framework\TestCase;
 
 final class EqualityFilterTest extends TestCase
@@ -68,7 +67,7 @@ final class EqualityFilterTest extends TestCase
     {
         self::assertEquals(
             new EqualityFilter('foo', 'bar'),
-            EqualityFilter::fromAsn1((new EqualityFilter('foo', 'bar'))->toAsn1())
+            EqualityFilter::fromAsn1((new EqualityFilter('foo', 'bar'))->toAsn1()),
         );
     }
 

@@ -108,7 +108,7 @@ class SortingControl extends Control
                     }
                     $reverseFlag = $encoder->complete(
                         type: $keyItem,
-                        tagType: AbstractType::TAG_TYPE_BOOLEAN
+                        tagType: AbstractType::TAG_TYPE_BOOLEAN,
                     );
                     if (!$reverseFlag instanceof BooleanType) {
                         throw new ProtocolException('The sorting control reverseOrder flag is malformed.');
@@ -132,7 +132,7 @@ class SortingControl extends Control
 
         return self::mergeControlData(
             $control,
-            $type
+            $type,
         );
     }
 
@@ -145,13 +145,13 @@ class SortingControl extends Control
             if ($sortKey->getOrderingRule() !== null) {
                 $child->addChild(Asn1::context(
                     tagNumber: 0,
-                    type: Asn1::octetString($sortKey->getOrderingRule())
+                    type: Asn1::octetString($sortKey->getOrderingRule()),
                 ));
             }
             if ($sortKey->getUseReverseOrder()) {
                 $child->addChild(Asn1::context(
                     tagNumber: 1,
-                    type: Asn1::boolean(true)
+                    type: Asn1::boolean(true),
                 ));
             }
             $this->controlValue->addChild($child);

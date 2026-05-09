@@ -61,7 +61,7 @@ final class AnonBindRequestTest extends TestCase
             Asn1::application(0, Asn1::sequence(
                 Asn1::integer(3),
                 Asn1::octetString(''),
-                Asn1::context(0, Asn1::octetString(''))
+                Asn1::context(0, Asn1::octetString('')),
             )),
             $this->subject->toAsn1(),
         );
@@ -82,8 +82,8 @@ final class AnonBindRequestTest extends TestCase
         self::assertNotInstanceOf(
             AnonBindRequest::class,
             AnonBindRequest::fromAsn1(
-                (new SimpleBindRequest('foo', '0'))->toAsn1()
-            )
+                (new SimpleBindRequest('foo', '0'))->toAsn1(),
+            ),
         );
     }
 
@@ -108,11 +108,11 @@ final class AnonBindRequestTest extends TestCase
             [Asn1::sequence(
                 Asn1::integer(3),
                 Asn1::octetString('foo'),
-                Asn1::context(3, Asn1::octetString('foo'))
+                Asn1::context(3, Asn1::octetString('foo')),
             )],
             [Asn1::sequence(
                 Asn1::octetString('foo'),
-                Asn1::integer(2)
+                Asn1::integer(2),
             )],
             [Asn1::sequence()],
             [Asn1::integer(2)],

@@ -49,8 +49,8 @@ class ExtendedDnControlTest extends TestCase
                 Asn1::octetString(Control::OID_EXTENDED_DN),
                 Asn1::boolean(false),
                 Asn1::octetString($encoder->encode(Asn1::sequence(
-                    Asn1::integer(1)
-                )))
+                    Asn1::integer(1),
+                ))),
             ),
             $this->subject->toAsn1(),
         );
@@ -66,9 +66,9 @@ class ExtendedDnControlTest extends TestCase
                 Asn1::octetString(Control::OID_EXTENDED_DN),
                 Asn1::boolean(false),
                 Asn1::octetString($encoder->encode(Asn1::sequence(
-                    Asn1::integer(1)
-                )))
-            ))->setValue(null)
+                    Asn1::integer(1),
+                ))),
+            ))->setValue(null),
         );
     }
 
@@ -78,8 +78,8 @@ class ExtendedDnControlTest extends TestCase
             new ExtendedDnControl(),
             ExtendedDnControl::fromAsn1(Asn1::sequence(
                 Asn1::octetString(Control::OID_EXTENDED_DN),
-                Asn1::boolean(false)
-            ))->setValue(null)
+                Asn1::boolean(false),
+            ))->setValue(null),
         );
     }
 }

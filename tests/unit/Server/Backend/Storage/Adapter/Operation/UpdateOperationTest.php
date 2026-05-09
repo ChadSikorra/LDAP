@@ -53,11 +53,11 @@ final class UpdateOperationTest extends TestCase
         self::assertNotNull($mail);
         self::assertContains(
             'new@example.com',
-            $mail->getValues()
+            $mail->getValues(),
         );
         self::assertContains(
             'alice@example.com',
-            $mail->getValues()
+            $mail->getValues(),
         );
     }
 
@@ -72,7 +72,7 @@ final class UpdateOperationTest extends TestCase
 
         self::assertSame(
             ['+1 555 0100'],
-            $result->get('telephoneNumber')?->getValues()
+            $result->get('telephoneNumber')?->getValues(),
         );
     }
 
@@ -102,11 +102,11 @@ final class UpdateOperationTest extends TestCase
         self::assertNotNull($mail);
         self::assertNotContains(
             'a@b.com',
-            $mail->getValues()
+            $mail->getValues(),
         );
         self::assertContains(
             'alice@example.com',
-            $mail->getValues()
+            $mail->getValues(),
         );
     }
 
@@ -133,7 +133,7 @@ final class UpdateOperationTest extends TestCase
 
         self::assertSame(
             ['newpassword'],
-            $result->get('userPassword')?->getValues()
+            $result->get('userPassword')?->getValues(),
         );
     }
 
@@ -154,11 +154,11 @@ final class UpdateOperationTest extends TestCase
         self::assertNotNull($mail);
         self::assertContains(
             'new@example.com',
-            $mail->getValues()
+            $mail->getValues(),
         );
         self::assertContains(
             'alice@example.com',
-            $mail->getValues()
+            $mail->getValues(),
         );
     }
 
@@ -173,7 +173,7 @@ final class UpdateOperationTest extends TestCase
 
         self::assertSame(
             $this->entry,
-            $result
+            $result,
         );
     }
 

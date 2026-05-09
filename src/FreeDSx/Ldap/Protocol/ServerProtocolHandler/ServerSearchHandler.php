@@ -40,15 +40,14 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         private readonly LdapBackendInterface $backend,
         private readonly FilterEvaluatorInterface $filterEvaluator,
         private readonly SearchLimits $limits = new SearchLimits(),
-    ) {
-    }
+    ) {}
 
     /**
      * @inheritDoc
      */
     public function handleRequest(
         LdapMessageRequest $message,
-        TokenInterface $token
+        TokenInterface $token,
     ): void {
         $request = $this->getSearchRequestFromMessage($message);
 

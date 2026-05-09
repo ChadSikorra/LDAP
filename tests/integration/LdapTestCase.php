@@ -30,7 +30,7 @@ class LdapTestCase extends TestCase
             ->setSslCaCert(
                 $_ENV['LDAP_CA_CERT'] === ''
                     ? __DIR__ . '/../resources/cert/ca.crt'
-                    : (string) getenv('LDAP_CA_CERT')
+                    : (string) getenv('LDAP_CA_CERT'),
             )
             ->setBaseDn((string) getenv('LDAP_BASE_DN'));
     }
