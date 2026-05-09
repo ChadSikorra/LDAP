@@ -46,5 +46,9 @@ final class DefinitionKeyword
 
     public const MAY = 'MAY';
 
-    private function __construct() {}
+    public const APPLIES = 'APPLIES';
+
+    private function __construct()
+    {
+    }
 }

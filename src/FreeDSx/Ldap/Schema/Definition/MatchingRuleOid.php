@@ -78,5 +78,7 @@ final class MatchingRuleOid
     public const OID_BIT_OR_MATCH = '1.2.840.113556.1.4.804';
     public const NAME_BIT_OR_MATCH = 'bitOrMatch';
 
-    private function __construct() {}
+    private function __construct()
+    {
+    }
 }

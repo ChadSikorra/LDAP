@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Operation\Response\SearchResultDone;
 use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Operation\ResultCode;
@@ -99,5 +100,79 @@ final class ServerSubschemaHandlerTest extends TestCase
             );
 
         $this->subject->handleRequest($this->makeMessage(), $this->mockToken);
+    }
+
+    public function test_it_returns_non_empty_attribute_types_in_rfc4512_format(): void
+    {
+        $entry = $this->handleAndCaptureEntry();
+        $values = $entry->get('attributeTypes')?->getValues() ?? [];
+
+        self::assertGreaterThan(0, count($values));
+        self::assertStringStartsWith('( ', $values[0]);
+    }
+
+    public function test_it_returns_non_empty_object_classes(): void
+    {
+        $entry = $this->handleAndCaptureEntry();
+
+        self::assertGreaterThan(
+            0,
+            count($entry->get('objectClasses')?->getValues() ?? []),
+        );
+    }
+
+    public function test_it_returns_non_empty_matching_rules(): void
+    {
+        $entry = $this->handleAndCaptureEntry();
+
+        self::assertGreaterThan(
+            0,
+            count($entry->get('matchingRules')?->getValues() ?? []),
+        );
+    }
+
+    public function test_it_returns_non_empty_ldap_syntaxes(): void
+    {
+        $entry = $this->handleAndCaptureEntry();
+
+        self::assertGreaterThan(
+            0,
+            count($entry->get('ldapSyntaxes')?->getValues() ?? []),
+        );
+    }
+
+    public function test_it_returns_non_empty_matching_rule_use(): void
+    {
+        $entry = $this->handleAndCaptureEntry();
+
+        self::assertGreaterThan(
+            0,
+            count($entry->get('matchingRuleUse')?->getValues() ?? []),
+        );
+    }
+
+    private function handleAndCaptureEntry(): Entry
+    {
+        $captured = null;
+
+        $this->mockQueue
+            ->expects($this->once())
+            ->method('sendMessage')
+            ->with(
+                self::callback(static function (LdapMessageResponse $response) use (&$captured): bool {
+                    /** @var SearchResultEntry $result */
+                    $result = $response->getResponse();
+                    $captured = $result->getEntry();
+
+                    return true;
+                }),
+                self::anything(),
+            );
+
+        $this->subject->handleRequest($this->makeMessage(), $this->mockToken);
+
+        assert($captured instanceof Entry);
+
+        return $captured;
     }
 }
