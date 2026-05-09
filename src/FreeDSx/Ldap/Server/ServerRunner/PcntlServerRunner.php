@@ -345,6 +345,9 @@ class PcntlServerRunner implements ServerRunnerInterface
         Socket $socket,
         int $pid,
     ): never {
+        // Cleanup the child's inherited FD copy without shutting down the parent accept loop.
+        $this->server->close(shutdown: false);
+
         $context = ['pid' => $pid];
         $this->isMainProcess = false;
         $backend = $this->options->getBackend();
