@@ -29,6 +29,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Exception\DnTooLongException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\InvalidAttributeException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\TimeLimitExceededException;
+use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Write\WritableBackendTrait;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
@@ -57,6 +58,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         private readonly WriteEntryOperationHandler $entryHandler = new WriteEntryOperationHandler(),
         private readonly SearchLimits $limits = new SearchLimits(),
         array $namingContexts = [],
+        private readonly ?SchemaValidator $validator = null,
     ) {
         $normalised = [];
         foreach ($namingContexts as $namingContext) {
@@ -206,6 +208,8 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
      */
     public function add(AddCommand $command): void
     {
+        $this->validator?->validateAdd($command->entry);
+
         $this->writeAtomic(function (EntryStorageInterface $storage) use ($command): void {
             $dn = $command->entry->getDn()->normalize();
             $this->assertParentExists($storage, $dn);
@@ -251,10 +255,9 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         $this->writeAtomic(function (EntryStorageInterface $storage) use ($command): void {
             $dn = $command->dn->normalize();
             $entry = $this->findOrFail($storage, $dn);
-            $storage->store($this->entryHandler->apply(
-                $entry,
-                $command,
-            ));
+            $updated = $this->entryHandler->apply($entry, $command);
+            $this->validator?->validateModify($command, $updated);
+            $storage->store($updated);
         });
     }
 

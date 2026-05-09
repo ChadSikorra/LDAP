@@ -30,12 +30,10 @@ final class StandardSchemaProviderTest extends TestCase
         $this->schema = StandardSchemaProvider::buildCore();
     }
 
-    public function test_build_core_returns_schema_instance(): void
+    public function test_build_core_returns_non_empty_schema(): void
     {
-        self::assertInstanceOf(
-            Schema::class,
-            $this->schema,
-        );
+        self::assertNotEmpty($this->schema->getAttributeTypes());
+        self::assertNotEmpty($this->schema->getObjectClasses());
     }
 
     public function test_has_expected_syntax_count(): void

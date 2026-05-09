@@ -22,6 +22,9 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Search\Filter\PresentFilter;
+use FreeDSx\Ldap\Schema\SchemaValidationMode;
+use FreeDSx\Ldap\Schema\StandardSchemaProvider;
+use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
@@ -754,6 +757,70 @@ final class WritableStorageBackendTest extends TestCase
             'client limit used when below server max'          => [5, 3, 3],
             'no server cap preserves client limit'             => [0, 10, 10],
         ];
+    }
+
+    public function test_add_with_validator_rejects_invalid_entry(): void
+    {
+        $backend = new WritableStorageBackend(
+            storage: new InMemoryStorage([$this->base]),
+            validator: new SchemaValidator(
+                StandardSchemaProvider::buildCore(),
+                SchemaValidationMode::Strict,
+            ),
+        );
+
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::OBJECT_CLASS_VIOLATION);
+
+        $backend->add(new AddCommand(new Entry(
+            new Dn('cn=Invalid,dc=example,dc=com'),
+            new Attribute('cn', 'Invalid'),
+        )));
+    }
+
+    public function test_add_with_validator_accepts_valid_entry(): void
+    {
+        $backend = new WritableStorageBackend(
+            storage: new InMemoryStorage([$this->base]),
+            validator: new SchemaValidator(
+                StandardSchemaProvider::buildCore(),
+                SchemaValidationMode::Strict,
+            ),
+        );
+
+        $backend->add(new AddCommand(new Entry(
+            new Dn('cn=Alice,dc=example,dc=com'),
+            new Attribute('objectClass', 'top', 'person'),
+            new Attribute('cn', 'Alice'),
+            new Attribute('sn', 'Smith'),
+        )));
+
+        self::assertNotNull($backend->get(new Dn('cn=Alice,dc=example,dc=com')));
+    }
+
+    public function test_update_with_validator_rejects_invalid_modification(): void
+    {
+        $valid = new Entry(
+            new Dn('cn=Alice,dc=example,dc=com'),
+            new Attribute('objectClass', 'top', 'person'),
+            new Attribute('cn', 'Alice'),
+            new Attribute('sn', 'Smith'),
+        );
+        $backend = new WritableStorageBackend(
+            storage: new InMemoryStorage([$this->base, $valid]),
+            validator: new SchemaValidator(
+                StandardSchemaProvider::buildCore(),
+                SchemaValidationMode::Strict,
+            ),
+        );
+
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::CONSTRAINT_VIOLATION);
+
+        $backend->update(new UpdateCommand(
+            new Dn('cn=Alice,dc=example,dc=com'),
+            [Change::replace(new Attribute('createTimestamp', '20240101000000Z'))],
+        ));
     }
 
     /**
