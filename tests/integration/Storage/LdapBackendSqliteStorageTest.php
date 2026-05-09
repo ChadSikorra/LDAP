@@ -83,7 +83,7 @@ final class LdapBackendSqliteStorageTest extends LdapBackendStorageTest
 
         $this->ldapClient()->create(Entry::fromArray(
             'cn=persistent,dc=foo,dc=bar',
-            ['cn' => 'persistent', 'objectClass' => 'inetOrgPerson']
+            ['cn' => 'persistent', 'sn' => 'Persistent', 'objectClass' => 'inetOrgPerson']
         ));
 
         $this->ldapClient()->unbind();

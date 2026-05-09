@@ -186,7 +186,7 @@ class LdapBackendStorageTest extends ServerTestCase
 
         $this->ldapClient()->create(Entry::fromArray(
             'cn=charlie,dc=foo,dc=bar',
-            ['cn' => 'charlie', 'objectClass' => 'inetOrgPerson']
+            ['cn' => 'charlie', 'sn' => 'Charlie', 'objectClass' => 'inetOrgPerson']
         ));
 
         $entries = $this->ldapClient()->search(
@@ -206,7 +206,7 @@ class LdapBackendStorageTest extends ServerTestCase
 
         $this->ldapClient()->create(Entry::fromArray(
             'cn=user,dc=foo,dc=bar',
-            ['cn' => 'user']
+            ['cn' => 'user', 'sn' => 'User', 'objectClass' => 'inetOrgPerson']
         ));
     }
 

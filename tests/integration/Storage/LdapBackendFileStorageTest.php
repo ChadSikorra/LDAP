@@ -76,7 +76,7 @@ final class LdapBackendFileStorageTest extends LdapBackendStorageTest
 
         $this->ldapClient()->create(Entry::fromArray(
             'cn=persistent,dc=foo,dc=bar',
-            ['cn' => 'persistent', 'objectClass' => 'inetOrgPerson']
+            ['cn' => 'persistent', 'sn' => 'Persistent', 'objectClass' => 'inetOrgPerson']
         ));
 
         // Close the first connection so the PCNTL child exits and flushes.

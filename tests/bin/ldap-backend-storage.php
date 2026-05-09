@@ -92,6 +92,7 @@ $entries = [
     new Entry(
         new Dn('cn=user,dc=foo,dc=bar'),
         new Attribute('cn', 'user'),
+        new Attribute('sn', 'Admin'),
         new Attribute('objectClass', 'inetOrgPerson'),
         new Attribute('userPassword', $passwordHash),
     ),
@@ -103,7 +104,7 @@ $entries = [
     new Entry(
         new Dn('cn=alice,ou=people,dc=foo,dc=bar'),
         new Attribute('cn', 'alice'),
-        new Attribute('objectClass', 'inetOrgPerson'),
+        new Attribute('objectClass', 'inetOrgPerson', 'extensibleObject'),
         new Attribute('sn', 'Smith'),
         new Attribute('mail', 'alice@foo.bar'),
         new Attribute('uidNumber', '99'),
@@ -114,7 +115,7 @@ for ($i = 1; $i <= $seedEntriesOpt; $i++) {
     $entries[] = new Entry(
         new Dn("cn=seed-{$i},ou=people,dc=foo,dc=bar"),
         new Attribute('cn', "seed-{$i}"),
-        new Attribute('objectClass', 'inetOrgPerson'),
+        new Attribute('objectClass', 'inetOrgPerson', 'extensibleObject'),
         new Attribute('sn', 'Seeded'),
         new Attribute('mail', "seed-{$i}@foo.bar"),
         new Attribute('uidNumber', (string) (1000 + $i)),
