@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Backend\Storage;
 
 use FreeDSx\Ldap\Control\ControlBag;
-use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -29,14 +28,12 @@ use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\DnTooLongException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\InvalidAttributeException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
-use FreeDSx\Ldap\Server\Backend\Storage\Exception\TimeLimitExceededException;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Write\WritableBackendTrait;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
 use FreeDSx\Ldap\Server\SearchLimits;
-use Generator;
 
 /**
  * Applies LDAP semantics over a pluggable EntryStorageInterface; writes are routed through EntryStorageInterface::atomic().
@@ -52,22 +49,28 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
      */
     private readonly array $namingContexts;
 
+    private readonly SearchStreamBuilder $searchStream;
+
     /**
      * @param string[] $namingContexts DN strings that may not be deleted.
      */
     public function __construct(
         private readonly EntryStorageInterface $storage,
-        private readonly WriteEntryOperationHandler $entryHandler = new WriteEntryOperationHandler(),
         private readonly SearchLimits $limits = new SearchLimits(),
-        array $namingContexts = [],
         private readonly ?SchemaValidator $validator = null,
+        array $namingContexts = [],
         private readonly OperationalAttributeGenerator $operationalAttrs = new OperationalAttributeGenerator(),
+        private readonly WriteEntryOperationHandler $entryHandler = new WriteEntryOperationHandler(),
     ) {
         $normalised = [];
         foreach ($namingContexts as $namingContext) {
             $normalised[(new Dn($namingContext))->normalize()->toString()] = true;
         }
         $this->namingContexts = $normalised;
+        $this->searchStream = new SearchStreamBuilder(
+            $this->storage,
+            $this->limits,
+        );
     }
 
     public function reset(): void
@@ -120,8 +123,6 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         $baseDn = $request->getBaseDn() ?? new Dn('');
         $normBase = $baseDn->normalize();
 
-        $wantHasSubordinates = $this->requestsHasSubordinates($request);
-
         if ($request->getScope() === SearchRequest::SCOPE_BASE_OBJECT) {
             $entry = $this->storage->find($normBase);
 
@@ -129,9 +130,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 $this->throwNoSuchObject($baseDn);
             }
 
-            $entry = $wantHasSubordinates ? $this->injectHasSubordinates($entry) : $entry;
-
-            return new EntryStream($this->yieldSingle($entry));
+            return $this->searchStream->buildForBaseObject(
+                $entry,
+                $request,
+            );
         }
 
         if (!$this->storage->exists($normBase)) {
@@ -143,7 +145,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             baseDn: $normBase,
             subtree: $subtree,
             filter: $request->getFilter(),
-            timeLimit: $this->effectiveTimeLimit($request->getTimeLimit()),
+            timeLimit: $this->searchStream->effectiveTimeLimit($request->getTimeLimit()),
             sizeLimit: $request->getSizeLimit(),
         );
 
@@ -157,105 +159,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             );
         }
 
-        $generator = $this->wrapWithTimeLimitHandling($stream->entries);
-
-        if ($wantHasSubordinates) {
-            $generator = $this->wrapWithHasSubordinates($generator);
-        }
-
-        return new EntryStream(
-            $generator,
-            $stream->isPreFiltered,
+        return $this->searchStream->buildForList(
+            $stream,
+            $request,
         );
-    }
-
-    /**
-     * @return Generator<Entry>
-     */
-    private function yieldSingle(Entry $entry): Generator
-    {
-        yield $entry;
-    }
-
-    /**
-     * Clones the entry and injects the hasSubordinates value.
-     */
-    private function injectHasSubordinates(Entry $entry): Entry
-    {
-        $clone = clone $entry;
-        $clone->set(
-            'hasSubordinates',
-            $this->storage->hasChildren($entry->getDn()) ? 'TRUE' : 'FALSE',
-        );
-
-        return $clone;
-    }
-
-    /**
-     * @param Generator<Entry> $generator
-     * @return Generator<Entry>
-     */
-    private function wrapWithHasSubordinates(Generator $generator): Generator
-    {
-        foreach ($generator as $entry) {
-            yield $this->injectHasSubordinates($entry);
-        }
-    }
-
-    private function requestsHasSubordinates(SearchRequest $request): bool
-    {
-        foreach ($request->getAttributes() as $attr) {
-            if ($this->isHasSubordinatesAttribute($attr)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function isHasSubordinatesAttribute(Attribute $attr): bool
-    {
-        return strcasecmp($attr->getName(), '+') === 0
-            || strcasecmp($attr->getName(), 'hasSubordinates') === 0;
-    }
-
-    private function effectiveTimeLimit(int $requestLimit): int
-    {
-        $serverMax = $this->limits->maxSearchTimeLimit;
-
-        if ($serverMax === 0) {
-            return $requestLimit;
-        }
-
-        if ($requestLimit === 0) {
-            return $serverMax;
-        }
-
-        return min(
-            $requestLimit,
-            $serverMax,
-        );
-    }
-
-    /**
-     * Converts TimeLimitExceededException from the storage generator into an LDAP OperationException.
-     *
-     * @param Generator<Entry> $generator
-     * @return Generator<Entry>
-     * @throws OperationException
-     */
-    private function wrapWithTimeLimitHandling(Generator $generator): Generator
-    {
-        try {
-            foreach ($generator as $entry) {
-                yield $entry;
-            }
-        } catch (TimeLimitExceededException) {
-            throw new OperationException(
-                'Time limit exceeded.',
-                ResultCode::TIME_LIMIT_EXCEEDED,
-            );
-        }
     }
 
     /**
@@ -265,8 +172,6 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         AddCommand $command,
         WriteContext $context,
     ): void {
-        $this->validator?->validateAdd($command->entry);
-
         $this->writeAtomic(function (EntryStorageInterface $storage) use ($command, $context): void {
             $dn = $command->entry->getDn()->normalize();
             $this->assertParentExists($storage, $dn);
@@ -275,6 +180,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 $this->throwEntryAlreadyExists($command->entry->getDn());
             }
 
+            $this->validator?->validateAdd($command->entry);
             $this->operationalAttrs->applyForAdd(
                 $command->entry,
                 $context,
