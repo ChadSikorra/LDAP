@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\RequestHandler;
 
+use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
+use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticator;
@@ -93,6 +95,20 @@ class HandlerFactory implements HandlerFactoryInterface
         return new PasswordAuthenticator(
             $nameResolver,
             $backend
+        );
+    }
+
+    public function makeSchemaValidator(): ?SchemaValidator
+    {
+        $mode = $this->options->getSchemaValidationMode();
+
+        if ($mode === SchemaValidationMode::Off) {
+            return null;
+        }
+
+        return new SchemaValidator(
+            $this->options->getSchema(),
+            $mode,
         );
     }
 
