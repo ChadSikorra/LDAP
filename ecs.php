@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use PhpCsFixer\Fixer\ArrayNotation\ArraySyntaxFixer;
 use PhpCsFixer\Fixer\Import\NoUnusedImportsFixer;
 use PhpCsFixer\Fixer\PhpTag\BlankLineAfterOpeningTagFixer;
 use Symplify\CodingStandard\Fixer\Strict\BlankLineAfterStrictTypesFixer;
@@ -13,8 +12,7 @@ return ECSConfig::configure()
         __DIR__ . '/src',
         __DIR__ . '/tests',
     ])
-    ->withPhpCsFixerSets(psr12: true)
-    ->withConfiguredRule(ArraySyntaxFixer::class, ['syntax' => 'short'])
+    ->withPhpCsFixerSets(perCS30: true)
     ->withRules([
         BlankLineAfterStrictTypesFixer::class,
         BlankLineAfterOpeningTagFixer::class,
