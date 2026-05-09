@@ -34,6 +34,7 @@ use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Write\WritableBackendTrait;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use Generator;
 use SensitiveParameter;
 
@@ -129,26 +130,34 @@ class ProxyBackend implements WritableLdapBackendInterface, PasswordAuthenticata
         return null;
     }
 
-    public function add(AddCommand $command): void
-    {
+    public function add(
+        AddCommand $command,
+        WriteContext $context,
+    ): void {
         $this->ldap()->sendAndReceive(Operations::add($command->entry));
     }
 
-    public function delete(DeleteCommand $command): void
-    {
+    public function delete(
+        DeleteCommand $command,
+        WriteContext $context,
+    ): void {
         $this->ldap()->sendAndReceive(Operations::delete($command->dn->toString()));
     }
 
-    public function update(UpdateCommand $command): void
-    {
+    public function update(
+        UpdateCommand $command,
+        WriteContext $context,
+    ): void {
         $this->ldap()->sendAndReceive(new ModifyRequest(
             $command->dn->toString(),
             ...$command->changes,
         ));
     }
 
-    public function move(MoveCommand $command): void
-    {
+    public function move(
+        MoveCommand $command,
+        WriteContext $context,
+    ): void {
         $this->ldap()->sendAndReceive(new ModifyDnRequest(
             dn: $command->dn->toString(),
             newRdn: $command->newRdn->toString(),

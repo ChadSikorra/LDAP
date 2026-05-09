@@ -9,6 +9,7 @@ Schema Validation
     * [ServerOptions:setSchemaValidationMode](#setschemavalidationmode)
 * [Custom Schema](#custom-schema)
     * [ServerOptions:setSchema](#setschema)
+* [Operational Attributes](#operational-attributes)
 
 Calling `LdapServer::useStorage()` automatically enables schema validation using the built-in RFC 4519
 schema in `Strict` mode.
@@ -130,4 +131,27 @@ $schema = StandardSchemaProvider::buildCore()->merge(
 );
 
 $options = (new ServerOptions())->setSchema($schema);
+
+## Operational Attributes
+
+`useStorage()` automatically populates and maintains server-managed operational attributes on every write. Clients
+cannot modify these — they are flagged `NO-USER-MODIFICATION` in the schema and client attempts are rejected with
+`constraintViolation`.
+
+**Set on `add`:**
+
+| Attribute | Value |
+|---|---|
+| `createTimestamp` | Current UTC time (`YYYYMMDDHHmmssZ`). |
+| `modifyTimestamp` | Same as `createTimestamp` at add time. |
+| `creatorsName` | DN of the bound user, or an empty string for anonymous. |
+| `modifiersName` | Same as `creatorsName` at add time. |
+| `entryUUID` | Random UUID v4 (RFC 4122). |
+| `structuralObjectClass` | Most-specific structural objectClass. Only set when schema validation is enabled. |
+
+**Updated on `modify` and `move`:** `modifyTimestamp` and `modifiersName` are refreshed. All other operational
+attributes remain unchanged.
+
+**`hasSubordinates` (dynamic):** Never stored. Injected into search results when requested via the `+` shorthand
+or by name. Value is `TRUE` if the entry has at least one direct child, `FALSE` otherwise.
 ```

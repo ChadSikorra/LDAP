@@ -336,6 +336,7 @@ use FreeDSx\Ldap\Server\Backend\Write\Command\MoveCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
 use FreeDSx\Ldap\Server\Backend\Write\WritableBackendTrait;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use Generator;
 
 class MyBackend implements WritableLdapBackendInterface
@@ -379,24 +380,33 @@ class MyBackend implements WritableLdapBackendInterface
         return $attribute !== null && $attribute->has($filter->getValue());
     }
 
-    public function add(AddCommand $command): void
-    {
-        // $command->entry — Entry to persist
+    public function add(
+        AddCommand $command,
+        WriteContext $context,
+    ): void {
+        // $command->entry        — Entry to persist
+        // $context->getBoundDn() — ?string: DN of the authenticated user, or null for anonymous
     }
 
-    public function delete(DeleteCommand $command): void
-    {
+    public function delete(
+        DeleteCommand $command,
+        WriteContext $context,
+    ): void {
         // $command->dn — Dn of the entry to remove
     }
 
-    public function update(UpdateCommand $command): void
-    {
+    public function update(
+        UpdateCommand $command,
+        WriteContext $context,
+    ): void {
         // $command->dn      — Dn of the entry to modify
         // $command->changes — Change[] of attribute changes to apply
     }
 
-    public function move(MoveCommand $command): void
-    {
+    public function move(
+        MoveCommand $command,
+        WriteContext $context,
+    ): void {
         // $command->dn           — Dn: current entry DN
         // $command->newRdn       — Rdn: new relative DN
         // $command->deleteOldRdn — bool: whether to remove the old RDN attribute value

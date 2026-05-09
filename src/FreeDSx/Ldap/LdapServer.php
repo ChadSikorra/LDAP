@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\OperationalAttributeGenerator;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
@@ -77,11 +78,16 @@ class LdapServer
      */
     public function useStorage(EntryStorageInterface $storage): self
     {
+        $schema = $this->options->getSchemaValidationMode() !== SchemaValidationMode::Off
+            ? $this->options->getSchema()
+            : null;
+
         return $this->useBackend(new WritableStorageBackend(
             storage: $storage,
             limits: $this->options->makeSearchLimits(),
             namingContexts: $this->options->getDseNamingContexts(),
             validator: $this->buildSchemaValidator(),
+            operationalAttrs: new OperationalAttributeGenerator($schema),
         ));
     }
 

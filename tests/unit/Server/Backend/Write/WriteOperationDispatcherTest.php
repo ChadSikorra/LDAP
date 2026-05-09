@@ -13,11 +13,14 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Server\Backend\Write;
 
+use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Backend\Write\WriteRequestInterface;
+use FreeDSx\Ldap\Server\Token\AnonToken;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -25,9 +28,15 @@ final class WriteOperationDispatcherTest extends TestCase
 {
     private WriteRequestInterface&MockObject $mockRequest;
 
+    private WriteContext $context;
+
     protected function setUp(): void
     {
         $this->mockRequest = $this->createMock(WriteRequestInterface::class);
+        $this->context = new WriteContext(
+            new AnonToken(),
+            new ControlBag(),
+        );
     }
 
     private function handler(bool $supports): WriteHandlerInterface&MockObject
@@ -43,7 +52,10 @@ final class WriteOperationDispatcherTest extends TestCase
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::UNWILLING_TO_PERFORM);
 
-        (new WriteOperationDispatcher())->dispatch($this->mockRequest);
+        (new WriteOperationDispatcher())->dispatch(
+            $this->mockRequest,
+            $this->context,
+        );
     }
 
     public function test_throws_unwilling_to_perform_when_no_handler_supports_request(): void
@@ -54,15 +66,24 @@ final class WriteOperationDispatcherTest extends TestCase
         (new WriteOperationDispatcher(
             $this->handler(false),
             $this->handler(false),
-        ))->dispatch($this->mockRequest);
+        ))->dispatch(
+            $this->mockRequest,
+            $this->context,
+        );
     }
 
     public function test_dispatches_to_first_supporting_handler(): void
     {
         $handler = $this->handler(true);
-        $handler->expects(self::once())->method('handle')->with($this->mockRequest);
+        $handler->expects(self::once())->method('handle')->with(
+            $this->mockRequest,
+            $this->context,
+        );
 
-        (new WriteOperationDispatcher($handler))->dispatch($this->mockRequest);
+        (new WriteOperationDispatcher($handler))->dispatch(
+            $this->mockRequest,
+            $this->context,
+        );
     }
 
     public function test_stops_after_first_matching_handler(): void
@@ -73,7 +94,10 @@ final class WriteOperationDispatcherTest extends TestCase
         $second = $this->handler(true);
         $second->expects(self::never())->method('handle');
 
-        (new WriteOperationDispatcher($first, $second))->dispatch($this->mockRequest);
+        (new WriteOperationDispatcher($first, $second))->dispatch(
+            $this->mockRequest,
+            $this->context,
+        );
     }
 
     public function test_skips_non_supporting_handlers_before_matching(): void
@@ -82,8 +106,14 @@ final class WriteOperationDispatcherTest extends TestCase
         $skip->expects(self::never())->method('handle');
 
         $match = $this->handler(true);
-        $match->expects(self::once())->method('handle')->with($this->mockRequest);
+        $match->expects(self::once())->method('handle')->with(
+            $this->mockRequest,
+            $this->context,
+        );
 
-        (new WriteOperationDispatcher($skip, $match))->dispatch($this->mockRequest);
+        (new WriteOperationDispatcher($skip, $match))->dispatch(
+            $this->mockRequest,
+            $this->context,
+        );
     }
 }

@@ -33,24 +33,50 @@ trait WritableBackendTrait
             || $request instanceof MoveCommand;
     }
 
-    public function handle(WriteRequestInterface $request): void
-    {
+    public function handle(
+        WriteRequestInterface $request,
+        WriteContext $context,
+    ): void {
         if ($request instanceof AddCommand) {
-            $this->add($request);
+            $this->add(
+                $request,
+                $context,
+            );
         } elseif ($request instanceof DeleteCommand) {
-            $this->delete($request);
+            $this->delete(
+                $request,
+                $context,
+            );
         } elseif ($request instanceof UpdateCommand) {
-            $this->update($request);
+            $this->update(
+                $request,
+                $context,
+            );
         } elseif ($request instanceof MoveCommand) {
-            $this->move($request);
+            $this->move(
+                $request,
+                $context,
+            );
         }
     }
 
-    abstract public function add(AddCommand $command): void;
+    abstract public function add(
+        AddCommand $command,
+        WriteContext $context,
+    ): void;
 
-    abstract public function delete(DeleteCommand $command): void;
+    abstract public function delete(
+        DeleteCommand $command,
+        WriteContext $context,
+    ): void;
 
-    abstract public function update(UpdateCommand $command): void;
+    abstract public function update(
+        UpdateCommand $command,
+        WriteContext $context,
+    ): void;
 
-    abstract public function move(MoveCommand $command): void;
+    abstract public function move(
+        MoveCommand $command,
+        WriteContext $context,
+    ): void;
 }

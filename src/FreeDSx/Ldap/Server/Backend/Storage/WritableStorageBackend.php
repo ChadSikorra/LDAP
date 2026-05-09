@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Backend\Storage;
 
 use FreeDSx\Ldap\Control\ControlBag;
+use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -32,6 +33,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Exception\TimeLimitExceededException;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Write\WritableBackendTrait;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
 use FreeDSx\Ldap\Server\SearchLimits;
 use Generator;
@@ -59,6 +61,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         private readonly SearchLimits $limits = new SearchLimits(),
         array $namingContexts = [],
         private readonly ?SchemaValidator $validator = null,
+        private readonly OperationalAttributeGenerator $operationalAttrs = new OperationalAttributeGenerator(),
     ) {
         $normalised = [];
         foreach ($namingContexts as $namingContext) {
@@ -117,12 +120,16 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         $baseDn = $request->getBaseDn() ?? new Dn('');
         $normBase = $baseDn->normalize();
 
+        $wantHasSubordinates = $this->requestsHasSubordinates($request);
+
         if ($request->getScope() === SearchRequest::SCOPE_BASE_OBJECT) {
             $entry = $this->storage->find($normBase);
 
             if ($entry === null) {
                 $this->throwNoSuchObject($baseDn);
             }
+
+            $entry = $wantHasSubordinates ? $this->injectHasSubordinates($entry) : $entry;
 
             return new EntryStream($this->yieldSingle($entry));
         }
@@ -150,8 +157,14 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             );
         }
 
+        $generator = $this->wrapWithTimeLimitHandling($stream->entries);
+
+        if ($wantHasSubordinates) {
+            $generator = $this->wrapWithHasSubordinates($generator);
+        }
+
         return new EntryStream(
-            $this->wrapWithTimeLimitHandling($stream->entries),
+            $generator,
             $stream->isPreFiltered,
         );
     }
@@ -162,6 +175,48 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     private function yieldSingle(Entry $entry): Generator
     {
         yield $entry;
+    }
+
+    /**
+     * Clones the entry and injects the hasSubordinates value.
+     */
+    private function injectHasSubordinates(Entry $entry): Entry
+    {
+        $clone = clone $entry;
+        $clone->set(
+            'hasSubordinates',
+            $this->storage->hasChildren($entry->getDn()) ? 'TRUE' : 'FALSE',
+        );
+
+        return $clone;
+    }
+
+    /**
+     * @param Generator<Entry> $generator
+     * @return Generator<Entry>
+     */
+    private function wrapWithHasSubordinates(Generator $generator): Generator
+    {
+        foreach ($generator as $entry) {
+            yield $this->injectHasSubordinates($entry);
+        }
+    }
+
+    private function requestsHasSubordinates(SearchRequest $request): bool
+    {
+        foreach ($request->getAttributes() as $attr) {
+            if ($this->isHasSubordinatesAttribute($attr)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isHasSubordinatesAttribute(Attribute $attr): bool
+    {
+        return strcasecmp($attr->getName(), '+') === 0
+            || strcasecmp($attr->getName(), 'hasSubordinates') === 0;
     }
 
     private function effectiveTimeLimit(int $requestLimit): int
@@ -206,11 +261,13 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     /**
      * @throws OperationException
      */
-    public function add(AddCommand $command): void
-    {
+    public function add(
+        AddCommand $command,
+        WriteContext $context,
+    ): void {
         $this->validator?->validateAdd($command->entry);
 
-        $this->writeAtomic(function (EntryStorageInterface $storage) use ($command): void {
+        $this->writeAtomic(function (EntryStorageInterface $storage) use ($command, $context): void {
             $dn = $command->entry->getDn()->normalize();
             $this->assertParentExists($storage, $dn);
 
@@ -218,6 +275,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 $this->throwEntryAlreadyExists($command->entry->getDn());
             }
 
+            $this->operationalAttrs->applyForAdd(
+                $command->entry,
+                $context,
+            );
             $storage->store($command->entry);
         });
     }
@@ -225,8 +286,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     /**
      * @throws OperationException
      */
-    public function delete(DeleteCommand $command): void
-    {
+    public function delete(
+        DeleteCommand $command,
+        WriteContext $context,
+    ): void {
         $this->assertNotNamingContext($command->dn);
 
         $this->writeAtomic(function (EntryStorageInterface $storage) use ($command): void {
@@ -250,13 +313,19 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     /**
      * @throws OperationException
      */
-    public function update(UpdateCommand $command): void
-    {
-        $this->writeAtomic(function (EntryStorageInterface $storage) use ($command): void {
+    public function update(
+        UpdateCommand $command,
+        WriteContext $context,
+    ): void {
+        $this->writeAtomic(function (EntryStorageInterface $storage) use ($command, $context): void {
             $dn = $command->dn->normalize();
             $entry = $this->findOrFail($storage, $dn);
             $updated = $this->entryHandler->apply($entry, $command);
             $this->validator?->validateModify($command, $updated);
+            $this->operationalAttrs->applyForModify(
+                $updated,
+                $context,
+            );
             $storage->store($updated);
         });
     }
@@ -264,11 +333,13 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     /**
      * @throws OperationException
      */
-    public function move(MoveCommand $command): void
-    {
+    public function move(
+        MoveCommand $command,
+        WriteContext $context,
+    ): void {
         $this->assertNotNamingContext($command->dn);
 
-        $this->writeAtomic(function (EntryStorageInterface $storage) use ($command): void {
+        $this->writeAtomic(function (EntryStorageInterface $storage) use ($command, $context): void {
             $normOld = $command->dn->normalize();
             $entry = $this->findOrFail($storage, $normOld);
 
@@ -288,6 +359,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 $this->throwEntryAlreadyExists($newEntry->getDn());
             }
 
+            $this->operationalAttrs->applyForModify(
+                $newEntry,
+                $context,
+            );
             $storage->remove($normOld);
             $storage->store($newEntry);
         });

@@ -33,9 +33,11 @@ use FreeDSx\Ldap\Server\Backend\Write\Command\AddCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\MoveCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
+use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Rdn;
 use FreeDSx\Ldap\Entry\Attribute;
+use FreeDSx\Ldap\Server\Token\AnonToken;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use FreeDSx\Ldap\Server\RequestHandler\ProxyBackend;
@@ -51,6 +53,14 @@ final class ProxyBackendTest extends TestCase
         $this->mockLdap = $this->createMock(LdapClient::class);
         $this->subject = new ProxyBackend();
         $this->subject->setLdapClient($this->mockLdap);
+    }
+
+    private function context(): WriteContext
+    {
+        return new WriteContext(
+            new AnonToken(),
+            new ControlBag(),
+        );
     }
 
     private function makeRequest(
@@ -208,7 +218,10 @@ final class ProxyBackendTest extends TestCase
             ->method('sendAndReceive')
             ->with(self::isInstanceOf(AddRequest::class));
 
-        $this->subject->add(new AddCommand($entry));
+        $this->subject->add(
+            new AddCommand($entry),
+            $this->context(),
+        );
     }
 
     public function test_delete_sends_delete_request_to_upstream(): void
@@ -218,7 +231,10 @@ final class ProxyBackendTest extends TestCase
             ->method('sendAndReceive')
             ->with(self::isInstanceOf(DeleteRequest::class));
 
-        $this->subject->delete(new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')));
+        $this->subject->delete(
+            new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')),
+            $this->context(),
+        );
     }
 
     public function test_update_sends_modify_request_to_upstream(): void
@@ -228,10 +244,13 @@ final class ProxyBackendTest extends TestCase
             ->method('sendAndReceive')
             ->with(self::isInstanceOf(ModifyRequest::class));
 
-        $this->subject->update(new UpdateCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            [Change::replace('cn', 'Alicia')],
-        ));
+        $this->subject->update(
+            new UpdateCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                [Change::replace('cn', 'Alicia')],
+            ),
+            $this->context(),
+        );
     }
 
     public function test_move_sends_modify_dn_request_to_upstream(): void
@@ -241,11 +260,14 @@ final class ProxyBackendTest extends TestCase
             ->method('sendAndReceive')
             ->with(self::isInstanceOf(ModifyDnRequest::class));
 
-        $this->subject->move(new MoveCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            Rdn::create('cn=Alicia'),
-            true,
-            null,
-        ));
+        $this->subject->move(
+            new MoveCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                Rdn::create('cn=Alicia'),
+                true,
+                null,
+            ),
+            $this->context(),
+        );
     }
 }

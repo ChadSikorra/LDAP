@@ -36,11 +36,16 @@ final class WriteOperationDispatcher
     /**
      * @throws OperationException
      */
-    public function dispatch(WriteRequestInterface $request): void
-    {
+    public function dispatch(
+        WriteRequestInterface $request,
+        WriteContext $context,
+    ): void {
         foreach ($this->handlers as $handler) {
             if ($handler->supports($request)) {
-                $handler->handle($request);
+                $handler->handle(
+                    $request,
+                    $context,
+                );
 
                 return;
             }
