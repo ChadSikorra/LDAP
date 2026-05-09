@@ -19,6 +19,7 @@ use FreeDSx\Ldap\Server\Backend\Write\Command\MoveCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
 use FreeDSx\Ldap\Server\Backend\Write\WritableBackendTrait;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\ServerOptions;
 
 require __DIR__ . '/../../vendor/autoload.php';
@@ -112,8 +113,10 @@ class LdapServerBackend implements WritableLdapBackendInterface, PasswordAuthent
         return isset($this->users[$name]) && $this->users[$name] === $password;
     }
 
-    public function add(AddCommand $command): void
-    {
+    public function add(
+        AddCommand $command,
+        WriteContext $context,
+    ): void {
         $entry = $command->entry;
         $attrLog = [];
         foreach ($entry->getAttributes() as $attribute) {
@@ -126,13 +129,17 @@ class LdapServerBackend implements WritableLdapBackendInterface, PasswordAuthent
         );
     }
 
-    public function delete(DeleteCommand $command): void
-    {
+    public function delete(
+        DeleteCommand $command,
+        WriteContext $context,
+    ): void {
         $this->logRequest('delete', "dn => {$command->dn->toString()}");
     }
 
-    public function update(UpdateCommand $command): void
-    {
+    public function update(
+        UpdateCommand $command,
+        WriteContext $context,
+    ): void {
         $modLog = [];
         foreach ($command->changes as $change) {
             $attribute = $change->getAttribute();
@@ -148,8 +155,10 @@ class LdapServerBackend implements WritableLdapBackendInterface, PasswordAuthent
         );
     }
 
-    public function move(MoveCommand $command): void
-    {
+    public function move(
+        MoveCommand $command,
+        WriteContext $context,
+    ): void {
         $dnLog = 'ParentDn => ' . $command->newParent?->toString();
         $dnLog .= ', ParentRdn => ' . $command->newRdn->toString();
 

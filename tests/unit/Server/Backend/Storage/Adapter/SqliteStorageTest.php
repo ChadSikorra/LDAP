@@ -31,8 +31,11 @@ use FreeDSx\Ldap\Server\Backend\Storage\Exception\DnTooLongException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
+use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Server\Backend\Write\Command\AddCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
+use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
+use FreeDSx\Ldap\Server\Token\AnonToken;
 use PDO;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -56,10 +59,24 @@ final class SqliteStorageTest extends TestCase
 
         $this->storage = SqliteStorage::forPcntl(':memory:');
         $this->subject = new WritableStorageBackend($this->storage);
-        $this->subject->add(new AddCommand(
-            new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
-        ));
-        $this->subject->add(new AddCommand($this->alice));
+        $this->subject->add(
+            new AddCommand(
+                new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
+            ),
+            $this->context(),
+        );
+        $this->subject->add(
+            new AddCommand($this->alice),
+            $this->context(),
+        );
+    }
+
+    private function context(): WriteContext
+    {
+        return new WriteContext(
+            new AnonToken(),
+            new ControlBag(),
+        );
     }
 
     public function test_get_returns_entry_by_dn(): void
@@ -96,14 +113,20 @@ final class SqliteStorageTest extends TestCase
     public function test_add_persists_entry(): void
     {
         $entry = new Entry(new Dn('cn=Persistent,dc=example,dc=com'), new Attribute('cn', 'Persistent'));
-        $this->subject->add(new AddCommand($entry));
+        $this->subject->add(
+            new AddCommand($entry),
+            $this->context(),
+        );
 
         self::assertNotNull($this->subject->get(new Dn('cn=Persistent,dc=example,dc=com')));
     }
 
     public function test_delete_removes_entry(): void
     {
-        $this->subject->delete(new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')));
+        $this->subject->delete(
+            new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')),
+            $this->context(),
+        );
 
         self::assertNull($this->subject->get(new Dn('cn=Alice,dc=example,dc=com')));
     }
@@ -111,7 +134,10 @@ final class SqliteStorageTest extends TestCase
     public function test_list_single_level_returns_direct_children_only(): void
     {
         $grandchild = new Entry(new Dn('cn=Sub,cn=Alice,dc=example,dc=com'), new Attribute('cn', 'Sub'));
-        $this->subject->add(new AddCommand($grandchild));
+        $this->subject->add(
+            new AddCommand($grandchild),
+            $this->context(),
+        );
 
         $request = (new SearchRequest(new AndFilter()))
             ->base('dc=example,dc=com')
@@ -128,7 +154,10 @@ final class SqliteStorageTest extends TestCase
     public function test_list_recursive_includes_base_and_descendants(): void
     {
         $grandchild = new Entry(new Dn('cn=Sub,cn=Alice,dc=example,dc=com'), new Attribute('cn', 'Sub'));
-        $this->subject->add(new AddCommand($grandchild));
+        $this->subject->add(
+            new AddCommand($grandchild),
+            $this->context(),
+        );
 
         $request = (new SearchRequest(new AndFilter()))
             ->base('dc=example,dc=com')
@@ -149,12 +178,18 @@ final class SqliteStorageTest extends TestCase
 
     public function test_interleaved_lists_do_not_share_cursor_state(): void
     {
-        $this->subject->add(new AddCommand(
-            new Entry(new Dn('cn=Bob,dc=example,dc=com'), new Attribute('cn', 'Bob')),
-        ));
-        $this->subject->add(new AddCommand(
-            new Entry(new Dn('cn=Carol,dc=example,dc=com'), new Attribute('cn', 'Carol')),
-        ));
+        $this->subject->add(
+            new AddCommand(
+                new Entry(new Dn('cn=Bob,dc=example,dc=com'), new Attribute('cn', 'Bob')),
+            ),
+            $this->context(),
+        );
+        $this->subject->add(
+            new AddCommand(
+                new Entry(new Dn('cn=Carol,dc=example,dc=com'), new Attribute('cn', 'Carol')),
+            ),
+            $this->context(),
+        );
 
         $outerIterator = $this->storage->list(StorageListOptions::matchAll(
             new Dn('dc=example,dc=com'),
@@ -528,7 +563,10 @@ final class SqliteStorageTest extends TestCase
         );
 
         try {
-            $backend->add(new AddCommand($entry));
+            $backend->add(
+                new AddCommand($entry),
+                $this->context(),
+            );
             self::fail('Expected OperationException was not thrown.');
         } catch (OperationException $e) {
             self::assertSame(
@@ -555,8 +593,14 @@ final class SqliteStorageTest extends TestCase
             new Dn('cn=Doe\,John,dc=example,dc=com'),
             new Attribute('cn', 'Doe,John'),
         );
-        $backend->add(new AddCommand($base));
-        $backend->add(new AddCommand($escaped));
+        $backend->add(
+            new AddCommand($base),
+            $this->context(),
+        );
+        $backend->add(
+            new AddCommand($escaped),
+            $this->context(),
+        );
 
         $request = (new SearchRequest(new AndFilter()))
             ->base('John,dc=example,dc=com')
@@ -581,8 +625,14 @@ final class SqliteStorageTest extends TestCase
             new Dn('cn=Doe\,John,dc=example,dc=com'),
             new Attribute('cn', 'Doe,John'),
         );
-        $backend->add(new AddCommand($base));
-        $backend->add(new AddCommand($escaped));
+        $backend->add(
+            new AddCommand($base),
+            $this->context(),
+        );
+        $backend->add(
+            new AddCommand($escaped),
+            $this->context(),
+        );
 
         $request = (new SearchRequest(new AndFilter()))
             ->base('dc=example,dc=com')

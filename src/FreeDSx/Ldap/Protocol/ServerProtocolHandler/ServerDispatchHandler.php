@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteCommandFactory;
+use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
@@ -64,7 +65,13 @@ class ServerDispatchHandler implements ServerProtocolHandlerInterface
                 return;
             }
 
-            $this->writeDispatcher->dispatch($this->commandFactory->fromRequest($request));
+            $this->writeDispatcher->dispatch(
+                $this->commandFactory->fromRequest($request),
+                new WriteContext(
+                    $token,
+                    $message->controls(),
+                ),
+            );
 
             $this->queue->sendMessage($this->responseFactory->getStandardResponse($message));
         } catch (OperationException $e) {

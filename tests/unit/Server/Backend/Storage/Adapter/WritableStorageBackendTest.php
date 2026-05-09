@@ -35,11 +35,14 @@ use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\SearchLimits;
 use Generator;
 use PHPUnit\Framework\MockObject\MockObject;
+use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Server\Backend\Write\Command\AddCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\MoveCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
+use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteRequestInterface;
+use FreeDSx\Ldap\Server\Token\AnonToken;
 use PHPUnit\Framework\TestCase;
 
 final class WritableStorageBackendTest extends TestCase
@@ -183,7 +186,10 @@ final class WritableStorageBackendTest extends TestCase
     public function test_add_stores_entry(): void
     {
         $entry = new Entry(new Dn('cn=New,dc=example,dc=com'), new Attribute('cn', 'New'));
-        $this->subject->add(new AddCommand($entry));
+        $this->subject->add(
+            new AddCommand($entry),
+            $this->context(),
+        );
 
         self::assertNotNull($this->subject->get(new Dn('cn=New,dc=example,dc=com')));
     }
@@ -193,7 +199,10 @@ final class WritableStorageBackendTest extends TestCase
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::ENTRY_ALREADY_EXISTS);
 
-        $this->subject->add(new AddCommand($this->alice));
+        $this->subject->add(
+            new AddCommand($this->alice),
+            $this->context(),
+        );
     }
 
     public function test_add_throws_no_such_object_when_parent_does_not_exist(): void
@@ -202,21 +211,30 @@ final class WritableStorageBackendTest extends TestCase
         self::expectExceptionCode(ResultCode::NO_SUCH_OBJECT);
 
         $entry = new Entry(new Dn('cn=New,ou=Missing,dc=example,dc=com'), new Attribute('cn', 'New'));
-        $this->subject->add(new AddCommand($entry));
+        $this->subject->add(
+            new AddCommand($entry),
+            $this->context(),
+        );
     }
 
     public function test_add_allows_root_naming_context_entry(): void
     {
         $backend = new WritableStorageBackend(new InMemoryStorage());
         $root = new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example'));
-        $backend->add(new AddCommand($root));
+        $backend->add(
+            new AddCommand($root),
+            $this->context(),
+        );
 
         self::assertNotNull($backend->get(new Dn('dc=example,dc=com')));
     }
 
     public function test_delete_removes_entry(): void
     {
-        $this->subject->delete(new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')));
+        $this->subject->delete(
+            new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')),
+            $this->context(),
+        );
 
         self::assertNull($this->subject->get(new Dn('cn=Alice,dc=example,dc=com')));
     }
@@ -226,7 +244,10 @@ final class WritableStorageBackendTest extends TestCase
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::NO_SUCH_OBJECT);
 
-        $this->subject->delete(new DeleteCommand(new Dn('cn=Nobody,dc=example,dc=com')));
+        $this->subject->delete(
+            new DeleteCommand(new Dn('cn=Nobody,dc=example,dc=com')),
+            $this->context(),
+        );
     }
 
     public function test_delete_throws_not_allowed_on_non_leaf_when_entry_has_subordinates(): void
@@ -235,7 +256,10 @@ final class WritableStorageBackendTest extends TestCase
         self::expectExceptionCode(ResultCode::NOT_ALLOWED_ON_NON_LEAF);
 
         // dc=example,dc=com has cn=Alice as a direct child — cannot be deleted
-        $this->subject->delete(new DeleteCommand(new Dn('dc=example,dc=com')));
+        $this->subject->delete(
+            new DeleteCommand(new Dn('dc=example,dc=com')),
+            $this->context(),
+        );
     }
 
     public function test_delete_throws_unwilling_to_perform_for_configured_naming_context(): void
@@ -252,7 +276,10 @@ final class WritableStorageBackendTest extends TestCase
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::UNWILLING_TO_PERFORM);
 
-        $backend->delete(new DeleteCommand(new Dn('dc=example,dc=com')));
+        $backend->delete(
+            new DeleteCommand(new Dn('dc=example,dc=com')),
+            $this->context(),
+        );
     }
 
     public function test_delete_naming_context_check_is_case_insensitive(): void
@@ -269,7 +296,10 @@ final class WritableStorageBackendTest extends TestCase
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::UNWILLING_TO_PERFORM);
 
-        $backend->delete(new DeleteCommand(new Dn('dc=example,dc=com')));
+        $backend->delete(
+            new DeleteCommand(new Dn('dc=example,dc=com')),
+            $this->context(),
+        );
     }
 
     public function test_move_throws_unwilling_to_perform_when_renaming_naming_context(): void
@@ -286,12 +316,15 @@ final class WritableStorageBackendTest extends TestCase
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::UNWILLING_TO_PERFORM);
 
-        $backend->move(new MoveCommand(
-            new Dn('dc=example,dc=com'),
-            Rdn::create('dc=renamed'),
-            true,
-            null,
-        ));
+        $backend->move(
+            new MoveCommand(
+                new Dn('dc=example,dc=com'),
+                Rdn::create('dc=renamed'),
+                true,
+                null,
+            ),
+            $this->context(),
+        );
     }
 
     public function test_delete_allows_non_naming_context_entries_when_naming_context_configured(): void
@@ -309,17 +342,23 @@ final class WritableStorageBackendTest extends TestCase
             namingContexts: ['dc=example,dc=com'],
         );
 
-        $backend->delete(new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')));
+        $backend->delete(
+            new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')),
+            $this->context(),
+        );
 
         self::assertNull($backend->get(new Dn('cn=Alice,dc=example,dc=com')));
     }
 
     public function test_update_add_attribute_value(): void
     {
-        $this->subject->update(new UpdateCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            [new Change(Change::TYPE_ADD, 'mail', 'alice@example.com')],
-        ));
+        $this->subject->update(
+            new UpdateCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                [new Change(Change::TYPE_ADD, 'mail', 'alice@example.com')],
+            ),
+            $this->context(),
+        );
 
         $entry = $this->subject->get(new Dn('cn=Alice,dc=example,dc=com'));
 
@@ -329,10 +368,13 @@ final class WritableStorageBackendTest extends TestCase
 
     public function test_update_add_value_to_existing_attribute(): void
     {
-        $this->subject->update(new UpdateCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            [new Change(Change::TYPE_ADD, 'cn', 'Alicia')],
-        ));
+        $this->subject->update(
+            new UpdateCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                [new Change(Change::TYPE_ADD, 'cn', 'Alicia')],
+            ),
+            $this->context(),
+        );
 
         $entry = $this->subject->get(new Dn('cn=Alice,dc=example,dc=com'));
 
@@ -346,10 +388,13 @@ final class WritableStorageBackendTest extends TestCase
 
     public function test_update_replace_attribute_value(): void
     {
-        $this->subject->update(new UpdateCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            [new Change(Change::TYPE_REPLACE, 'userPassword', 'newpassword')],
-        ));
+        $this->subject->update(
+            new UpdateCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                [new Change(Change::TYPE_REPLACE, 'userPassword', 'newpassword')],
+            ),
+            $this->context(),
+        );
 
         $entry = $this->subject->get(new Dn('cn=Alice,dc=example,dc=com'));
 
@@ -362,10 +407,13 @@ final class WritableStorageBackendTest extends TestCase
 
     public function test_update_delete_attribute(): void
     {
-        $this->subject->update(new UpdateCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            [new Change(Change::TYPE_DELETE, 'userPassword')],
-        ));
+        $this->subject->update(
+            new UpdateCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                [new Change(Change::TYPE_DELETE, 'userPassword')],
+            ),
+            $this->context(),
+        );
 
         $entry = $this->subject->get(new Dn('cn=Alice,dc=example,dc=com'));
 
@@ -374,10 +422,13 @@ final class WritableStorageBackendTest extends TestCase
 
     public function test_update_delete_specific_attribute_value(): void
     {
-        $this->subject->update(new UpdateCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            [new Change(Change::TYPE_DELETE, 'userPassword', 'secret')],
-        ));
+        $this->subject->update(
+            new UpdateCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                [new Change(Change::TYPE_DELETE, 'userPassword', 'secret')],
+            ),
+            $this->context(),
+        );
 
         $entry = $this->subject->get(new Dn('cn=Alice,dc=example,dc=com'));
 
@@ -386,10 +437,13 @@ final class WritableStorageBackendTest extends TestCase
 
     public function test_update_replace_with_no_values_clears_attribute(): void
     {
-        $this->subject->update(new UpdateCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            [new Change(Change::TYPE_REPLACE, 'userPassword')],
-        ));
+        $this->subject->update(
+            new UpdateCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                [new Change(Change::TYPE_REPLACE, 'userPassword')],
+            ),
+            $this->context(),
+        );
 
         self::assertNull(
             $this->subject->get(new Dn('cn=Alice,dc=example,dc=com'))?->get('userPassword'),
@@ -401,20 +455,26 @@ final class WritableStorageBackendTest extends TestCase
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::NO_SUCH_OBJECT);
 
-        $this->subject->update(new UpdateCommand(
-            new Dn('cn=Nobody,dc=example,dc=com'),
-            [new Change(Change::TYPE_REPLACE, 'cn', 'Nobody')],
-        ));
+        $this->subject->update(
+            new UpdateCommand(
+                new Dn('cn=Nobody,dc=example,dc=com'),
+                [new Change(Change::TYPE_REPLACE, 'cn', 'Nobody')],
+            ),
+            $this->context(),
+        );
     }
 
     public function test_move_renames_entry(): void
     {
-        $this->subject->move(new MoveCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            Rdn::create('cn=Alicia'),
-            true,
-            null,
-        ));
+        $this->subject->move(
+            new MoveCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                Rdn::create('cn=Alicia'),
+                true,
+                null,
+            ),
+            $this->context(),
+        );
 
         self::assertNull($this->subject->get(new Dn('cn=Alice,dc=example,dc=com')));
         self::assertNotNull($this->subject->get(new Dn('cn=Alicia,dc=example,dc=com')));
@@ -423,12 +483,15 @@ final class WritableStorageBackendTest extends TestCase
     public function test_move_creates_new_rdn_attribute_when_it_does_not_exist_in_entry(): void
     {
         // Alice has no 'uid' attribute; renaming to uid=alice should create it.
-        $this->subject->move(new MoveCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            Rdn::create('uid=alice'),
-            false,
-            null,
-        ));
+        $this->subject->move(
+            new MoveCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                Rdn::create('uid=alice'),
+                false,
+                null,
+            ),
+            $this->context(),
+        );
 
         $entry = $this->subject->get(new Dn('uid=alice,dc=example,dc=com'));
 
@@ -439,14 +502,20 @@ final class WritableStorageBackendTest extends TestCase
     public function test_move_to_new_parent(): void
     {
         $ou = new Entry(new Dn('ou=People,dc=example,dc=com'), new Attribute('ou', 'People'));
-        $this->subject->add(new AddCommand($ou));
+        $this->subject->add(
+            new AddCommand($ou),
+            $this->context(),
+        );
 
-        $this->subject->move(new MoveCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            Rdn::create('cn=Alice'),
-            false,
-            new Dn('ou=People,dc=example,dc=com'),
-        ));
+        $this->subject->move(
+            new MoveCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                Rdn::create('cn=Alice'),
+                false,
+                new Dn('ou=People,dc=example,dc=com'),
+            ),
+            $this->context(),
+        );
 
         self::assertNull($this->subject->get(new Dn('cn=Alice,dc=example,dc=com')));
         self::assertNotNull($this->subject->get(new Dn('cn=Alice,ou=People,dc=example,dc=com')));
@@ -457,12 +526,15 @@ final class WritableStorageBackendTest extends TestCase
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::NO_SUCH_OBJECT);
 
-        $this->subject->move(new MoveCommand(
-            new Dn('cn=Nobody,dc=example,dc=com'),
-            Rdn::create('cn=Ghost'),
-            true,
-            null,
-        ));
+        $this->subject->move(
+            new MoveCommand(
+                new Dn('cn=Nobody,dc=example,dc=com'),
+                Rdn::create('cn=Ghost'),
+                true,
+                null,
+            ),
+            $this->context(),
+        );
     }
 
     public function test_move_throws_not_allowed_on_non_leaf_when_entry_has_children(): void
@@ -471,12 +543,15 @@ final class WritableStorageBackendTest extends TestCase
         self::expectExceptionCode(ResultCode::NOT_ALLOWED_ON_NON_LEAF);
 
         // dc=example,dc=com has cn=Alice as a direct child — cannot be moved
-        $this->subject->move(new MoveCommand(
-            new Dn('dc=example,dc=com'),
-            Rdn::create('dc=example'),
-            false,
-            null,
-        ));
+        $this->subject->move(
+            new MoveCommand(
+                new Dn('dc=example,dc=com'),
+                Rdn::create('dc=example'),
+                false,
+                null,
+            ),
+            $this->context(),
+        );
     }
 
     public function test_move_throws_no_such_object_when_new_superior_does_not_exist(): void
@@ -484,12 +559,15 @@ final class WritableStorageBackendTest extends TestCase
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::NO_SUCH_OBJECT);
 
-        $this->subject->move(new MoveCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            Rdn::create('cn=Alice'),
-            false,
-            new Dn('ou=Missing,dc=example,dc=com'),
-        ));
+        $this->subject->move(
+            new MoveCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                Rdn::create('cn=Alice'),
+                false,
+                new Dn('ou=Missing,dc=example,dc=com'),
+            ),
+            $this->context(),
+        );
     }
 
     public function test_move_throws_entry_already_exists_when_target_dn_exists(): void
@@ -504,12 +582,15 @@ final class WritableStorageBackendTest extends TestCase
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::ENTRY_ALREADY_EXISTS);
 
-        $backend->move(new MoveCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            Rdn::create('cn=Alicia'),
-            true,
-            null,
-        ));
+        $backend->move(
+            new MoveCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                Rdn::create('cn=Alicia'),
+                true,
+                null,
+            ),
+            $this->context(),
+        );
     }
 
     public function test_supports_returns_true_for_add_command(): void
@@ -562,6 +643,14 @@ final class WritableStorageBackendTest extends TestCase
         iterator_to_array($subject->search($request)->entries);
     }
 
+    private function context(): WriteContext
+    {
+        return new WriteContext(
+            new AnonToken(),
+            new ControlBag(),
+        );
+    }
+
     /**
      * @return Generator<Entry>
      */
@@ -582,10 +671,13 @@ final class WritableStorageBackendTest extends TestCase
         $subject = new WritableStorageBackend($storage);
 
         try {
-            $subject->add(new AddCommand(new Entry(
-                new Dn('cn=New,dc=example,dc=com'),
-                new Attribute('cn', 'New'),
-            )));
+            $subject->add(
+                new AddCommand(new Entry(
+                    new Dn('cn=New,dc=example,dc=com'),
+                    new Attribute('cn', 'New'),
+                )),
+                $this->context(),
+            );
             self::fail('Expected OperationException was not thrown.');
         } catch (OperationException $e) {
             self::assertSame(
@@ -616,7 +708,10 @@ final class WritableStorageBackendTest extends TestCase
         self::expectExceptionCode(ResultCode::UNAVAILABLE);
         self::expectExceptionMessage('The backend storage is currently unavailable.');
 
-        $subject->delete(new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')));
+        $subject->delete(
+            new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')),
+            $this->context(),
+        );
     }
 
     public function test_update_converts_storage_io_exception_to_unavailable_operation_exception(): void
@@ -632,10 +727,13 @@ final class WritableStorageBackendTest extends TestCase
         self::expectExceptionCode(ResultCode::UNAVAILABLE);
         self::expectExceptionMessage('The backend storage is currently unavailable.');
 
-        $subject->update(new UpdateCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            [new Change(Change::TYPE_REPLACE, 'cn', 'Alicia')],
-        ));
+        $subject->update(
+            new UpdateCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                [new Change(Change::TYPE_REPLACE, 'cn', 'Alicia')],
+            ),
+            $this->context(),
+        );
     }
 
     public function test_move_converts_storage_io_exception_to_unavailable_operation_exception(): void
@@ -651,12 +749,15 @@ final class WritableStorageBackendTest extends TestCase
         self::expectExceptionCode(ResultCode::UNAVAILABLE);
         self::expectExceptionMessage('The backend storage is currently unavailable.');
 
-        $subject->move(new MoveCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            Rdn::create('cn=Alicia'),
-            true,
-            null,
-        ));
+        $subject->move(
+            new MoveCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                Rdn::create('cn=Alicia'),
+                true,
+                null,
+            ),
+            $this->context(),
+        );
     }
 
     public function test_supports_returns_false_for_unknown_request(): void
@@ -669,24 +770,33 @@ final class WritableStorageBackendTest extends TestCase
     public function test_handle_dispatches_add_command(): void
     {
         $entry = new Entry(new Dn('cn=New,dc=example,dc=com'), new Attribute('cn', 'New'));
-        $this->subject->handle(new AddCommand($entry));
+        $this->subject->handle(
+            new AddCommand($entry),
+            $this->context(),
+        );
 
         self::assertNotNull($this->subject->get(new Dn('cn=New,dc=example,dc=com')));
     }
 
     public function test_handle_dispatches_delete_command(): void
     {
-        $this->subject->handle(new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')));
+        $this->subject->handle(
+            new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')),
+            $this->context(),
+        );
 
         self::assertNull($this->subject->get(new Dn('cn=Alice,dc=example,dc=com')));
     }
 
     public function test_handle_dispatches_update_command(): void
     {
-        $this->subject->handle(new UpdateCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            [new Change(Change::TYPE_REPLACE, 'userPassword', 'newpassword')],
-        ));
+        $this->subject->handle(
+            new UpdateCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                [new Change(Change::TYPE_REPLACE, 'userPassword', 'newpassword')],
+            ),
+            $this->context(),
+        );
 
         self::assertSame(
             ['newpassword'],
@@ -696,12 +806,15 @@ final class WritableStorageBackendTest extends TestCase
 
     public function test_handle_dispatches_move_command(): void
     {
-        $this->subject->handle(new MoveCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            Rdn::create('cn=Alicia'),
-            true,
-            null,
-        ));
+        $this->subject->handle(
+            new MoveCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                Rdn::create('cn=Alicia'),
+                true,
+                null,
+            ),
+            $this->context(),
+        );
 
         self::assertNull($this->subject->get(new Dn('cn=Alice,dc=example,dc=com')));
         self::assertNotNull($this->subject->get(new Dn('cn=Alicia,dc=example,dc=com')));
@@ -772,10 +885,13 @@ final class WritableStorageBackendTest extends TestCase
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::OBJECT_CLASS_VIOLATION);
 
-        $backend->add(new AddCommand(new Entry(
-            new Dn('cn=Invalid,dc=example,dc=com'),
-            new Attribute('cn', 'Invalid'),
-        )));
+        $backend->add(
+            new AddCommand(new Entry(
+                new Dn('cn=Invalid,dc=example,dc=com'),
+                new Attribute('cn', 'Invalid'),
+            )),
+            $this->context(),
+        );
     }
 
     public function test_add_with_validator_accepts_valid_entry(): void
@@ -788,12 +904,15 @@ final class WritableStorageBackendTest extends TestCase
             ),
         );
 
-        $backend->add(new AddCommand(new Entry(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            new Attribute('objectClass', 'top', 'person'),
-            new Attribute('cn', 'Alice'),
-            new Attribute('sn', 'Smith'),
-        )));
+        $backend->add(
+            new AddCommand(new Entry(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                new Attribute('objectClass', 'top', 'person'),
+                new Attribute('cn', 'Alice'),
+                new Attribute('sn', 'Smith'),
+            )),
+            $this->context(),
+        );
 
         self::assertNotNull($backend->get(new Dn('cn=Alice,dc=example,dc=com')));
     }
@@ -817,10 +936,168 @@ final class WritableStorageBackendTest extends TestCase
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::CONSTRAINT_VIOLATION);
 
-        $backend->update(new UpdateCommand(
-            new Dn('cn=Alice,dc=example,dc=com'),
-            [Change::replace(new Attribute('createTimestamp', '20240101000000Z'))],
-        ));
+        $backend->update(
+            new UpdateCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                [Change::replace(new Attribute('createTimestamp', '20240101000000Z'))],
+            ),
+            $this->context(),
+        );
+    }
+
+    public function test_add_sets_operational_attributes_on_entry(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=New,dc=example,dc=com'),
+            new Attribute('cn', 'New'),
+        );
+
+        $this->subject->add(
+            new AddCommand($entry),
+            $this->context(),
+        );
+
+        $stored = $this->subject->get(new Dn('cn=New,dc=example,dc=com'));
+
+        self::assertNotNull($stored?->get('createTimestamp'));
+        self::assertNotNull($stored->get('modifyTimestamp'));
+        self::assertNotNull($stored->get('creatorsName'));
+        self::assertNotNull($stored->get('modifiersName'));
+        self::assertNotNull($stored->get('entryUUID'));
+    }
+
+    public function test_update_refreshes_modify_operational_attributes(): void
+    {
+        $this->subject->update(
+            new UpdateCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                [Change::replace(new Attribute('userPassword', 'newSecret'))],
+            ),
+            $this->context(),
+        );
+
+        $updated = $this->subject->get(new Dn('cn=Alice,dc=example,dc=com'));
+
+        self::assertNotNull($updated?->get('modifyTimestamp'));
+        self::assertNotNull($updated->get('modifiersName'));
+    }
+
+    public function test_move_refreshes_modify_operational_attributes(): void
+    {
+        $this->subject->move(
+            new MoveCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                Rdn::create('cn=Alicia'),
+                true,
+                null,
+            ),
+            $this->context(),
+        );
+
+        $moved = $this->subject->get(new Dn('cn=Alicia,dc=example,dc=com'));
+
+        self::assertNotNull($moved?->get('modifyTimestamp'));
+        self::assertNotNull($moved->get('modifiersName'));
+    }
+
+    public function test_search_with_plus_includes_has_subordinates(): void
+    {
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('dc=example,dc=com')
+            ->useSubtreeScope()
+            ->select('+');
+
+        $results = iterator_to_array($this->subject->search($request)->entries);
+
+        foreach ($results as $entry) {
+            self::assertNotNull(
+                $entry->get('hasSubordinates'),
+                "Entry {$entry->getDn()->toString()} is missing hasSubordinates.",
+            );
+        }
+    }
+
+    public function test_search_with_has_subordinates_by_name_includes_it(): void
+    {
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('dc=example,dc=com')
+            ->useSubtreeScope()
+            ->select('hasSubordinates');
+
+        $results = iterator_to_array($this->subject->search($request)->entries);
+
+        foreach ($results as $entry) {
+            self::assertNotNull(
+                $entry->get('hasSubordinates'),
+                "Entry {$entry->getDn()->toString()} is missing hasSubordinates.",
+            );
+        }
+    }
+
+    public function test_search_without_plus_does_not_include_has_subordinates(): void
+    {
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('dc=example,dc=com')
+            ->useSubtreeScope()
+            ->select('cn');
+
+        $results = iterator_to_array($this->subject->search($request)->entries);
+
+        foreach ($results as $entry) {
+            self::assertNull(
+                $entry->get('hasSubordinates'),
+                "Entry {$entry->getDn()->toString()} must not have hasSubordinates injected.",
+            );
+        }
+    }
+
+    public function test_search_has_subordinates_is_true_for_parent(): void
+    {
+        // dc=example,dc=com has Alice as a child.
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('dc=example,dc=com')
+            ->useBaseScope()
+            ->select('+');
+
+        $results = iterator_to_array($this->subject->search($request)->entries);
+
+        self::assertCount(1, $results);
+        self::assertSame(
+            'TRUE',
+            $results[0]->get('hasSubordinates')?->getValues()[0],
+        );
+    }
+
+    public function test_search_has_subordinates_is_false_for_leaf(): void
+    {
+        // Alice has no children.
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('cn=Alice,dc=example,dc=com')
+            ->useBaseScope()
+            ->select('+');
+
+        $results = iterator_to_array($this->subject->search($request)->entries);
+
+        self::assertCount(1, $results);
+        self::assertSame(
+            'FALSE',
+            $results[0]->get('hasSubordinates')?->getValues()[0],
+        );
+    }
+
+    public function test_search_has_subordinates_does_not_mutate_stored_entry(): void
+    {
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('dc=example,dc=com')
+            ->useBaseScope()
+            ->select('+');
+
+        iterator_to_array($this->subject->search($request)->entries);
+
+        // Read the stored entry directly — hasSubordinates must not be persisted.
+        $stored = $this->subject->get(new Dn('dc=example,dc=com'));
+
+        self::assertNull($stored?->get('hasSubordinates'));
     }
 
     /**

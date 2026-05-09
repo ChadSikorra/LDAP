@@ -22,5 +22,8 @@ interface WriteHandlerInterface
 {
     public function supports(WriteRequestInterface $request): bool;
 
-    public function handle(WriteRequestInterface $request): void;
+    public function handle(
+        WriteRequestInterface $request,
+        WriteContext $context,
+    ): void;
 }

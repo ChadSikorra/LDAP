@@ -20,8 +20,11 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Search\Filter\PresentFilter;
+use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Server\Backend\Write\Command\AddCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
+use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
+use FreeDSx\Ldap\Server\Token\AnonToken;
 use PHPUnit\Framework\TestCase;
 
 final class JsonFileStorageTest extends TestCase
@@ -45,10 +48,24 @@ final class JsonFileStorageTest extends TestCase
 
         $this->storage = JsonFileStorage::forPcntl($this->tempFile);
         $this->subject = new WritableStorageBackend($this->storage);
-        $this->subject->add(new AddCommand(
-            new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
-        ));
-        $this->subject->add(new AddCommand($this->alice));
+        $this->subject->add(
+            new AddCommand(
+                new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
+            ),
+            $this->context(),
+        );
+        $this->subject->add(
+            new AddCommand($this->alice),
+            $this->context(),
+        );
+    }
+
+    private function context(): WriteContext
+    {
+        return new WriteContext(
+            new AnonToken(),
+            new ControlBag(),
+        );
     }
 
     protected function tearDown(): void
@@ -110,7 +127,10 @@ final class JsonFileStorageTest extends TestCase
     public function test_add_persists_to_file(): void
     {
         $entry = new Entry(new Dn('cn=Persistent,dc=example,dc=com'), new Attribute('cn', 'Persistent'));
-        $this->subject->add(new AddCommand($entry));
+        $this->subject->add(
+            new AddCommand($entry),
+            $this->context(),
+        );
 
         // A second independent backend reading the same file should see the new entry.
         $backend2 = new WritableStorageBackend(JsonFileStorage::forPcntl($this->tempFile));
@@ -120,7 +140,10 @@ final class JsonFileStorageTest extends TestCase
 
     public function test_delete_persists_to_file(): void
     {
-        $this->subject->delete(new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')));
+        $this->subject->delete(
+            new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')),
+            $this->context(),
+        );
 
         $backend2 = new WritableStorageBackend(JsonFileStorage::forPcntl($this->tempFile));
 
@@ -154,7 +177,10 @@ final class JsonFileStorageTest extends TestCase
 
         // A write operation changes the file — cache must be cleared.
         $extra = new Entry(new Dn('cn=Extra,dc=example,dc=com'), new Attribute('cn', 'Extra'));
-        $backend->add(new AddCommand($extra));
+        $backend->add(
+            new AddCommand($extra),
+            $this->context(),
+        );
 
         // The backend must re-read the file and see the new entry.
         self::assertNotNull($backend->get(new Dn('cn=Extra,dc=example,dc=com')));
@@ -165,7 +191,10 @@ final class JsonFileStorageTest extends TestCase
         // dc=example,dc=com and Alice are already in storage from setUp.
         // Add a grandchild to verify it is excluded from single-level results.
         $grandchild = new Entry(new Dn('cn=Sub,cn=Alice,dc=example,dc=com'), new Attribute('cn', 'Sub'));
-        $this->subject->add(new AddCommand($grandchild));
+        $this->subject->add(
+            new AddCommand($grandchild),
+            $this->context(),
+        );
 
         $request = (new SearchRequest(new PresentFilter('objectClass')))
             ->base('dc=example,dc=com')
@@ -187,7 +216,10 @@ final class JsonFileStorageTest extends TestCase
         // dc=example,dc=com and Alice are already in storage from setUp.
         // Add a grandchild; the subtree search should return all three entries.
         $grandchild = new Entry(new Dn('cn=Sub,cn=Alice,dc=example,dc=com'), new Attribute('cn', 'Sub'));
-        $this->subject->add(new AddCommand($grandchild));
+        $this->subject->add(
+            new AddCommand($grandchild),
+            $this->context(),
+        );
 
         $request = (new SearchRequest(new PresentFilter('objectClass')))
             ->base('dc=example,dc=com')
