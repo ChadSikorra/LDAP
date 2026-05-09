@@ -64,6 +64,11 @@ final class SwooleWriterQueue implements WriterQueueInterface
         }
     }
 
+    public function __destruct()
+    {
+        $this->jobs?->close();
+    }
+
     private function ensureStarted(): void
     {
         if ($this->started) {
