@@ -200,6 +200,10 @@ final class AttributeTypeOid
     public const NAME_MATCHING_RULE_USE = 'matchingRuleUse';
     public const DESC_MATCHING_RULE_USE = 'matching rule use descriptions';
 
+    public const OID_LDAP_SYNTAXES = '1.3.6.1.4.1.1466.101.120.16';
+    public const NAME_LDAP_SYNTAXES = 'ldapSyntaxes';
+    public const DESC_LDAP_SYNTAXES = 'LDAP syntax descriptions';
+
     public const OID_DIT_STRUCTURE_RULES = '2.5.21.1';
     public const NAME_DIT_STRUCTURE_RULES = 'dITStructureRules';
     public const DESC_DIT_STRUCTURE_RULES = 'DIT structure rules';
@@ -212,5 +216,7 @@ final class AttributeTypeOid
     public const NAME_NAME_FORMS = 'nameForms';
     public const DESC_NAME_FORMS = 'name forms';
 
-    private function __construct() {}
+    private function __construct()
+    {
+    }
 }

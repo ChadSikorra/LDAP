@@ -17,6 +17,10 @@ use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Schema\Matching\CaseIgnoreComparator;
+use FreeDSx\Ldap\Schema\Matching\MatchingRuleComparatorInterface;
+use FreeDSx\Ldap\Schema\Matching\SubstringAssertion;
+use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Search\Filter\AndFilter;
 use FreeDSx\Ldap\Search\Filter\ApproximateFilter;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
@@ -31,7 +35,9 @@ use FreeDSx\Ldap\Search\Filter\SubstringFilter;
 use WeakMap;
 
 /**
- * Pure-PHP FilterEvaluatorInterface using RFC 4511 §4.5.1 three-valued logic; names/values compare case-insensitively.
+ * Pure-PHP FilterEvaluatorInterface using RFC 4511 §4.5.1 three-valued logic.
+ *
+ * Uses schema-driven comparators with CaseIgnoreComparator as the default fallback per RFC 4511 §4.5.1.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -60,12 +66,7 @@ final class FilterEvaluator implements FilterEvaluatorInterface
     private ?array $attributeIndex = null;
 
     /**
-     * @var WeakMap<object, string>
-     */
-    private WeakMap $loweredSingleValueCache;
-
-    /**
-     * @var WeakMap<object, array{startsWith: ?string, endsWith: ?string, contains: list<string>}>
+     * @var WeakMap<object, SubstringAssertion>
      */
     private WeakMap $substringCache;
 
@@ -74,9 +75,11 @@ final class FilterEvaluator implements FilterEvaluatorInterface
      */
     private WeakMap $orderedDigitCache;
 
-    public function __construct()
+    private readonly CaseIgnoreComparator $defaultComparator;
+
+    public function __construct(private readonly ?Schema $schema = null)
     {
-        $this->loweredSingleValueCache = new WeakMap();
+        $this->defaultComparator = new CaseIgnoreComparator();
         $this->substringCache = new WeakMap();
         $this->orderedDigitCache = new WeakMap();
     }
@@ -191,10 +194,11 @@ final class FilterEvaluator implements FilterEvaluatorInterface
             return FilterResult::Undefined;
         }
 
-        $filterValue = $this->lowerSingleValue($filter);
+        $comparator = $this->resolveEqualityComparator($filter->getAttribute());
+        $filterValue = $filter->getValue();
 
         foreach ($attribute->getValues() as $value) {
-            if (strtolower($value) === $filterValue) {
+            if ($comparator->equals($value, $filterValue)) {
                 return FilterResult::True;
             }
         }
@@ -212,52 +216,16 @@ final class FilterEvaluator implements FilterEvaluatorInterface
             return FilterResult::Undefined;
         }
 
-        $compiled = $this->substringLowered($filter);
+        $comparator = $this->resolveSubstringComparator($filter->getAttribute());
+        $assertion = $this->buildSubstringAssertion($filter);
 
         foreach ($attribute->getValues() as $value) {
-            if ($this->substringMatches(
-                strtolower($value),
-                $compiled['startsWith'],
-                $compiled['endsWith'],
-                $compiled['contains'],
-            )) {
+            if ($comparator->substringMatches($value, $assertion)) {
                 return FilterResult::True;
             }
         }
 
         return FilterResult::False;
-    }
-
-    /**
-     * @param string[] $contains
-     */
-    private function substringMatches(
-        string $value,
-        ?string $startsWith,
-        ?string $endsWith,
-        array $contains,
-    ): bool {
-        if ($startsWith !== null && !str_starts_with($value, $startsWith)) {
-            return false;
-        }
-
-        $pos = $startsWith !== null ? strlen($startsWith) : 0;
-
-        foreach ($contains as $substr) {
-            $found = strpos($value, $substr, $pos);
-            if ($found === false) {
-                return false;
-            }
-            $pos = $found + strlen($substr);
-        }
-
-        if ($endsWith === null) {
-            return true;
-        }
-
-        $endsWithStart = strlen($value) - strlen($endsWith);
-
-        return $endsWithStart >= $pos && str_ends_with($value, $endsWith);
     }
 
     private function evaluateGreaterOrEqual(
@@ -271,10 +239,14 @@ final class FilterEvaluator implements FilterEvaluatorInterface
         }
 
         $filterValue = $filter->getValue();
-        $filterIsDigit = $this->orderedFilterValueIsDigit($filter);
+        $comparator = $this->resolveOrderingComparator($filter->getAttribute());
+        $filterIsDigit = $comparator === null && $this->orderedFilterValueIsDigit($filter);
 
         foreach ($attribute->getValues() as $value) {
-            if ($this->compareOrdered($value, $filterValue, $filterIsDigit) >= 0) {
+            $cmp = $comparator?->compare($value, $filterValue)
+                ?? $this->compareOrdered($value, $filterValue, $filterIsDigit);
+
+            if ($cmp >= 0) {
                 return FilterResult::True;
             }
         }
@@ -293,10 +265,14 @@ final class FilterEvaluator implements FilterEvaluatorInterface
         }
 
         $filterValue = $filter->getValue();
-        $filterIsDigit = $this->orderedFilterValueIsDigit($filter);
+        $comparator = $this->resolveOrderingComparator($filter->getAttribute());
+        $filterIsDigit = $comparator === null && $this->orderedFilterValueIsDigit($filter);
 
         foreach ($attribute->getValues() as $value) {
-            if ($this->compareOrdered($value, $filterValue, $filterIsDigit) <= 0) {
+            $cmp = $comparator?->compare($value, $filterValue)
+                ?? $this->compareOrdered($value, $filterValue, $filterIsDigit);
+
+            if ($cmp <= 0) {
                 return FilterResult::True;
             }
         }
@@ -326,10 +302,10 @@ final class FilterEvaluator implements FilterEvaluatorInterface
             return FilterResult::Undefined;
         }
 
-        $filterValue = $this->lowerSingleValue($filter);
+        $filterValue = $filter->getValue();
 
         foreach ($attribute->getValues() as $value) {
-            if (strtolower($value) === $filterValue) {
+            if ($this->defaultComparator->equals($value, $filterValue)) {
                 return FilterResult::True;
             }
         }
@@ -368,10 +344,7 @@ final class FilterEvaluator implements FilterEvaluatorInterface
         $values = [];
 
         if ($filterAttributeName !== null) {
-            $attribute = $this->lookupAttribute($entry, $filterAttributeName);
-            if ($attribute !== null) {
-                $values = $attribute->getValues();
-            }
+            $values = $this->lookupAttribute($entry, $filterAttributeName)?->getValues() ?? [];
         } else {
             foreach ($entry->getAttributes() as $attribute) {
                 array_push(
@@ -429,8 +402,23 @@ final class FilterEvaluator implements FilterEvaluatorInterface
         string $value,
         string $filterValue,
     ): bool {
+        if ($rule === null) {
+            return $this->defaultComparator->equals(
+                $value,
+                $filterValue,
+            );
+        }
+
+        $schemaComparator = $this->schema?->getComparator($rule);
+        if ($schemaComparator !== null) {
+            return $schemaComparator->equals(
+                $value,
+                $filterValue,
+            );
+        }
+
         return match ($rule) {
-            null, self::MATCHING_RULE_CASE_IGNORE => strtolower($value) === strtolower($filterValue),
+            self::MATCHING_RULE_CASE_IGNORE => strtolower($value) === strtolower($filterValue),
             self::MATCHING_RULE_CASE_EXACT => $value === $filterValue,
             self::MATCHING_RULE_BIT_AND => ((int) $value & (int) $filterValue) === (int) $filterValue,
             self::MATCHING_RULE_BIT_OR => ((int) $value & (int) $filterValue) !== 0,
@@ -439,6 +427,65 @@ final class FilterEvaluator implements FilterEvaluatorInterface
                 ResultCode::INAPPROPRIATE_MATCHING,
             ),
         };
+    }
+
+    private function resolveEqualityComparator(string $attrName): MatchingRuleComparatorInterface
+    {
+        if ($this->schema === null) {
+            return $this->defaultComparator;
+        }
+
+        $attrType = $this->schema->getAttributeType($attrName);
+        $comparator = $attrType?->equalityOid !== null
+            ? $this->schema->getComparator($attrType->equalityOid)
+            : null;
+
+        return $comparator ?? $this->defaultComparator;
+    }
+
+    private function resolveSubstringComparator(string $attrName): MatchingRuleComparatorInterface
+    {
+        if ($this->schema === null) {
+            return $this->defaultComparator;
+        }
+
+        $attrType = $this->schema->getAttributeType($attrName);
+        $comparator = $attrType?->substringOid !== null
+            ? $this->schema->getComparator($attrType->substringOid)
+            : null;
+
+        return $comparator ?? $this->defaultComparator;
+    }
+
+    /**
+     * Returns null when schema is unavailable or the attribute is unknown — caller falls back to the digit heuristic.
+     */
+    private function resolveOrderingComparator(string $attrName): ?MatchingRuleComparatorInterface
+    {
+        if ($this->schema === null) {
+            return null;
+        }
+
+        $attrType = $this->schema->getAttributeType($attrName);
+
+        if ($attrType === null) {
+            return null;
+        }
+
+        if ($attrType->orderingOid !== null) {
+            return $this->schema->getComparator($attrType->orderingOid) ?? $this->defaultComparator;
+        }
+
+        return $this->defaultComparator;
+    }
+
+    private function buildSubstringAssertion(SubstringFilter $filter): SubstringAssertion
+    {
+        return $this->substringCache[$filter] ??= new SubstringAssertion(
+            initial: $filter->getStartsWith(),
+            any: array_values($filter->getContains()),
+            final: $filter->getEndsWith(),
+        );
     }
 
     /**
@@ -462,27 +509,6 @@ final class FilterEvaluator implements FilterEvaluatorInterface
         }
 
         return $this->attributeIndex[strtolower($filterAttributeName)] ?? null;
-    }
-
-    private function lowerSingleValue(EqualityFilter|ApproximateFilter $filter): string
-    {
-        return $this->loweredSingleValueCache[$filter] ??= strtolower($filter->getValue());
-    }
-
-    /**
-     * @return array{startsWith: ?string, endsWith: ?string, contains: list<string>}
-     */
-    private function substringLowered(SubstringFilter $filter): array
-    {
-        return $this->substringCache[$filter] ??= [
-            'startsWith' => $filter->getStartsWith() !== null
-                ? strtolower($filter->getStartsWith())
-                : null,
-            'endsWith' => $filter->getEndsWith() !== null
-                ? strtolower($filter->getEndsWith())
-                : null,
-            'contains' => array_values(array_map('strtolower', $filter->getContains())),
-        ];
     }
 
     private function orderedFilterValueIsDigit(

@@ -60,5 +60,7 @@ final class SyntaxOid
     public const OID_JPEG = '1.3.6.1.4.1.1466.115.121.1.28';
     public const DESC_JPEG = 'JPEG';
 
-    private function __construct() {}
+    private function __construct()
+    {
+    }
 }

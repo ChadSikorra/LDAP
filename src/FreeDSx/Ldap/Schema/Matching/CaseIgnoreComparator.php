@@ -55,7 +55,13 @@ final class CaseIgnoreComparator implements MatchingRuleComparatorInterface
             $pos = $found + strlen($substr);
         }
 
-        return $assertion->final === null
-            || str_ends_with($lower, strtolower($assertion->final));
+        if ($assertion->final === null) {
+            return true;
+        }
+
+        $finalLower = strtolower($assertion->final);
+        $finalStart = strlen($lower) - strlen($finalLower);
+
+        return $finalStart >= $pos && str_ends_with($lower, $finalLower);
     }
 }

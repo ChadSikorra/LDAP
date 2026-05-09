@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Search\Filter\MatchingRuleFilter;
 use FreeDSx\Ldap\Search\Filter\PresentFilter;
 use FreeDSx\Ldap\Search\Filter\SubstringFilter;
 use FreeDSx\Ldap\Search\Filters;
+use FreeDSx\Ldap\Schema\StandardSchemaProvider;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use PHPUnit\Framework\TestCase;
 
@@ -858,5 +859,76 @@ final class FilterEvaluatorTest extends TestCase
             $snapshot,
             serialize($filter),
         );
+    }
+
+    public function test_schema_equality_uses_octet_string_match_for_userpassword(): void
+    {
+        $subject = new FilterEvaluator(StandardSchemaProvider::buildCore());
+        $entry = new Entry(
+            new Dn('cn=Test,dc=example,dc=com'),
+            new Attribute('userPassword', 'Secret'),
+        );
+
+        self::assertTrue(
+            $subject->evaluate($entry, Filters::equal('userPassword', 'Secret'))
+        );
+        self::assertFalse(
+            $subject->evaluate($entry, Filters::equal('userPassword', 'secret'))
+        );
+    }
+
+    public function test_equality_without_schema_falls_back_to_case_ignore_for_userpassword(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=Test,dc=example,dc=com'),
+            new Attribute('userPassword', 'Secret'),
+        );
+
+        self::assertTrue(
+            $this->subject->evaluate($entry, Filters::equal('userPassword', 'secret'))
+        );
+    }
+
+    public function test_schema_matching_rule_filter_resolves_non_hardcoded_oid(): void
+    {
+        $subject = new FilterEvaluator(StandardSchemaProvider::buildCore());
+        $entry = new Entry(
+            new Dn('cn=Test,dc=example,dc=com'),
+            new Attribute('uidNumber', '1001'),
+        );
+
+        self::assertTrue($subject->evaluate(
+            $entry,
+            new MatchingRuleFilter('2.5.13.14', 'uidNumber', '1001'),
+        ));
+        self::assertFalse($subject->evaluate(
+            $entry,
+            new MatchingRuleFilter('2.5.13.14', 'uidNumber', '1002'),
+        ));
+    }
+
+    public function test_without_schema_non_hardcoded_matching_rule_throws_inappropriate_matching(): void
+    {
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::INAPPROPRIATE_MATCHING);
+
+        $this->subject->evaluate(
+            $this->entry,
+            new MatchingRuleFilter('2.5.13.14', 'cn', 'Alice'),
+        );
+    }
+
+    public function test_schema_gte_uses_digit_heuristic_for_attribute_unknown_to_schema(): void
+    {
+        $subject = new FilterEvaluator(StandardSchemaProvider::buildCore());
+        $entry = new Entry(
+            new Dn('cn=Test,dc=example,dc=com'),
+            new Attribute('uidNumber', '99'),
+        );
+
+        self::assertFalse($subject->evaluate(
+            $entry,
+            Filters::greaterThanOrEqual('uidNumber', '100')
+        ));
     }
 }

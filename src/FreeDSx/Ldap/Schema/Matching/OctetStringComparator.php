@@ -50,7 +50,13 @@ final class OctetStringComparator implements MatchingRuleComparatorInterface
             $pos = $found + strlen($substr);
         }
 
-        return $assertion->final === null
-            || str_ends_with($value, $assertion->final);
+        if ($assertion->final === null) {
+            return true;
+        }
+
+        $finalStart = strlen($value) - strlen($assertion->final);
+
+        return $finalStart >= $pos
+            && str_ends_with($value, $assertion->final);
     }
 }

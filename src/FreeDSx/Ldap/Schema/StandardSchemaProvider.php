@@ -737,5 +737,7 @@ final class StandardSchemaProvider
         ];
     }
 
-    private function __construct() {}
+    private function __construct()
+    {
+    }
 }

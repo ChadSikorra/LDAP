@@ -15,14 +15,17 @@ namespace FreeDSx\Ldap;
 
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
+use FreeDSx\Ldap\Schema\Schema;
+use FreeDSx\Ldap\Schema\SchemaValidationMode;
+use FreeDSx\Ldap\Schema\StandardSchemaProvider;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use Psr\Log\LoggerInterface;
 
 final class ServerOptions
@@ -124,6 +127,10 @@ final class ServerOptions
     private array $writeHandlers = [];
 
     private ?FilterEvaluatorInterface $filterEvaluator = null;
+
+    private ?Schema $schema = null;
+
+    private SchemaValidationMode $schemaValidationMode = SchemaValidationMode::Strict;
 
     private ?LoggerInterface $logger = null;
 
@@ -416,6 +423,30 @@ final class ServerOptions
     public function setFilterEvaluator(?FilterEvaluatorInterface $filterEvaluator): self
     {
         $this->filterEvaluator = $filterEvaluator;
+
+        return $this;
+    }
+
+    public function getSchema(): Schema
+    {
+        return $this->schema ??= StandardSchemaProvider::buildCore();
+    }
+
+    public function setSchema(Schema $schema): self
+    {
+        $this->schema = $schema;
+
+        return $this;
+    }
+
+    public function getSchemaValidationMode(): SchemaValidationMode
+    {
+        return $this->schemaValidationMode;
+    }
+
+    public function setSchemaValidationMode(SchemaValidationMode $mode): self
+    {
+        $this->schemaValidationMode = $mode;
 
         return $this;
     }
