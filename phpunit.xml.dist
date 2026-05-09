@@ -25,6 +25,16 @@
   <testsuites>
     <testsuite name="integration">
       <directory>./tests/integration</directory>
+      <exclude>./tests/integration/LdapClientTest.php</exclude>
+      <exclude>./tests/integration/LdapClientReferralTest.php</exclude>
+      <exclude>./tests/integration/Search</exclude>
+      <exclude>./tests/integration/Sync</exclude>
+    </testsuite>
+    <testsuite name="integration-openldap">
+      <file>./tests/integration/LdapClientTest.php</file>
+      <file>./tests/integration/LdapClientReferralTest.php</file>
+      <directory>./tests/integration/Search</directory>
+      <directory>./tests/integration/Sync</directory>
     </testsuite>
     <testsuite name="unit">
       <directory>./tests/unit</directory>
