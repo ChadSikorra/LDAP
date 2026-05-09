@@ -47,7 +47,7 @@ class PwdPolicyResponseControl extends Control
     public function __construct(
         private readonly ?int $timeBeforeExpiration = null,
         private readonly ?int $graceAuthRemaining = null,
-        private readonly ?int $error = null
+        private readonly ?int $error = null,
     ) {
         parent::__construct(self::OID_PWD_POLICY);
     }
@@ -85,9 +85,9 @@ class PwdPolicyResponseControl extends Control
                 type: Asn1::sequence(
                     Asn1::context(
                         tagNumber: 0,
-                        type: Asn1::integer($this->timeBeforeExpiration)
-                    )
-                )
+                        type: Asn1::integer($this->timeBeforeExpiration),
+                    ),
+                ),
             );
         }
         if ($this->graceAuthRemaining !== null) {
@@ -95,8 +95,8 @@ class PwdPolicyResponseControl extends Control
                 tagNumber: 0,
                 type: Asn1::sequence(Asn1::context(
                     tagNumber: 1,
-                    type: Asn1::integer($this->graceAuthRemaining)
-                ))
+                    type: Asn1::integer($this->graceAuthRemaining),
+                )),
             );
         }
 
@@ -106,7 +106,7 @@ class PwdPolicyResponseControl extends Control
         if ($this->error !== null) {
             $response->addChild(Asn1::context(
                 tagNumber: 1,
-                type: Asn1::enumerated($this->error)
+                type: Asn1::enumerated($this->error),
             ));
         }
         $this->controlValue = $response;
@@ -158,12 +158,12 @@ class PwdPolicyResponseControl extends Control
         $control = new static(
             $timeBeforeExpiration,
             $graceAttemptsRemaining,
-            $error
+            $error,
         );
 
         return self::mergeControlData(
             $control,
-            $type
+            $type,
         );
     }
 }

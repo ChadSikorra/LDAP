@@ -78,12 +78,12 @@ final class LdapBackendSqliteStorageTest extends LdapBackendStorageTest
     {
         $this->ldapClient()->bind(
             'cn=user,dc=foo,dc=bar',
-            '12345'
+            '12345',
         );
 
         $this->ldapClient()->create(Entry::fromArray(
             'cn=persistent,dc=foo,dc=bar',
-            ['cn' => 'persistent', 'sn' => 'Persistent', 'objectClass' => 'inetOrgPerson']
+            ['cn' => 'persistent', 'sn' => 'Persistent', 'objectClass' => 'inetOrgPerson'],
         ));
 
         $this->ldapClient()->unbind();
@@ -91,24 +91,24 @@ final class LdapBackendSqliteStorageTest extends LdapBackendStorageTest
         $secondClient = $this->buildClient('tcp');
         $secondClient->bind(
             'cn=user,dc=foo,dc=bar',
-            '12345'
+            '12345',
         );
 
         $entries = $secondClient->search(
             Operations::search(Filters::equal('cn', 'persistent'))
                 ->base('dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
 
         $secondClient->unbind();
 
         self::assertCount(
             1,
-            $entries
+            $entries,
         );
         self::assertSame(
             'cn=persistent,dc=foo,dc=bar',
-            $entries->first()?->getDn()->toString()
+            $entries->first()?->getDn()->toString(),
         );
     }
 
@@ -119,13 +119,13 @@ final class LdapBackendSqliteStorageTest extends LdapBackendStorageTest
         $entries = $this->ldapClient()->search(
             Operations::search(new ApproximateFilter('cn', 'Alice'))
                 ->base('dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
 
         self::assertCount(1, $entries);
         self::assertSame(
             'cn=alice,ou=people,dc=foo,dc=bar',
-            $entries->first()?->getDn()->toString()
+            $entries->first()?->getDn()->toString(),
         );
     }
 
@@ -139,7 +139,7 @@ final class LdapBackendSqliteStorageTest extends LdapBackendStorageTest
         $entries = $this->ldapClient()->search(
             Operations::search(Filters::greaterThanOrEqual('uidNumber', '100'))
                 ->base('dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
 
         self::assertCount(0, $entries);
@@ -152,13 +152,13 @@ final class LdapBackendSqliteStorageTest extends LdapBackendStorageTest
         $entries = $this->ldapClient()->search(
             Operations::search(Filters::greaterThanOrEqual('sn', 'Smith'))
                 ->base('dc=foo,dc=bar')
-                ->useSubtreeScope()
+                ->useSubtreeScope(),
         );
 
         self::assertCount(1, $entries);
         self::assertSame(
             'cn=alice,ou=people,dc=foo,dc=bar',
-            $entries->first()?->getDn()->toString()
+            $entries->first()?->getDn()->toString(),
         );
     }
 }

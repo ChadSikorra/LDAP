@@ -54,9 +54,9 @@ class SdFlagsControlTest extends \PHPUnit\Framework\TestCase
                 Asn1::octetString(Control::OID_SD_FLAGS),
                 Asn1::boolean(false),
                 Asn1::octetString($encoder->encode(Asn1::sequence(
-                    Asn1::integer(4)
-                )))
-            )
+                    Asn1::integer(4),
+                ))),
+            ),
         );
     }
 }

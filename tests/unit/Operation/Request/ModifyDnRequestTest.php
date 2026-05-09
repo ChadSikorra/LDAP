@@ -66,7 +66,8 @@ final class ModifyDnRequestTest extends TestCase
 
     public function test_it_should_set_whether_to_delete_the_old_rdn(): void
     {
-        self::assertTrue($this->subject->getDeleteOldRdn());;
+        self::assertTrue($this->subject->getDeleteOldRdn());
+        ;
 
         $this->subject->setDeleteOldRdn(false);
 
@@ -91,7 +92,7 @@ final class ModifyDnRequestTest extends TestCase
             Asn1::application(12, Asn1::sequence(
                 Asn1::octetString('cn=foo,dc=foo,dc=bar'),
                 Asn1::octetString('cn=bar'),
-                Asn1::boolean(true)
+                Asn1::boolean(true),
             )),
             $this->subject->toAsn1(),
         );
@@ -103,7 +104,7 @@ final class ModifyDnRequestTest extends TestCase
                 Asn1::octetString('cn=foo,dc=foo,dc=bar'),
                 Asn1::octetString('cn=bar'),
                 Asn1::boolean(true),
-                Asn1::context(0, Asn1::octetString('dc=foobar'))
+                Asn1::context(0, Asn1::octetString('dc=foobar')),
             )),
             $this->subject->toAsn1(),
         );
@@ -115,23 +116,23 @@ final class ModifyDnRequestTest extends TestCase
             'foo',
             'cn=bar',
             false,
-            'foobar'
+            'foobar',
         );
 
         self::assertEquals(
             $req,
-            $req->fromAsn1($req->toAsn1())
+            $req->fromAsn1($req->toAsn1()),
         );
 
         $req = new ModifyDnRequest(
             'foo',
             'cn=bar',
-            false
+            false,
         );
 
         self::assertEquals(
             $req,
-            $req->fromAsn1($req->toAsn1())
+            $req->fromAsn1($req->toAsn1()),
         );
     }
 
@@ -159,8 +160,8 @@ final class ModifyDnRequestTest extends TestCase
                 Asn1::octetString('foo'),
                 Asn1::octetString('cn=foo'),
                 Asn1::boolean(true),
-                Asn1::octetString('foobar')
-            )]
+                Asn1::octetString('foobar'),
+            )],
         ];
     }
 }

@@ -84,9 +84,9 @@ class VlvControlTest extends TestCase
                     Asn1::integer(9),
                     Asn1::context(0, Asn1::sequence(
                         Asn1::integer(8),
-                        Asn1::integer(0)
-                    ))
-                )))
+                        Asn1::integer(0),
+                    )),
+                ))),
             ),
             $this->subject->toAsn1(),
         );

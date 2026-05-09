@@ -37,7 +37,7 @@ final class SaslUsernameExtractorFactory
             $mechanism === MechanismName::DIGEST_MD5
                 => new UsernameFieldExtractor(),
             default => throw new RuntimeException(
-                sprintf('No username extractor is registered for the SASL mechanism "%s".', $mechanism->value)
+                sprintf('No username extractor is registered for the SASL mechanism "%s".', $mechanism->value),
             ),
         };
     }

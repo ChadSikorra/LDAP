@@ -39,7 +39,7 @@ class AttributeTest extends TestCase
 
         self::assertSame(
             'cn',
-            $this->subject->getName()
+            $this->subject->getName(),
         );
     }
 
@@ -47,14 +47,14 @@ class AttributeTest extends TestCase
     {
         self::assertSame(
             'cn',
-            $this->subject->getDescription()
+            $this->subject->getDescription(),
         );
 
         $this->subject->getOptions()->add('foo');
 
         self::assertSame(
             'cn;foo',
-            $this->subject->getDescription()
+            $this->subject->getDescription(),
         );
     }
 
@@ -70,7 +70,7 @@ class AttributeTest extends TestCase
             $this->subject->getOptions(),
         );
     }
-    
+
     public function test_it_should_get_the_values(): void
     {
         self::assertSame(
@@ -99,7 +99,8 @@ class AttributeTest extends TestCase
     {
         $this->subject = new Attribute('foo');
 
-        self::assertNull($this->subject->firstValue());;
+        self::assertNull($this->subject->firstValue());
+        ;
     }
 
     public function test_it_should_get_null_if_the_last_value_does_not_exist(): void
@@ -201,7 +202,7 @@ class AttributeTest extends TestCase
 
         self::assertTrue($this->subject->equals(new Attribute('cn;foo')));
     }
-    
+
     public function test_it_should_be_check_equality_with_the_name_only_by_default(): void
     {
         $this->subject->getOptions()->add('foo');
@@ -213,14 +214,15 @@ class AttributeTest extends TestCase
     {
         $this->subject->getOptions()->add('foo');
 
-        self::assertFalse($this->subject->equals(new Attribute('cn'), true));;
+        self::assertFalse($this->subject->equals(new Attribute('cn'), true));
+        ;
     }
-    
+
     public function test_it_should_escape_a_value(): void
     {
         self::assertSame(
             '\28foo=\2a\5cbar\29\00',
-            Attribute::escape("(foo=*\bar)\x00")
+            Attribute::escape("(foo=*\bar)\x00"),
         );
     }
 

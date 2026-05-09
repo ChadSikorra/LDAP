@@ -37,8 +37,7 @@ final class ComparisonReport
         private readonly ?StatsSnapshot $target,
         private readonly ?StatsSnapshot $freedsx,
         private readonly string $format,
-    ) {
-    }
+    ) {}
 
     public function render(OutputInterface $output): void
     {

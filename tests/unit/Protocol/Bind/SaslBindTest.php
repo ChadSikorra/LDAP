@@ -185,7 +185,7 @@ final class SaslBindTest extends TestCase
                 2,
                 new SaslBindRequest(
                     'CRAM-MD5',
-                    'cn=user,dc=foo,dc=bar aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+                    'cn=user,dc=foo,dc=bar aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
                 ),
             ));
 
@@ -233,7 +233,7 @@ final class SaslBindTest extends TestCase
             ->method('getMessage')
             ->willReturn(new LdapMessageRequest(
                 2,
-                new SimpleBindRequest('foo', 'bar')
+                new SimpleBindRequest('foo', 'bar'),
             ));
 
         self::expectException(OperationException::class);

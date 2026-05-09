@@ -36,8 +36,7 @@ class ServerAuthorization
     public function __construct(
         private readonly ServerOptions $options,
         private TokenInterface $token = new AnonToken(),
-    ) {
-    }
+    ) {}
 
     /**
      * Helps determine if a specific request type actually requires authentication to complete.

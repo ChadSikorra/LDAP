@@ -44,7 +44,7 @@ final class SqlFilterUtility
     {
         return preg_match(
             '/[\x80-\xff]/',
-            $value
+            $value,
         ) !== 1;
     }
 }

@@ -35,8 +35,7 @@ final class Driver
 {
     public function __construct(
         private readonly Config $config,
-    ) {
-    }
+    ) {}
 
     public function run(OutputInterface $output): StatsSnapshot
     {
@@ -174,7 +173,7 @@ final class Driver
                 count($workerErrors),
                 $this->config->clients,
                 $first::class,
-                $first->getMessage()
+                $first->getMessage(),
             ), 0, $first);
         }
 
@@ -226,7 +225,7 @@ final class Driver
 
         throw new RuntimeException(
             'The load-test driver requires ext-swoole for concurrent coroutine-based clients. '
-            . 'Install via PECL: pecl install swoole (^5.1 for PHP 8.3/8.4, ^6.0 for PHP 8.5+).'
+            . 'Install via PECL: pecl install swoole (^5.1 for PHP 8.3/8.4, ^6.0 for PHP 8.5+).',
         );
     }
 }

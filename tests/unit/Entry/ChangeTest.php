@@ -25,7 +25,7 @@ class ChangeTest extends TestCase
     {
         $this->subject = new Change(
             Change::TYPE_REPLACE,
-            new Attribute('foo', 'bar')
+            new Attribute('foo', 'bar'),
         );
     }
 
@@ -59,7 +59,7 @@ class ChangeTest extends TestCase
     {
         $this->subject->setAttribute(new Attribute(
             'foo',
-            'bar'
+            'bar',
         ));
 
         self::assertEquals(

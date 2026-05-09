@@ -34,7 +34,7 @@ class LdapUrlTest extends TestCase
     {
         self::assertSame(
             'ldap://foo/',
-            (string) $this->subject
+            (string) $this->subject,
         );
     }
 
@@ -42,7 +42,7 @@ class LdapUrlTest extends TestCase
     {
         self::assertEquals(
             LdapUrl::parse('ldap:///o=University%20of%20Michigan,c=US'),
-            (new LdapUrl())->setDn('o=University of Michigan,c=US')
+            (new LdapUrl())->setDn('o=University of Michigan,c=US'),
         );
     }
 
@@ -61,7 +61,7 @@ class LdapUrlTest extends TestCase
     {
         self::assertEquals(
             LdapUrl::parse('ldap://ldap1.example.net/o=University%20of%20Michigan,c=US'),
-            (new LdapUrl('ldap1.example.net'))->setDn('o=University of Michigan,c=US')
+            (new LdapUrl('ldap1.example.net'))->setDn('o=University of Michigan,c=US'),
         );
     }
 
@@ -82,7 +82,7 @@ class LdapUrlTest extends TestCase
             LdapUrl::parse('ldap://ldap1.example.net/o=University%20of%20Michigan,c=US?postalAddress'),
             (new LdapUrl('ldap1.example.net'))
                 ->setDn('o=University of Michigan,c=US')
-                ->setAttributes('postalAddress')
+                ->setAttributes('postalAddress'),
         );
     }
 
@@ -106,7 +106,7 @@ class LdapUrlTest extends TestCase
                 ->setPort(6666)
                 ->setDn('o=University of Michigan,c=US')
                 ->setFilter('(cn=Babs Jensen)')
-                ->setScope('sub')
+                ->setScope('sub'),
         );
     }
 
@@ -131,7 +131,7 @@ class LdapUrlTest extends TestCase
             (new LdapUrl('ldap1.example.com'))
                 ->setDn('c=GB')
                 ->setAttributes('objectClass')
-                ->setScope('one')
+                ->setScope('one'),
         );
     }
 
@@ -154,7 +154,7 @@ class LdapUrlTest extends TestCase
             LdapUrl::parse('ldap://ldap2.example.com/o=Question%3f,c=US?mail'),
             (new LdapUrl('ldap2.example.com'))
                 ->setDn('o=Question?,c=US')
-                ->setAttributes('mail')
+                ->setAttributes('mail'),
         );
     }
 
@@ -176,7 +176,7 @@ class LdapUrlTest extends TestCase
             LdapUrl::parse('ldap://ldap3.example.com/o=Babsco,c=US???(four-octet=%5c00%5c00%5c00%5c04)'),
             (new LdapUrl('ldap3.example.com'))
                 ->setDn('o=Babsco,c=US')
-                ->setFilter('(four-octet=\00\00\00\04)')
+                ->setFilter('(four-octet=\00\00\00\04)'),
         );
     }
 
@@ -198,7 +198,7 @@ class LdapUrlTest extends TestCase
             LdapUrl::parse('ldap:///??sub??e-bindname=cn=Manager%2cdc=example%2cdc=com'),
             (new LdapUrl(null))
                 ->setScope('sub')
-                ->setExtensions(new LdapUrlExtension('e-bindname', 'cn=Manager,dc=example,dc=com'))
+                ->setExtensions(new LdapUrlExtension('e-bindname', 'cn=Manager,dc=example,dc=com')),
         );
     }
 
@@ -218,11 +218,11 @@ class LdapUrlTest extends TestCase
     {
         self::assertEquals(
             LdapUrl::parse('ldap://foo/????'),
-            (new LdapUrl('foo'))
+            (new LdapUrl('foo')),
         );
         self::assertEquals(
             LdapUrl::parse('ldap:///????'),
-            (new LdapUrl())
+            (new LdapUrl()),
         );
     }
 
@@ -303,7 +303,7 @@ class LdapUrlTest extends TestCase
         self::assertEquals(
             [
                 new Attribute('foo'),
-                new Attribute('bar')
+                new Attribute('bar'),
             ],
             $this->subject->getAttributes(),
         );

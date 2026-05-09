@@ -14,9 +14,7 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Server\Backend\Write;
 
 use FreeDSx\Ldap\Entry\Change;
-use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
-use FreeDSx\Ldap\Entry\Rdn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Operation\Request\AbandonRequest;
@@ -70,7 +68,7 @@ final class WriteCommandFactoryTest extends TestCase
     public function test_it_creates_move_command_from_modify_dn_request(): void
     {
         $command = $this->subject->fromRequest(
-            new ModifyDnRequest('cn=foo,dc=bar', 'cn=bar', true, 'ou=people,dc=bar')
+            new ModifyDnRequest('cn=foo,dc=bar', 'cn=bar', true, 'ou=people,dc=bar'),
         );
 
         self::assertInstanceOf(MoveCommand::class, $command);

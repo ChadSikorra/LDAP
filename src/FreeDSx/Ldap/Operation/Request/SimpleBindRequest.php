@@ -37,7 +37,7 @@ class SimpleBindRequest extends BindRequest
         string $username,
         #[SensitiveParameter]
         string $password,
-        int $version = 3
+        int $version = 3,
     ) {
         $this->username = $username;
         $this->password = $password;
@@ -65,7 +65,7 @@ class SimpleBindRequest extends BindRequest
     {
         return Asn1::context(
             tagNumber: 0,
-            type: Asn1::octetString($this->password)
+            type: Asn1::octetString($this->password),
         );
     }
 

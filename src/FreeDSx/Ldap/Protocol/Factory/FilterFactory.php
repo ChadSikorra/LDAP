@@ -64,27 +64,27 @@ class FilterFactory
         if ($filterClass === null) {
             throw new ProtocolException(sprintf(
                 'The received filter "%s" is not recognized.',
-                $tagNumber
+                $tagNumber,
             ));
         }
         $filterConstruct = $filterClass . '::fromAsn1';
         if (!is_callable($filterConstruct)) {
             throw new RuntimeException(sprintf(
                 'The filter construct is not callable: %s',
-                $filterConstruct
+                $filterConstruct,
             ));
         }
 
         $filter = call_user_func(
             $filterConstruct,
-            $type
+            $type,
         );
 
         if (!$filter instanceof FilterInterface) {
             throw new RuntimeException(sprintf(
                 'Expected an instance of %s, but received: %s',
                 FilterInterface::class,
-                is_object($filter) ? $filter::class : gettype($filter)
+                is_object($filter) ? $filter::class : gettype($filter),
             ));
         }
 
@@ -101,7 +101,7 @@ class FilterFactory
      */
     public static function set(
         int $filterType,
-        string $filterClass
+        string $filterClass,
     ): void {
         if (!class_exists($filterClass)) {
             throw new InvalidArgumentException(sprintf('The filter class does not exist: %s', $filterClass));

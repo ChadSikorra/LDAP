@@ -35,13 +35,13 @@ class BindResponse extends LdapResult
 
     public function __construct(
         LdapResult $result,
-        private readonly ?string $saslCreds = null
+        private readonly ?string $saslCreds = null,
     ) {
         parent::__construct(
             $result->getResultCode(),
             $result->getDn()->toString(),
             $result->getDiagnosticMessage(),
-            ...$result->getReferrals()
+            ...$result->getReferrals(),
         );
     }
 
@@ -61,7 +61,7 @@ class BindResponse extends LdapResult
         if ($this->saslCreds !== null) {
             $response->addChild(Asn1::context(
                 tagNumber: 7,
-                type: Asn1::octetString($this->saslCreds)
+                type: Asn1::octetString($this->saslCreds),
             ));
         }
 
@@ -93,7 +93,7 @@ class BindResponse extends LdapResult
                 $diag,
                 ...$ref,
             ),
-            $saslCreds
+            $saslCreds,
         );
     }
 }

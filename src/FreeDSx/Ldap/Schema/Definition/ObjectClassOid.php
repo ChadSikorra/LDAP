@@ -66,7 +66,5 @@ final class ObjectClassOid
     public const NAME_EXTENSIBLE_OBJECT = 'extensibleObject';
     public const DESC_EXTENSIBLE_OBJECT = 'any attribute type allowed';
 
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 }

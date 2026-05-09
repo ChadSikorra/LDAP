@@ -55,8 +55,8 @@ class SetOwnerControlTest extends TestCase
             Asn1::sequence(
                 Asn1::octetString(Control::OID_SET_OWNER),
                 Asn1::boolean(true),
-                Asn1::octetString($encoder->encode(Asn1::octetString('foo')))
-            )
+                Asn1::octetString($encoder->encode(Asn1::octetString('foo'))),
+            ),
         );
     }
 
@@ -69,8 +69,8 @@ class SetOwnerControlTest extends TestCase
             SetOwnerControl::fromAsn1(Asn1::sequence(
                 Asn1::octetString(Control::OID_SET_OWNER),
                 Asn1::boolean(true),
-                Asn1::octetString($encoder->encode(Asn1::octetString('foo')))
-            ))->setValue(null)
+                Asn1::octetString($encoder->encode(Asn1::octetString('foo'))),
+            ))->setValue(null),
         );
     }
 }

@@ -33,8 +33,7 @@ final class ServerManager
     public function __construct(
         private readonly Config $config,
         private readonly int $maxWaitSeconds = 10,
-    ) {
-    }
+    ) {}
 
     private function readyDeadlineSeconds(): int
     {
@@ -147,7 +146,7 @@ final class ServerManager
             "Server did not emit '%s' within %d seconds. Stderr: %s",
             self::READY_MARKER,
             $waitSeconds,
-            PHP_EOL . $process->getErrorOutput()
+            PHP_EOL . $process->getErrorOutput(),
         ));
     }
 }

@@ -45,7 +45,7 @@ $options = (new ClientOptions())
     ->setSslCaCert(
         $caCert === ''
             ? __DIR__ . '/../resources/cert/ca.crt'
-            : $caCert
+            : $caCert,
     );
 
 $client = new LdapClient($options);

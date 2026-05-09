@@ -62,12 +62,12 @@ trait ClientSearchTrait
             messageProcessor: $this->processSearchMessage(...),
         );
 
-        $this->entryHandler = $searchRequest->getEntryHandler() ??
-            function (EntryResult $result) use (&$entryResults): void {
+        $this->entryHandler = $searchRequest->getEntryHandler()
+            ?? function (EntryResult $result) use (&$entryResults): void {
                 $entryResults[] = $result;
             };
-        $this->referralHandler = $searchRequest->getReferralHandler() ??
-            function (ReferralResult $result) use (&$referralResults): void {
+        $this->referralHandler = $searchRequest->getReferralHandler()
+            ?? function (ReferralResult $result) use (&$referralResults): void {
                 $referralResults[] = $result;
             };
         $this->intermediateHandler = $searchRequest->getIntermediateResponseHandler();
@@ -101,7 +101,7 @@ trait ClientSearchTrait
                 $entryResults,
                 $referralResults,
             ),
-            ...$finalMessage->controls()->toArray()
+            ...$finalMessage->controls()->toArray(),
         );
     }
 

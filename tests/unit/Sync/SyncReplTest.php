@@ -50,14 +50,14 @@ final class SyncReplTest extends TestCase
             ->with(
                 self::anything(),
                 self::callback(
-                    fn (SyncRequestControl $control) => $control->getMode() === SyncRequestControl::MODE_REFRESH_ONLY
+                    fn(SyncRequestControl $control) => $control->getMode() === SyncRequestControl::MODE_REFRESH_ONLY,
                 ),
                 self::anything(),
             )
             ->willReturn(new LdapMessageResponse(
                 1,
                 new SearchResultDone(0),
-                new SyncDoneControl('foo')
+                new SyncDoneControl('foo'),
             ));
 
         $this->subject->poll();
@@ -71,14 +71,14 @@ final class SyncReplTest extends TestCase
             ->with(
                 self::anything(),
                 self::callback(
-                    fn (SyncRequestControl $control) => $control->getMode() === SyncRequestControl::MODE_REFRESH_AND_PERSIST
+                    fn(SyncRequestControl $control) => $control->getMode() === SyncRequestControl::MODE_REFRESH_AND_PERSIST,
                 ),
                 self::anything(),
             )
             ->willReturn(new LdapMessageResponse(
                 1,
                 new SearchResultDone(0),
-                new SyncDoneControl('foo')
+                new SyncDoneControl('foo'),
             ));
 
         $this->subject->listen();
@@ -93,15 +93,15 @@ final class SyncReplTest extends TestCase
             ->method('sendAndReceive')
             ->with(
                 self::callback(
-                    fn (SyncRequest $request) =>
-                        $request->getFilter()->toString() === Filters::present('foo')->toString()
+                    fn(SyncRequest $request)
+                        => $request->getFilter()->toString() === Filters::present('foo')->toString(),
                 ),
                 self::anything(),
                 self::anything(),
             )->willReturn(new LdapMessageResponse(
                 1,
                 new SearchResultDone(0),
-                new SyncDoneControl('foo')
+                new SyncDoneControl('foo'),
             ));
 
         $this->subject->poll();
@@ -126,7 +126,7 @@ final class SyncReplTest extends TestCase
             )->willReturn(new LdapMessageResponse(
                 1,
                 new SearchResultDone(0),
-                new SyncDoneControl('foo')
+                new SyncDoneControl('foo'),
             ));
 
         $this->subject->poll();
@@ -142,13 +142,13 @@ final class SyncReplTest extends TestCase
             ->with(
                 self::anything(),
                 self::callback(
-                    fn (SyncRequestControl $control) => $control->getCookie() === 'tasty'
+                    fn(SyncRequestControl $control) => $control->getCookie() === 'tasty',
                 ),
                 self::anything(),
             )->willReturn(new LdapMessageResponse(
                 1,
                 new SearchResultDone(0),
-                new SyncDoneControl('foo')
+                new SyncDoneControl('foo'),
             ));
 
         $this->subject->poll();
@@ -156,21 +156,21 @@ final class SyncReplTest extends TestCase
 
     public function test_it_should_use_the_entry_handler_specified(): void
     {
-        $handler = fn (SyncEntryResult $result) => $result->getEntry();
+        $handler = fn(SyncEntryResult $result) => $result->getEntry();
 
         $this->mockClient
             ->expects(self::once())
             ->method('sendAndReceive')
             ->with(
                 self::callback(
-                    fn (SyncRequest $request) => $request->getEntryHandler() === $handler
+                    fn(SyncRequest $request) => $request->getEntryHandler() === $handler,
                 ),
                 self::anything(),
                 self::anything(),
             )->willReturn(new LdapMessageResponse(
                 1,
                 new SearchResultDone(0),
-                new SyncDoneControl('foo')
+                new SyncDoneControl('foo'),
             ));
 
         $this->subject->poll($handler);
@@ -178,7 +178,7 @@ final class SyncReplTest extends TestCase
 
     public function test_it_should_use_the_referral_handler_specified(): void
     {
-        $handler = fn (SyncReferralResult $result) => $result->getReferrals();
+        $handler = fn(SyncReferralResult $result) => $result->getReferrals();
 
         $this->subject->useReferralHandler($handler);
 
@@ -187,14 +187,14 @@ final class SyncReplTest extends TestCase
             ->method('sendAndReceive')
             ->with(
                 self::callback(
-                    fn (SyncRequest $request) => $request->getReferralHandler() === $handler
+                    fn(SyncRequest $request) => $request->getReferralHandler() === $handler,
                 ),
                 self::anything(),
                 self::anything(),
             )->willReturn(new LdapMessageResponse(
                 1,
                 new SearchResultDone(0),
-                new SyncDoneControl('foo')
+                new SyncDoneControl('foo'),
             ));
 
         $this->subject->poll();
@@ -202,7 +202,7 @@ final class SyncReplTest extends TestCase
 
     public function test_it_should_use_the_idSet_handler_specified(): void
     {
-        $handler = fn (SyncIdSetResult $result) => $result->getEntryUuids();
+        $handler = fn(SyncIdSetResult $result) => $result->getEntryUuids();
 
         $this->subject->useIdSetHandler($handler);
 
@@ -211,14 +211,14 @@ final class SyncReplTest extends TestCase
             ->method('sendAndReceive')
             ->with(
                 self::callback(
-                    fn (SyncRequest $request) => $request->getIdSetHandler() === $handler
+                    fn(SyncRequest $request) => $request->getIdSetHandler() === $handler,
                 ),
                 self::anything(),
                 self::anything(),
             )->willReturn(new LdapMessageResponse(
                 1,
                 new SearchResultDone(0),
-                new SyncDoneControl('foo')
+                new SyncDoneControl('foo'),
             ));
 
         $this->subject->poll();
@@ -232,7 +232,7 @@ final class SyncReplTest extends TestCase
             SearchRequest::CANCEL_CONTINUE,
             $this->subject
                 ->request()
-                ->getCancelStrategy()
+                ->getCancelStrategy(),
         );
     }
 }

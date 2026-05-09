@@ -140,7 +140,7 @@ final class WorkloadMix
             throw new InvalidArgumentException(sprintf(
                 'Unsupported op "%s" in mix. Supported: %s.',
                 $op,
-                implode(', ', self::SUPPORTED_OPS)
+                implode(', ', self::SUPPORTED_OPS),
             ));
         }
         if ($weight <= 0) {

@@ -20,6 +20,7 @@ use FreeDSx\Asn1\Type\OctetStringType;
 use FreeDSx\Asn1\Type\SequenceType;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Exception\ProtocolException;
+
 use function count;
 
 /**
@@ -41,7 +42,7 @@ class SyncDoneControl extends Control
     ) {
         parent::__construct(
             self::OID_SYNC_DONE,
-            true
+            true,
         );
     }
 
@@ -60,11 +61,11 @@ class SyncDoneControl extends Control
         $this->controlValue = Asn1::sequence();
         if ($this->cookie !== null) {
             $this->controlValue->addChild(Asn1::octetString(
-                $this->cookie
+                $this->cookie,
             ));
         }
         $this->controlValue->addChild(Asn1::boolean(
-            $this->refreshDeletes
+            $this->refreshDeletes,
         ));
 
         return parent::toAsn1();
@@ -80,7 +81,7 @@ class SyncDoneControl extends Control
         $sync = self::decodeEncodedValue($type);
         if (!$sync instanceof SequenceType || count($sync->getChildren()) > 2) {
             throw new ProtocolException(
-                'Expected a sequence type with 2 or less values for a sync done control value.'
+                'Expected a sequence type with 2 or less values for a sync done control value.',
             );
         }
 
@@ -97,9 +98,9 @@ class SyncDoneControl extends Control
         return self::mergeControlData(
             new static(
                 $cookie,
-                $refreshDeletes
+                $refreshDeletes,
             ),
-            $type
+            $type,
         );
     }
 }

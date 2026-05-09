@@ -15,6 +15,4 @@ namespace FreeDSx\Ldap\Exception;
 
 use Exception;
 
-class ProtocolException extends Exception
-{
-}
+class ProtocolException extends Exception {}

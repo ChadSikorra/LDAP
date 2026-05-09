@@ -20,6 +20,7 @@ use FreeDSx\Sasl\SaslContext;
 use FreeDSx\Sasl\Security\SecurityLayerInterface;
 use FreeDSx\Socket\Exception\PartialMessageException;
 use FreeDSx\Socket\Queue\Buffer;
+
 use function strlen;
 
 /**
@@ -62,7 +63,7 @@ class SaslMessageWrapper implements MessageWrapperInterface
 
             return new Buffer(
                 $this->securityLayer->unwrap($data, $this->context),
-                strlen($data) + 4
+                strlen($data) + 4,
             );
         } catch (SaslBufferException $exception) {
             throw new PartialMessageException($exception->getMessage(), $exception->getCode(), $exception);

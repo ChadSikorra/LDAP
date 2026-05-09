@@ -70,14 +70,14 @@ final class SearchRequestTest extends TestCase
     {
         self::assertEquals(
             SearchRequest::SCOPE_WHOLE_SUBTREE,
-            $this->subject->getScope()
+            $this->subject->getScope(),
         );
 
         $this->subject->setScope(SearchRequest::SCOPE_BASE_OBJECT);
 
         self::assertEquals(
             SearchRequest::SCOPE_BASE_OBJECT,
-            $this->subject->getScope()
+            $this->subject->getScope(),
         );
     }
 
@@ -100,7 +100,7 @@ final class SearchRequestTest extends TestCase
     {
         self::assertSame(
             0,
-            $this->subject->getSizeLimit()
+            $this->subject->getSizeLimit(),
         );
 
         $this->subject->setSizeLimit(100);
@@ -178,7 +178,7 @@ final class SearchRequestTest extends TestCase
 
     public function test_it_should_set_and_get_an_entry_handler(): void
     {
-        $handler = fn (EntryResult $result) => $result->getEntry();
+        $handler = fn(EntryResult $result) => $result->getEntry();
 
         $this->subject->useEntryHandler($handler);
 
@@ -190,7 +190,7 @@ final class SearchRequestTest extends TestCase
 
     public function test_it_should_set_and_get_a_referral_handler(): void
     {
-        $handler = fn (ReferralResult $result) => $result->getReferrals();
+        $handler = fn(ReferralResult $result) => $result->getReferrals();
 
         $this->subject->useReferralHandler($handler);
 
@@ -231,7 +231,7 @@ final class SearchRequestTest extends TestCase
                 Asn1::integer(0),
                 Asn1::boolean(false),
                 (new EqualityFilter('cn', 'foo'))->toAsn1(),
-                Asn1::sequenceOf()
+                Asn1::sequenceOf(),
             )),
             $this->subject->toAsn1(),
         );
@@ -294,7 +294,7 @@ final class SearchRequestTest extends TestCase
             [Asn1::sequence()],
             [Asn1::sequence(
                 Asn1::integer(5),
-                Asn1::octetString('foo')
+                Asn1::octetString('foo'),
             )],
         ];
     }

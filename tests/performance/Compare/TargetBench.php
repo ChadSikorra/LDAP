@@ -56,7 +56,7 @@ final class TargetBench
                 ->setPort($this->port)
                 ->setTransport('tcp')
                 ->setTimeoutConnect(5)
-                ->setTimeoutRead(30)
+                ->setTimeoutRead(30),
         );
     }
 
@@ -121,7 +121,7 @@ final class TargetBench
                     Filters::present('objectClass'),
                 )
                     ->base($this->benchBaseDn)
-                    ->useSubtreeScope()
+                    ->useSubtreeScope(),
             );
         } catch (OperationException $e) {
             if ($e->getCode() === ResultCode::NO_SUCH_OBJECT) {
@@ -138,7 +138,7 @@ final class TargetBench
 
         usort(
             $dns,
-            fn (string $a, string $b) => substr_count($b, ',') <=> substr_count($a, ',')
+            fn(string $a, string $b) => substr_count($b, ',') <=> substr_count($a, ','),
         );
 
         foreach ($dns as $dn) {

@@ -35,10 +35,10 @@ final class SyncReferralResultTest extends TestCase
                     new SyncStateControl(
                         SyncStateControl::STATE_DELETE,
                         'foo',
-                        'bar'
-                    )
-                )
-            )
+                        'bar',
+                    ),
+                ),
+            ),
         );
     }
 
@@ -59,8 +59,8 @@ final class SyncReferralResultTest extends TestCase
                 new SyncStateControl(
                     SyncStateControl::STATE_DELETE,
                     'foo',
-                    'bar'
-                )
+                    'bar',
+                ),
             ),
             $this->subject->getMessage(),
         );

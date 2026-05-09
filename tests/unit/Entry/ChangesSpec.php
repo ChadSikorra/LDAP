@@ -80,7 +80,7 @@ class ChangesSpec extends TestCase
         self::assertEquals(
             [
                 Change::replace('foo', 'bar'),
-                Change::delete('bar')
+                Change::delete('bar'),
             ],
             $this->subject->toArray(),
         );

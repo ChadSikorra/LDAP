@@ -102,7 +102,7 @@ final class ServerSearchHandlerTest extends TestCase
 
         $search = new LdapMessageRequest(
             2,
-            (new SearchRequest(Filters::equal('foo', 'bar')))->base('dc=foo,dc=bar')
+            (new SearchRequest(Filters::equal('foo', 'bar')))->base('dc=foo,dc=bar'),
         );
 
         $this->mockBackend
@@ -125,7 +125,7 @@ final class ServerSearchHandlerTest extends TestCase
             new LdapMessageResponse(2, new SearchResultEntry($entry2)),
             new LdapMessageResponse(
                 2,
-                new SearchResultDone(0, 'dc=foo,dc=bar')
+                new SearchResultDone(0, 'dc=foo,dc=bar'),
             ),
         ]);
     }
@@ -137,7 +137,7 @@ final class ServerSearchHandlerTest extends TestCase
 
         $search = new LdapMessageRequest(
             2,
-            (new SearchRequest(Filters::equal('foo', 'bar')))->base('dc=foo,dc=bar')
+            (new SearchRequest(Filters::equal('foo', 'bar')))->base('dc=foo,dc=bar'),
         );
 
         $this->mockBackend
@@ -158,7 +158,7 @@ final class ServerSearchHandlerTest extends TestCase
             new LdapMessageResponse(2, new SearchResultEntry($entry1)),
             new LdapMessageResponse(
                 2,
-                new SearchResultDone(0, 'dc=foo,dc=bar')
+                new SearchResultDone(0, 'dc=foo,dc=bar'),
             ),
         ]);
     }
@@ -169,8 +169,8 @@ final class ServerSearchHandlerTest extends TestCase
             2,
             (new SearchRequest(Filters::equal(
                 'foo',
-                'bar'
-            )))->base('dc=foo,dc=bar')
+                'bar',
+            )))->base('dc=foo,dc=bar'),
         );
 
         $this->mockBackend
@@ -178,7 +178,7 @@ final class ServerSearchHandlerTest extends TestCase
             ->willThrowException(
                 new OperationException(
                     "Fail",
-                    ResultCode::OPERATIONS_ERROR
+                    ResultCode::OPERATIONS_ERROR,
                 ),
             );
 
@@ -193,8 +193,8 @@ final class ServerSearchHandlerTest extends TestCase
                 new SearchResultDone(
                     ResultCode::OPERATIONS_ERROR,
                     'dc=foo,dc=bar',
-                    "Fail"
-                )
+                    "Fail",
+                ),
             ),
         ]);
     }
@@ -208,7 +208,7 @@ final class ServerSearchHandlerTest extends TestCase
             2,
             (new SearchRequest(Filters::equal('foo', 'bar')))
                 ->base('dc=foo,dc=bar')
-                ->sizeLimit(1)
+                ->sizeLimit(1),
         );
 
         $this->mockBackend
@@ -226,7 +226,7 @@ final class ServerSearchHandlerTest extends TestCase
             new LdapMessageResponse(2, new SearchResultEntry($entry1)),
             new LdapMessageResponse(
                 2,
-                new SearchResultDone(ResultCode::SIZE_LIMIT_EXCEEDED, 'dc=foo,dc=bar')
+                new SearchResultDone(ResultCode::SIZE_LIMIT_EXCEEDED, 'dc=foo,dc=bar'),
             ),
         ]);
     }
@@ -240,7 +240,7 @@ final class ServerSearchHandlerTest extends TestCase
             2,
             (new SearchRequest(Filters::equal('foo', 'bar')))
                 ->base('dc=foo,dc=bar')
-                ->sizeLimit(0)
+                ->sizeLimit(0),
         );
 
         $this->mockBackend
@@ -270,7 +270,7 @@ final class ServerSearchHandlerTest extends TestCase
             2,
             (new SearchRequest(Filters::equal('foo', 'bar')))
                 ->base('dc=foo,dc=bar')
-                ->sizeLimit(0)
+                ->sizeLimit(0),
         );
 
         $this->mockBackend
@@ -304,7 +304,7 @@ final class ServerSearchHandlerTest extends TestCase
             2,
             (new SearchRequest(Filters::equal('foo', 'bar')))
                 ->base('dc=foo,dc=bar')
-                ->sizeLimit(1)
+                ->sizeLimit(1),
         );
 
         $this->mockBackend
@@ -338,7 +338,7 @@ final class ServerSearchHandlerTest extends TestCase
             2,
             (new SearchRequest(Filters::equal('foo', 'bar')))
                 ->base('dc=foo,dc=bar')
-                ->sizeLimit(5)
+                ->sizeLimit(5),
         );
 
         $this->mockBackend
@@ -367,7 +367,7 @@ final class ServerSearchHandlerTest extends TestCase
     {
         $search = new LdapMessageRequest(
             2,
-            (new SearchRequest(Filters::equal('foo', 'bar')))->base('dc=foo,dc=bar')
+            (new SearchRequest(Filters::equal('foo', 'bar')))->base('dc=foo,dc=bar'),
         );
 
         $this->mockBackend
@@ -383,7 +383,7 @@ final class ServerSearchHandlerTest extends TestCase
         $this->assertSentMessages([
             new LdapMessageResponse(
                 2,
-                new SearchResultDone(0, 'dc=foo,dc=bar')
+                new SearchResultDone(0, 'dc=foo,dc=bar'),
             ),
         ]);
     }

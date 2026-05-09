@@ -57,7 +57,7 @@ final class ReferralContextTest extends TestCase
     {
         self::assertCount(
             1,
-            $this->subject
+            $this->subject,
         );
     }
 }

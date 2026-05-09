@@ -23,9 +23,7 @@ class Authenticator
     /**
      * @param BindInterface[] $authenticators
      */
-    public function __construct(private readonly array $authenticators = [])
-    {
-    }
+    public function __construct(private readonly array $authenticators = []) {}
 
     public function bind(LdapMessageRequest $request): TokenInterface
     {
@@ -37,7 +35,7 @@ class Authenticator
 
         throw new OperationException(
             'The authentication type requested is not supported.',
-            ResultCode::AUTH_METHOD_UNSUPPORTED
+            ResultCode::AUTH_METHOD_UNSUPPORTED,
         );
     }
 }

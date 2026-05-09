@@ -25,9 +25,7 @@ final class PagingRequests
     /**
      * @param PagingRequest[] $requests
      */
-    public function __construct(private array $requests = [])
-    {
-    }
+    public function __construct(private array $requests = []) {}
 
     public function add(PagingRequest $request): void
     {
@@ -59,7 +57,7 @@ final class PagingRequests
 
     public function has(string $cookie): bool
     {
-        return (bool)$this->getByNextCookie($cookie);
+        return (bool) $this->getByNextCookie($cookie);
     }
 
     private function getByNextCookie(string $cookie): ?PagingRequest

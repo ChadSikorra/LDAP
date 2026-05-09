@@ -20,6 +20,7 @@ use FreeDSx\Asn1\Type\SequenceType;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Exception\UrlParseException;
 use FreeDSx\Ldap\LdapUrl;
+
 use function array_map;
 
 /**
@@ -81,7 +82,7 @@ class SearchResultReference implements ResponseInterface
             self::TAG_NUMBER,
             Asn1::sequence(...array_map(function (LdapUrl $ref) {
                 return Asn1::octetString($ref->toString());
-            }, $this->referrals))
+            }, $this->referrals)),
         );
     }
 }

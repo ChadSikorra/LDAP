@@ -20,6 +20,4 @@ use FreeDSx\Ldap\Protocol\ProtocolElementInterface;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-interface ResponseInterface extends ProtocolElementInterface
-{
-}
+interface ResponseInterface extends ProtocolElementInterface {}

@@ -54,8 +54,7 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
         private readonly PdoConnectionProviderInterface $provider,
         private readonly FilterTranslatorInterface $translator,
         private readonly PdoDialectInterface $dialect,
-    ) {
-    }
+    ) {}
 
     public function reset(): void
     {

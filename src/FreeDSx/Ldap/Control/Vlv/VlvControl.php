@@ -46,7 +46,7 @@ class VlvControl extends Control
         ?int $offset = null,
         ?int $count = null,
         private ?GreaterThanOrEqualFilter $filter = null,
-        ?string $contextId = null
+        ?string $contextId = null,
     ) {
         $this->offset = $offset;
         $this->count = $count;
@@ -119,7 +119,7 @@ class VlvControl extends Control
     {
         $this->controlValue = Asn1::sequence(
             Asn1::integer($this->before),
-            Asn1::integer($this->after)
+            Asn1::integer($this->after),
         );
         if ($this->filter === null && ($this->count === null || $this->offset === null)) {
             throw new RuntimeException('You must specify a filter or offset and count for a VLV request.');
@@ -127,15 +127,15 @@ class VlvControl extends Control
         if ($this->filter !== null) {
             $this->controlValue->addChild(Asn1::context(
                 tagNumber: 1,
-                type: $this->filter->toAsn1()
+                type: $this->filter->toAsn1(),
             ));
         } else {
             $this->controlValue->addChild(Asn1::context(
                 tagNumber: 0,
                 type: Asn1::sequence(
                     Asn1::integer((int) $this->offset),
-                    Asn1::integer((int) $this->count)
-                )
+                    Asn1::integer((int) $this->count),
+                ),
             ));
         }
 

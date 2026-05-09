@@ -69,7 +69,7 @@ final class ClientProtocolHandlerFactoryTest extends TestCase
         $this->subject = new ClientProtocolHandlerFactory(
             new ClientOptions(),
             $this->mockQueueInstantiator,
-            $this->mockRootDseLoader
+            $this->mockRootDseLoader,
         );
     }
 
@@ -77,11 +77,11 @@ final class ClientProtocolHandlerFactoryTest extends TestCase
     {
         self::assertInstanceOf(
             ClientSearchHandler::class,
-            $this->subject->forResponse($this->mockRequest, new SearchResultEntry(new Entry('')))
+            $this->subject->forResponse($this->mockRequest, new SearchResultEntry(new Entry(''))),
         );
         self::assertInstanceOf(
             ClientSearchHandler::class,
-            $this->subject->forResponse($this->mockRequest, new SearchResultDone(0))
+            $this->subject->forResponse($this->mockRequest, new SearchResultDone(0)),
         );
     }
 
@@ -89,7 +89,7 @@ final class ClientProtocolHandlerFactoryTest extends TestCase
     {
         self::assertInstanceOf(
             ClientUnbindHandler::class,
-            $this->subject->forRequest(Operations::unbind())
+            $this->subject->forRequest(Operations::unbind()),
         );
     }
 
@@ -97,7 +97,7 @@ final class ClientProtocolHandlerFactoryTest extends TestCase
     {
         self::assertInstanceOf(
             ClientBasicHandler::class,
-            $this->subject->forRequest(Operations::delete('cn=foo'))
+            $this->subject->forRequest(Operations::delete('cn=foo')),
         );
         self::assertInstanceOf(
             ClientBasicHandler::class,
@@ -131,8 +131,8 @@ final class ClientProtocolHandlerFactoryTest extends TestCase
             ClientReferralHandler::class,
             $this->subject->forResponse(
                 $this->mockRequest,
-                new DeleteResponse(ResultCode::REFERRAL)
-            )
+                new DeleteResponse(ResultCode::REFERRAL),
+            ),
         );
     }
 
@@ -142,7 +142,8 @@ final class ClientProtocolHandlerFactoryTest extends TestCase
             ClientExtendedOperationHandler::class,
             $this->subject->forResponse(
                 $this->mockRequest,
-                new ExtendedResponse(new LdapResult(0), 'foo'))
+                new ExtendedResponse(new LdapResult(0), 'foo'),
+            ),
         );
     }
 
@@ -154,9 +155,9 @@ final class ClientProtocolHandlerFactoryTest extends TestCase
                 new ExtendedRequest(ExtendedRequest::OID_START_TLS),
                 new ExtendedResponse(
                     new LdapResult(0),
-                    ExtendedRequest::OID_START_TLS
-                )
-            )
+                    ExtendedRequest::OID_START_TLS,
+                ),
+            ),
         );
     }
 
@@ -166,8 +167,8 @@ final class ClientProtocolHandlerFactoryTest extends TestCase
             ClientBasicHandler::class,
             $this->subject->forResponse(
                 $this->mockRequest,
-                new BindResponse(new LdapResult(0))
-            )
+                new BindResponse(new LdapResult(0)),
+            ),
         );
     }
 
@@ -175,7 +176,7 @@ final class ClientProtocolHandlerFactoryTest extends TestCase
     {
         self::assertInstanceOf(
             ClientSaslBindHandler::class,
-            $this->subject->forRequest(new SaslBindRequest('DIGEST-MD5'))
+            $this->subject->forRequest(new SaslBindRequest('DIGEST-MD5')),
         );
     }
 
@@ -183,7 +184,7 @@ final class ClientProtocolHandlerFactoryTest extends TestCase
     {
         self::assertInstanceOf(
             ClientSyncHandler::class,
-            $this->subject->forRequest(new SyncRequest())
+            $this->subject->forRequest(new SyncRequest()),
         );
     }
 
@@ -193,7 +194,7 @@ final class ClientProtocolHandlerFactoryTest extends TestCase
             ClientSyncHandler::class,
             $this->subject->forResponse(
                 new SyncRequest(),
-                new SyncRefreshDelete()
+                new SyncRefreshDelete(),
             ),
         );
     }

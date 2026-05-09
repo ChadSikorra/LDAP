@@ -23,7 +23,5 @@ use FreeDSx\Ldap\Server\Backend\Write\WriteRequestInterface;
  */
 final class AddCommand implements WriteRequestInterface
 {
-    public function __construct(readonly public Entry $entry)
-    {
-    }
+    public function __construct(public readonly Entry $entry) {}
 }

@@ -42,7 +42,7 @@ final class PagingRequest
         private readonly ControlBag $controls,
         private string $nextCookie,
         private readonly DateTimeInterface $created = new DateTime(),
-        ?string $uniqueId = null
+        ?string $uniqueId = null,
     ) {
         $this->uniqueId = $uniqueId ?? random_bytes(16);
     }

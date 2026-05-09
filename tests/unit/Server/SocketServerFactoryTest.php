@@ -15,7 +15,6 @@ namespace Tests\Unit\FreeDSx\Ldap\Server;
 
 use FreeDSx\Ldap\Server\SocketServerFactory;
 use FreeDSx\Ldap\ServerOptions;
-use FreeDSx\Socket\SocketServer;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -36,7 +35,8 @@ final class SocketServerFactoryTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->tmpUnixSocketResource = $this->makeTempFile();;
+        $this->tmpUnixSocketResource = $this->makeTempFile();
+        ;
         $this->tmpUnixSocketFilePath = stream_get_meta_data($this->tmpUnixSocketResource)['uri'] ?? throw new RuntimeException('Unable to get temp file path for unix socket.');
         $this->mockLogger = $this->createMock(LoggerInterface::class);
 

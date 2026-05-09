@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\ProtocolException;
+
 use function array_map;
 use function count;
 
@@ -52,9 +53,7 @@ class AddRequest implements RequestInterface
 {
     protected const APP_TAG = 8;
 
-    public function __construct(private Entry $entry)
-    {
-    }
+    public function __construct(private Entry $entry) {}
 
     public function getEntry(): Entry
     {
@@ -91,7 +90,7 @@ class AddRequest implements RequestInterface
             if (!($attrListing instanceof SequenceType && count($attrListing->getChildren()) == 2)) {
                 throw new ProtocolException(sprintf(
                     'Expected a sequence type, but received: %s',
-                    get_class($attrListing)
+                    get_class($attrListing),
                 ));
             }
 
@@ -114,7 +113,7 @@ class AddRequest implements RequestInterface
 
         return new self(new Entry(
             $dn,
-            ...$attributes
+            ...$attributes,
         ));
     }
 
@@ -134,7 +133,7 @@ class AddRequest implements RequestInterface
 
         return Asn1::application(self::APP_TAG, Asn1::sequence(
             Asn1::octetString($this->entry->getDn()->toString()),
-            $attributeList
+            $attributeList,
         ));
     }
 }

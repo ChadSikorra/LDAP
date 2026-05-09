@@ -20,7 +20,6 @@ use FreeDSx\Ldap\Operation\Request\SaslBindRequest;
 use FreeDSx\Ldap\Operation\Response\BindResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\MechanismOptionsBuilderFactory;
-use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
@@ -38,8 +37,7 @@ final class SaslExchange
         private readonly ServerQueue $queue,
         private readonly ResponseFactory $responseFactory,
         private readonly MechanismOptionsBuilderFactory $optionsBuilderFactory,
-    ) {
-    }
+    ) {}
 
     /**
      * Runs the full SASL exchange until the mechanism reports completion.
@@ -174,7 +172,7 @@ final class SaslExchange
 
             throw new OperationException(
                 'Expected a SASL bind continuation during the exchange.',
-                ResultCode::PROTOCOL_ERROR
+                ResultCode::PROTOCOL_ERROR,
             );
         }
 

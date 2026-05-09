@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Entry\Rdn;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Protocol\LdapEncoder;
 use Stringable;
+
 use function count;
 
 /**
@@ -145,7 +146,7 @@ class ModifyDnRequest implements RequestInterface, DnRequestInterface
             $entry->getValue(),
             $newRdn->getValue(),
             $deleteOldRdn->getValue(),
-            $newSuperior
+            $newSuperior,
         );
     }
 
@@ -156,12 +157,12 @@ class ModifyDnRequest implements RequestInterface, DnRequestInterface
             Asn1::octetString($this->dn->toString()),
             // @todo Make a RDN type. Future validation purposes?
             Asn1::octetString($this->newRdn->toString()),
-            Asn1::boolean($this->deleteOldRdn)
+            Asn1::boolean($this->deleteOldRdn),
         ));
         if ($this->newParentDn !== null) {
             $asn1->addChild(Asn1::context(
                 tagNumber: 0,
-                type: Asn1::octetString($this->newParentDn->toString())
+                type: Asn1::octetString($this->newParentDn->toString()),
             ));
         }
 

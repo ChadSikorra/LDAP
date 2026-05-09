@@ -13,6 +13,6 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Exception;
 
-class InvalidArgumentException extends \InvalidArgumentException
-{
-}
+use InvalidArgumentException as BaseInvalidArgumentException;
+
+class InvalidArgumentException extends BaseInvalidArgumentException {}

@@ -65,11 +65,11 @@ class DirSyncRequestControl extends Control
     public function __construct(
         private int $flags = self::FLAG_INCREMENTAL_VALUES,
         private string $cookie = '',
-        private int $maxBytes = 2147483647
+        private int $maxBytes = 2147483647,
     ) {
         parent::__construct(
             self::OID_DIR_SYNC,
-            true
+            true,
         );
     }
 
@@ -138,12 +138,12 @@ class DirSyncRequestControl extends Control
         $control = new static(
             $flags->getValue(),
             $cookie->getValue(),
-            $maxBytes->getValue()
+            $maxBytes->getValue(),
         );
 
         return self::mergeControlData(
             $control,
-            $type
+            $type,
         );
     }
 
@@ -152,7 +152,7 @@ class DirSyncRequestControl extends Control
         $this->controlValue = Asn1::sequence(
             Asn1::integer($this->flags),
             Asn1::integer($this->maxBytes),
-            Asn1::octetString($this->cookie)
+            Asn1::octetString($this->cookie),
         );
 
         return parent::toAsn1();

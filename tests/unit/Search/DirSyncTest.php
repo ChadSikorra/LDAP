@@ -63,8 +63,9 @@ final class DirSyncTest extends TestCase
                     '',
                     new Attribute(
                         'defaultNamingContext',
-                        'dc=foo,dc=bar')
-                )
+                        'dc=foo,dc=bar',
+                    ),
+                ),
             );
 
         $this->subject = new DirSync($this->client);
@@ -72,8 +73,10 @@ final class DirSyncTest extends TestCase
 
     public function test_it_should_set_the_naming_context(): void
     {
-        $this->addSendExpectation($this->callback(
-            fn (SearchRequest $search) => $search->getBaseDn()?->toString() == 'dc=foo')
+        $this->addSendExpectation(
+            $this->callback(
+                fn(SearchRequest $search) => $search->getBaseDn()?->toString() == 'dc=foo',
+            ),
         );
 
         $this->subject->useNamingContext('dc=foo');
@@ -84,12 +87,12 @@ final class DirSyncTest extends TestCase
     public function test_it_should_set_the_filter(): void
     {
         $this->addSendExpectation($this->callback(
-            fn (SearchRequest $search) => $search->getFilter()->toString() == '(foo=bar)'
+            fn(SearchRequest $search) => $search->getFilter()->toString() == '(foo=bar)',
         ));
 
         $this->subject->useFilter(Filters::equal(
             'foo',
-            'bar'
+            'bar',
         ));
 
         $this->subject->getChanges();
@@ -98,7 +101,7 @@ final class DirSyncTest extends TestCase
     public function test_it_should_set_the_attributes_to_select(): void
     {
         $this->addSendExpectation($this->callback(
-            fn (SearchRequest $search) => $search->getAttributes()[0]->getName() == 'foo'
+            fn(SearchRequest $search) => $search->getAttributes()[0]->getName() == 'foo',
         ));
 
         $this->subject->selectAttributes('foo');
@@ -111,7 +114,7 @@ final class DirSyncTest extends TestCase
         $this->addSendExpectation(
             $this->anything(),
             $this->callback(
-                fn ($control) => $control instanceof DirSyncRequestControl
+                fn($control) => $control instanceof DirSyncRequestControl
                     && $control->getFlags() !== DirSyncRequestControl::FLAG_INCREMENTAL_VALUES,
             ),
         );
@@ -126,9 +129,9 @@ final class DirSyncTest extends TestCase
         $this->addSendExpectation(
             $this->anything(),
             $this->callback(
-                fn ($control) => $control instanceof DirSyncRequestControl
+                fn($control) => $control instanceof DirSyncRequestControl
                     && $control->getFlags() !== DirSyncRequestControl::FLAG_OBJECT_SECURITY,
-            )
+            ),
         );
 
         $this->subject->useObjectSecurity();
@@ -141,9 +144,9 @@ final class DirSyncTest extends TestCase
         $this->addSendExpectation(
             $this->anything(),
             $this->callback(
-                fn ($control) => $control instanceof DirSyncRequestControl
+                fn($control) => $control instanceof DirSyncRequestControl
                     && $control->getFlags() & DirSyncRequestControl::FLAG_ANCESTORS_FIRST_ORDER,
-            )
+            ),
         );
 
         $this->subject->useAncestorFirstOrder();
@@ -156,7 +159,7 @@ final class DirSyncTest extends TestCase
         $this->addSendExpectation(
             $this->anything(),
             $this->callback(
-                fn ($control) => $control instanceof DirSyncRequestControl
+                fn($control) => $control instanceof DirSyncRequestControl
                     && $control->getCookie() === 'foo',
             ),
         );
@@ -213,10 +216,11 @@ final class DirSyncTest extends TestCase
             ->expects($this->atMost(1))
             ->method('readOrFail')
             ->willReturn(new Entry(
-            '',
+                '',
                 new Attribute(
                     'defaultNamingContext',
-                    'dc=foo,dc=bar')
+                    'dc=foo,dc=bar',
+                ),
             ));
 
         $this->subject->getChanges();
@@ -268,7 +272,8 @@ final class DirSyncTest extends TestCase
     /**
      * @param Constraint ...$arguments
      */
-    private function addSendExpectation(...$arguments): void {
+    private function addSendExpectation(...$arguments): void
+    {
         $this->client
             ->expects($this->once())
             ->method('send')
@@ -281,7 +286,7 @@ final class DirSyncTest extends TestCase
      */
     private function addSendAndOrderExpectation(
         InvocationOrder $order,
-        ...$arguments
+        ...$arguments,
     ): void {
         $this->client
             ->expects($order)

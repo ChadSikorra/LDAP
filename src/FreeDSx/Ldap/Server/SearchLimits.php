@@ -22,6 +22,5 @@ final readonly class SearchLimits
         public int $maxSearchSize = 0,
         public int $maxSearchTimeLimit = 0,
         public int $maxSearchPageSize = 0,
-    ) {
-    }
+    ) {}
 }

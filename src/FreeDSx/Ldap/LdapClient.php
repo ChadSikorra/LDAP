@@ -84,7 +84,7 @@ class LdapClient
     ): LdapMessageResponse {
         return $this->sendAndReceive(
             Operations::bind($username, $password)
-                ->setVersion($this->options->getVersion())
+                ->setVersion($this->options->getVersion()),
         );
     }
 
@@ -107,7 +107,7 @@ class LdapClient
                 $mechanism,
                 selectOptions: $selectOptions,
             )
-                ->setVersion($this->options->getVersion())
+                ->setVersion($this->options->getVersion()),
         );
     }
 
@@ -120,16 +120,16 @@ class LdapClient
         Dn|string $dn,
         string $attributeName,
         string $value,
-        Control ...$controls
+        Control ...$controls,
     ): bool {
         /** @var CompareResponse $response */
         $response = $this->sendAndReceive(
             Operations::compare(
                 $dn,
                 $attributeName,
-                $value
+                $value,
             ),
-            ...$controls
+            ...$controls,
         )->getResponse();
 
         return $response->getResultCode() === ResultCode::COMPARE_TRUE;
@@ -142,11 +142,11 @@ class LdapClient
      */
     public function create(
         Entry $entry,
-        Control ...$controls
+        Control ...$controls,
     ): LdapMessageResponse {
         $response = $this->sendAndReceive(
             Operations::add($entry),
-            ...$controls
+            ...$controls,
         );
         $entry->changes()->reset();
 
@@ -162,13 +162,13 @@ class LdapClient
     public function read(
         string $entry = '',
         array $attributes = [],
-        Control ...$controls
+        Control ...$controls,
     ): ?Entry {
         try {
             return $this->readOrFail(
                 $entry,
                 $attributes,
-                ...$controls
+                ...$controls,
             );
         } catch (Exception\OperationException $e) {
             if ($e->getCode() === ResultCode::NO_SUCH_OBJECT) {
@@ -188,17 +188,17 @@ class LdapClient
     public function readOrFail(
         string $entry = '',
         array $attributes = [],
-        Control ...$controls
+        Control ...$controls,
     ): Entry {
         $entryObj = $this->search(
             Operations::read($entry, ...$attributes),
-            ...$controls
+            ...$controls,
         )->first();
 
         if ($entryObj === null) {
             throw new OperationException(sprintf(
                 'The entry "%s" was not found.',
-                $entry
+                $entry,
             ), ResultCode::NO_SUCH_OBJECT);
         }
 
@@ -212,11 +212,11 @@ class LdapClient
      */
     public function delete(
         string $entry,
-        Control ...$controls
+        Control ...$controls,
     ): LdapMessageResponse {
         return $this->sendAndReceive(
             Operations::delete($entry),
-            ...$controls
+            ...$controls,
         );
     }
 
@@ -227,14 +227,14 @@ class LdapClient
      */
     public function update(
         Entry $entry,
-        Control ...$controls
+        Control ...$controls,
     ): LdapMessageResponse {
         $response = $this->sendAndReceive(
             Operations::modify(
                 $entry->getDn(),
-                ...$entry->changes()->toArray()
+                ...$entry->changes()->toArray(),
             ),
-            ...$controls
+            ...$controls,
         );
         $entry->changes()->reset();
 
@@ -248,11 +248,11 @@ class LdapClient
      */
     public function move(
         Stringable|string $dn,
-        Stringable|string $newParentDn
+        Stringable|string $newParentDn,
     ): LdapMessageResponse {
         return $this->sendAndReceive(Operations::move(
             (string) $dn,
-            (string) $newParentDn
+            (string) $newParentDn,
         ));
     }
 
@@ -264,12 +264,12 @@ class LdapClient
     public function rename(
         Stringable|string $dn,
         Stringable|string $newRdn,
-        bool $deleteOldRdn = true
+        bool $deleteOldRdn = true,
     ): LdapMessageResponse {
         return $this->sendAndReceive(Operations::rename(
             $dn,
             $newRdn,
-            $deleteOldRdn
+            $deleteOldRdn,
         ));
     }
 
@@ -289,12 +289,12 @@ class LdapClient
      */
     public function search(
         SearchRequest $request,
-        Control ...$controls
+        Control ...$controls,
     ): Entries {
         /** @var SearchResponse $response */
         $response = $this->sendAndReceive(
             $request,
-            ...$controls
+            ...$controls,
         )->getResponse();
 
         return $response->getEntries();
@@ -305,12 +305,12 @@ class LdapClient
      */
     public function paging(
         SearchRequest $search,
-        ?int $size = null
+        ?int $size = null,
     ): Paging {
         return new Paging(
             client: $this,
             search: $search,
-            size: $size ?? $this->options->getPageSize()
+            size: $size ?? $this->options->getPageSize(),
         );
     }
 
@@ -320,13 +320,13 @@ class LdapClient
     public function vlv(
         SearchRequest $search,
         SortKey|SortingControl|string $sort,
-        int $afterCount
+        int $afterCount,
     ): Vlv {
         return new Vlv(
             client: $this,
             search: $search,
             sort: $sort,
-            after: $afterCount
+            after: $afterCount,
         );
     }
 
@@ -336,13 +336,13 @@ class LdapClient
     public function dirSync(
         ?string $rootNc = null,
         ?FilterInterface $filter = null,
-        Attribute|string ...$attributes
+        Attribute|string ...$attributes,
     ): DirSync {
         return new DirSync(
             $this,
             $rootNc,
             $filter,
-            ...$attributes
+            ...$attributes,
         );
     }
 
@@ -366,12 +366,12 @@ class LdapClient
      */
     public function send(
         RequestInterface $request,
-        Control ...$controls
+        Control ...$controls,
     ): ?LdapMessageResponse {
         return $this->handler()
             ->send(
                 $request,
-                ...$controls
+                ...$controls,
             );
     }
 
@@ -384,11 +384,11 @@ class LdapClient
      */
     public function sendAndReceive(
         RequestInterface $request,
-        Control ...$controls
+        Control ...$controls,
     ): LdapMessageResponse {
         $response = $this->send(
             $request,
-            ...$controls
+            ...$controls,
         );
         if ($response === null) {
             throw new OperationException('Expected an LDAP message response, but none was received.');
@@ -461,7 +461,7 @@ class LdapClient
      */
     public function setOptions(
         ClientOptions $options,
-        bool $forceDisconnect = false
+        bool $forceDisconnect = false,
     ): self {
         $this->options = $options;
         if ($forceDisconnect) {

@@ -83,7 +83,7 @@ class LdapUrlExtensionTest extends TestCase
             new LdapUrlExtension(
                 'foo',
                 null,
-                true
+                true,
             ),
             LdapUrlExtension::parse('!foo'),
         );
@@ -104,7 +104,7 @@ class LdapUrlExtensionTest extends TestCase
         self::assertEquals(
             new LdapUrlExtension(
                 'foo',
-                'bar'
+                'bar',
             ),
             LdapUrlExtension::parse('foo=bar'),
         );
@@ -125,9 +125,9 @@ class LdapUrlExtensionTest extends TestCase
         self::assertEquals(
             new LdapUrlExtension(
                 'e-bindname',
-                'cn=Manager,dc=example,dc=com'
+                'cn=Manager,dc=example,dc=com',
             ),
-            LdapUrlExtension::parse('e-bindname=cn=Manager%2cdc=example%2cdc=com')
+            LdapUrlExtension::parse('e-bindname=cn=Manager%2cdc=example%2cdc=com'),
         );
     }
 

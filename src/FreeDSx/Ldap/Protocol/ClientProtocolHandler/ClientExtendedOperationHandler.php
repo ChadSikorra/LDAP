@@ -38,7 +38,7 @@ class ClientExtendedOperationHandler extends ClientBasicHandler
 
     public function __construct(
         ClientQueue $queue,
-        ?ExtendedResponseFactory $extendedResponseFactory = null
+        ?ExtendedResponseFactory $extendedResponseFactory = null,
     ) {
         $this->extendedResponseFactory = $extendedResponseFactory ?? new ExtendedResponseFactory();
 
@@ -69,7 +69,7 @@ class ClientExtendedOperationHandler extends ClientBasicHandler
 
         $response = $this->extendedResponseFactory->get(
             $messageFrom->getResponse()->toAsn1(),
-            $request->getName()
+            $request->getName(),
         );
         $prop = (new ReflectionClass(LdapMessageResponse::class))->getProperty('response');
         $prop->setValue($messageFrom, $response);

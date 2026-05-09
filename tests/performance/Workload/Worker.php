@@ -282,7 +282,7 @@ final class Worker
 
         $request = Operations::modify(
             $dn,
-            Change::replace('uidNumber', (string) mt_rand(1, 1_000_000))
+            Change::replace('uidNumber', (string) mt_rand(1, 1_000_000)),
         );
 
         $client->send($request);
@@ -314,7 +314,7 @@ final class Worker
                 ->setPort($this->config->port)
                 ->setTransport('tcp')
                 ->setTimeoutConnect(5)
-                ->setTimeoutRead(30)
+                ->setTimeoutRead(30),
         );
     }
 }

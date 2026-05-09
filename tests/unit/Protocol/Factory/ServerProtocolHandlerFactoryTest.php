@@ -67,7 +67,7 @@ final class ServerProtocolHandlerFactoryTest extends TestCase
             $this->mockHandlerFactory,
             new ServerOptions(),
             new RequestHistory(),
-            $this->mockQueue
+            $this->mockQueue,
         );
     }
 
@@ -89,7 +89,7 @@ final class ServerProtocolHandlerFactoryTest extends TestCase
             $this->subject->get(
                 Operations::whoami(),
                 new ControlBag(),
-            )
+            ),
         );
     }
 
@@ -100,7 +100,7 @@ final class ServerProtocolHandlerFactoryTest extends TestCase
             $this->subject->get(
                 Operations::list(new EqualityFilter('foo', 'bar'), 'cn=foo'),
                 new ControlBag(),
-            )
+            ),
         );
     }
 
@@ -113,7 +113,7 @@ final class ServerProtocolHandlerFactoryTest extends TestCase
             $this->subject->get(
                 Operations::list(new EqualityFilter('foo', 'bar'), 'cn=foo'),
                 $controls,
-            )
+            ),
         );
     }
 
@@ -123,7 +123,7 @@ final class ServerProtocolHandlerFactoryTest extends TestCase
             ServerRootDseHandler::class,
             $this->subject->get(
                 Operations::read(''),
-                new ControlBag()
+                new ControlBag(),
             ),
         );
     }
@@ -145,8 +145,8 @@ final class ServerProtocolHandlerFactoryTest extends TestCase
             ServerUnbindHandler::class,
             $this->subject->get(
                 Operations::unbind(),
-                new ControlBag()
-            )
+                new ControlBag(),
+            ),
         );
     }
 
@@ -154,15 +154,15 @@ final class ServerProtocolHandlerFactoryTest extends TestCase
     {
         self::assertInstanceOf(
             ServerDispatchHandler::class,
-            $this->subject->get(Operations::delete('cn=foo'), new ControlBag())
+            $this->subject->get(Operations::delete('cn=foo'), new ControlBag()),
         );
         self::assertInstanceOf(
             ServerDispatchHandler::class,
-            $this->subject->get(Operations::add(Entry::fromArray('cn=foo')), new ControlBag())
+            $this->subject->get(Operations::add(Entry::fromArray('cn=foo')), new ControlBag()),
         );
         self::assertInstanceOf(
             ServerDispatchHandler::class,
-            $this->subject->get(Operations::compare('cn=foo', 'foo', 'bar'), new ControlBag())
+            $this->subject->get(Operations::compare('cn=foo', 'foo', 'bar'), new ControlBag()),
         );
         self::assertInstanceOf(
             ServerDispatchHandler::class,

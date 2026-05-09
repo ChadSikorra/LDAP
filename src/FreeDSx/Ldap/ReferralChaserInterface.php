@@ -35,7 +35,7 @@ interface ReferralChaserInterface
     public function chase(
         LdapMessageRequest $request,
         LdapUrl $referral,
-        ?BindRequest $bind
+        ?BindRequest $bind,
     ): ?BindRequest;
 
     /**

@@ -27,7 +27,7 @@ class SyncRequestControlTest extends TestCase
     {
         $this->subject = new SyncRequestControl(
             mode: 1,
-            cookie: 'omnomnom'
+            cookie: 'omnomnom',
         );
     }
 
@@ -63,8 +63,8 @@ class SyncRequestControlTest extends TestCase
                 Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::enumerated(1),
                     Asn1::octetString('omnomnom'),
-                    Asn1::boolean(false)
-                )))
+                    Asn1::boolean(false),
+                ))),
             ),
             $this->subject->toAsn1(),
         );
@@ -80,8 +80,8 @@ class SyncRequestControlTest extends TestCase
             Asn1::octetString($encoder->encode(Asn1::sequence(
                 Asn1::enumerated(1),
                 Asn1::octetString('omnomnom'),
-                Asn1::boolean(false)
-            )))
+                Asn1::boolean(false),
+            ))),
         ));
 
 

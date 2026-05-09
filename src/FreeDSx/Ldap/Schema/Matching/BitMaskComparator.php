@@ -18,9 +18,7 @@ namespace FreeDSx\Ldap\Schema\Matching;
  */
 final readonly class BitMaskComparator implements MatchingRuleComparatorInterface
 {
-    public function __construct(private bool $requireAllBits)
-    {
-    }
+    public function __construct(private bool $requireAllBits) {}
 
     public function equals(
         string $a,

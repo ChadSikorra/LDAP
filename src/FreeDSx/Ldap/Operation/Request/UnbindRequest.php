@@ -47,7 +47,7 @@ class UnbindRequest implements RequestInterface
     {
         return Asn1::application(
             self::APP_TAG,
-            Asn1::null()
+            Asn1::null(),
         );
     }
 }

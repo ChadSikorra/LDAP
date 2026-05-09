@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Search\Filter;
 
 use FreeDSx\Asn1\Asn1;
-use FreeDSx\Ldap\Search\Filter\FilterInterface;
 use FreeDSx\Ldap\Search\Filter\PresentFilter;
 use PHPUnit\Framework\TestCase;
 
@@ -47,7 +46,7 @@ class PresentFilterTest extends TestCase
     {
         self::assertEquals(
             (new PresentFilter('foo')),
-            PresentFilter::fromAsn1((new PresentFilter('foo'))->toAsn1())
+            PresentFilter::fromAsn1((new PresentFilter('foo'))->toAsn1()),
         );
     }
 

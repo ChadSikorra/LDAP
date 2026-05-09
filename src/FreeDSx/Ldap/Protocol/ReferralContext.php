@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Protocol;
 
 use Countable;
 use FreeDSx\Ldap\LdapUrl;
+
 use function count;
 use function strtolower;
 

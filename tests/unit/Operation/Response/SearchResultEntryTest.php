@@ -26,7 +26,7 @@ final class SearchResultEntryTest extends TestCase
     {
         $this->subject = new SearchResultEntry(Entry::create(
             'cn=foo,dc=foo,dc=bar',
-            ['cn' => 'foo']
+            ['cn' => 'foo'],
         ));
     }
 
@@ -46,15 +46,15 @@ final class SearchResultEntryTest extends TestCase
                 Asn1::sequence(
                     Asn1::octetString('cn'),
                     Asn1::sequenceOf(
-                        Asn1::octetString('foo')
-                    )
+                        Asn1::octetString('foo'),
+                    ),
                 ),
                 Asn1::sequence(
                     Asn1::octetString('sn'),
                     Asn1::sequenceOf(
                         Asn1::octetString('foo'),
-                        Asn1::octetString('bar')
-                    )
+                        Asn1::octetString('bar'),
+                    ),
                 ),
             ),
         )));
@@ -73,15 +73,15 @@ final class SearchResultEntryTest extends TestCase
                 Asn1::sequence(
                     Asn1::octetString('cn'),
                     Asn1::setOf(
-                        Asn1::octetString('foo')
-                    )
+                        Asn1::octetString('foo'),
+                    ),
                 ),
                 Asn1::sequence(
                     Asn1::octetString('sn'),
                     Asn1::setOf(
                         Asn1::octetString('foo'),
-                        Asn1::octetString('bar')
-                    )
+                        Asn1::octetString('bar'),
+                    ),
                 ),
             ),
         )));
@@ -101,7 +101,7 @@ final class SearchResultEntryTest extends TestCase
                     Asn1::sequence(
                         Asn1::octetString('cn'),
                         Asn1::setOf(
-                            Asn1::octetString('foo')
+                            Asn1::octetString('foo'),
                         ),
                     ),
                 ),

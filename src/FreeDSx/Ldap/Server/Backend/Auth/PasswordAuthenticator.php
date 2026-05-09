@@ -28,8 +28,7 @@ final class PasswordAuthenticator implements PasswordAuthenticatableInterface
     public function __construct(
         private readonly BindNameResolverInterface $nameResolver,
         private readonly LdapBackendInterface $backend,
-    ) {
-    }
+    ) {}
 
     public function verifyPassword(
         string $name,
@@ -38,7 +37,7 @@ final class PasswordAuthenticator implements PasswordAuthenticatableInterface
     ): bool {
         $entry = $this->nameResolver->resolve(
             $name,
-            $this->backend
+            $this->backend,
         );
 
         if ($entry === null) {

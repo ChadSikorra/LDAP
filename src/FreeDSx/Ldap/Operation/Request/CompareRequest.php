@@ -40,7 +40,7 @@ class CompareRequest implements RequestInterface, DnRequestInterface
 
     public function __construct(
         Dn|string $dn,
-        private EqualityFilter $filter
+        private EqualityFilter $filter,
     ) {
         $this->setDn($dn);
     }
@@ -97,7 +97,7 @@ class CompareRequest implements RequestInterface, DnRequestInterface
     {
         return Asn1::application(self::APP_TAG, Asn1::sequence(
             Asn1::octetString($this->dn->toString()),
-            Asn1::universal(AbstractType::TAG_TYPE_SEQUENCE, $this->filter->toAsn1())
+            Asn1::universal(AbstractType::TAG_TYPE_SEQUENCE, $this->filter->toAsn1()),
         ));
     }
 }

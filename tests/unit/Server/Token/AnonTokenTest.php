@@ -35,7 +35,8 @@ final class AnonTokenTest extends TestCase
 
     public function test_it_should_get_a_null_password(): void
     {
-        self::assertNull($this->subject->getPassword());;
+        self::assertNull($this->subject->getPassword());
+        ;
     }
 
     public function test_it_should_get_the_version(): void

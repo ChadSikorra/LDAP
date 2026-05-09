@@ -38,7 +38,7 @@ final class GeneralizedTimeComparator implements MatchingRuleComparatorInterface
 
     public function equals(
         string $a,
-        string $b
+        string $b,
     ): bool {
         $tsA = $this->toTimestamp($a);
         $tsB = $this->toTimestamp($b);
@@ -52,7 +52,7 @@ final class GeneralizedTimeComparator implements MatchingRuleComparatorInterface
 
     public function compare(
         string $a,
-        string $b
+        string $b,
     ): int {
         return ($this->toTimestamp($a) ?? 0) <=> ($this->toTimestamp($b) ?? 0);
     }

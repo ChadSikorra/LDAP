@@ -42,7 +42,7 @@ class SyncRepl
 
     public function __construct(
         LdapClient $client,
-        ?FilterInterface $filter = null
+        ?FilterInterface $filter = null,
     ) {
         $this->client = $client;
         $this->syncRequest = Operations::sync($filter);

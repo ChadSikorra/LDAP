@@ -37,7 +37,7 @@ class SetOwnerControl extends Control
         $this->sid = $sid;
         parent::__construct(
             self::OID_SET_OWNER,
-            true
+            true,
         );
     }
 
@@ -77,7 +77,7 @@ class SetOwnerControl extends Control
 
         return self::mergeControlData(
             $control,
-            $type
+            $type,
         );
     }
 }

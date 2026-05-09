@@ -37,13 +37,13 @@ final class PagingRequestComparatorTest extends TestCase
             new PagingControl(100, 'foo'),
             new SearchRequest(new EqualityFilter('cn', 'foo')),
             new ControlBag(),
-            'bar'
+            'bar',
         );
         $new = new PagingRequest(
             new PagingControl(50, 'bar'),
             new SearchRequest(new EqualityFilter('cn', 'foo')),
             new ControlBag(),
-            'foo'
+            'foo',
         );
 
         self::assertTrue($this->subject->compare($old, $new));
@@ -55,13 +55,13 @@ final class PagingRequestComparatorTest extends TestCase
             new PagingControl(100, 'foo'),
             new SearchRequest(new EqualityFilter('cn', 'foo')),
             new ControlBag(),
-            'bar'
+            'bar',
         );
         $new = new PagingRequest(
             new PagingControl(50, 'bar'),
             new SearchRequest(new EqualityFilter('cn', 'bar')),
             new ControlBag(),
-            'foo'
+            'foo',
         );
 
         self::assertFalse($this->subject->compare($old, $new));
@@ -73,13 +73,13 @@ final class PagingRequestComparatorTest extends TestCase
             new PagingControl(100, 'foo'),
             new SearchRequest(new EqualityFilter('cn', 'foo')),
             new ControlBag(),
-            'foo'
+            'foo',
         );
         $new = new PagingRequest(
             new PagingControl(50, 'bar'),
             new SearchRequest(new EqualityFilter('cn', 'bar')),
             new ControlBag(),
-            'foo'
+            'foo',
         );
 
         self::assertFalse($this->subject->compare($old, $new));
@@ -91,13 +91,13 @@ final class PagingRequestComparatorTest extends TestCase
             new PagingControl(100, 'foo'),
             new SearchRequest(new EqualityFilter('cn', 'foo')),
             new ControlBag(new SdFlagsControl(SdFlagsControl::DACL_SECURITY_INFORMATION)),
-            'bar'
+            'bar',
         );
         $new = new PagingRequest(
             new PagingControl(50, 'bar'),
             new SearchRequest(new EqualityFilter('cn', 'foo')),
             new ControlBag(),
-            'foo'
+            'foo',
         );
 
         self::assertFalse($this->subject->compare($old, $new));
@@ -109,13 +109,13 @@ final class PagingRequestComparatorTest extends TestCase
             (new PagingControl(100, 'foo'))->setCriticality(true),
             new SearchRequest(new EqualityFilter('cn', 'foo')),
             new ControlBag(new SdFlagsControl(SdFlagsControl::DACL_SECURITY_INFORMATION)),
-            'bar'
+            'bar',
         );
         $new = new PagingRequest(
             new PagingControl(50, 'bar'),
             new SearchRequest(new EqualityFilter('cn', 'foo')),
             new ControlBag(),
-            'foo'
+            'foo',
         );
 
         self::assertFalse($this->subject->compare($old, $new));
@@ -127,13 +127,13 @@ final class PagingRequestComparatorTest extends TestCase
             new PagingControl(100, 'foo'),
             new SearchRequest(new EqualityFilter('cn', 'foo')),
             new ControlBag(new SdFlagsControl(SdFlagsControl::DACL_SECURITY_INFORMATION)),
-            'bar'
+            'bar',
         );
         $new = new PagingRequest(
             new PagingControl(50, 'bar'),
             new SearchRequest(new EqualityFilter('cn', 'foo')),
             new ControlBag(new SdFlagsControl(SdFlagsControl::SACL_SECURITY_INFORMATION)),
-            'foo'
+            'foo',
         );
 
         self::assertFalse($this->subject->compare($old, $new));
@@ -145,13 +145,13 @@ final class PagingRequestComparatorTest extends TestCase
             new PagingControl(100, 'foo'),
             new SearchRequest(new EqualityFilter('cn', 'foo')),
             new ControlBag(new SdFlagsControl(SdFlagsControl::DACL_SECURITY_INFORMATION)),
-            'bar'
+            'bar',
         );
         $new = new PagingRequest(
             new PagingControl(50, 'bar'),
             new SearchRequest(new EqualityFilter('cn', 'foo')),
             new ControlBag(new SdFlagsControl(SdFlagsControl::DACL_SECURITY_INFORMATION)),
-            'foo'
+            'foo',
         );
 
         self::assertTrue($this->subject->compare($old, $new));

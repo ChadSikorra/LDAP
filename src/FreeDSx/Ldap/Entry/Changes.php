@@ -17,6 +17,7 @@ use ArrayIterator;
 use Countable;
 use IteratorAggregate;
 use Traversable;
+
 use function array_search;
 use function count;
 
@@ -58,7 +59,7 @@ class Changes implements Countable, IteratorAggregate
         return in_array(
             $change,
             $this->changes,
-            true
+            true,
         );
     }
 

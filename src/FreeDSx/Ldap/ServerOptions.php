@@ -27,6 +27,7 @@ use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use Psr\Log\LoggerInterface;
+use Closure;
 
 final class ServerOptions
 {
@@ -146,7 +147,7 @@ final class ServerOptions
 
     private int $maxSearchPageSize = 1000;
 
-    private ?\Closure $onServerReady = null;
+    private ?Closure $onServerReady = null;
 
     private int $shutdownTimeout = 15;
 
@@ -478,7 +479,7 @@ final class ServerOptions
                 throw new InvalidArgumentException(sprintf(
                     'The SASL mechanism "%s" is not supported. Supported mechanisms: %s.',
                     $mechanism,
-                    implode(', ', self::SUPPORTED_SASL_MECHANISMS)
+                    implode(', ', self::SUPPORTED_SASL_MECHANISMS),
                 ));
             }
         }
@@ -613,12 +614,12 @@ final class ServerOptions
         return $this->useSwooleRunner;
     }
 
-    public function getOnServerReady(): ?\Closure
+    public function getOnServerReady(): ?Closure
     {
         return $this->onServerReady;
     }
 
-    public function setOnServerReady(?\Closure $onServerReady): self
+    public function setOnServerReady(?Closure $onServerReady): self
     {
         $this->onServerReady = $onServerReady;
 

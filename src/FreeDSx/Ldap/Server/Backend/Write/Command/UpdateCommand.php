@@ -28,8 +28,7 @@ final class UpdateCommand implements WriteRequestInterface
      * @param Change[] $changes
      */
     public function __construct(
-        readonly public Dn $dn,
-        readonly public array $changes,
-    ) {
-    }
+        public readonly Dn $dn,
+        public readonly array $changes,
+    ) {}
 }

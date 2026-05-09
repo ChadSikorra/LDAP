@@ -65,21 +65,21 @@ class PwdPolicyResponseControlTest extends TestCase
             Asn1::boolean(false),
             Asn1::octetString($encoder->encode(Asn1::sequence(
                 Asn1::context(0, Asn1::sequence(Asn1::context(0, Asn1::integer(100)))),
-                Asn1::context(1, Asn1::enumerated(2))
-            )))
+                Asn1::context(1, Asn1::enumerated(2)),
+            ))),
         ));
 
         self::assertSame(
             100,
-            $result->getTimeBeforeExpiration()
+            $result->getTimeBeforeExpiration(),
         );
         self::assertSame(
             2,
-            $result->getError()
+            $result->getError(),
         );
         self::assertSame(
             Control::OID_PWD_POLICY,
-            $result->getTypeOid()
+            $result->getTypeOid(),
         );
         self::assertFalse($result->getCriticality());
     }
@@ -100,8 +100,8 @@ class PwdPolicyResponseControlTest extends TestCase
                 Asn1::boolean(false),
                 Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::context(0, Asn1::sequence(Asn1::context(0, Asn1::integer(100)))),
-                    Asn1::context(1, Asn1::enumerated(2))
-                )))
+                    Asn1::context(1, Asn1::enumerated(2)),
+                ))),
             ),
             $this->subject->toAsn1(),
         );

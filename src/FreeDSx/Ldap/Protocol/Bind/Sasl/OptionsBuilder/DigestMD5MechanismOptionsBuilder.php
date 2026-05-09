@@ -32,8 +32,7 @@ class DigestMD5MechanismOptionsBuilder implements MechanismOptionsBuilderInterfa
     public function __construct(
         private readonly PasswordAuthenticatableInterface $handler,
         private readonly SaslUsernameExtractorInterface $usernameExtractor,
-    ) {
-    }
+    ) {}
 
     /**
      * {@inheritDoc}

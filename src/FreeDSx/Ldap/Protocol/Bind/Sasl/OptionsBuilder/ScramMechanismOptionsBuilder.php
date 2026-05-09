@@ -35,9 +35,7 @@ class ScramMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
 
     private ?string $username = null;
 
-    public function __construct(private readonly PasswordAuthenticatableInterface $handler)
-    {
-    }
+    public function __construct(private readonly PasswordAuthenticatableInterface $handler) {}
 
     /**
      * {@inheritDoc}
@@ -54,7 +52,7 @@ class ScramMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
             if ($this->username === null) {
                 throw new OperationException(
                     'Received a SCRAM client-final-message before client-first-message.',
-                    ResultCode::PROTOCOL_ERROR
+                    ResultCode::PROTOCOL_ERROR,
                 );
             }
 
@@ -92,7 +90,7 @@ class ScramMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
 
         throw new OperationException(
             'The SCRAM client-first-message did not contain a username.',
-            ResultCode::PROTOCOL_ERROR
+            ResultCode::PROTOCOL_ERROR,
         );
     }
 }

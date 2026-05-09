@@ -35,12 +35,12 @@ trait LoggerTrait
      */
     private function logAndThrow(
         string $message,
-        array $context = []
+        array $context = [],
     ): void {
         $this->log(
             level: LogLevel::ERROR,
             message: $message,
-            context: $context
+            context: $context,
         );
 
         throw new RuntimeException($message);
@@ -51,7 +51,7 @@ trait LoggerTrait
      */
     protected function logError(
         string $message,
-        array $context = []
+        array $context = [],
     ): void {
         $this->log(
             level: LogLevel::ERROR,
@@ -65,11 +65,11 @@ trait LoggerTrait
      */
     protected function logInfo(
         string $message,
-        array $context = []
+        array $context = [],
     ): void {
         $this->log(
             level: LogLevel::INFO,
-            message:$message,
+            message: $message,
             context: $context,
         );
     }
@@ -82,7 +82,7 @@ trait LoggerTrait
     private function log(
         string $level,
         string $message,
-        array $context = []
+        array $context = [],
     ): void {
         $this->logger?->log(
             level: $level,

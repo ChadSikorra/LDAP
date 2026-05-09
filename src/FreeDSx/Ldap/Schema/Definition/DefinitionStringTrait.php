@@ -62,7 +62,7 @@ trait DefinitionStringTrait
         }
 
         $quoted = array_map(
-            fn (string $v) => "'" . addcslashes($v, "'\\") . "'",
+            fn(string $v) => "'" . addcslashes($v, "'\\") . "'",
             $values,
         );
 

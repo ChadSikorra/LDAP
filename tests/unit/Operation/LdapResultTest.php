@@ -31,7 +31,7 @@ final class LdapResultTest extends TestCase
         $this->subject = new LdapResult(
             0,
             'foo',
-            'bar'
+            'bar',
         );
     }
 
@@ -74,8 +74,8 @@ final class LdapResultTest extends TestCase
             Asn1::octetString('foo'),
             Asn1::context(3, (new IncompleteType(
                 $encoder->encode(Asn1::octetString('ldap://foo'))
-                . $encoder->encode(Asn1::octetString('ldap://bar'))
-            ))->setIsConstructed(true))
+                . $encoder->encode(Asn1::octetString('ldap://bar')),
+            ))->setIsConstructed(true)),
         ));
 
         self::assertEquals(
@@ -111,8 +111,8 @@ final class LdapResultTest extends TestCase
             Asn1::octetString('foo'),
             Asn1::context(3, (new IncompleteType(
                 $encoder->encode(Asn1::octetString('ldap://foo'))
-                . $encoder->encode(Asn1::octetString('bar'))
-            ))->setIsConstructed(true))
+                . $encoder->encode(Asn1::octetString('bar')),
+            ))->setIsConstructed(true)),
         ));
     }
 }

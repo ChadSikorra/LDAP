@@ -38,8 +38,7 @@ class SimpleBind implements BindInterface
         private readonly ServerQueue $queue,
         private readonly PasswordAuthenticatableInterface $authenticator,
         private readonly ResponseFactory $responseFactory = new ResponseFactory(),
-    ) {
-    }
+    ) {}
 
     /**
      * {@inheritDoc}
@@ -51,7 +50,7 @@ class SimpleBind implements BindInterface
         if (!$request instanceof SimpleBindRequest) {
             throw new RuntimeException(sprintf(
                 'Expected a SimpleBindRequest, got: %s',
-                get_class($request)
+                get_class($request),
             ));
         }
 
@@ -70,13 +69,13 @@ class SimpleBind implements BindInterface
         if (!$this->authenticator->verifyPassword($request->getUsername(), $request->getPassword())) {
             throw new OperationException(
                 'Invalid credentials.',
-                ResultCode::INVALID_CREDENTIALS
+                ResultCode::INVALID_CREDENTIALS,
             );
         }
 
         return new BindToken(
             $request->getUsername(),
-            $request->getPassword()
+            $request->getPassword(),
         );
     }
 

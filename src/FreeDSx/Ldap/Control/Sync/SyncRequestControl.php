@@ -21,6 +21,7 @@ use FreeDSx\Asn1\Type\OctetStringType;
 use FreeDSx\Asn1\Type\SequenceType;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Exception\ProtocolException;
+
 use function count;
 
 /**
@@ -49,11 +50,11 @@ class SyncRequestControl extends Control
     public function __construct(
         private int $mode = self::MODE_REFRESH_ONLY,
         private ?string $cookie = null,
-        private bool $reloadHint = false
+        private bool $reloadHint = false,
     ) {
         parent::__construct(
             self::OID_SYNC_REQUEST,
-            true
+            true,
         );
     }
 
@@ -114,7 +115,7 @@ class SyncRequestControl extends Control
         $sync = self::decodeEncodedValue($type);
         if (!$sync instanceof SequenceType || count($sync->getChildren()) > 3) {
             throw new ProtocolException(
-                'Expected a sequence type with 2 or less values for a sync request control value.'
+                'Expected a sequence type with 2 or less values for a sync request control value.',
             );
         }
 
@@ -139,9 +140,9 @@ class SyncRequestControl extends Control
             new static(
                 $mode,
                 $cookie,
-                $reloadHint
+                $reloadHint,
             ),
-            $type
+            $type,
         );
     }
 }

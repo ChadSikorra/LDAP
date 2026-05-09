@@ -31,7 +31,7 @@ trait RequiresPasswordTrait
         if ($password === null) {
             throw new OperationException(
                 'Invalid credentials.',
-                ResultCode::INVALID_CREDENTIALS
+                ResultCode::INVALID_CREDENTIALS,
             );
         }
 

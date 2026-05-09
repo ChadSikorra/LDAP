@@ -34,7 +34,7 @@ final class PagingRequestsTest extends TestCase
             new PagingControl(1, 'foo'),
             new SearchRequest(new EqualityFilter('cn', 'foo')),
             new ControlBag(),
-            'bar'
+            'bar',
         );
 
         $this->subject = new PagingRequests([
@@ -64,7 +64,7 @@ final class PagingRequestsTest extends TestCase
     {
         $this->subject->remove($this->pagingRequest);
 
-        self::assertFalse( $this->subject->has('bar'));
+        self::assertFalse($this->subject->has('bar'));
     }
 
     public function test_it_should_add_the_paging_request(): void
@@ -73,7 +73,7 @@ final class PagingRequestsTest extends TestCase
             new PagingControl(1, 'bar'),
             new SearchRequest(new EqualityFilter('cn', 'foo')),
             new ControlBag(),
-            'foo'
+            'foo',
         );
         $this->subject->add($new);
 

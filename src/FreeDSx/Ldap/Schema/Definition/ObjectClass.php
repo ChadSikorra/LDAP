@@ -37,8 +37,7 @@ final readonly class ObjectClass
         public ?string $desc = null,
         public bool $obsolete = false,
         public array $extensions = [],
-    ) {
-    }
+    ) {}
 
     /**
      * Produces the description string used in the subschema objectClasses attribute.
@@ -51,36 +50,36 @@ final readonly class ObjectClass
                 DefinitionKeyword::NAME,
                 $this->names !== []
                     ? $this->formatDescriptors($this->names)
-                    : null
+                    : null,
             ),
             $this->token(
                 DefinitionKeyword::DESC,
                 $this->desc !== null
                     ? $this->quoteString($this->desc)
-                    : null
+                    : null,
             ),
             $this->flag(
                 DefinitionKeyword::OBSOLETE,
-                $this->obsolete
+                $this->obsolete,
             ),
             $this->token(
                 DefinitionKeyword::SUP,
                 $this->superClassOids !== []
                     ? $this->formatOids($this->superClassOids)
-                    : null
+                    : null,
             ),
             $this->type->value,
             $this->token(
                 DefinitionKeyword::MUST,
                 $this->must !== []
                     ? $this->formatOids($this->must)
-                    : null
+                    : null,
             ),
             $this->token(
                 DefinitionKeyword::MAY,
                 $this->may !== []
                     ? $this->formatOids($this->may)
-                    : null
+                    : null,
             ),
         ]);
 

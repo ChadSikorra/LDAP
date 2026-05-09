@@ -28,7 +28,6 @@ use FreeDSx\Ldap\Operation\Response\SyncInfoMessage;
  */
 class SyncRefreshPresent extends SyncInfoMessage
 {
-    protected const VALUE_TAG = 2;
-
     use SyncRefreshDoneTrait;
+    protected const VALUE_TAG = 2;
 }

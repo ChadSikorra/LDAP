@@ -139,7 +139,7 @@ class EntriesTest extends TestCase
         self::assertEquals(
             [
                 new Entry('foo'),
-                new Entry('bar')
+                new Entry('bar'),
             ],
             $this->subject->toArray(),
         );

@@ -35,7 +35,7 @@ class PasswordModifyResponse extends ExtendedResponse
 
     public function __construct(
         LdapResult $result,
-        ?string $generatedPassword = null
+        ?string $generatedPassword = null,
     ) {
         $this->generatedPassword = $generatedPassword;
         parent::__construct($result);
@@ -51,7 +51,7 @@ class PasswordModifyResponse extends ExtendedResponse
         if ($this->generatedPassword !== null) {
             $this->responseValue = Asn1::sequence(Asn1::context(
                 tagNumber: 0,
-                type: Asn1::octetString($this->generatedPassword)
+                type: Asn1::octetString($this->generatedPassword),
             ));
         }
 
@@ -82,7 +82,7 @@ class PasswordModifyResponse extends ExtendedResponse
 
         return new static(
             $result,
-            $generatedPassword
+            $generatedPassword,
         );
     }
 }

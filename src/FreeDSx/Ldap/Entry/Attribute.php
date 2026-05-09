@@ -18,6 +18,7 @@ use Countable;
 use IteratorAggregate;
 use Stringable;
 use Traversable;
+
 use function array_keys;
 use function array_search;
 use function array_shift;
@@ -58,7 +59,7 @@ class Attribute implements IteratorAggregate, Countable, Stringable
 
     public function __construct(
         private string $attribute,
-        string ...$values
+        string ...$values,
     ) {
         $this->values = $values;
     }
@@ -99,7 +100,7 @@ class Attribute implements IteratorAggregate, Countable, Stringable
             return in_array(
                 $value,
                 $this->values,
-                true
+                true,
             );
         }
 
@@ -263,7 +264,7 @@ class Attribute implements IteratorAggregate, Countable, Stringable
      */
     public function equals(
         Attribute $attribute,
-        bool $strict = false
+        bool $strict = false,
     ): bool {
         $this->options();
         $attribute->options();

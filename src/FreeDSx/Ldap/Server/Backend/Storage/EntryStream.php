@@ -29,6 +29,5 @@ final class EntryStream
     public function __construct(
         public readonly Generator $entries,
         public readonly bool $isPreFiltered = false,
-    ) {
-    }
+    ) {}
 }

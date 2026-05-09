@@ -58,17 +58,19 @@ final class SimpleBindTest extends TestCase
         $this->mockQueue
             ->expects(self::once())
             ->method('sendMessage')
-            ->with(self::equalTo(new LdapMessageResponse(
-                1,
-                new BindResponse(new LdapResult(0)))
+            ->with(self::equalTo(
+                new LdapMessageResponse(
+                    1,
+                    new BindResponse(new LdapResult(0)),
+                ),
             ));
 
         $bind = new LdapMessageRequest(
             1,
             new SimpleBindRequest(
                 'foo@bar',
-                'bar'
-            )
+                'bar',
+            ),
         );
 
         self::assertEquals(
@@ -97,7 +99,7 @@ final class SimpleBindTest extends TestCase
 
         $this->subject->bind(new LdapMessageRequest(
             1,
-            new SimpleBindRequest('foo@bar', 'bar')
+            new SimpleBindRequest('foo@bar', 'bar'),
         ));
     }
 
@@ -110,13 +112,15 @@ final class SimpleBindTest extends TestCase
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::PROTOCOL_ERROR);
 
-        $this->subject->bind(new LdapMessageRequest(
-            1,
-            new SimpleBindRequest(
-                username: 'foo@bar',
-                password: 'bar',
-                version: 5,
-            ))
+        $this->subject->bind(
+            new LdapMessageRequest(
+                1,
+                new SimpleBindRequest(
+                    username: 'foo@bar',
+                    password: 'bar',
+                    version: 5,
+                ),
+            ),
         );
     }
 
@@ -124,14 +128,14 @@ final class SimpleBindTest extends TestCase
     {
         self::assertFalse($this->subject->supports(new LdapMessageRequest(
             1,
-            new AnonBindRequest()
+            new AnonBindRequest(),
         )));
         self::assertTrue($this->subject->supports(new LdapMessageRequest(
             1,
             new SimpleBindRequest(
                 'foo',
                 'bar',
-            )
+            ),
         )));
     }
 }

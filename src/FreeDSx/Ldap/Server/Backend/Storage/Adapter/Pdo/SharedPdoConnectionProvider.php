@@ -47,7 +47,7 @@ final class SharedPdoConnectionProvider implements PdoConnectionProviderInterfac
 
         if ($this->reconnectFactory === null) {
             throw new RuntimeException(
-                'No PDO connection is available and no reconnect factory was provided.'
+                'No PDO connection is available and no reconnect factory was provided.',
             );
         }
 

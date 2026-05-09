@@ -25,10 +25,9 @@ use FreeDSx\Ldap\Server\Backend\Write\WriteRequestInterface;
 final class MoveCommand implements WriteRequestInterface
 {
     public function __construct(
-        readonly public Dn $dn,
-        readonly public Rdn $newRdn,
-        readonly public bool $deleteOldRdn,
-        readonly public ?Dn $newParent,
-    ) {
-    }
+        public readonly Dn $dn,
+        public readonly Rdn $newRdn,
+        public readonly bool $deleteOldRdn,
+        public readonly ?Dn $newParent,
+    ) {}
 }

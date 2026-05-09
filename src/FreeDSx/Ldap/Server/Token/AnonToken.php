@@ -26,7 +26,7 @@ class AnonToken implements TokenInterface
 
     public function __construct(
         ?string $username = null,
-        int $version = 3
+        int $version = 3,
     ) {
         $this->username = $username;
         $this->version = $version;

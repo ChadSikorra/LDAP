@@ -120,14 +120,14 @@ class Operations
     public static function compare(
         Stringable|string $dn,
         string $attributeName,
-        string $value
+        string $value,
     ): CompareRequest {
         return new CompareRequest(
             dn: (string) $dn,
             filter: Filters::equal(
                 attribute: $attributeName,
                 value: $value,
-            )
+            ),
         );
     }
 
@@ -163,7 +163,7 @@ class Operations
     ): ModifyRequest {
         return new ModifyRequest(
             (string) $dn,
-            ...$changes
+            ...$changes,
         );
     }
 
@@ -192,7 +192,7 @@ class Operations
     public static function passwordModify(
         string $username,
         string $oldPassword,
-        string $newPassword
+        string $newPassword,
     ): PasswordModifyRequest {
         return new PasswordModifyRequest(
             userIdentity: $username,
@@ -215,7 +215,7 @@ class Operations
     public static function rename(
         Stringable|string|Dn $dn,
         Stringable|string|Rdn $rdn,
-        bool $deleteOldRdn = true
+        bool $deleteOldRdn = true,
     ): ModifyDnRequest {
         return new ModifyDnRequest(
             dn: $dn,
@@ -233,7 +233,7 @@ class Operations
     ): SearchRequest {
         return new SearchRequest(
             $filter,
-            ...$attributes
+            ...$attributes,
         );
     }
 
@@ -246,7 +246,7 @@ class Operations
     ): SyncRequest {
         return new SyncRequest(
             $filter,
-            ...$attributes
+            ...$attributes,
         );
     }
 
@@ -269,7 +269,7 @@ class Operations
     public static function list(
         FilterInterface $filter,
         string $baseDn,
-        Attribute|string ...$attributes
+        Attribute|string ...$attributes,
     ): SearchRequest {
         return (new SearchRequest($filter, ...$attributes))
             ->base($baseDn)

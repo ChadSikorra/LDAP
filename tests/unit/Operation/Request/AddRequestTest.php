@@ -28,7 +28,7 @@ final class AddRequestTest extends TestCase
     {
         $this->subject = new AddRequest(Entry::create(
             'cn=foo,dc=foo,dc=bar',
-            ['cn' => 'foo']
+            ['cn' => 'foo'],
         ));
     }
 
@@ -60,17 +60,17 @@ final class AddRequestTest extends TestCase
                     Asn1::sequence(
                         Asn1::octetString('cn'),
                         Asn1::setOf(
-                            Asn1::octetString('foo')
-                        )
+                            Asn1::octetString('foo'),
+                        ),
                     ),
                     Asn1::sequence(
                         Asn1::octetString('sn'),
                         Asn1::setOf(
                             Asn1::octetString('foo'),
-                            Asn1::octetString('bar')
-                        )
-                    )
-                )
+                            Asn1::octetString('bar'),
+                        ),
+                    ),
+                ),
             )),
             $this->subject->toAsn1(),
         );
@@ -83,9 +83,9 @@ final class AddRequestTest extends TestCase
         self::assertEquals(
             new AddRequest(Entry::create(
                 'cn=foo,dc=foo,dc=bar',
-                ['cn' => 'foo', 'sn' => ['foo', 'bar']]
+                ['cn' => 'foo', 'sn' => ['foo', 'bar']],
             )),
-            AddRequest::fromAsn1($add->toAsn1())
+            AddRequest::fromAsn1($add->toAsn1()),
         );
     }
 
@@ -110,16 +110,16 @@ final class AddRequestTest extends TestCase
             [Asn1::sequence(
                 Asn1::octetString('foo'),
                 Asn1::sequence(),
-                Asn1::octetString('bar')
-            )],
-            [Asn1::sequence(
-                    Asn1::octetString('foo'),
-                    Asn1::sequence(),
-                    Asn1::octetString('bar')
+                Asn1::octetString('bar'),
             )],
             [Asn1::sequence(
                 Asn1::octetString('foo'),
-                Asn1::integer(2)
+                Asn1::sequence(),
+                Asn1::octetString('bar'),
+            )],
+            [Asn1::sequence(
+                Asn1::octetString('foo'),
+                Asn1::integer(2),
             )],
             [Asn1::octetString('foo')],
             [Asn1::sequence(
@@ -127,18 +127,18 @@ final class AddRequestTest extends TestCase
                 Asn1::sequence(
                     Asn1::sequence(
                         Asn1::octetString('foo'),
-                        Asn1::sequence()
-                    )
-                )
+                        Asn1::sequence(),
+                    ),
+                ),
             )],
             [Asn1::sequence(
                 Asn1::octetString('foo'),
                 Asn1::sequence(
                     Asn1::sequence(
-                        Asn1::octetString('foo')
-                    )
-                )
-            )]
+                        Asn1::octetString('foo'),
+                    ),
+                ),
+            )],
         ];
     }
 }

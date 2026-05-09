@@ -50,7 +50,7 @@ class Vlv
         private SearchRequest $search,
         SortingControl|SortKey|string $sort,
         private int $after = 100,
-        private int $before = 0
+        private int $before = 0,
     ) {
         $this->sort = $sort instanceof SortingControl
             ? $sort

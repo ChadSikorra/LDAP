@@ -59,10 +59,10 @@ final class PasswordModifyResponseTest extends TestCase
             Asn1::octetString('foo'),
             Asn1::context(3, (new IncompleteType(
                 $encoder->encode(Asn1::octetString('ldap://foo'))
-                . $encoder->encode(Asn1::octetString('ldap://bar'))
+                . $encoder->encode(Asn1::octetString('ldap://bar')),
             ))->setIsConstructed(true)),
             Asn1::context(11, Asn1::octetString($encoder->encode(Asn1::sequence(
-                Asn1::context(0, Asn1::octetString('bleep-blorp'))
+                Asn1::context(0, Asn1::octetString('bleep-blorp')),
             )))),
         )));
 
@@ -90,11 +90,12 @@ final class PasswordModifyResponseTest extends TestCase
             Asn1::octetString('foo'),
             Asn1::context(3, (new IncompleteType(
                 $encoder->encode(Asn1::octetString('ldap://foo'))
-                . $encoder->encode(Asn1::octetString('ldap://bar'))
+                . $encoder->encode(Asn1::octetString('ldap://bar')),
             ))->setIsConstructed(true)),
             Asn1::context(11, Asn1::octetString($encoder->encode(Asn1::sequence()))),
         )));
 
-        self::assertNull($this->subject->getGeneratedPassword());;
+        self::assertNull($this->subject->getGeneratedPassword());
+        ;
     }
 }

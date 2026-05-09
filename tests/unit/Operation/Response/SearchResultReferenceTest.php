@@ -46,7 +46,7 @@ final class SearchResultReferenceTest extends TestCase
     {
         $this->subject = SearchResultReference::fromAsn1(Asn1::application(19, Asn1::sequence(
             Asn1::octetString('ldap://foo'),
-            Asn1::octetString('ldap://bar')
+            Asn1::octetString('ldap://bar'),
         )));
 
         self::assertEquals(

@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Entry;
 
 use Stringable;
+
 use function preg_match;
 use function str_starts_with;
 use function strtolower;
@@ -29,9 +30,7 @@ class Option implements Stringable
 
     private ?string $lcOption = null;
 
-    public function __construct(private readonly string $option)
-    {
-    }
+    public function __construct(private readonly string $option) {}
 
     public function isLanguageTag(): bool
     {
@@ -126,7 +125,7 @@ class Option implements Stringable
      */
     public static function fromRange(
         string $startAt,
-        string $endAt = '*'
+        string $endAt = '*',
     ): self {
         return new self('range=' . $startAt . '-' . $endAt);
     }

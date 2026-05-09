@@ -58,7 +58,7 @@ class DnTest extends TestCase
     {
         self::assertEquals(
             3,
-            $this->subject->count()
+            $this->subject->count(),
         );
     }
 

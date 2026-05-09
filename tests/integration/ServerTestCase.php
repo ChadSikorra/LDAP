@@ -178,7 +178,7 @@ class ServerTestCase extends LdapTestCase
     {
         $this->ldapClient()->bind(
             'cn=user,dc=foo,dc=bar',
-            '12345'
+            '12345',
         );
     }
 
@@ -234,7 +234,7 @@ class ServerTestCase extends LdapTestCase
                 ->setTransport($transport)
                 ->setServers((array) $servers)
                 ->setSslValidateCert(false)
-                ->setUseSsl($useSsl)
+                ->setUseSsl($useSsl),
         );
     }
 
@@ -261,7 +261,7 @@ class ServerTestCase extends LdapTestCase
             'The expected output (%s) was not received after %d seconds. Received: %s',
             $marker,
             self::SERVER_MAX_WAIT_SECONDS,
-            PHP_EOL . $process->getErrorOutput()
+            PHP_EOL . $process->getErrorOutput(),
         ));
     }
 }

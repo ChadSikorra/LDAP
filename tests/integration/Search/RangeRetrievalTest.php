@@ -43,17 +43,17 @@ class RangeRetrievalTest extends LdapTestCase
         } catch (Throwable) {
         }
     }
-    
+
     public function testRetrieveAll(): void
     {
         $result = $this->range->getAllValues(
             'cn=All Employees,ou=FreeDSx-Test,dc=example,dc=com',
-            'member'
+            'member',
         );
 
         $this->assertCount(
             10001,
-            $result->getValues()
+            $result->getValues(),
         );
     }
 
@@ -63,11 +63,11 @@ class RangeRetrievalTest extends LdapTestCase
 
         $this->assertTrue($this->range->hasRanged(
             $entry,
-            'member'
+            'member',
         ));
         $this->assertFalse($this->range->hasRanged(
             $entry,
-            'description'
+            'description',
         ));
     }
 
@@ -79,12 +79,12 @@ class RangeRetrievalTest extends LdapTestCase
             Attribute::class,
             $this->range->getRanged(
                 $entry,
-                'member'
-            )
+                'member',
+            ),
         );
         $this->assertNull($this->range->getRanged(
             $entry,
-            'description'
+            'description',
         ));
     }
 
@@ -95,11 +95,11 @@ class RangeRetrievalTest extends LdapTestCase
 
         $this->assertCount(
             1,
-            $this->range->getAllRanged($allUsers)
+            $this->range->getAllRanged($allUsers),
         );
         $this->assertCount(
             0,
-            $this->range->getAllRanged($adminUsers)
+            $this->range->getAllRanged($adminUsers),
         );
     }
 
@@ -107,7 +107,7 @@ class RangeRetrievalTest extends LdapTestCase
     {
         $members = $this->client->readOrFail(
             'cn=All Employees,ou=FreeDSx-Test,dc=example,dc=com',
-            ['member;range=0-*']
+            ['member;range=0-*'],
         )->get('member');
 
         $this->assertInstanceOf(
@@ -120,7 +120,7 @@ class RangeRetrievalTest extends LdapTestCase
         while ($this->range->hasMoreValues($members)) {
             $members = $this->range->getMoreValues(
                 'cn=All Employees,ou=FreeDSx-Test,dc=example,dc=com',
-                $members
+                $members,
             );
             $all = array_merge(
                 $all,
@@ -130,7 +130,7 @@ class RangeRetrievalTest extends LdapTestCase
 
         $this->assertCount(
             10001,
-            $all
+            $all,
         );
     }
 }

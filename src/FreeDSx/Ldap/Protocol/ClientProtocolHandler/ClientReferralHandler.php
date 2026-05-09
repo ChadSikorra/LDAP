@@ -33,6 +33,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\ReferralContext;
 use FreeDSx\Ldap\ReferralChaserInterface;
 use FreeDSx\Ldap\Search\Filters;
+
 use function count;
 
 /**
@@ -44,9 +45,7 @@ class ClientReferralHandler implements ResponseHandlerInterface
 {
     private ?ReferralContext $referralContext = null;
 
-    public function __construct(private readonly ClientOptions $options)
-    {
-    }
+    public function __construct(private readonly ClientOptions $options) {}
 
     /**
      * {@inheritDoc}
@@ -56,7 +55,7 @@ class ClientReferralHandler implements ResponseHandlerInterface
      */
     public function handleResponse(
         LdapMessageRequest $messageTo,
-        LdapMessageResponse $messageFrom
+        LdapMessageResponse $messageFrom,
     ): ?LdapMessageResponse {
         $result = $messageFrom->getResponse();
 
@@ -72,7 +71,7 @@ class ClientReferralHandler implements ResponseHandlerInterface
             LdapClient::REFERRAL_IGNORE => null,
             default => throw new RuntimeException(sprintf(
                 'The referral option "%s" is invalid.',
-                $this->options->getReferral()
+                $this->options->getReferral(),
             )),
         };
     }
@@ -84,7 +83,7 @@ class ClientReferralHandler implements ResponseHandlerInterface
      */
     private function followReferral(
         LdapMessageRequest $messageTo,
-        LdapMessageResponse $messageFrom
+        LdapMessageResponse $messageFrom,
     ): ?LdapMessageResponse {
         $referralChaser = $this->getReferralChaser();
 
@@ -93,7 +92,7 @@ class ClientReferralHandler implements ResponseHandlerInterface
         if (!$response instanceof LdapResult || count($referrals) === 0) {
             throw new OperationException(
                 'Encountered a referral request, but no referrals were supplied.',
-                ResultCode::REFERRAL
+                ResultCode::REFERRAL,
             );
         }
 
@@ -109,7 +108,7 @@ class ClientReferralHandler implements ResponseHandlerInterface
             if ($referralContext->count() > $this->options->getReferralLimit()) {
                 throw new OperationException(sprintf(
                     'The referral limit of %s has been reached.',
-                    $this->options->getReferralLimit()
+                    $this->options->getReferralLimit(),
                 ));
             }
 
@@ -128,7 +127,7 @@ class ClientReferralHandler implements ResponseHandlerInterface
             $options->setServers(
                 $referral->getHost() !== null
                     ? [$referral->getHost()]
-                    : []
+                    : [],
             );
             $options->setPort($referral->getPort() ?? 389);
             $options->setUseSsl($referral->getUseSsl());
@@ -153,7 +152,7 @@ class ClientReferralHandler implements ResponseHandlerInterface
 
                 return $client->send(
                     $request,
-                    ...$messageTo->controls()->toArray()
+                    ...$messageTo->controls()->toArray(),
                 );
                 # Skip referrals that fail due to connection issues and not other issues
             } catch (ConnectionException) {
@@ -171,7 +170,7 @@ class ClientReferralHandler implements ResponseHandlerInterface
         # If we have exhausted all referrals consider it an operation exception.
         throw new OperationException(sprintf(
             'All referral attempts have been exhausted. %s',
-            $response->getDiagnosticMessage()
+            $response->getDiagnosticMessage(),
         ), ResultCode::REFERRAL);
     }
 
@@ -180,7 +179,7 @@ class ClientReferralHandler implements ResponseHandlerInterface
      */
     private function mergeReferralOptions(
         RequestInterface $request,
-        LdapUrl $referral
+        LdapUrl $referral,
     ): void {
         if ($referral->getDn() !== null && $request instanceof SearchRequest) {
             $request->setBaseDn($referral->getDn());
@@ -218,7 +217,7 @@ class ClientReferralHandler implements ResponseHandlerInterface
     private function getReferralChaser(): ReferralChaserInterface
     {
         return $this->options->getReferralChaser() ?? throw new RuntimeException(
-            'No referral chaser was provided.'
+            'No referral chaser was provided.',
         );
     }
 

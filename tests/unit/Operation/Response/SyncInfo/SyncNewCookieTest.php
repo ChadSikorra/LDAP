@@ -52,8 +52,8 @@ final class SyncNewCookieTest extends TestCase
             new SyncNewCookie('omnomnom'),
             SyncNewCookie::fromAsn1(Asn1::application(25, Asn1::sequence(
                 Asn1::context(0, Asn1::octetString(IntermediateResponse::OID_SYNC_INFO)),
-                Asn1::context(1, Asn1::octetString($encoder->encode(Asn1::context(0, Asn1::octetString('omnomnom')))))
-            )))
+                Asn1::context(1, Asn1::octetString($encoder->encode(Asn1::context(0, Asn1::octetString('omnomnom'))))),
+            ))),
         );
     }
 
@@ -64,7 +64,7 @@ final class SyncNewCookieTest extends TestCase
         self::assertEquals(
             Asn1::application(25, Asn1::sequence(
                 Asn1::context(0, Asn1::octetString(IntermediateResponse::OID_SYNC_INFO)),
-                Asn1::context(1, Asn1::octetString($encoder->encode(Asn1::context(0, Asn1::octetString('omnomnom')))))
+                Asn1::context(1, Asn1::octetString($encoder->encode(Asn1::context(0, Asn1::octetString('omnomnom'))))),
             )),
             $this->subject->toAsn1(),
         );

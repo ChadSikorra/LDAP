@@ -80,7 +80,7 @@ class SwooleServerRunner implements ServerRunnerInterface
             throw new RuntimeException(
                 'The Swoole extension is required to use SwooleServerRunner. '
                 . 'Install via PECL: pecl install swoole '
-                . '(^5.1 for PHP 8.3/8.4, ^6.0 for PHP 8.5+)'
+                . '(^5.1 for PHP 8.3/8.4, ^6.0 for PHP 8.5+)',
             );
         }
 

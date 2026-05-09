@@ -24,8 +24,7 @@ final class ThresholdResult
     public function __construct(
         public readonly bool $passed,
         public readonly array $gates,
-    ) {
-    }
+    ) {}
 
     /**
      * @return list<array{gate: string, expected: string, actual: string}>

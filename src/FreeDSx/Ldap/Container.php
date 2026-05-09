@@ -80,7 +80,7 @@ class Container
         if (!isset($this->instanceFactory[$className])) {
             throw new RuntimeException(sprintf(
                 'The class "%s" is not recognized.',
-                $className
+                $className,
             ));
         }
 
@@ -122,7 +122,7 @@ class Container
         );
         $this->registerFactory(
             className: ClientQueueInstantiator::class,
-            factory: $this->makeClientQueueInstantiator(...)
+            factory: $this->makeClientQueueInstantiator(...),
         );
         $this->registerFactory(
             className: RootDseLoader::class,

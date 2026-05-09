@@ -18,6 +18,7 @@ use FreeDSx\Asn1\Type\AbstractType;
 use FreeDSx\Asn1\Type\SequenceType;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Protocol\LdapEncoder;
+
 use function is_string;
 
 /**
@@ -162,27 +163,27 @@ class IntermediateResponse implements ResponseInterface
      */
     protected static function decodeEncodedValue(
         AbstractType $type,
-        array $tagMap = []
+        array $tagMap = [],
     ): AbstractType {
         $responseValue = $type->getChild(1);
 
         if ($responseValue === null || self::isNotValidResponseValue($responseValue)) {
             throw new ProtocolException(
-                'The intermediate response either contains no value or is not an octet string.'
+                'The intermediate response either contains no value or is not an octet string.',
             );
         }
 
         $rawValue = $responseValue->getValue();
         if (!is_string($rawValue)) {
             throw new ProtocolException(
-                'The intermediate response either contains no value or is not an octet string.'
+                'The intermediate response either contains no value or is not an octet string.',
             );
         }
 
         return (new LdapEncoder())
             ->decode(
                 $rawValue,
-                $tagMap
+                $tagMap,
             );
     }
 
@@ -196,14 +197,14 @@ class IntermediateResponse implements ResponseInterface
 
         if ($responseName === null || self::isNotValidResponseName($responseName)) {
             throw new ProtocolException(
-                'Expected a responseName value with a tag of 0 and a context specific class type.'
+                'Expected a responseName value with a tag of 0 and a context specific class type.',
             );
         }
 
         $rawValue = $responseName->getValue();
         if (!is_string($rawValue)) {
             throw new ProtocolException(
-                'Expected a responseName value with a tag of 0 and a context specific class type.'
+                'Expected a responseName value with a tag of 0 and a context specific class type.',
             );
         }
 

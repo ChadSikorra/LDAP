@@ -32,8 +32,7 @@ final class StatsSnapshot
         public readonly array $errorClasses,
         public readonly array $substituted,
         public readonly float $elapsedSeconds,
-    ) {
-    }
+    ) {}
 
     /**
      * @return list<string> ops ordered by total activity (successes + errors) descending
@@ -45,7 +44,7 @@ final class StatsSnapshot
             array_keys($this->errors),
         ));
 
-        usort($allOps, fn ($a, $b) => $this->activity($b) <=> $this->activity($a));
+        usort($allOps, fn($a, $b) => $this->activity($b) <=> $this->activity($a));
 
         return $allOps;
     }
@@ -137,7 +136,7 @@ final class StatsSnapshot
      */
     private static function percentile(
         array $sorted,
-        float $p
+        float $p,
     ): int {
         $n = count($sorted);
         $idx = (int) floor($p * ($n - 1));

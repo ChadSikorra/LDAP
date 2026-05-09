@@ -25,7 +25,8 @@ final class ExtendedRequestTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->subject = new ExtendedRequest(ExtendedRequest::OID_START_TLS);;
+        $this->subject = new ExtendedRequest(ExtendedRequest::OID_START_TLS);
+        ;
     }
 
     public function test_it_should_get_the_extended_request_name(): void
@@ -57,7 +58,7 @@ final class ExtendedRequestTest extends TestCase
     {
         self::assertEquals(
             Asn1::application(23, Asn1::sequence(
-                Asn1::context(0, Asn1::octetString(ExtendedRequest::OID_START_TLS))
+                Asn1::context(0, Asn1::octetString(ExtendedRequest::OID_START_TLS)),
             )),
             $this->subject->toAsn1(),
         );
@@ -67,7 +68,7 @@ final class ExtendedRequestTest extends TestCase
         self::assertEquals(
             Asn1::application(23, Asn1::sequence(
                 Asn1::context(0, Asn1::octetString(ExtendedRequest::OID_START_TLS)),
-                Asn1::context(1, Asn1::octetString('foo'))
+                Asn1::context(1, Asn1::octetString('foo')),
             )),
             $this->subject->toAsn1(),
         );

@@ -56,12 +56,12 @@ final class ClientBasicHandlerTest extends TestCase
             ->with(1)
             ->willReturn(new LdapMessageResponse(
                 1,
-                new DeleteResponse(0)
+                new DeleteResponse(0),
             ));
 
         self::assertNotNull($this->subject->handleRequest(new LdapMessageRequest(
             1,
-            new DeleteRequest('cn=foo')
+            new DeleteRequest('cn=foo'),
         )));
     }
 
@@ -75,7 +75,7 @@ final class ClientBasicHandlerTest extends TestCase
             $this->subject->handleResponse(
                 $messageRequest,
                 $messageFrom,
-            )
+            ),
         );
     }
 
@@ -89,7 +89,7 @@ final class ClientBasicHandlerTest extends TestCase
             $this->subject->handleResponse(
                 $messageRequest,
                 $messageFrom,
-            )
+            ),
         );
 
         $messageFrom = new LdapMessageResponse(1, new CompareResponse(ResultCode::COMPARE_TRUE));
@@ -99,7 +99,7 @@ final class ClientBasicHandlerTest extends TestCase
             $this->subject->handleResponse(
                 $messageRequest,
                 $messageFrom,
-            )
+            ),
         );
 
         $messageFrom = new LdapMessageResponse(1, new CompareResponse(ResultCode::REFERRAL));
@@ -109,7 +109,7 @@ final class ClientBasicHandlerTest extends TestCase
             $this->subject->handleResponse(
                 $messageRequest,
                 $messageFrom,
-            )
+            ),
         );
     }
 

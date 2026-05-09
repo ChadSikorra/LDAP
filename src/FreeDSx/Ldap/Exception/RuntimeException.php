@@ -13,6 +13,6 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Exception;
 
-class RuntimeException extends \RuntimeException
-{
-}
+use RuntimeException as BaseRuntimeException;
+
+class RuntimeException extends BaseRuntimeException {}

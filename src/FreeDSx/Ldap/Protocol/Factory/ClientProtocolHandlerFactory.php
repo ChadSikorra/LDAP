@@ -36,8 +36,7 @@ class ClientProtocolHandlerFactory
         private readonly ClientOptions $clientOptions,
         private readonly ClientQueueInstantiator $queueInstantiator,
         private readonly RootDseLoader $rootDseLoader,
-    ) {
-    }
+    ) {}
 
     public function forRequest(Request\RequestInterface $request): RequestHandlerInterface
     {
@@ -65,7 +64,7 @@ class ClientProtocolHandlerFactory
 
     public function forResponse(
         Request\RequestInterface $request,
-        Response\ResponseInterface $response
+        Response\ResponseInterface $response,
     ): ResponseHandlerInterface {
         if ($response instanceof Response\SearchResultDone || $response instanceof Response\SearchResultEntry || $response instanceof Response\SearchResultReference) {
             return $request instanceof Request\SyncRequest

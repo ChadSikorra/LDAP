@@ -18,6 +18,7 @@ use Countable;
 use IteratorAggregate;
 use Stringable;
 use Traversable;
+
 use function array_map;
 use function count;
 use function is_array;
@@ -41,7 +42,7 @@ class Entry implements IteratorAggregate, Countable, Stringable
 
     public function __construct(
         Dn|string $dn,
-        Attribute ...$attributes
+        Attribute ...$attributes,
     ) {
         $this->dn = $dn instanceof Dn ? $dn : new Dn($dn);
         $this->attributes = $attributes;
@@ -67,16 +68,16 @@ class Entry implements IteratorAggregate, Countable, Stringable
      */
     public function add(
         Attribute|string $attribute,
-        Stringable|string ...$values
+        Stringable|string ...$values,
     ): static {
         $attribute = $attribute instanceof Attribute
             ? $attribute
             : new Attribute(
                 $attribute,
                 ...array_map(
-                    fn (Stringable|string $value) => $value instanceof Stringable ? (string) $value : $value,
-                    $values
-                )
+                    fn(Stringable|string $value) => $value instanceof Stringable ? (string) $value : $value,
+                    $values,
+                ),
             );
 
         if (($exists = $this->get($attribute, true)) !== null) {
@@ -94,16 +95,16 @@ class Entry implements IteratorAggregate, Countable, Stringable
      */
     public function remove(
         Attribute|string $attribute,
-        Stringable|string ...$values
+        Stringable|string ...$values,
     ): static {
         $attribute = $attribute instanceof Attribute
             ? $attribute
             : new Attribute(
                 $attribute,
                 ...array_map(
-                    fn (Stringable|string $value) => $value instanceof Stringable ? (string) $value : $value,
-                    $values
-                )
+                    fn(Stringable|string $value) => $value instanceof Stringable ? (string) $value : $value,
+                    $values,
+                ),
             );
 
         if (count($attribute->getValues()) !== 0) {
@@ -140,16 +141,16 @@ class Entry implements IteratorAggregate, Countable, Stringable
      */
     public function set(
         Attribute|string $attribute,
-        Stringable|string ...$values
+        Stringable|string ...$values,
     ): static {
         $attribute = $attribute instanceof Attribute
             ? $attribute
             : new Attribute(
                 $attribute,
                 ...array_map(
-                    fn (Stringable|string $value) => $value instanceof Stringable ? (string) $value : $value,
-                    $values
-                )
+                    fn(Stringable|string $value) => $value instanceof Stringable ? (string) $value : $value,
+                    $values,
+                ),
             );
 
         $exists = false;
@@ -175,7 +176,7 @@ class Entry implements IteratorAggregate, Countable, Stringable
      */
     public function get(
         Attribute|string $attribute,
-        bool $strict = false
+        bool $strict = false,
     ): ?Attribute {
         $attribute = $attribute instanceof Attribute ? $attribute : new Attribute($attribute);
 
@@ -193,7 +194,7 @@ class Entry implements IteratorAggregate, Countable, Stringable
      */
     public function has(
         Attribute|string $attribute,
-        bool $strict = false
+        bool $strict = false,
     ): bool {
         $attribute = $attribute instanceof Attribute
             ? $attribute
@@ -201,7 +202,7 @@ class Entry implements IteratorAggregate, Countable, Stringable
 
         return (bool) $this->get(
             $attribute,
-            $strict
+            $strict,
         );
     }
 
@@ -277,11 +278,11 @@ class Entry implements IteratorAggregate, Countable, Stringable
      */
     public function __set(
         string $name,
-        Stringable|string|array $value
+        Stringable|string|array $value,
     ): void {
         $this->set(
             $name,
-            ...(is_array($value) ? $value : [(string) $value])
+            ...(is_array($value) ? $value : [(string) $value]),
         );
     }
 
@@ -302,11 +303,11 @@ class Entry implements IteratorAggregate, Countable, Stringable
      */
     public static function create(
         Dn|Stringable|string $dn,
-        array $attributes = []
+        array $attributes = [],
     ): Entry {
         return self::fromArray(
             (string) $dn,
-            $attributes
+            $attributes,
         );
     }
 
@@ -317,7 +318,7 @@ class Entry implements IteratorAggregate, Countable, Stringable
      */
     public static function fromArray(
         Dn|Stringable|string $dn,
-        array $attributes = []
+        array $attributes = [],
     ): Entry {
         /** @var Attribute[] $entryAttr */
         $entryAttr = [];
@@ -328,17 +329,17 @@ class Entry implements IteratorAggregate, Countable, Stringable
                 ...(
                     is_array($attribute_values)
                     ? array_map(
-                        fn ($value) => (string) $value,
+                        fn($value) => (string) $value,
                         $attribute_values,
                     )
                     : [(string) $attribute_values]
-                )
+                ),
             );
         }
 
         return new self(
             (string) $dn,
-            ...$entryAttr
+            ...$entryAttr,
         );
     }
 }

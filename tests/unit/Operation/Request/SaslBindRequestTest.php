@@ -39,7 +39,7 @@ final class SaslBindRequestTest extends TestCase
     {
         $request = new SaslBindRequest(
             'PLAIN',
-            "\x00user\x00pass"
+            "\x00user\x00pass",
         );
 
         /** @var SaslBindRequest $result */
@@ -48,11 +48,11 @@ final class SaslBindRequestTest extends TestCase
         self::assertInstanceOf(SaslBindRequest::class, $result);
         self::assertSame(
             'PLAIN',
-            $result->getMechanism()
+            $result->getMechanism(),
         );
         self::assertSame(
             "\x00user\x00pass",
-            $result->getCredentials()
+            $result->getCredentials(),
         );
     }
 

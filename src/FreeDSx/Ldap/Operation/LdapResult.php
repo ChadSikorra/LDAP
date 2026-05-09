@@ -27,6 +27,7 @@ use FreeDSx\Ldap\LdapUrl;
 use FreeDSx\Ldap\Operation\Response\ResponseInterface;
 use FreeDSx\Ldap\Protocol\LdapEncoder;
 use Stringable;
+
 use function array_map;
 use function count;
 
@@ -103,7 +104,7 @@ class LdapResult implements ResponseInterface
         protected int $resultCode,
         Stringable|string $dn = '',
         protected string $diagnosticMessage = '',
-        LdapUrl ...$referrals
+        LdapUrl ...$referrals,
     ) {
         $this->dn = new Dn((string) $dn);
         $this->referrals = $referrals;
@@ -140,17 +141,17 @@ class LdapResult implements ResponseInterface
         $result = Asn1::sequence(
             Asn1::enumerated($this->resultCode),
             Asn1::octetString($this->dn->toString()),
-            Asn1::octetString($this->diagnosticMessage)
+            Asn1::octetString($this->diagnosticMessage),
         );
         if (count($this->referrals) !== 0) {
             $result->addChild(Asn1::context(
                 tagNumber: 3,
                 type: Asn1::sequence(
                     ...array_map(
-                        fn (LdapUrl $v) => Asn1::octetString($v->toString()),
-                        $this->referrals
-                    )
-                )
+                        fn(LdapUrl $v) => Asn1::octetString($v->toString()),
+                        $this->referrals,
+                    ),
+                ),
             ));
         }
 
@@ -174,7 +175,7 @@ class LdapResult implements ResponseInterface
             $resultCode,
             $dn,
             $diagnosticMessage,
-            ...$referrals
+            ...$referrals,
         );
     }
 

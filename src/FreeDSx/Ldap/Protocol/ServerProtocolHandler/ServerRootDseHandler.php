@@ -28,6 +28,7 @@ use FreeDSx\Ldap\Server\RequestContext;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Ldap\ServerOptions;
+
 use function count;
 
 /**
@@ -40,9 +41,8 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
     public function __construct(
         private readonly ServerOptions $options,
         private readonly ServerQueue $queue,
-        private readonly ?RootDseHandlerInterface $rootDseHandler = null
-    ) {
-    }
+        private readonly ?RootDseHandlerInterface $rootDseHandler = null,
+    ) {}
 
     /**
      * {@inheritDoc}
@@ -50,7 +50,7 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
      */
     public function handleRequest(
         LdapMessageRequest $message,
-        TokenInterface $token
+        TokenInterface $token,
     ): void {
         $entry = Entry::fromArray('', [
             'namingContexts' => $this->options->getDseNamingContexts(),
@@ -64,13 +64,13 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
         if ($this->options->getSslCert()) {
             $entry->add(
                 'supportedExtension',
-                ExtendedRequest::OID_START_TLS
+                ExtendedRequest::OID_START_TLS,
             );
         }
         if ($this->options->getBackend() !== null) {
             $entry->add(
                 'supportedControl',
-                Control::OID_PAGING
+                Control::OID_PAGING,
             );
         }
         if ($this->options->getDseVendorVersion()) {
@@ -89,7 +89,7 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
             $entry = $this->rootDseHandler->rootDse(
                 new RequestContext($message->controls(), $token),
                 $request,
-                $entry
+                $entry,
             );
         }
 
@@ -98,12 +98,12 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
         $this->queue->sendMessage(
             new LdapMessageResponse(
                 $message->getMessageId(),
-                new SearchResultEntry($entry)
+                new SearchResultEntry($entry),
             ),
             new LdapMessageResponse(
                 $message->getMessageId(),
-                new SearchResultDone(ResultCode::SUCCESS)
-            )
+                new SearchResultDone(ResultCode::SUCCESS),
+            ),
         );
     }
 
@@ -112,7 +112,7 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
      */
     private function filterEntryAttributes(
         SearchRequest $request,
-        Entry $entry
+        Entry $entry,
     ): void {
         if (count($request->getAttributes()) !== 0) {
             foreach ($entry->getAttributes() as $dseAttr) {

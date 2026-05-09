@@ -31,12 +31,12 @@ class ReferralException extends Exception
 
     public function __construct(
         string $diagnostic,
-        LdapUrl ...$referrals
+        LdapUrl ...$referrals,
     ) {
         $this->referrals = $referrals;
         parent::__construct(
             $diagnostic,
-            ResultCode::REFERRAL
+            ResultCode::REFERRAL,
         );
     }
 

@@ -71,7 +71,7 @@ class PcntlServerRunner implements ServerRunnerInterface
     ) {
         if (!extension_loaded('pcntl')) {
             throw new RuntimeException(
-                'The PCNTL extension is needed to fork incoming requests, which is only available on Linux.'
+                'The PCNTL extension is needed to fork incoming requests, which is only available on Linux.',
             );
         }
 
@@ -123,7 +123,7 @@ class PcntlServerRunner implements ServerRunnerInterface
             $result = pcntl_waitpid(
                 $childProcess->getPid(),
                 $status,
-                WNOHANG
+                WNOHANG,
             );
 
             if ($result === -1 || $result > 0) {
@@ -135,8 +135,8 @@ class PcntlServerRunner implements ServerRunnerInterface
                     'The child process has ended.',
                     array_merge(
                         $this->defaultContext,
-                        ['child_pid' => $childProcess->getPid()]
-                    )
+                        ['child_pid' => $childProcess->getPid()],
+                    ),
                 );
             }
         }
@@ -185,22 +185,22 @@ class PcntlServerRunner implements ServerRunnerInterface
                 // In parent process, but could not fork...
                 $this->logAndThrow(
                     'Unable to fork process.',
-                    $this->defaultContext
+                    $this->defaultContext,
                 );
             } elseif ($pid === 0) {
                 // This is the child's thread of execution...
                 $this->runChildProcessThenExit(
                     $socket,
-                    posix_getpid()
+                    posix_getpid(),
                 );
             } else {
                 // We are in the parent; the PID is the child process.
                 $this->runAfterChildStarted(
                     $pid,
-                    $socket
+                    $socket,
                 );
             }
-        // Use the shutdown flag, not the socket state (not reliable after forking)
+            // Use the shutdown flag, not the socket state (not reliable after forking)
         } while (!$this->isShuttingDown);
     }
 
@@ -211,12 +211,12 @@ class PcntlServerRunner implements ServerRunnerInterface
      */
     private function installChildSignalHandlers(
         ServerProtocolHandler $protocolHandler,
-        array $context
+        array $context,
     ): void {
         foreach ($this->handledSignals as $signal) {
             $context = array_merge(
                 $context,
-                ['signal' => $signal]
+                ['signal' => $signal],
             );
             pcntl_signal(
                 $signal,
@@ -228,14 +228,14 @@ class PcntlServerRunner implements ServerRunnerInterface
                     $this->isShuttingDown = true;
                     $this->logInfo(
                         'The child process has received a signal to stop.',
-                        $context
+                        $context,
                     );
                     try {
                         $protocolHandler->shutdown($context);
                     } catch (Throwable $e) {
                         $this->logShutdownNotifyError($e, $context);
                     }
-                }
+                },
             );
         }
     }
@@ -250,7 +250,7 @@ class PcntlServerRunner implements ServerRunnerInterface
                 $signal,
                 function () {
                     $this->handleServerShutdown();
-                }
+                },
             );
         }
     }
@@ -309,12 +309,12 @@ class PcntlServerRunner implements ServerRunnerInterface
      */
     private function endChildProcesses(
         int $signal,
-        bool $closeSocket = false
+        bool $closeSocket = false,
     ): void {
         foreach ($this->childProcesses as $childProcess) {
             $context = array_merge(
                 $this->defaultContext,
-                ['child_pid' => $childProcess->getPid()]
+                ['child_pid' => $childProcess->getPid()],
             );
 
             $message = ($signal === SIGKILL)
@@ -322,12 +322,12 @@ class PcntlServerRunner implements ServerRunnerInterface
                 : 'Sending graceful signal to end child process.';
             $this->logInfo(
                 $message,
-                $context
+                $context,
             );
 
             posix_kill(
                 $childProcess->getPid(),
-                $signal
+                $signal,
             );
             if ($closeSocket) {
                 $childProcess->closeSocket();
@@ -343,7 +343,7 @@ class PcntlServerRunner implements ServerRunnerInterface
      */
     private function runChildProcessThenExit(
         Socket $socket,
-        int $pid
+        int $pid,
     ): never {
         $context = ['pid' => $pid];
         $this->isMainProcess = false;
@@ -357,17 +357,17 @@ class PcntlServerRunner implements ServerRunnerInterface
 
         $this->installChildSignalHandlers(
             $serverProtocolHandler,
-            $context
+            $context,
         );
 
         $this->logInfo(
             'Handling LDAP connection in new child process.',
-            $context
+            $context,
         );
         $serverProtocolHandler->handle();
         $this->logInfo(
             'The child process is ending.',
-            $context
+            $context,
         );
 
         exit(0);
@@ -382,20 +382,20 @@ class PcntlServerRunner implements ServerRunnerInterface
      */
     private function runAfterChildStarted(
         int $pid,
-        Socket $socket
+        Socket $socket,
     ): void {
         if (!$this->isServerSignalsInstalled) {
             $this->installServerSignalHandlers();
         }
         $this->childProcesses[] = new ChildProcess(
             $pid,
-            $socket
+            $socket,
         );
         $this->logClientConnected(
             array_merge(
                 ['child_pid' => $pid],
                 $this->defaultContext,
-            )
+            ),
         );
         $this->cleanUpChildProcesses();
     }
@@ -417,7 +417,7 @@ class PcntlServerRunner implements ServerRunnerInterface
 
         $this->endChildProcesses(
             SIGKILL,
-            true
+            true,
         );
         $this->cleanUpChildProcesses();
     }

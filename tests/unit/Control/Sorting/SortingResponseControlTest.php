@@ -27,7 +27,7 @@ class SortingResponseControlTest extends TestCase
     {
         $this->subject = new SortingResponseControl(
             result: 0,
-            attribute: 'cn'
+            attribute: 'cn',
         );
     }
 
@@ -58,9 +58,9 @@ class SortingResponseControlTest extends TestCase
                 Asn1::boolean(false),
                 Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::enumerated(0),
-                    Asn1::octetString('cn')
-                )))
-            ))->setValue(null)
+                    Asn1::octetString('cn'),
+                ))),
+            ))->setValue(null),
         );
     }
 
@@ -74,8 +74,8 @@ class SortingResponseControlTest extends TestCase
                 Asn1::boolean(false),
                 Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::enumerated(0),
-                    Asn1::context(0, Asn1::octetString('cn'))
-                )))
+                    Asn1::context(0, Asn1::octetString('cn')),
+                ))),
             ),
             $this->subject->toAsn1(),
         );

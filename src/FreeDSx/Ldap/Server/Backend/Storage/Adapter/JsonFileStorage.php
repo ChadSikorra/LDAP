@@ -46,8 +46,7 @@ final class JsonFileStorage implements EntryStorageInterface
     private function __construct(
         private readonly string $filePath,
         private readonly StorageLockInterface $lock,
-    ) {
-    }
+    ) {}
 
     public static function forPcntl(
         string $filePath,
@@ -245,14 +244,14 @@ final class JsonFileStorage implements EntryStorageInterface
                 }
                 $attributes[] = new Attribute(
                     $name,
-                    ...$stringValues
+                    ...$stringValues,
                 );
             }
         }
 
         return new Entry(
             new Dn($dn),
-            ...$attributes
+            ...$attributes,
         );
     }
 }

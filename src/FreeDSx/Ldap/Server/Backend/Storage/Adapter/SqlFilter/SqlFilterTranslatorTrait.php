@@ -317,7 +317,7 @@ trait SqlFilterTranslatorTrait
         // in a presence guard so missing-attribute rows are excluded.
         if ($result->referencedAttributes !== []) {
             $guards = array_map(
-                fn (string $attribute): string => $this->buildPresenceCheck($attribute),
+                fn(string $attribute): string => $this->buildPresenceCheck($attribute),
                 array_values(array_unique($result->referencedAttributes)),
             );
 
@@ -359,7 +359,7 @@ trait SqlFilterTranslatorTrait
         if (preg_match('/^([a-z][a-z0-9-]*|\d+(\.\d+)+)(;[a-z0-9-]+)*$/', $lower) !== 1) {
             throw new InvalidAttributeException(sprintf(
                 'Attribute description "%s" is not a valid RFC 4512 attribute description.',
-                $attribute
+                $attribute,
             ));
         }
 

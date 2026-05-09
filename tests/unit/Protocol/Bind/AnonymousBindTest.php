@@ -51,7 +51,7 @@ final class AnonymousBindTest extends TestCase
         $this->subject->bind(
             new LdapMessageRequest(
                 1,
-                Operations::bindAnonymously()->setVersion(4)
+                Operations::bindAnonymously()->setVersion(4),
             ),
         );
     }
@@ -64,8 +64,8 @@ final class AnonymousBindTest extends TestCase
             ->with(self::equalTo(
                 new LdapMessageResponse(
                     1,
-                    new BindResponse(new LdapResult(0))
-                )
+                    new BindResponse(new LdapResult(0)),
+                ),
             ))
             ->willReturnSelf();
 
@@ -73,7 +73,7 @@ final class AnonymousBindTest extends TestCase
             new AnonToken('foo'),
             $this->subject->bind(new LdapMessageRequest(
                 1,
-                Operations::bindAnonymously('foo')
+                Operations::bindAnonymously('foo'),
             )),
         );
     }
@@ -83,8 +83,8 @@ final class AnonymousBindTest extends TestCase
         self::assertTrue(
             $this->subject->supports(new LdapMessageRequest(
                 1,
-                new AnonBindRequest()
-            ))
+                new AnonBindRequest(),
+            )),
         );
         self::assertFalse(
             $this->subject->supports(new LdapMessageRequest(
@@ -92,8 +92,8 @@ final class AnonymousBindTest extends TestCase
                 new SimpleBindRequest(
                     'foo',
                     'bar',
-                )
-            ))
+                ),
+            )),
         );
     }
 }

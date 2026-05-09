@@ -60,7 +60,7 @@ final class GreaterThanOrEqualFilterTest extends TestCase
     {
         self::assertEquals(
             new GreaterThanOrEqualFilter('foo', 'bar'),
-            GreaterThanOrEqualFilter::fromAsn1((new GreaterThanOrEqualFilter('foo', 'bar'))->toAsn1())
+            GreaterThanOrEqualFilter::fromAsn1((new GreaterThanOrEqualFilter('foo', 'bar'))->toAsn1()),
         );
     }
 

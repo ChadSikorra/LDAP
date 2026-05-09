@@ -26,8 +26,7 @@ final class TestReferralChaser implements ReferralChaserInterface
     public function __construct(
         private readonly string $username,
         private readonly string $password,
-    ) {
-    }
+    ) {}
 
     public function chase(
         LdapMessageRequest $request,
@@ -36,7 +35,7 @@ final class TestReferralChaser implements ReferralChaserInterface
     ): BindRequest {
         return new SimpleBindRequest(
             $this->username,
-            $this->password
+            $this->password,
         );
     }
 

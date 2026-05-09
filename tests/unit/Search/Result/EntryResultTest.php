@@ -32,9 +32,9 @@ final class EntryResultTest extends TestCase
             new LdapMessageResponse(
                 1,
                 new SearchResultEntry(
-                    new Entry('cn=foo')
+                    new Entry('cn=foo'),
                 ),
-            )
+            ),
         );
     }
 
@@ -52,7 +52,7 @@ final class EntryResultTest extends TestCase
             new LdapMessageResponse(
                 1,
                 new SearchResultEntry(
-                    new Entry('cn=foo')
+                    new Entry('cn=foo'),
                 ),
             ),
             $this->subject->getMessage(),
@@ -80,9 +80,9 @@ final class EntryResultTest extends TestCase
             new LdapMessageResponse(
                 1,
                 new SearchResultReference(
-                    new LdapUrl('foo')
+                    new LdapUrl('foo'),
                 ),
-            )
+            ),
         );
         $this->subject->getEntry();
     }

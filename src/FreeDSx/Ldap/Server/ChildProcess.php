@@ -23,7 +23,7 @@ class ChildProcess
 
     public function __construct(
         int $pid,
-        Socket $socket
+        Socket $socket,
     ) {
         $this->pid = $pid;
         $this->socket = $socket;

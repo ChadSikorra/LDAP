@@ -62,7 +62,7 @@ class LdapServerTest extends TestCase
 
         self::assertSame(
             $backend,
-            $this->subject->getOptions()->getBackend()
+            $this->subject->getOptions()->getBackend(),
         );
     }
 
@@ -74,7 +74,7 @@ class LdapServerTest extends TestCase
 
         self::assertSame(
             $rootDseHandler,
-            $this->subject->getOptions()->getRootDseHandler()
+            $this->subject->getOptions()->getRootDseHandler(),
         );
     }
 
@@ -86,7 +86,7 @@ class LdapServerTest extends TestCase
 
         self::assertSame(
             $logger,
-            $this->subject->getOptions()->getLogger()
+            $this->subject->getOptions()->getLogger(),
         );
     }
 
@@ -139,7 +139,7 @@ class LdapServerTest extends TestCase
 
         self::assertSame(
             $authenticator,
-            $this->subject->getOptions()->getPasswordAuthenticator()
+            $this->subject->getOptions()->getPasswordAuthenticator(),
         );
     }
 
@@ -151,7 +151,7 @@ class LdapServerTest extends TestCase
 
         self::assertContains(
             $handler,
-            $this->subject->getOptions()->getWriteHandlers()
+            $this->subject->getOptions()->getWriteHandlers(),
         );
     }
 
@@ -163,7 +163,7 @@ class LdapServerTest extends TestCase
 
         self::assertSame(
             $evaluator,
-            $this->subject->getOptions()->getFilterEvaluator()
+            $this->subject->getOptions()->getFilterEvaluator(),
         );
     }
 
@@ -180,7 +180,7 @@ class LdapServerTest extends TestCase
 
         self::assertInstanceOf(
             ProxyHandler::class,
-            $proxyOptions->getBackend()
+            $proxyOptions->getBackend(),
         );
 
         self::assertNull($proxyOptions->getRootDseHandler());

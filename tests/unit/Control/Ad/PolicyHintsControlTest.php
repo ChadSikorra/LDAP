@@ -50,9 +50,9 @@ class PolicyHintsControlTest extends TestCase
                 Asn1::octetString(Control::OID_POLICY_HINTS),
                 Asn1::boolean(true),
                 Asn1::octetString($encoder->encode(Asn1::sequence(
-                    Asn1::integer(1)
-                )))
-            )
+                    Asn1::integer(1),
+                ))),
+            ),
         );
     }
 
@@ -66,9 +66,9 @@ class PolicyHintsControlTest extends TestCase
                 Asn1::octetString(Control::OID_POLICY_HINTS),
                 Asn1::boolean(true),
                 Asn1::octetString($encoder->encode(Asn1::sequence(
-                    Asn1::integer(1)
-                )))
-            ))->setValue(null)
+                    Asn1::integer(1),
+                ))),
+            ))->setValue(null),
         );
     }
 }

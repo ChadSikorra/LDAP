@@ -62,9 +62,9 @@ final class SyncRefreshPresentTest extends TestCase
                 Asn1::context(0, Asn1::octetString(IntermediateResponse::OID_SYNC_INFO)),
                 Asn1::context(1, Asn1::octetString($encoder->encode(Asn1::context(2, Asn1::sequence(
                     Asn1::octetString('omnomnom'),
-                    Asn1::boolean(false)
-                )))))
-            )))
+                    Asn1::boolean(false),
+                ))))),
+            ))),
         );
     }
 
@@ -77,7 +77,7 @@ final class SyncRefreshPresentTest extends TestCase
                 Asn1::context(0, Asn1::octetString(IntermediateResponse::OID_SYNC_INFO)),
                 Asn1::context(1, Asn1::octetString($encoder->encode(Asn1::context(2, Asn1::sequence(
                     Asn1::octetString('omnomnom'),
-                    Asn1::boolean(false)
+                    Asn1::boolean(false),
                 ))))),
             )),
             $this->subject->toAsn1(),

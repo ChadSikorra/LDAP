@@ -47,7 +47,7 @@ class SubentriesControlTest extends TestCase
             Asn1::sequence(
                 Asn1::octetString(Control::OID_SUBENTRIES),
                 Asn1::boolean(true),
-                Asn1::octetString($encoder->encode(Asn1::boolean(true)))
+                Asn1::octetString($encoder->encode(Asn1::boolean(true))),
             ),
             $this->subject->toAsn1(),
         );
@@ -60,13 +60,13 @@ class SubentriesControlTest extends TestCase
         $result = SubentriesControl::fromAsn1(Asn1::sequence(
             Asn1::octetString(Control::OID_SUBENTRIES),
             Asn1::boolean(true),
-            Asn1::octetString($encoder->encode(Asn1::boolean(true)))
+            Asn1::octetString($encoder->encode(Asn1::boolean(true))),
         ));
 
         self::assertTrue($result->getIsVisible());
         self::assertSame(
             Control::OID_SUBENTRIES,
-            $result->getTypeOid()
+            $result->getTypeOid(),
         );
     }
 }

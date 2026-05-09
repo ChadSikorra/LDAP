@@ -28,7 +28,6 @@ use FreeDSx\Ldap\Operation\Response\SyncInfoMessage;
  */
 class SyncRefreshDelete extends SyncInfoMessage
 {
-    protected const VALUE_TAG = 1;
-
     use SyncRefreshDoneTrait;
+    protected const VALUE_TAG = 1;
 }

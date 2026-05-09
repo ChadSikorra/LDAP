@@ -31,6 +31,5 @@ final class CollectedPage
         public readonly array $entries,
         public readonly bool $isGeneratorExhausted,
         public readonly bool $isSizeLimitExceeded,
-    ) {
-    }
+    ) {}
 }

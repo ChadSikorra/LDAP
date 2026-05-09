@@ -52,56 +52,56 @@ final class FilterEvaluatorTest extends TestCase
     public function test_present_returns_true_when_attribute_exists(): void
     {
         self::assertTrue(
-            $this->subject->evaluate($this->entry, new PresentFilter('cn'))
+            $this->subject->evaluate($this->entry, new PresentFilter('cn')),
         );
     }
 
     public function test_present_returns_false_when_attribute_missing(): void
     {
         self::assertFalse(
-            $this->subject->evaluate($this->entry, new PresentFilter('telephoneNumber'))
+            $this->subject->evaluate($this->entry, new PresentFilter('telephoneNumber')),
         );
     }
 
     public function test_present_is_case_insensitive_for_attribute_name(): void
     {
         self::assertTrue(
-            $this->subject->evaluate($this->entry, new PresentFilter('CN'))
+            $this->subject->evaluate($this->entry, new PresentFilter('CN')),
         );
     }
 
     public function test_equality_matches_value(): void
     {
         self::assertTrue(
-            $this->subject->evaluate($this->entry, Filters::equal('cn', 'Alice'))
+            $this->subject->evaluate($this->entry, Filters::equal('cn', 'Alice')),
         );
     }
 
     public function test_equality_is_case_insensitive(): void
     {
         self::assertTrue(
-            $this->subject->evaluate($this->entry, Filters::equal('cn', 'ALICE'))
+            $this->subject->evaluate($this->entry, Filters::equal('cn', 'ALICE')),
         );
     }
 
     public function test_equality_returns_false_when_no_match(): void
     {
         self::assertFalse(
-            $this->subject->evaluate($this->entry, Filters::equal('cn', 'Bob'))
+            $this->subject->evaluate($this->entry, Filters::equal('cn', 'Bob')),
         );
     }
 
     public function test_equality_returns_false_when_attribute_missing(): void
     {
         self::assertFalse(
-            $this->subject->evaluate($this->entry, Filters::equal('telephoneNumber', '555'))
+            $this->subject->evaluate($this->entry, Filters::equal('telephoneNumber', '555')),
         );
     }
 
     public function test_equality_matches_any_value_in_multivalued_attribute(): void
     {
         self::assertTrue(
-            $this->subject->evaluate($this->entry, Filters::equal('objectClass', 'person'))
+            $this->subject->evaluate($this->entry, Filters::equal('objectClass', 'person')),
         );
     }
 
@@ -221,42 +221,42 @@ final class FilterEvaluatorTest extends TestCase
     public function test_gte_matches_equal_value(): void
     {
         self::assertTrue(
-            $this->subject->evaluate($this->entry, Filters::greaterThanOrEqual('uidNumber', '1001'))
+            $this->subject->evaluate($this->entry, Filters::greaterThanOrEqual('uidNumber', '1001')),
         );
     }
 
     public function test_gte_matches_greater_value(): void
     {
         self::assertTrue(
-            $this->subject->evaluate($this->entry, Filters::greaterThanOrEqual('uidNumber', '1000'))
+            $this->subject->evaluate($this->entry, Filters::greaterThanOrEqual('uidNumber', '1000')),
         );
     }
 
     public function test_gte_returns_false_when_less(): void
     {
         self::assertFalse(
-            $this->subject->evaluate($this->entry, Filters::greaterThanOrEqual('uidNumber', '2000'))
+            $this->subject->evaluate($this->entry, Filters::greaterThanOrEqual('uidNumber', '2000')),
         );
     }
 
     public function test_lte_matches_equal_value(): void
     {
         self::assertTrue(
-            $this->subject->evaluate($this->entry, Filters::lessThanOrEqual('uidNumber', '1001'))
+            $this->subject->evaluate($this->entry, Filters::lessThanOrEqual('uidNumber', '1001')),
         );
     }
 
     public function test_lte_matches_lesser_value(): void
     {
         self::assertTrue(
-            $this->subject->evaluate($this->entry, Filters::lessThanOrEqual('uidNumber', '9999'))
+            $this->subject->evaluate($this->entry, Filters::lessThanOrEqual('uidNumber', '9999')),
         );
     }
 
     public function test_lte_returns_false_when_greater(): void
     {
         self::assertFalse(
-            $this->subject->evaluate($this->entry, Filters::lessThanOrEqual('uidNumber', '500'))
+            $this->subject->evaluate($this->entry, Filters::lessThanOrEqual('uidNumber', '500')),
         );
     }
 
@@ -269,7 +269,7 @@ final class FilterEvaluatorTest extends TestCase
         );
 
         self::assertTrue(
-            $this->subject->evaluate($entry, Filters::greaterThanOrEqual('count', '5'))
+            $this->subject->evaluate($entry, Filters::greaterThanOrEqual('count', '5')),
         );
     }
 
@@ -285,7 +285,7 @@ final class FilterEvaluatorTest extends TestCase
         self::assertFalse(
             $this->subject->evaluate(
                 $entry,
-                Filters::greaterThanOrEqual('count', '5')
+                Filters::greaterThanOrEqual('count', '5'),
             ),
         );
     }
@@ -302,15 +302,15 @@ final class FilterEvaluatorTest extends TestCase
         self::assertFalse(
             $this->subject->evaluate(
                 $entry,
-                Filters::greaterThanOrEqual('employeeId', '10')
-            )
+                Filters::greaterThanOrEqual('employeeId', '10'),
+            ),
         );
     }
 
     public function test_approximate_matches_equal_value(): void
     {
         self::assertTrue(
-            $this->subject->evaluate($this->entry, new ApproximateFilter('cn', 'Alice'))
+            $this->subject->evaluate($this->entry, new ApproximateFilter('cn', 'Alice')),
         );
     }
 
@@ -319,8 +319,8 @@ final class FilterEvaluatorTest extends TestCase
         self::assertTrue(
             $this->subject->evaluate(
                 $this->entry,
-                new ApproximateFilter('cn', 'ALICE')
-            )
+                new ApproximateFilter('cn', 'ALICE'),
+            ),
         );
     }
 
@@ -345,7 +345,7 @@ final class FilterEvaluatorTest extends TestCase
 
         self::assertFalse($this->subject->evaluate(
             $this->entry,
-            $filter
+            $filter,
         ));
     }
 
@@ -357,7 +357,7 @@ final class FilterEvaluatorTest extends TestCase
         );
         self::assertTrue($this->subject->evaluate(
             $this->entry,
-            $filter
+            $filter,
         ));
     }
 
@@ -369,7 +369,7 @@ final class FilterEvaluatorTest extends TestCase
         );
         self::assertFalse($this->subject->evaluate(
             $this->entry,
-            $filter
+            $filter,
         ));
     }
 
@@ -378,7 +378,7 @@ final class FilterEvaluatorTest extends TestCase
         $filter = Filters::not(Filters::equal('cn', 'Alice'));
         self::assertFalse($this->subject->evaluate(
             $this->entry,
-            $filter
+            $filter,
         ));
     }
 
@@ -387,7 +387,7 @@ final class FilterEvaluatorTest extends TestCase
         $filter = Filters::not(Filters::equal('cn', 'Bob'));
         self::assertTrue($this->subject->evaluate(
             $this->entry,
-            $filter
+            $filter,
         ));
     }
 
@@ -402,7 +402,7 @@ final class FilterEvaluatorTest extends TestCase
         );
         self::assertTrue($this->subject->evaluate(
             $this->entry,
-            $filter
+            $filter,
         ));
     }
 
@@ -415,7 +415,7 @@ final class FilterEvaluatorTest extends TestCase
         );
         self::assertTrue($this->subject->evaluate(
             $this->entry,
-            $filter
+            $filter,
         ));
     }
 
@@ -428,7 +428,7 @@ final class FilterEvaluatorTest extends TestCase
         );
         self::assertTrue($this->subject->evaluate(
             $this->entry,
-            $filter
+            $filter,
         ));
     }
 
@@ -441,7 +441,7 @@ final class FilterEvaluatorTest extends TestCase
         );
         self::assertFalse($this->subject->evaluate(
             $this->entry,
-            $filter
+            $filter,
         ));
     }
 
@@ -457,7 +457,7 @@ final class FilterEvaluatorTest extends TestCase
         );
         self::assertTrue($this->subject->evaluate(
             $this->entry,
-            $filter
+            $filter,
         ));
     }
 
@@ -471,7 +471,7 @@ final class FilterEvaluatorTest extends TestCase
         );
         self::assertFalse($this->subject->evaluate(
             $this->entry,
-            $filter
+            $filter,
         ));
     }
 
@@ -497,7 +497,7 @@ final class FilterEvaluatorTest extends TestCase
         // The DN is cn=Alice,dc=example,dc=com — 'alice' matches the RDN value
         self::assertTrue($this->subject->evaluate(
             $this->entry,
-            $filter
+            $filter,
         ));
     }
 
@@ -563,7 +563,7 @@ final class FilterEvaluatorTest extends TestCase
         );
         self::assertTrue($this->subject->evaluate(
             $this->entry,
-            $filter
+            $filter,
         ));
     }
 
@@ -870,10 +870,10 @@ final class FilterEvaluatorTest extends TestCase
         );
 
         self::assertTrue(
-            $subject->evaluate($entry, Filters::equal('userPassword', 'Secret'))
+            $subject->evaluate($entry, Filters::equal('userPassword', 'Secret')),
         );
         self::assertFalse(
-            $subject->evaluate($entry, Filters::equal('userPassword', 'secret'))
+            $subject->evaluate($entry, Filters::equal('userPassword', 'secret')),
         );
     }
 
@@ -885,7 +885,7 @@ final class FilterEvaluatorTest extends TestCase
         );
 
         self::assertTrue(
-            $this->subject->evaluate($entry, Filters::equal('userPassword', 'secret'))
+            $this->subject->evaluate($entry, Filters::equal('userPassword', 'secret')),
         );
     }
 
@@ -928,7 +928,7 @@ final class FilterEvaluatorTest extends TestCase
 
         self::assertFalse($subject->evaluate(
             $entry,
-            Filters::greaterThanOrEqual('uidNumber', '100')
+            Filters::greaterThanOrEqual('uidNumber', '100'),
         ));
     }
 }

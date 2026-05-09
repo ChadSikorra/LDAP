@@ -47,7 +47,7 @@ final class DistinguishedNameComparator implements MatchingRuleComparatorInterfa
     private function normalize(string $dn): string
     {
         return strtolower(
-            (new Dn($dn))->normalize()->toString()
+            (new Dn($dn))->normalize()->toString(),
         );
     }
 }

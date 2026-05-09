@@ -78,9 +78,9 @@ class ExpectedEntryCountControlTest extends TestCase
                 Asn1::boolean(true),
                 Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::integer(1),
-                    Asn1::integer(50)
-                )))
-            )
+                    Asn1::integer(50),
+                ))),
+            ),
         );
     }
 
@@ -95,9 +95,9 @@ class ExpectedEntryCountControlTest extends TestCase
                 Asn1::boolean(true),
                 Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::integer(1),
-                    Asn1::integer(50)
-                )))
-            ))->setValue(null)
+                    Asn1::integer(50),
+                ))),
+            ))->setValue(null),
         );
     }
 }

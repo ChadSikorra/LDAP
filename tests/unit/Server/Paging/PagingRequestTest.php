@@ -32,7 +32,7 @@ final class PagingRequestTest extends TestCase
             new SearchRequest(new EqualityFilter('foo', 'bar')),
             new ControlBag(),
             'bar',
-            new DateTime('01-01-2021')
+            new DateTime('01-01-2021'),
         );
     }
 
@@ -118,7 +118,7 @@ final class PagingRequestTest extends TestCase
         self::assertEquals(
             new SearchRequest(new EqualityFilter(
                 'foo',
-                'bar'
+                'bar',
             )),
             $this->subject->getSearchRequest(),
         );
@@ -160,7 +160,7 @@ final class PagingRequestTest extends TestCase
             new SearchRequest(new EqualityFilter('foo', 'bar')),
             new ControlBag(),
             'bar',
-            new DateTime('01-01-2021')
+            new DateTime('01-01-2021'),
         );
 
         self::assertTrue($this->subject->isAbandonRequest());
@@ -178,6 +178,7 @@ final class PagingRequestTest extends TestCase
 
     public function test_it_should_get_the_criticality_of_the_control(): void
     {
-        self::assertFalse($this->subject->isCritical());;
+        self::assertFalse($this->subject->isCritical());
+        ;
     }
 }

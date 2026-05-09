@@ -71,7 +71,8 @@ final class ClientSearchHandlerTest extends TestCase
             ->expects($this->once())
             ->method('getMessage')
             ->with(1)
-            ->willReturn($this->mockResponse);;
+            ->willReturn($this->mockResponse);
+        ;
 
         self::assertSame(
             $this->mockResponse,
@@ -128,7 +129,7 @@ final class ClientSearchHandlerTest extends TestCase
             $this->subject->handleResponse(
                 $messageTo,
                 $response,
-            )?->getResponse()
+            )?->getResponse(),
         );
     }
 
@@ -156,8 +157,8 @@ final class ClientSearchHandlerTest extends TestCase
                 new LdapMessageResponse(1, new SearchResultDone(
                     0,
                     'cn=foo',
-                    'bar'
-                ))
+                    'bar',
+                )),
             ));
 
         $this->mockQueue

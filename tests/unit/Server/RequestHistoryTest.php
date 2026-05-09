@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Server;
 
 use FreeDSx\Ldap\Exception\ProtocolException;
-use FreeDSx\Ldap\Server\Paging\PagingRequests;
 use FreeDSx\Ldap\Server\RequestHistory;
 use PHPUnit\Framework\TestCase;
 
@@ -33,7 +32,7 @@ final class RequestHistoryTest extends TestCase
 
         self::assertSame(
             [1],
-            $this->subject->getIds()
+            $this->subject->getIds(),
         );
     }
 
@@ -56,7 +55,7 @@ final class RequestHistoryTest extends TestCase
     {
 
         self::assertFalse(
-            $this->subject->pagingRequest()->has('foo')
+            $this->subject->pagingRequest()->has('foo'),
         );
     }
 }

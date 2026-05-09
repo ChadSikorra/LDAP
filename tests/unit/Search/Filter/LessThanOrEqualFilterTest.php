@@ -60,7 +60,7 @@ final class LessThanOrEqualFilterTest extends TestCase
     {
         self::assertEquals(
             (new LessThanOrEqualFilter('foo', 'bar')),
-            LessThanOrEqualFilter::fromAsn1((new LessThanOrEqualFilter('foo', 'bar'))->toAsn1())
+            LessThanOrEqualFilter::fromAsn1((new LessThanOrEqualFilter('foo', 'bar'))->toAsn1()),
         );
     }
 

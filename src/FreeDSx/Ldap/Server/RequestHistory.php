@@ -61,7 +61,7 @@ final class RequestHistory
         if ($id === 0 || in_array($id, $this->ids, true)) {
             throw new ProtocolException(sprintf(
                 'The message ID %s is not valid.',
-                $id
+                $id,
             ));
         }
 

@@ -23,6 +23,7 @@ use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\ProtocolException;
+
 use function array_map;
 use function count;
 
@@ -113,7 +114,7 @@ class ModifyRequest implements RequestInterface, DnRequestInterface
 
         return new self(
             $dn->getValue(),
-            ...$changeList
+            ...$changeList,
         );
     }
 
@@ -128,7 +129,7 @@ class ModifyRequest implements RequestInterface, DnRequestInterface
                 Asn1::octetString($change->getAttribute()->getDescription()),
                 Asn1::setOf(...array_map(function ($value) {
                     return Asn1::octetString($value);
-                }, $change->getAttribute()->getValues()))
+                }, $change->getAttribute()->getValues())),
             ));
 
             $changes->addChild($changeSeq);
@@ -136,7 +137,7 @@ class ModifyRequest implements RequestInterface, DnRequestInterface
 
         return Asn1::application(self::APP_TAG, Asn1::sequence(
             Asn1::octetString($this->dn->toString()),
-            $changes
+            $changes,
         ));
     }
 

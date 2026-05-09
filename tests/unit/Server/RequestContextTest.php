@@ -26,7 +26,7 @@ final class RequestContextTest extends TestCase
     {
         $this->subject = new RequestContext(
             new ControlBag(),
-            new AnonToken(null)
+            new AnonToken(null),
         );
     }
 

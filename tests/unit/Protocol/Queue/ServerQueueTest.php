@@ -19,7 +19,6 @@ use FreeDSx\Asn1\Type\IncompleteType;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Operation\Response\DeleteResponse;
 use FreeDSx\Ldap\Protocol\LdapEncoder;
-use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\MessageWrapperInterface;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
@@ -69,8 +68,8 @@ final class ServerQueueTest extends TestCase
 
         $this->subject->sendMessage(new LdapMessageResponse(
             1,
-            new DeleteResponse(0)
-        ),);
+            new DeleteResponse(0),
+        ), );
     }
 
     public function test_it_should_get_a_request_message(): void
@@ -82,7 +81,7 @@ final class ServerQueueTest extends TestCase
                 Asn1::sequence(
                     Asn1::integer(1),
                     Asn1::application(10, Asn1::octetString('dc=foo,dc=bar')),
-                    new IncompleteType((new LdapEncoder())->encode(Asn1::context(0, Asn1::sequenceOf((new Control('foo'))->toAsn1()))))
+                    new IncompleteType((new LdapEncoder())->encode(Asn1::context(0, Asn1::sequenceOf((new Control('foo'))->toAsn1())))),
                 ),
             );
 
@@ -102,7 +101,7 @@ final class ServerQueueTest extends TestCase
 
         $this->subject->sendMessage(
             new LdapMessageResponse(1, new DeleteResponse(0)),
-            new LdapMessageResponse(2, new DeleteResponse(0))
+            new LdapMessageResponse(2, new DeleteResponse(0)),
         );
     }
 
@@ -124,7 +123,7 @@ final class ServerQueueTest extends TestCase
         $this->subject->setMessageWrapper($mockWrapper);
         $this->subject->sendMessage(new LdapMessageResponse(
             1,
-            new DeleteResponse(0)
+            new DeleteResponse(0),
         ));
     }
 
@@ -133,7 +132,7 @@ final class ServerQueueTest extends TestCase
         $asn1 = Asn1::sequence(
             Asn1::integer(1),
             Asn1::application(10, Asn1::octetString('dc=foo,dc=bar')),
-            new IncompleteType((new LdapEncoder())->encode(Asn1::context(0, Asn1::sequenceOf((new Control('foo'))->toAsn1()))))
+            new IncompleteType((new LdapEncoder())->encode(Asn1::context(0, Asn1::sequenceOf((new Control('foo'))->toAsn1())))),
         );
 
         $this->mockEncoder

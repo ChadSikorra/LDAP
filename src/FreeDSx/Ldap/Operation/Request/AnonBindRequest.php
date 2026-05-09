@@ -25,7 +25,7 @@ class AnonBindRequest extends BindRequest
 {
     public function __construct(
         string $username = '',
-        int $version = 3
+        int $version = 3,
     ) {
         $this->username = $username;
         $this->version = $version;
@@ -44,7 +44,5 @@ class AnonBindRequest extends BindRequest
     /**
      * {@inheritdoc}
      */
-    protected function validate(): void
-    {
-    }
+    protected function validate(): void {}
 }

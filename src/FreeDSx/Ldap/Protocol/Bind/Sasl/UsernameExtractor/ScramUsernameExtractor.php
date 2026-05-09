@@ -47,13 +47,13 @@ class ScramUsernameExtractor implements SaslUsernameExtractorInterface
             return str_replace(
                 ['=2C', '=3D'],
                 [',', '='],
-                $m[1]
+                $m[1],
             );
         }
 
         throw new OperationException(
             sprintf('The %s credentials did not contain a username.', $mechanism->value),
-            ResultCode::PROTOCOL_ERROR
+            ResultCode::PROTOCOL_ERROR,
         );
     }
 }

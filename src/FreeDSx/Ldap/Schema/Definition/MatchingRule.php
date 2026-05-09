@@ -34,8 +34,7 @@ final readonly class MatchingRule
         public ?string $desc = null,
         public bool $obsolete = false,
         public array $extensions = [],
-    ) {
-    }
+    ) {}
 
     /**
      * Produces the matchingRuleUse description string for this rule and the attribute types that reference it.
@@ -53,7 +52,7 @@ final readonly class MatchingRule
                 DefinitionKeyword::DESC,
                 $this->desc !== null
                     ? $this->quoteString($this->desc)
-                    : null
+                    : null,
             ),
             $this->obsolete
                 ? DefinitionKeyword::OBSOLETE

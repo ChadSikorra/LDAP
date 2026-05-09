@@ -55,7 +55,7 @@ class SortingResponseControl extends Control
 {
     public function __construct(
         private readonly int $result,
-        private readonly ?string $attribute = null
+        private readonly ?string $attribute = null,
     ) {
         parent::__construct(self::OID_SORTING_RESPONSE);
     }
@@ -91,12 +91,12 @@ class SortingResponseControl extends Control
 
         $response = new static(
             $result->getValue(),
-            ($attribute !== null) ? $attribute->getValue() : null
+            ($attribute !== null) ? $attribute->getValue() : null,
         );
 
         return parent::mergeControlData(
             $response,
-            $type
+            $type,
         );
     }
 
@@ -106,7 +106,7 @@ class SortingResponseControl extends Control
         if ($this->attribute !== null) {
             $this->controlValue->addChild(Asn1::context(
                 tagNumber: 0,
-                type: Asn1::octetString($this->attribute)
+                type: Asn1::octetString($this->attribute),
             ));
         }
 

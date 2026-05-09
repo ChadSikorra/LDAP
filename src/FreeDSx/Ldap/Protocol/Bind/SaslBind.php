@@ -53,8 +53,7 @@ class SaslBind implements BindInterface
         private readonly array $mechanisms = [],
         private readonly ResponseFactory $responseFactory = new ResponseFactory(),
         private readonly SaslUsernameExtractorFactory $usernameExtractorFactory = new SaslUsernameExtractorFactory(),
-    ) {
-    }
+    ) {}
 
     /**
      * {@inheritDoc}
@@ -101,7 +100,7 @@ class SaslBind implements BindInterface
         if (!$request instanceof SaslBindRequest) {
             throw new RuntimeException(sprintf(
                 'Expected a SaslBindRequest, got: %s',
-                get_class($request)
+                get_class($request),
             ));
         }
 
@@ -118,7 +117,7 @@ class SaslBind implements BindInterface
         if (!in_array($mechName, $this->mechanisms, true)) {
             throw new OperationException(
                 sprintf('The SASL mechanism "%s" is not supported.', $mechName),
-                ResultCode::AUTH_METHOD_UNSUPPORTED
+                ResultCode::AUTH_METHOD_UNSUPPORTED,
             );
         }
     }
@@ -155,7 +154,7 @@ class SaslBind implements BindInterface
 
             throw new OperationException(
                 'Invalid credentials.',
-                ResultCode::INVALID_CREDENTIALS
+                ResultCode::INVALID_CREDENTIALS,
             );
         }
 
@@ -167,7 +166,7 @@ class SaslBind implements BindInterface
             if ($usernameCredentials === null) {
                 throw new OperationException(
                     sprintf('Unable to extract username for mechanism "%s": no credentials were received.', $mechName->value),
-                    ResultCode::PROTOCOL_ERROR
+                    ResultCode::PROTOCOL_ERROR,
                 );
             }
 

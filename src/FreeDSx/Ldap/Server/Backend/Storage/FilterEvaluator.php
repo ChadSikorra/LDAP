@@ -379,7 +379,7 @@ final class FilterEvaluator implements FilterEvaluatorInterface
         $components = $this->cachedDnRdns
             ?? ($this->cachedDnRdns = array_merge(
                 ...array_map(
-                    fn ($rdn) => $rdn->getAll(),
+                    fn($rdn) => $rdn->getAll(),
                     $entry->getDn()->toArray(),
                 ),
             ));
@@ -387,12 +387,12 @@ final class FilterEvaluator implements FilterEvaluatorInterface
         if ($filterAttributeName !== null) {
             $components = array_filter(
                 $components,
-                fn ($component) => strcasecmp($component->getName(), $filterAttributeName) === 0,
+                fn($component) => strcasecmp($component->getName(), $filterAttributeName) === 0,
             );
         }
 
         return array_map(
-            fn ($component) => $component->getValue(),
+            fn($component) => $component->getValue(),
             $components,
         );
     }

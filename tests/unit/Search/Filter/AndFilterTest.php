@@ -102,7 +102,7 @@ final class AndFilterTest extends TestCase
         self::assertEquals(
             Asn1::context(0, Asn1::setOf(
                 Filters::equal('foo', 'bar')->toAsn1(),
-                Filters::gte('foo', '2')->toAsn1()
+                Filters::gte('foo', '2')->toAsn1(),
             )),
             $this->subject->toAsn1(),
         );
@@ -114,7 +114,7 @@ final class AndFilterTest extends TestCase
 
         self::assertEquals(
             $and,
-            AndFilter::fromAsn1($and->toAsn1())
+            AndFilter::fromAsn1($and->toAsn1()),
         );
     }
 

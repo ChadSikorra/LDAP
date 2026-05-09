@@ -44,14 +44,14 @@ final class PasswordAuthenticatorTest extends TestCase
 
         return new PasswordAuthenticator(
             $this->mockResolver,
-            $this->mockBackend
+            $this->mockBackend,
         );
     }
 
     public function test_returns_false_when_entry_not_found(): void
     {
         self::assertFalse(
-            $this->subject(null)->verifyPassword('cn=Unknown,dc=example,dc=com', 'secret')
+            $this->subject(null)->verifyPassword('cn=Unknown,dc=example,dc=com', 'secret'),
         );
     }
 
@@ -63,7 +63,7 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         self::assertFalse(
-            $this->subject($entry)->verifyPassword('cn=Alice,dc=example,dc=com', 'secret')
+            $this->subject($entry)->verifyPassword('cn=Alice,dc=example,dc=com', 'secret'),
         );
     }
 
@@ -75,7 +75,7 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         self::assertTrue(
-            $this->subject($entry)->verifyPassword('cn=Alice,dc=example,dc=com', 'secret')
+            $this->subject($entry)->verifyPassword('cn=Alice,dc=example,dc=com', 'secret'),
         );
     }
 
@@ -87,7 +87,7 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         self::assertFalse(
-            $this->subject($entry)->verifyPassword('cn=Alice,dc=example,dc=com', 'wrong')
+            $this->subject($entry)->verifyPassword('cn=Alice,dc=example,dc=com', 'wrong'),
         );
     }
 
@@ -100,7 +100,7 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         self::assertTrue(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'mypassword')
+            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'mypassword'),
         );
     }
 
@@ -113,7 +113,7 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         self::assertFalse(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'wrong')
+            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'wrong'),
         );
     }
 
@@ -127,7 +127,7 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         self::assertTrue(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'mypassword')
+            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'mypassword'),
         );
     }
 
@@ -141,7 +141,7 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         self::assertFalse(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'wrong')
+            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'wrong'),
         );
     }
 
@@ -154,7 +154,7 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         self::assertTrue(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'mypassword')
+            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'mypassword'),
         );
     }
 
@@ -167,7 +167,7 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         self::assertFalse(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'wrong')
+            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'wrong'),
         );
     }
 
@@ -181,7 +181,7 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         self::assertTrue(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'mypassword')
+            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'mypassword'),
         );
     }
 
@@ -195,14 +195,14 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         self::assertFalse(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'wrong')
+            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'wrong'),
         );
     }
 
     public function test_get_password_returns_null_when_entry_not_found(): void
     {
         self::assertNull(
-            $this->subject()->getPassword('unknown', MechanismName::SCRAM_SHA256)
+            $this->subject()->getPassword('unknown', MechanismName::SCRAM_SHA256),
         );
     }
 
@@ -214,7 +214,7 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         self::assertNull(
-            $this->subject($entry)->getPassword('cn=Alice,dc=example,dc=com', MechanismName::SCRAM_SHA256)
+            $this->subject($entry)->getPassword('cn=Alice,dc=example,dc=com', MechanismName::SCRAM_SHA256),
         );
     }
 
@@ -227,7 +227,7 @@ final class PasswordAuthenticatorTest extends TestCase
 
         self::assertSame(
             'secret',
-            $this->subject($entry)->getPassword('cn=Alice,dc=example,dc=com', MechanismName::SCRAM_SHA256)
+            $this->subject($entry)->getPassword('cn=Alice,dc=example,dc=com', MechanismName::SCRAM_SHA256),
         );
     }
 
@@ -241,7 +241,7 @@ final class PasswordAuthenticatorTest extends TestCase
 
         self::assertSame(
             $hashed,
-            $this->subject($entry)->getPassword('cn=Alice,dc=example,dc=com', MechanismName::SCRAM_SHA256)
+            $this->subject($entry)->getPassword('cn=Alice,dc=example,dc=com', MechanismName::SCRAM_SHA256),
         );
     }
 }

@@ -28,11 +28,11 @@ class LdapMessageRequest extends LdapMessage
     public function __construct(
         int $messageId,
         private readonly RequestInterface $request,
-        Control ...$controls
+        Control ...$controls,
     ) {
         parent::__construct(
             $messageId,
-            ...$controls
+            ...$controls,
         );
     }
 

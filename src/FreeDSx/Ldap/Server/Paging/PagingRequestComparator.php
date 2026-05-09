@@ -33,9 +33,7 @@ use FreeDSx\Ldap\Protocol\LdapEncoder;
  */
 class PagingRequestComparator
 {
-    public function __construct(private readonly LdapEncoder $encoder = new LdapEncoder())
-    {
-    }
+    public function __construct(private readonly LdapEncoder $encoder = new LdapEncoder()) {}
 
     /**
      * Compares the old paging request with the new request to determine if it is valid.
@@ -45,7 +43,7 @@ class PagingRequestComparator
      */
     public function compare(
         PagingRequest $oldPagingRequest,
-        PagingRequest $newPagingRequest
+        PagingRequest $newPagingRequest,
     ): bool {
         if ($oldPagingRequest->getNextCookie() !== $newPagingRequest->getCookie()) {
             return false;
@@ -60,7 +58,7 @@ class PagingRequestComparator
             && $oldSearch->getScope() === $newSearch->getScope()
             && $oldSearch->getTimeLimit() === $newSearch->getTimeLimit()
             && $oldSearch->getSizeLimit() === $newSearch->getSizeLimit()
-            && (string)$oldSearch->getBaseDn() === (string)$newSearch->getBaseDn()
+            && (string) $oldSearch->getBaseDn() === (string) $newSearch->getBaseDn()
             && $oldSearch->getFilter()->toString() === $newSearch->getFilter()->toString()
             && $this->attributesMatch($oldSearch->getAttributes(), $newSearch->getAttributes())
             && $this->controlsMatch($newPagingRequest->controls(), $oldPagingRequest->controls());
@@ -72,7 +70,7 @@ class PagingRequestComparator
      */
     private function attributesMatch(
         array $oldAttrs,
-        array $newAttrs
+        array $newAttrs,
     ): bool {
         if (count($oldAttrs) !== count($newAttrs)) {
             return false;
@@ -105,7 +103,7 @@ class PagingRequestComparator
      */
     private function controlsMatch(
         ControlBag $newControls,
-        ControlBag $oldControls
+        ControlBag $oldControls,
     ): bool {
         if ($oldControls->count() !== $newControls->count()) {
             return false;

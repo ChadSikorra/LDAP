@@ -35,7 +35,7 @@ class LdapMessageResponseTest extends TestCase
                 new SearchResultDone(
                     0,
                     'dc=foo,dc=bar',
-                    ''
+                    '',
                 ),
             ),
             new Control('foo'),
@@ -72,9 +72,9 @@ class LdapMessageResponseTest extends TestCase
             Asn1::application(11, Asn1::sequence(
                 Asn1::enumerated(0),
                 Asn1::octetString('dc=foo,dc=bar'),
-                Asn1::octetString('')
+                Asn1::octetString(''),
             )),
-            Asn1::context(0, (new IncompleteType($encoder->encode((new Control('foo'))->toAsn1())))->setIsConstructed(true))
+            Asn1::context(0, (new IncompleteType($encoder->encode((new Control('foo'))->toAsn1())))->setIsConstructed(true)),
         ));
 
         self::assertSame(
@@ -85,7 +85,7 @@ class LdapMessageResponseTest extends TestCase
             new DeleteResponse(
                 0,
                 'dc=foo,dc=bar',
-                ''
+                '',
             ),
             $this->subject->getResponse(),
         );

@@ -61,7 +61,7 @@ final class ClientExtendedOperationHandlerTest extends TestCase
             $this->subject->handleResponse(
                 new LdapMessageRequest(1, new ExtendedRequest('foo', 'bar')),
                 $response,
-            )
+            ),
         );
     }
 
@@ -91,7 +91,7 @@ final class ClientExtendedOperationHandlerTest extends TestCase
 
         self::assertInstanceOf(
             PasswordModifyResponse::class,
-            $this->subject->handleRequest($extendedRequest)?->getResponse()
+            $this->subject->handleRequest($extendedRequest)?->getResponse(),
         );
     }
 }

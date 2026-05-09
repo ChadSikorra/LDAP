@@ -64,7 +64,7 @@ class FilterParser
      */
     private function parseFilterString(
         int $startAt,
-        bool $isRoot = false
+        bool $isRoot = false,
     ): array {
         if ($this->isAtFilterContainer($startAt)) {
             [$endsAt, $filter] = $this->parseFilterContainer($startAt, $isRoot);
@@ -74,7 +74,7 @@ class FilterParser
         if ($isRoot && $endsAt !== $this->length) {
             throw new FilterParseException(sprintf(
                 'Unexpected value at end of the filter: %s',
-                substr($this->filter, $endsAt)
+                substr($this->filter, $endsAt),
             ));
         }
 
@@ -104,7 +104,7 @@ class FilterParser
      */
     private function parseFilterContainer(
         int $startAt,
-        bool $isRoot
+        bool $isRoot,
     ): array {
         if ($this->containers === null) {
             $this->parseContainerDepths();
@@ -113,7 +113,7 @@ class FilterParser
         if (!isset($this->containers[$this->depth])) {
             throw new FilterParseException(sprintf(
                 'The container at position %s is unrecognized. Perhaps there\'s an unmatched "(".',
-                $startAt
+                $startAt,
             ));
         }
         $endAt = $this->containers[$this->depth]['endAt'] ?? 0;
@@ -141,7 +141,7 @@ class FilterParser
      */
     private function parseComparisonFilter(
         int $startAt,
-        bool $isRoot = false
+        bool $isRoot = false,
     ): array {
         $parenthesis = $this->validateComparisonFilter($startAt, $isRoot);
         $endAt = !$parenthesis && $isRoot ? $this->length : $this->nextClosingParenthesis($startAt) + 1;
@@ -171,18 +171,18 @@ class FilterParser
         $attribute = substr(
             $this->filter,
             $startAt + ($parenthesis ? 1 : 0),
-            (int) $attributeEndsAfter - ($parenthesis ? 1 : 0)
+            (int) $attributeEndsAfter - ($parenthesis ? 1 : 0),
         );
         $value = substr(
             $this->filter,
             (int) $valueStartsAt,
-            $endAt - (int) $valueStartsAt - ($parenthesis ? 1 : 0)
+            $endAt - (int) $valueStartsAt - ($parenthesis ? 1 : 0),
         );
 
         if ($attribute === '') {
             throw new FilterParseException(sprintf(
                 'The attribute is missing in the filter near position %s.',
-                $startAt
+                $startAt,
             ));
         }
 
@@ -196,7 +196,7 @@ class FilterParser
      */
     private function validateComparisonFilter(
         int $startAt,
-        bool $isRoot
+        bool $isRoot,
     ): bool {
         $parenthesis = true;
 
@@ -216,7 +216,7 @@ class FilterParser
             throw new FilterParseException(sprintf(
                 'The character "%s" at position %s was unexpected. Expected "(".',
                 $this->filter[$startAt],
-                $startAt
+                $startAt,
             ));
         }
 
@@ -232,20 +232,20 @@ class FilterParser
         ?string $filterType,
         ?int $startsAt,
         ?int $startValue,
-        int $endAt
+        int $endAt,
     ): void {
         if ($filterType === null) {
             throw new FilterParseException(sprintf(
                 'Expected one of "%s" in the filter after position %s, but received none.',
                 implode(', ', FilterInterface::FILTERS),
-                $startsAt
+                $startsAt,
             ));
         }
         if ($startValue === null || $startValue === $endAt - 1) {
             throw new FilterParseException(sprintf(
                 'Expected a value after "%s" at position %s, but got none.',
                 $filterType,
-                $startValue
+                $startValue,
             ));
         }
     }
@@ -256,7 +256,7 @@ class FilterParser
     private function getComparisonFilterObject(
         string $operator,
         string $attribute,
-        string $value
+        string $value,
     ): FilterInterface {
         if ($operator === FilterInterface::FILTER_LTE) {
             return Filters::lessThanOrEqual($attribute, $this->unescapeValue($value));
@@ -284,7 +284,7 @@ class FilterParser
      */
     private function getMatchingRuleFilterObject(
         string $attribute,
-        string $value
+        string $value,
     ): MatchingRuleFilter {
         if (preg_match(self::MATCHING_RULE, $attribute, $matches) === 0) {
             throw new FilterParseException(sprintf('The matching rule is not valid: %s', $attribute));
@@ -299,7 +299,7 @@ class FilterParser
         if ($matchingRule === '' && $attrName === '') {
             throw new FilterParseException(sprintf(
                 'If the matching rule is absent the attribute type must be present, but it is not: %s',
-                $attribute
+                $attribute,
             ));
         }
 
@@ -319,14 +319,14 @@ class FilterParser
      */
     private function getSubstringFilterObject(
         string $attribute,
-        string $value
+        string $value,
     ): SubstringFilter {
         $filter = new SubstringFilter($attribute);
         $substrings = preg_split('/\*/', $value, -1, PREG_SPLIT_OFFSET_CAPTURE | PREG_SPLIT_NO_EMPTY);
         if (!is_array($substrings)) {
             throw new FilterParseException(sprintf(
                 'Unable to parse the substring filter for attribute %s.',
-                $attribute
+                $attribute,
             ));
         }
 
@@ -353,19 +353,19 @@ class FilterParser
      */
     private function getNotFilterObject(
         int $startAt,
-        int $endAt
+        int $endAt,
     ): FilterInterface {
         if ($this->isAtFilterContainer($startAt + 2)) {
             throw new FilterParseException(sprintf(
                 'The "not" filter at position %s cannot contain multiple filters.',
-                $startAt
+                $startAt,
             ));
         }
         $info = $this->parseComparisonFilter($startAt + 2);
         if (($info[0] + 1) !== $endAt) {
             throw new FilterParseException(sprintf(
                 'The value after the "not" filter value was unexpected: %s',
-                substr($this->filter, $info[0] + 1, $endAt - ((int) $info[0] + 1))
+                substr($this->filter, $info[0] + 1, $endAt - ((int) $info[0] + 1)),
             ));
         }
 
@@ -374,7 +374,7 @@ class FilterParser
 
     private function startsWith(
         string $char,
-        int $pos
+        int $pos,
     ): bool {
         return isset($this->filter[$pos])
             && $this->filter[$pos] === $char;
@@ -399,10 +399,10 @@ class FilterParser
         for ($i = 0; $i < $this->length; $i++) {
             # Detect an unescaped left parenthesis
             if ($this->filter[$i] === FilterInterface::PAREN_LEFT) {
-                [$i, $child] = $this->parseContainerStart((int)$i, $child);
-            # We have reached a closing parenthesis of a container, work backwards from those defined to set the ending.
+                [$i, $child] = $this->parseContainerStart((int) $i, $child);
+                # We have reached a closing parenthesis of a container, work backwards from those defined to set the ending.
             } elseif ($this->filter[$i] === FilterInterface::PAREN_RIGHT) {
-                $this->parseContainerEnd((int)$i);
+                $this->parseContainerEnd((int) $i);
             }
         }
 
@@ -429,7 +429,7 @@ class FilterParser
 
         throw new FilterParseException(sprintf(
             'Expected a matching ")" after position %s, but none was found',
-            $startAt
+            $startAt,
         ));
     }
 
@@ -437,7 +437,7 @@ class FilterParser
     {
         return (string) preg_replace_callback(
             '/\\\\([0-9A-Fa-f]{2})/',
-            fn (array $matches) => (string) hex2bin($matches[1]),
+            fn(array $matches) => (string) hex2bin($matches[1]),
             $value,
         );
     }
@@ -458,22 +458,22 @@ class FilterParser
             # Container inside the container ...
             if ($this->isAtFilterContainer($i)) {
                 $i--;
-            # Comparison filter inside the container...
+                # Comparison filter inside the container...
             } elseif (isset($this->filter[$i]) && $this->filter[$i] === FilterInterface::PAREN_LEFT) {
                 $i = $this->nextClosingParenthesis($i);
-            # An empty container is not allowed...
+                # An empty container is not allowed...
             } elseif (isset($this->filter[$i]) && $this->filter[$i] === FilterInterface::PAREN_RIGHT) {
                 throw new FilterParseException(sprintf(
                     'The filter container near position %s is empty.',
-                    $i
+                    $i,
                 ));
-            # Any other conditions possible? This shouldn't happen unless the filter is malformed..
+                # Any other conditions possible? This shouldn't happen unless the filter is malformed..
             } else {
                 throw new FilterParseException(sprintf(
                     'Unexpected value after "%s" at position %s: %s',
                     $this->filter[$i - 1] ?? '',
                     $i + 1,
-                    $this->filter[$i + 1] ?? ''
+                    $this->filter[$i + 1] ?? '',
                 ));
             }
             # If there is no operator this is a standard comparison filter, just find the next closing parenthesis
@@ -500,7 +500,7 @@ class FilterParser
         if (!$matchFound) {
             throw new FilterParseException(sprintf(
                 'The closing ")" at position %s has no matching parenthesis',
-                $i
+                $i,
             ));
         }
     }

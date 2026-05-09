@@ -71,8 +71,8 @@ class PagingControlTest extends TestCase
                 Asn1::boolean(false),
                 Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::integer(0),
-                    Asn1::octetString('foo')
-                )))
+                    Asn1::octetString('foo'),
+                ))),
             ),
             $this->subject->toAsn1(),
         );
@@ -87,8 +87,8 @@ class PagingControlTest extends TestCase
             Asn1::boolean(false),
             Asn1::octetString($encoder->encode(Asn1::sequence(
                 Asn1::integer(1),
-                Asn1::octetString('foobar')
-            )))
+                Asn1::octetString('foobar'),
+            ))),
         ));
 
         self::assertSame(

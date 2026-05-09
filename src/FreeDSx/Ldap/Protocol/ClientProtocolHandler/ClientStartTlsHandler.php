@@ -27,9 +27,7 @@ use FreeDSx\Ldap\Protocol\Queue\ClientQueue;
  */
 class ClientStartTlsHandler implements ResponseHandlerInterface
 {
-    public function __construct(private readonly ClientQueue $queue)
-    {
-    }
+    public function __construct(private readonly ClientQueue $queue) {}
 
     /**
      * {@inheritDoc}
@@ -38,7 +36,7 @@ class ClientStartTlsHandler implements ResponseHandlerInterface
      */
     public function handleResponse(
         LdapMessageRequest $messageTo,
-        LdapMessageResponse $messageFrom
+        LdapMessageResponse $messageFrom,
     ): ?LdapMessageResponse {
         /** @var ExtendedResponse $response */
         $response = $messageFrom->getResponse();
@@ -46,7 +44,7 @@ class ClientStartTlsHandler implements ResponseHandlerInterface
         if ($response->getResultCode() !== ResultCode::SUCCESS) {
             throw new ConnectionException(sprintf(
                 'Unable to start TLS: %s',
-                $response->getDiagnosticMessage()
+                $response->getDiagnosticMessage(),
             ));
         }
         $this->queue->encrypt();

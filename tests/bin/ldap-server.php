@@ -42,7 +42,7 @@ class LdapServerBackend implements WritableLdapBackendInterface, PasswordAuthent
 
         $this->logRequest(
             'search',
-            "base-dn => {$baseDn}, filter => {$request->getFilter()->toString()}"
+            "base-dn => {$baseDn}, filter => {$request->getFilter()->toString()}",
         );
 
         return new EntryStream($this->yieldSearchResults($baseDn));
@@ -57,7 +57,7 @@ class LdapServerBackend implements WritableLdapBackendInterface, PasswordAuthent
                 'cn' => 'user',
                 'name' => 'user',
                 'foo' => 'bar',
-            ]
+            ],
         );
     }
 
@@ -67,7 +67,7 @@ class LdapServerBackend implements WritableLdapBackendInterface, PasswordAuthent
             $dn->toString(),
             [
                 'foo' => 'bar',
-            ]
+            ],
         );
     }
 
@@ -106,7 +106,7 @@ class LdapServerBackend implements WritableLdapBackendInterface, PasswordAuthent
 
         $this->logRequest(
             'bind',
-            "username => $name, password => $password"
+            "username => $name, password => $password",
         );
 
         return isset($this->users[$name]) && $this->users[$name] === $password;
@@ -122,7 +122,7 @@ class LdapServerBackend implements WritableLdapBackendInterface, PasswordAuthent
 
         $this->logRequest(
             'add',
-            "dn => {$entry->getDn()->toString()}, Attributes: " . implode(', ', $attrLog)
+            "dn => {$entry->getDn()->toString()}, Attributes: " . implode(', ', $attrLog),
         );
     }
 
@@ -138,13 +138,13 @@ class LdapServerBackend implements WritableLdapBackendInterface, PasswordAuthent
             $attribute = $change->getAttribute();
             $modLog[] = "({$change->getType()}){$attribute->getName()} => " . implode(
                 ', ',
-                $attribute->getValues()
+                $attribute->getValues(),
             );
         }
 
         $this->logRequest(
             'modify',
-            "dn => {$command->dn->toString()}, Changes: " . implode(', ', $modLog)
+            "dn => {$command->dn->toString()}, Changes: " . implode(', ', $modLog),
         );
     }
 
@@ -186,7 +186,7 @@ class LdapServerPagingBackend extends LdapServerBackend
                 [
                     'foo' => (string) $i,
                     'bar' => (string) $i,
-                ]
+                ],
             );
         }
     }

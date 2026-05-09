@@ -23,9 +23,8 @@ class SortKey
     public function __construct(
         private string $attribute,
         private bool $useReverseOrder = false,
-        private ?string $orderingRule = null
-    ) {
-    }
+        private ?string $orderingRule = null,
+    ) {}
 
     public function getAttribute(): string
     {
@@ -68,7 +67,7 @@ class SortKey
      */
     public static function ascending(
         string $attribute,
-        ?string $matchRule = null
+        ?string $matchRule = null,
     ): self {
         return new self(
             $attribute,
@@ -82,7 +81,7 @@ class SortKey
      */
     public static function descending(
         string $attribute,
-        ?string $matchRule = null
+        ?string $matchRule = null,
     ): self {
         return new self(
             $attribute,

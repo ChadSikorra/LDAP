@@ -70,7 +70,7 @@ abstract class BindRequest implements RequestInterface
         return Asn1::application(self::APP_TAG, Asn1::sequence(
             Asn1::integer($this->version),
             Asn1::octetString($this->username),
-            $this->getAsn1AuthChoice()
+            $this->getAsn1AuthChoice(),
         ));
     }
 
@@ -107,7 +107,7 @@ abstract class BindRequest implements RequestInterface
         if ($auth->getTagNumber() !== 0) {
             throw new ProtocolException(sprintf(
                 'The auth choice tag %s in the bind request is not supported.',
-                $auth->getTagNumber()
+                $auth->getTagNumber(),
             ));
         }
         if (!($auth instanceof IncompleteType || $auth instanceof OctetStringType)) {

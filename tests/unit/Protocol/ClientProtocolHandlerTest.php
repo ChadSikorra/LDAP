@@ -95,8 +95,8 @@ final class ClientProtocolHandlerTest extends TestCase
                     'foo',
                     0,
                     null,
-                    ExtendedResponse::OID_NOTICE_OF_DISCONNECTION
-                )
+                    ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
+                ),
             );
 
         $this->mockQueue
@@ -114,7 +114,7 @@ final class ClientProtocolHandlerTest extends TestCase
             ->expects($this->any())
             ->method('handleRequest')
             ->willThrowException(new \FreeDSx\Socket\Exception\ConnectionException(
-                'foo'
+                'foo',
             ));
 
         $this->subject->send(new DeleteRequest('foo'));
@@ -129,8 +129,10 @@ final class ClientProtocolHandlerTest extends TestCase
         $this->mockRequestHandler
             ->expects($this->once())
             ->method('handleRequest')
-            ->with($this->callback(
-                fn (LdapMessageRequest $messageRequest) => $messageRequest->getRequest() === $request)
+            ->with(
+                $this->callback(
+                    fn(LdapMessageRequest $messageRequest) => $messageRequest->getRequest() === $request,
+                ),
             )->willReturn($messageResponse);
 
         $this->mockResponseHandler
@@ -141,7 +143,7 @@ final class ClientProtocolHandlerTest extends TestCase
 
         self::assertSame(
             $messageResponse,
-            $this->subject->send($request)
+            $this->subject->send($request),
         );
     }
 
@@ -153,7 +155,7 @@ final class ClientProtocolHandlerTest extends TestCase
             ->expects($this->once())
             ->method('handleRequest')
             ->with($this->callback(
-                fn (LdapMessageRequest $messageRequest) => $messageRequest->getRequest() === $request
+                fn(LdapMessageRequest $messageRequest) => $messageRequest->getRequest() === $request,
             ))->willReturn(null);
 
         $this->mockResponseHandler
@@ -172,7 +174,7 @@ final class ClientProtocolHandlerTest extends TestCase
             ->expects($this->once())
             ->method('handleRequest')
             ->with($this->callback(
-                fn (LdapMessageRequest $messageRequest) => $messageRequest->getRequest() === $request
+                fn(LdapMessageRequest $messageRequest) => $messageRequest->getRequest() === $request,
             ))->willReturn($messageResponse);
 
         $this->mockResponseHandler

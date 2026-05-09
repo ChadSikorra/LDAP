@@ -30,8 +30,7 @@ final class Session
         private ?string $cookie,
         private ?int $phase = null,
         private bool $refreshComplete = false,
-    ) {
-    }
+    ) {}
 
     /**
      * The cookie that represents this sync session.

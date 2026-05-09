@@ -45,7 +45,7 @@ class Controls
     public static function create(
         string $oid,
         bool $criticality = false,
-        ProtocolElementInterface|AbstractType|null $value = null
+        ProtocolElementInterface|AbstractType|null $value = null,
     ): Control {
         return new Control(
             controlType: $oid,
@@ -60,7 +60,7 @@ class Controls
     public static function dirSync(
         int $flags = DirSyncRequestControl::FLAG_INCREMENTAL_VALUES,
         string $cookie = '',
-        int $maxBytes = 2147483647
+        int $maxBytes = 2147483647,
     ): DirSyncRequestControl {
         return new DirSyncRequestControl(
             flags: $flags,
@@ -74,7 +74,7 @@ class Controls
      */
     public static function expectedEntryCount(
         int $min,
-        int $max
+        int $max,
     ): ExpectedEntryCountControl {
         return new ExpectedEntryCountControl(
             min: $min,
@@ -98,7 +98,7 @@ class Controls
     {
         return new Control(
             Control::OID_MANAGE_DSA_IT,
-            true
+            true,
         );
     }
 
@@ -108,7 +108,7 @@ class Controls
      */
     public static function paging(
         int $size,
-        string $cookie = ''
+        string $cookie = '',
     ): PagingControl {
         return new PagingControl(
             size: $size,
@@ -196,13 +196,13 @@ class Controls
     {
         return new Control(
             controlType: Control::OID_SUBTREE_DELETE,
-            criticality: $criticality
+            criticality: $criticality,
         );
     }
 
     public static function syncRequest(
         ?string $cookie = null,
-        int $mode = SyncRequestControl::MODE_REFRESH_ONLY
+        int $mode = SyncRequestControl::MODE_REFRESH_ONLY,
     ): SyncRequestControl {
         return new SyncRequestControl(
             $mode,
@@ -218,7 +218,7 @@ class Controls
         int $after,
         int $offset = 1,
         int $count = 0,
-        ?string $contextId = null
+        ?string $contextId = null,
     ): VlvControl {
         return new VlvControl(
             before: $before,
@@ -237,7 +237,7 @@ class Controls
         int $before,
         int $after,
         GreaterThanOrEqualFilter $filter,
-        ?string $contextId = null
+        ?string $contextId = null,
     ): VlvControl {
         return new VlvControl(
             before: $before,

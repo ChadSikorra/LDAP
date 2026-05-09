@@ -27,8 +27,7 @@ final class SaslExchangeResult
         private readonly SaslContext $context,
         private readonly LdapMessageRequest $lastMessage,
         private readonly ?string $usernameCredentials,
-    ) {
-    }
+    ) {}
 
     public function getContext(): SaslContext
     {

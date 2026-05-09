@@ -21,9 +21,7 @@ class SyncReferralResult
 {
     use SyncResultTrait;
 
-    public function __construct(private readonly ReferralResult $referralResult)
-    {
-    }
+    public function __construct(private readonly ReferralResult $referralResult) {}
 
     public function getMessage(): LdapMessageResponse
     {

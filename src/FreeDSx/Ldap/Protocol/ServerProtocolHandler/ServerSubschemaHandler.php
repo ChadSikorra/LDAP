@@ -36,8 +36,7 @@ class ServerSubschemaHandler implements ServerProtocolHandlerInterface
     public function __construct(
         private readonly ServerOptions $options,
         private readonly ServerQueue $queue,
-    ) {
-    }
+    ) {}
 
     public function handleRequest(
         LdapMessageRequest $message,
@@ -56,19 +55,19 @@ class ServerSubschemaHandler implements ServerProtocolHandlerInterface
                 ],
                 $rdn->getName() => [$rdn->getValue()],
                 AttributeTypeOid::NAME_ATTRIBUTE_TYPES => array_map(
-                    fn ($at) => $at->toDescriptionString(),
+                    fn($at) => $at->toDescriptionString(),
                     $schema->getAttributeTypes(),
                 ),
                 AttributeTypeOid::NAME_OBJECT_CLASSES => array_map(
-                    fn ($oc) => $oc->toDescriptionString(),
+                    fn($oc) => $oc->toDescriptionString(),
                     $schema->getObjectClasses(),
                 ),
                 AttributeTypeOid::NAME_MATCHING_RULES => array_map(
-                    fn ($mr) => $mr->toDescriptionString(),
+                    fn($mr) => $mr->toDescriptionString(),
                     $schema->getMatchingRules(),
                 ),
                 AttributeTypeOid::NAME_LDAP_SYNTAXES => array_map(
-                    fn ($ls) => $ls->toDescriptionString(),
+                    fn($ls) => $ls->toDescriptionString(),
                     $schema->getLdapSyntaxes(),
                 ),
                 AttributeTypeOid::NAME_MATCHING_RULE_USE => $this->buildMatchingRuleUse($schema),

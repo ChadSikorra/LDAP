@@ -170,5 +170,4 @@ class ProxyBackend implements WritableLdapBackendInterface, PasswordAuthenticata
 
         return $this->ldap;
     }
-
 }

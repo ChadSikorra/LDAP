@@ -41,8 +41,7 @@ final class Report
         private readonly Config $config,
         private readonly WorkloadMix $mix,
         private readonly StatsSnapshot $snapshot,
-    ) {
-    }
+    ) {}
 
     public function render(OutputInterface $output): void
     {

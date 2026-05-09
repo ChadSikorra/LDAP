@@ -127,7 +127,7 @@ $server = new LdapServer(
         ->setPort($portOpt ?? 10389)
         ->setTransport($transport)
         ->setSocketAcceptTimeout(0.1)
-        ->setOnServerReady(fn () => fwrite(STDOUT, 'server starting...' . PHP_EOL))
+        ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL)),
 );
 
 if ($storage === 'memory') {
@@ -146,7 +146,7 @@ if ($storage === 'memory') {
     $importer = new LdapImporter($adapter);
 
     if ($runner === 'swoole') {
-        Swoole\Coroutine\run(fn () => $importer->importEntries($entries));
+        Swoole\Coroutine\run(fn() => $importer->importEntries($entries));
     } else {
         $importer->importEntries($entries);
     }
@@ -168,7 +168,7 @@ if ($storage === 'memory') {
     $importer = new LdapImporter($adapter);
 
     if ($runner === 'swoole') {
-        Swoole\Coroutine\run(fn () => $importer->importEntries($entries));
+        Swoole\Coroutine\run(fn() => $importer->importEntries($entries));
     } else {
         $importer->importEntries($entries);
     }
@@ -197,7 +197,7 @@ if ($storage === 'memory') {
     $importer = new LdapImporter($adapter);
 
     if ($runner === 'swoole') {
-        Swoole\Coroutine\run(fn () => $importer->importEntries($entries));
+        Swoole\Coroutine\run(fn() => $importer->importEntries($entries));
     } else {
         $importer->importEntries($entries);
     }

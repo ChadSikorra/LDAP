@@ -21,6 +21,7 @@ use FreeDSx\Asn1\Type\SequenceType;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Protocol\LdapEncoder;
 use FreeDSx\Ldap\Protocol\ProtocolElementInterface;
+
 use function count;
 use function is_string;
 
@@ -62,14 +63,14 @@ class ExtendedRequest implements RequestInterface
     /**
      * @var null|string|AbstractType<mixed>|ProtocolElementInterface
      */
-    protected null|string|AbstractType|ProtocolElementInterface $requestValue;
+    protected string|AbstractType|ProtocolElementInterface|null $requestValue;
 
     /**
      * @param null|string|AbstractType<mixed>|ProtocolElementInterface $requestValue
      */
     public function __construct(
         string $requestName,
-        null|string|AbstractType|ProtocolElementInterface $requestValue = null,
+        string|AbstractType|ProtocolElementInterface|null $requestValue = null,
     ) {
         $this->requestName = $requestName;
         $this->requestValue = $requestValue;
@@ -90,7 +91,7 @@ class ExtendedRequest implements RequestInterface
     /**
      * @param null|string|AbstractType<mixed>|ProtocolElementInterface $requestValue
      */
-    public function setValue(null|string|AbstractType|ProtocolElementInterface $requestValue): static
+    public function setValue(string|AbstractType|ProtocolElementInterface|null $requestValue): static
     {
         $this->requestValue = $requestValue;
 
@@ -100,7 +101,7 @@ class ExtendedRequest implements RequestInterface
     /**
      * @return null|string|AbstractType<mixed>|ProtocolElementInterface
      */
-    public function getValue(): null|string|AbstractType|ProtocolElementInterface
+    public function getValue(): string|AbstractType|ProtocolElementInterface|null
     {
         return $this->requestValue;
     }
@@ -122,7 +123,7 @@ class ExtendedRequest implements RequestInterface
             }
             $asn1->addChild(Asn1::context(
                 tagNumber: 1,
-                type: Asn1::octetString($value)
+                type: Asn1::octetString($value),
             ));
         }
 

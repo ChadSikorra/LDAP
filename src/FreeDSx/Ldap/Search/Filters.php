@@ -58,7 +58,7 @@ class Filters
     ): EqualityFilter {
         return new EqualityFilter(
             $attribute,
-            $value
+            $value,
         );
     }
 
@@ -114,11 +114,11 @@ class Filters
      */
     public static function lte(
         string $attribute,
-        string $value
+        string $value,
     ): LessThanOrEqualFilter {
         return self::lessThanOrEqual(
             $attribute,
-            $value
+            $value,
         );
     }
 
@@ -137,13 +137,13 @@ class Filters
         string $attribute,
         ?string $startsWith,
         ?string $endsWith,
-        string ...$contains
+        string ...$contains,
     ): SubstringFilter {
         return new SubstringFilter(
             $attribute,
             $startsWith,
             $endsWith,
-            ...$contains
+            ...$contains,
         );
     }
 
@@ -152,13 +152,13 @@ class Filters
      */
     public static function contains(
         string $attribute,
-        string ...$values
+        string ...$values,
     ): SubstringFilter {
         return new SubstringFilter(
             $attribute,
             null,
             null,
-            ...$values
+            ...$values,
         );
     }
 
@@ -167,12 +167,12 @@ class Filters
      */
     public static function endsWith(
         string $attribute,
-        string $value
+        string $value,
     ): SubstringFilter {
         return new SubstringFilter(
             $attribute,
             null,
-            $value
+            $value,
         );
     }
 
@@ -181,7 +181,7 @@ class Filters
      */
     public static function startsWith(
         string $attribute,
-        string $value
+        string $value,
     ): SubstringFilter {
         return new SubstringFilter(
             $attribute,
@@ -196,13 +196,13 @@ class Filters
         ?string $attribute,
         string $value,
         ?string $rule,
-        bool $matchDn = false
+        bool $matchDn = false,
     ): MatchingRuleFilter {
         return new MatchingRuleFilter(
             $rule,
             $attribute,
             $value,
-            $matchDn
+            $matchDn,
         );
     }
 

@@ -90,7 +90,7 @@ final class SaslExchangeTest extends TestCase
             ->willReturn($this->makeContext(
                 isComplete: true,
                 isAuthenticated: false,
-                response: 'e=invalid-proof'
+                response: 'e=invalid-proof',
             ));
 
         $this->mockQueue
@@ -130,7 +130,7 @@ final class SaslExchangeTest extends TestCase
         // Username credentials are set from the client response received in round 1.
         self::assertSame(
             'client-response',
-            $result->getUsernameCredentials()
+            $result->getUsernameCredentials(),
         );
     }
 
@@ -190,7 +190,7 @@ final class SaslExchangeTest extends TestCase
 
         self::assertSame(
             'username-in-response',
-            $result->getUsernameCredentials()
+            $result->getUsernameCredentials(),
         );
     }
 
@@ -210,7 +210,7 @@ final class SaslExchangeTest extends TestCase
 
         self::assertSame(
             'authzid\x00user\x00pass',
-            $result->getUsernameCredentials()
+            $result->getUsernameCredentials(),
         );
     }
 

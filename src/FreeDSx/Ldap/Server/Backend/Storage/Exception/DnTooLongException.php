@@ -20,6 +20,4 @@ use FreeDSx\Ldap\Exception\RuntimeException;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class DnTooLongException extends RuntimeException
-{
-}
+final class DnTooLongException extends RuntimeException {}

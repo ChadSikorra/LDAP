@@ -37,7 +37,7 @@ trait AttributeValueAssertionTrait
 
     public function __construct(
         string $attribute,
-        string $value
+        string $value,
     ) {
         $this->attribute = $attribute;
         $this->value = $value;

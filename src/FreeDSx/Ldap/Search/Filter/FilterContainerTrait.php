@@ -56,7 +56,7 @@ trait FilterContainerTrait
         return in_array(
             $filter,
             $this->filters,
-            true
+            true,
         );
     }
 
@@ -91,8 +91,8 @@ trait FilterContainerTrait
         return Asn1::context(
             tagNumber: self::CHOICE_TAG,
             type: Asn1::setOf(...array_map(
-                fn (FilterInterface $filter) => $filter->toAsn1(),
-                $this->filters
+                fn(FilterInterface $filter) => $filter->toAsn1(),
+                $this->filters,
             )),
         );
     }
@@ -144,7 +144,7 @@ trait FilterContainerTrait
         if ($type instanceof IncompleteType) {
             $type = (new LdapEncoder())->complete(
                 type: $type,
-                tagType: AbstractType::TAG_TYPE_SET
+                tagType: AbstractType::TAG_TYPE_SET,
             );
         }
 

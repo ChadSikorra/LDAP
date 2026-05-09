@@ -22,6 +22,7 @@ use FreeDSx\Asn1\Type\SetType;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Operation\Response\IntermediateResponse;
 use FreeDSx\Ldap\Operation\Response\SyncInfoMessage;
+
 use function count;
 
 /**
@@ -53,7 +54,7 @@ class SyncIdSet extends SyncInfoMessage
     public function __construct(
         array $entryUuids,
         bool $refreshDeletes = false,
-        ?string $cookie = null
+        ?string $cookie = null,
     ) {
         $this->entryUuids = $entryUuids;
         $this->refreshDeletes = $refreshDeletes;
@@ -78,12 +79,12 @@ class SyncIdSet extends SyncInfoMessage
     {
         $asn1 = Asn1::context(
             self::VALUE_TAG,
-            Asn1::sequence()
+            Asn1::sequence(),
         );
 
         if ($this->cookie !== null) {
             $asn1->addChild(Asn1::octetString(
-                $this->cookie
+                $this->cookie,
             ));
         }
 
@@ -93,7 +94,7 @@ class SyncIdSet extends SyncInfoMessage
         }
         $asn1->addChild(
             Asn1::boolean($this->refreshDeletes),
-            Asn1::setOf(...$uuids)
+            Asn1::setOf(...$uuids),
         );
 
         $this->setResponseValueToEncode($asn1);
@@ -113,7 +114,7 @@ class SyncIdSet extends SyncInfoMessage
             throw new ProtocolException(sprintf(
                 'The response name should be "%s", but was "%s".',
                 self::OID_SYNC_INFO,
-                $responseName
+                $responseName,
             ));
         }
 
@@ -121,13 +122,13 @@ class SyncIdSet extends SyncInfoMessage
             $type,
             [
                 AbstractType::TAG_CLASS_CONTEXT_SPECIFIC => [
-                    self::VALUE_TAG => AbstractType::TAG_TYPE_SEQUENCE
-                ]
-            ]
+                    self::VALUE_TAG => AbstractType::TAG_TYPE_SEQUENCE,
+                ],
+            ],
         );
         if (!$responseValue instanceof SequenceType || count($type->getChildren()) >= 3) {
             throw new ProtocolException(
-                'Expected a sequence type with 2 or less children for a refreshPresent.'
+                'Expected a sequence type with 2 or less children for a refreshPresent.',
             );
         }
 

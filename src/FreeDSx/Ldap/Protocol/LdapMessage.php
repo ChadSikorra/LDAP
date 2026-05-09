@@ -29,6 +29,7 @@ use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Operation\Request;
 use FreeDSx\Ldap\Operation\Response;
 use FreeDSx\Socket\PduInterface;
+
 use function count;
 
 /**
@@ -73,7 +74,7 @@ abstract class LdapMessage implements ProtocolElementInterface, PduInterface
 
     public function __construct(
         private readonly int $messageId,
-        Control\Control ...$controls
+        Control\Control ...$controls,
     ) {
         $this->controls = new ControlBag(...$controls);
     }
@@ -98,7 +99,7 @@ abstract class LdapMessage implements ProtocolElementInterface, PduInterface
     {
         $asn1 = Asn1::sequence(
             Asn1::integer($this->messageId),
-            $this->getOperationAsn1()
+            $this->getOperationAsn1(),
         );
 
         if (count($this->controls->toArray()) !== 0) {
@@ -129,14 +130,14 @@ abstract class LdapMessage implements ProtocolElementInterface, PduInterface
         if (!$type instanceof SequenceType) {
             throw new ProtocolException(sprintf(
                 'Expected an ASN1 sequence type, but got: %s',
-                get_class($type)
+                get_class($type),
             ));
         }
         $count = count($type->getChildren());
         if ($count < 2) {
             throw new ProtocolException(sprintf(
                 'Expected an ASN1 sequence with at least 2 elements, but it has %s',
-                count($type->getChildren())
+                count($type->getChildren()),
             ));
         }
 
@@ -150,7 +151,7 @@ abstract class LdapMessage implements ProtocolElementInterface, PduInterface
                     }
                     $child = (new LdapEncoder())->complete(
                         $child,
-                        AbstractType::TAG_TYPE_SEQUENCE
+                        AbstractType::TAG_TYPE_SEQUENCE,
                     );
 
                     foreach ($child->getChildren() as $control) {
@@ -205,14 +206,14 @@ abstract class LdapMessage implements ProtocolElementInterface, PduInterface
             25 => Response\IntermediateResponse::fromAsn1($opAsn1),
             default => throw new ProtocolException(sprintf(
                 'The tag %s for the LDAP operation is not supported.',
-                $opAsn1->getTagNumber()
+                $opAsn1->getTagNumber(),
             )),
         };
 
         return new static(
             $messageId->getValue(),
             $operation,
-            ...$controls
+            ...$controls,
         );
     }
 

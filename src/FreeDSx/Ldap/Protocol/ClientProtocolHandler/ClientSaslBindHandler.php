@@ -52,8 +52,7 @@ class ClientSaslBindHandler implements RequestHandlerInterface
         private readonly ClientQueue $queue,
         private readonly RootDseLoader $rootDseLoader,
         private readonly SaslInterface $sasl = new Sasl(),
-    ) {
-    }
+    ) {}
 
     /**
      * {@@inheritDoc}
@@ -79,7 +78,7 @@ class ClientSaslBindHandler implements RequestHandlerInterface
         if (!$saslResponse instanceof BindResponse) {
             throw new ProtocolException(sprintf(
                 'Expected a bind response during a SASL bind. But got: %s',
-                get_class($saslResponse)
+                get_class($saslResponse),
             ));
         }
         if ($saslResponse->getResultCode() !== ResultCode::SASL_BIND_IN_PROGRESS) {
@@ -89,7 +88,7 @@ class ClientSaslBindHandler implements RequestHandlerInterface
             $request,
             $this->queue,
             $saslResponse,
-            $mech
+            $mech,
         );
         if (
             $detectDowngrade
@@ -133,7 +132,7 @@ class ClientSaslBindHandler implements RequestHandlerInterface
         SaslBindRequest $request,
         ClientQueue $queue,
         BindResponse $saslResponse,
-        MechanismInterface $mech
+        MechanismInterface $mech,
     ): LdapMessageResponse {
         $challenge = $mech->challenge();
 
@@ -145,7 +144,7 @@ class ClientSaslBindHandler implements RequestHandlerInterface
             if (!$saslResponse instanceof BindResponse) {
                 throw new BindException(sprintf(
                     'Expected a bind response during a SASL bind. But got: %s',
-                    get_class($saslResponse)
+                    get_class($saslResponse),
                 ));
             }
         } while (!$this->isChallengeComplete($context, $saslResponse));
@@ -163,7 +162,7 @@ class ClientSaslBindHandler implements RequestHandlerInterface
 
     private function sendRequestGetResponse(
         SaslBindRequest $request,
-        ClientQueue $queue
+        ClientQueue $queue,
     ): LdapMessageResponse {
         $messageTo = $this->makeRequest($queue, $request, $this->controls);
         $queue->sendMessage($messageTo);
@@ -173,7 +172,7 @@ class ClientSaslBindHandler implements RequestHandlerInterface
 
     private function isChallengeComplete(
         SaslContext $context,
-        BindResponse $response
+        BindResponse $response,
     ): bool {
         if ($context->isComplete() || $context->getResponse() === null) {
             return true;
@@ -220,7 +219,7 @@ class ClientSaslBindHandler implements RequestHandlerInterface
 
         if (count(array_diff($mechs, $priorMechs)) !== 0) {
             throw new BindException(
-                'Possible SASL downgrade attack detected. The advertised SASL mechanisms have changed.'
+                'Possible SASL downgrade attack detected. The advertised SASL mechanisms have changed.',
             );
         }
     }
