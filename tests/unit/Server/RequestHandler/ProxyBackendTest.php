@@ -38,6 +38,7 @@ use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Rdn;
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Server\Token\AnonToken;
+use FreeDSx\Ldap\Server\Token\BindToken;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use FreeDSx\Ldap\Server\RequestHandler\ProxyBackend;
@@ -186,7 +187,7 @@ final class ProxyBackendTest extends TestCase
         self::assertSame($entry, $this->subject->get(new Dn('cn=Alice,dc=example,dc=com')));
     }
 
-    public function test_verify_password_returns_true_on_successful_bind(): void
+    public function test_authenticate_returns_token_on_successful_bind(): void
     {
         $this->mockLdap
             ->expects(self::once())
@@ -194,19 +195,31 @@ final class ProxyBackendTest extends TestCase
             ->with('cn=Alice,dc=example,dc=com', 'secret')
             ->willReturn($this->createMock(LdapMessageResponse::class));
 
-        self::assertTrue($this->subject->verifyPassword('cn=Alice,dc=example,dc=com', 'secret'));
+        $token = $this->subject->authenticate(
+            'cn=Alice,dc=example,dc=com',
+            'secret',
+        );
+
+        self::assertInstanceOf(BindToken::class, $token);
+        self::assertSame('cn=Alice,dc=example,dc=com', $token->getUsername());
     }
 
-    public function test_verify_password_rethrows_bind_exception_as_operation_exception(): void
+    public function test_authenticate_rethrows_bind_exception_as_operation_exception(): void
     {
         $this->mockLdap
             ->method('bind')
-            ->willThrowException(new BindException('Invalid credentials.', ResultCode::INVALID_CREDENTIALS));
+            ->willThrowException(new BindException(
+                'Invalid credentials.',
+                ResultCode::INVALID_CREDENTIALS,
+            ));
 
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
 
-        $this->subject->verifyPassword('cn=Alice,dc=example,dc=com', 'wrong');
+        $this->subject->authenticate(
+            'cn=Alice,dc=example,dc=com',
+            'wrong',
+        );
     }
 
     public function test_add_sends_add_request_to_upstream(): void

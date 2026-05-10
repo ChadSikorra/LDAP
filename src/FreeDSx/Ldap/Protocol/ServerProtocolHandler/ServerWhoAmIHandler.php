@@ -15,13 +15,13 @@ namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use Exception;
 use FreeDSx\Asn1\Exception\EncoderException;
-use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -41,14 +41,16 @@ class ServerWhoAmIHandler implements ServerProtocolHandlerInterface
         LdapMessageRequest $message,
         TokenInterface $token,
     ): void {
-        $userId = $token->getUsername();
+        $userId = null;
 
-        if ($userId !== null) {
+        if ($token instanceof AuthenticatedTokenInterface) {
+            $resolvedDn = $token->getResolvedDn();
+
             try {
-                (new Dn($userId))->toArray();
-                $userId = 'dn:' . $userId;
+                $resolvedDn->toArray();
+                $userId = 'dn:' . $resolvedDn->toString();
             } catch (Exception) {
-                $userId = 'u:' . $userId;
+                $userId = 'u:' . $token->getUsername();
             }
         }
 

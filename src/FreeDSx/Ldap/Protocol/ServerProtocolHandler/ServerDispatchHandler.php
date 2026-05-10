@@ -16,10 +16,13 @@ namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request;
+use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
+use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteCommandFactory;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
@@ -31,14 +34,15 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class ServerDispatchHandler implements ServerProtocolHandlerInterface
+readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
 {
     public function __construct(
-        private readonly ServerQueue $queue,
-        private readonly LdapBackendInterface $backend,
-        private readonly WriteOperationDispatcher $writeDispatcher,
-        private readonly WriteCommandFactory $commandFactory = new WriteCommandFactory(),
-        private readonly ResponseFactory $responseFactory = new ResponseFactory(),
+        private ServerQueue $queue,
+        private LdapBackendInterface $backend,
+        private WriteOperationDispatcher $writeDispatcher,
+        private AccessControlInterface $accessControl,
+        private WriteCommandFactory $commandFactory = new WriteCommandFactory(),
+        private ResponseFactory $responseFactory = new ResponseFactory(),
     ) {}
 
     /**
@@ -52,8 +56,21 @@ class ServerDispatchHandler implements ServerProtocolHandlerInterface
     ): void {
         try {
             $request = $message->getRequest();
+            $this->authorizeRequest(
+                $request,
+                $token,
+            );
+            $this->authorizeWriteAttributes(
+                $request,
+                $token,
+            );
 
             if ($request instanceof Request\CompareRequest) {
+                $this->accessControl->authorizeAttribute(
+                    $token,
+                    $request->getDn(),
+                    $request->getFilter()->getAttribute(),
+                );
                 $match = $this->backend->compare($request->getDn(), $request->getFilter());
                 $this->queue->sendMessage($this->responseFactory->getStandardResponse(
                     $message,
@@ -81,5 +98,100 @@ class ServerDispatchHandler implements ServerProtocolHandlerInterface
                 $e->getMessage(),
             ));
         }
+    }
+
+    /**
+     * @throws OperationException
+     */
+    private function authorizeWriteAttributes(
+        RequestInterface $request,
+        TokenInterface $token,
+    ): void {
+        if ($request instanceof Request\AddRequest) {
+            $dn = $request->getEntry()->getDn();
+            foreach ($request->getEntry()->getAttributes() as $attribute) {
+                $this->accessControl->authorizeAttribute(
+                    $token,
+                    $dn,
+                    $attribute->getName(),
+                );
+            }
+
+            return;
+        }
+
+        if ($request instanceof Request\ModifyRequest) {
+            $dn = $request->getDn();
+            foreach ($request->getChanges() as $change) {
+                $this->accessControl->authorizeAttribute(
+                    $token,
+                    $dn,
+                    $change->getAttribute()->getName(),
+                );
+            }
+        }
+    }
+
+    /**
+     * @throws OperationException
+     */
+    private function authorizeRequest(
+        RequestInterface $request,
+        TokenInterface $token,
+    ): void {
+        if ($request instanceof Request\ModifyDnRequest) {
+            $this->authorizeModifyDn(
+                $request,
+                $token,
+            );
+
+            return;
+        }
+
+        $result = match (true) {
+            $request instanceof Request\CompareRequest => [OperationType::Compare, $request->getDn()],
+            $request instanceof Request\AddRequest => [OperationType::Add, $request->getEntry()->getDn()],
+            $request instanceof Request\DeleteRequest => [OperationType::Delete, $request->getDn()],
+            $request instanceof Request\ModifyRequest => [OperationType::Modify, $request->getDn()],
+            default => null,
+        };
+
+        if ($result === null) {
+            return;
+        }
+
+        [$operationType, $dn] = $result;
+
+        $this->accessControl->authorizeOperation(
+            $operationType,
+            $token,
+            $dn,
+        );
+    }
+
+    /**
+     * @throws OperationException
+     */
+    private function authorizeModifyDn(
+        Request\ModifyDnRequest $request,
+        TokenInterface $token,
+    ): void {
+        $this->accessControl->authorizeOperation(
+            OperationType::ModifyDn,
+            $token,
+            $request->getDn(),
+        );
+
+        $newParentDn = $request->getNewParentDn();
+
+        if ($newParentDn === null) {
+            return;
+        }
+
+        $this->accessControl->authorizeOperation(
+            OperationType::ModifyDn,
+            $token,
+            $newParentDn,
+        );
     }
 }

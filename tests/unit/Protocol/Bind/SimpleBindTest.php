@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\Bind;
 
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Request\AnonBindRequest;
@@ -49,11 +50,17 @@ final class SimpleBindTest extends TestCase
 
     public function test_it_should_return_a_token_on_success(): void
     {
+        $expectedToken = new BindToken(
+            'foo@bar',
+            'bar',
+            new Dn('cn=foo,dc=bar'),
+        );
+
         $this->mockAuthenticator
             ->expects(self::once())
-            ->method('verifyPassword')
+            ->method('authenticate')
             ->with('foo@bar', 'bar')
-            ->willReturn(true);
+            ->willReturn($expectedToken);
 
         $this->mockQueue
             ->expects(self::once())
@@ -73,22 +80,24 @@ final class SimpleBindTest extends TestCase
             ),
         );
 
-        self::assertEquals(
-            new BindToken(
-                'foo@bar',
-                'bar',
-            ),
-            $this->subject->bind($bind),
+        $token = $this->subject->bind($bind);
+
+        self::assertSame(
+            $expectedToken,
+            $token,
         );
     }
 
-    public function test_it_should_throw_an_operations_exception_with_invalid_credentials_if_they_are_wrong(): void
+    public function test_it_should_propagate_exception_on_invalid_credentials(): void
     {
         $this->mockAuthenticator
             ->expects(self::once())
-            ->method('verifyPassword')
+            ->method('authenticate')
             ->with('foo@bar', 'bar')
-            ->willReturn(false);
+            ->willThrowException(new OperationException(
+                'Invalid credentials.',
+                ResultCode::INVALID_CREDENTIALS,
+            ));
 
         $this->mockQueue
             ->expects(self::never())

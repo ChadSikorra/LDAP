@@ -1,0 +1,58 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * This file is part of the FreeDSx LDAP package.
+ *
+ * (c) Chad Sikorra <Chad.Sikorra@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace FreeDSx\Ldap\Server\AccessControl;
+
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Server\Token\AnonToken;
+use FreeDSx\Ldap\Server\Token\TokenInterface;
+
+/**
+ * Default access control: deny all anonymous operations, allow all authenticated operations.
+ *
+ * @author Chad Sikorra <Chad.Sikorra@gmail.com>
+ */
+final class SimpleAccessControl implements AccessControlInterface
+{
+    /**
+     * @throws OperationException
+     */
+    public function authorizeOperation(
+        OperationType $operation,
+        TokenInterface $token,
+        Dn $dn,
+    ): void {
+        if ($token instanceof AnonToken) {
+            throw new OperationException(
+                'Access denied.',
+                ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+            );
+        }
+    }
+
+    public function authorizeAttribute(
+        TokenInterface $token,
+        Dn $dn,
+        string $attribute,
+    ): void {}
+
+    public function filterEntry(
+        TokenInterface $token,
+        Entry $entry,
+    ): Entry {
+        return $entry;
+    }
+}

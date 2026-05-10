@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 
+use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\Options\ChallengeOptionsInterface;
@@ -35,8 +36,15 @@ class PlainMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
         MechanismName $mechanism,
     ): ?ChallengeOptionsInterface {
         return (new PlainOptions())->setValidate(
-            fn(?string $authzId, string $authcId, string $password): bool
-                => $this->authenticator->verifyPassword($authcId, $password),
+            function (?string $authzId, string $authcId, string $password): bool {
+                try {
+                    $this->authenticator->authenticate($authcId, $password);
+
+                    return true;
+                } catch (OperationException) {
+                    return false;
+                }
+            },
         );
     }
 }

@@ -20,6 +20,8 @@ namespace FreeDSx\Ldap\Server\Token;
  */
 interface TokenInterface
 {
+    public function getId(): string;
+
     public function getUsername(): ?string;
 
     public function getPassword(): ?string;

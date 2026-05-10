@@ -11,6 +11,8 @@ LDAP Server Configuration
     * [ServerOptions:setRequireAuthentication](#setrequireauthentication)
     * [ServerOptions:setAllowAnonymous](#setallowanonymous)
     * [ServerOptions:setSocketAcceptTimeout](#setsocketaccepttimeout)
+* [Access Control](#access-control)
+    * [ServerOptions:setAccessControl](#setaccesscontrol)
 * [Backend](#backend)
     * [ServerOptions:setBackend](#setbackend)
     * [ServerOptions:setFilterEvaluator](#setfilterevaluator)
@@ -139,6 +141,41 @@ in the accept loop.
 
 **Default**: `0.5`
 
+
+## Access Control
+
+------------------
+#### setAccessControl
+
+This should be an object instance that implements `FreeDSx\Ldap\Server\AccessControl\AccessControlInterface`. It
+controls which operations clients are permitted to perform and which attributes are accessible in searches,
+compares, and write operations.
+
+```php
+use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\ServerOptions;
+use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
+use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
+use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
+
+$server = new LdapServer(
+    (new ServerOptions())
+        ->setAccessControl(new RuleBasedAccessControl(
+            operationRules: [
+                OperationRule::allow(Subject::authenticated()),
+                OperationRule::deny(Subject::anyone()),
+            ],
+        ))
+);
+```
+
+See [Access Control](Access-Control.md) for more information, including:
+
+* Rule-based access control
+* Subject and target matchers
+* Attribute filtering
+
+**Default**: `SimpleAccessControl` Denies all operations for anonymous clients, allows all for authenticated clients.
 
 ## Backend
 

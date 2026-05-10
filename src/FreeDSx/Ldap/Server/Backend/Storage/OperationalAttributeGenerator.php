@@ -19,16 +19,17 @@ use FreeDSx\Ldap\Schema\Definition\ObjectClass;
 use FreeDSx\Ldap\Schema\Definition\ObjectClassType;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
+use FreeDSx\Ldap\Server\Utility\Uuid;
 
 /**
  * Injects server-managed operational attributes into entries on write.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class OperationalAttributeGenerator
+final readonly class OperationalAttributeGenerator
 {
     public function __construct(
-        private readonly ?Schema $schema = null,
+        private ?Schema $schema = null,
     ) {}
 
     /**
@@ -59,7 +60,7 @@ final class OperationalAttributeGenerator
         );
         $entry->set(
             AttributeTypeOid::NAME_ENTRY_UUID,
-            $this->generateUuid(),
+            Uuid::v4(),
         );
 
         $structuralOc = $this->resolveStructuralObjectClass($entry);
@@ -92,23 +93,6 @@ final class OperationalAttributeGenerator
     private function generateTimestamp(): string
     {
         return gmdate('YmdHis') . 'Z';
-    }
-
-    private function generateUuid(): string
-    {
-        $bytes = random_bytes(16);
-
-        // Set version 4 and RFC 4122 variant bits.
-        $bytes[6] = chr(ord($bytes[6]) & 0x0f | 0x40);
-        $bytes[8] = chr(ord($bytes[8]) & 0x3f | 0x80);
-
-        return vsprintf(
-            '%s%s-%s-%s-%s-%s%s%s',
-            str_split(
-                bin2hex($bytes),
-                4,
-            ),
-        );
     }
 
     private function resolveStructuralObjectClass(Entry $entry): ?string

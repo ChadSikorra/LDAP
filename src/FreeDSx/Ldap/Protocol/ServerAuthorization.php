@@ -22,7 +22,7 @@ use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\Request\SimpleBindRequest;
 use FreeDSx\Ldap\Operation\Request\UnbindRequest;
 use FreeDSx\Ldap\Server\Token\AnonToken;
-use FreeDSx\Ldap\Server\Token\BindToken;
+use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Ldap\ServerOptions;
 
@@ -97,7 +97,7 @@ class ServerAuthorization
             return true;
         }
 
-        return $this->token instanceof BindToken;
+        return $this->token instanceof AuthenticatedTokenInterface;
     }
 
     /**

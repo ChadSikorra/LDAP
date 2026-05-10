@@ -13,8 +13,12 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Auth;
 
+use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
+use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use SensitiveParameter;
 
@@ -30,33 +34,45 @@ final class PasswordAuthenticator implements PasswordAuthenticatableInterface
         private readonly LdapBackendInterface $backend,
     ) {}
 
-    public function verifyPassword(
+    public function authenticate(
         string $name,
         #[SensitiveParameter]
         string $password,
-    ): bool {
+    ): AuthenticatedTokenInterface {
         $entry = $this->nameResolver->resolve(
             $name,
             $this->backend,
         );
 
         if ($entry === null) {
-            return false;
+            $this->denyCredentials();
         }
 
         $attr = $entry->get('userPassword');
 
         if ($attr === null) {
-            return false;
+            $this->denyCredentials();
         }
 
         foreach ($attr->getValues() as $stored) {
             if ($this->checkPassword($password, $stored)) {
-                return true;
+                return new BindToken(
+                    $name,
+                    $password,
+                    $entry->getDn(),
+                );
             }
         }
 
-        return false;
+        $this->denyCredentials();
+    }
+
+    private function denyCredentials(): never
+    {
+        throw new OperationException(
+            'Invalid credentials.',
+            ResultCode::INVALID_CREDENTIALS,
+        );
     }
 
     public function getPassword(

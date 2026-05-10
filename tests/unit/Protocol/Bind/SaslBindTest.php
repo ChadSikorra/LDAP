@@ -112,20 +112,29 @@ final class SaslBindTest extends TestCase
 
         $this->mockAuthenticator
             ->expects(self::once())
-            ->method('verifyPassword')
+            ->method('authenticate')
             ->with('cn=user,dc=foo,dc=bar', '12345')
-            ->willReturn(true);
+            ->willReturn(BindToken::fromDn(
+                'cn=user,dc=foo,dc=bar',
+                '12345',
+            ));
 
         $this->mockQueue
             ->expects(self::once())
             ->method('sendMessage');
 
-        self::assertEquals(
-            new BindToken('cn=user,dc=foo,dc=bar', ''),
-            $this->subject->bind(new LdapMessageRequest(
-                1,
-                new SaslBindRequest('PLAIN', $credentials),
-            )),
+        $token = $this->subject->bind(new LdapMessageRequest(
+            1,
+            new SaslBindRequest('PLAIN', $credentials),
+        ));
+
+        self::assertInstanceOf(
+            BindToken::class,
+            $token,
+        );
+        self::assertSame(
+            'cn=user,dc=foo,dc=bar',
+            $token->getUsername(),
         );
     }
 
@@ -135,9 +144,12 @@ final class SaslBindTest extends TestCase
 
         $this->mockAuthenticator
             ->expects(self::once())
-            ->method('verifyPassword')
+            ->method('authenticate')
             ->with('cn=user,dc=foo,dc=bar', 'wrong')
-            ->willReturn(false);
+            ->willThrowException(new OperationException(
+                'Invalid credentials.',
+                ResultCode::INVALID_CREDENTIALS,
+            ));
 
         $this->mockQueue
             ->expects(self::once())

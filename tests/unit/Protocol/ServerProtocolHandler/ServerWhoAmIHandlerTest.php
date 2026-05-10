@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
@@ -52,7 +53,39 @@ final class ServerWhoAmIHandlerTest extends TestCase
 
         $this->subject->handleRequest(
             $request,
-            new BindToken('cn=foo,dc=foo,dc=bar', '12345'),
+            BindToken::fromDn(
+                'cn=foo,dc=foo,dc=bar',
+                '12345',
+            ),
+        );
+    }
+
+    public function test_it_should_use_resolved_dn_when_it_differs_from_username(): void
+    {
+        $request = new LdapMessageRequest(
+            2,
+            new ExtendedRequest(ExtendedRequest::OID_WHOAMI),
+        );
+
+        $this->mockQueue
+            ->expects($this->once())
+            ->method('sendMessage')
+            ->with($this->equalTo(new LdapMessageResponse(
+                2,
+                new ExtendedResponse(
+                    new LdapResult(0),
+                    null,
+                    'dn:cn=Alice,dc=example,dc=com',
+                ),
+            )));
+
+        $this->subject->handleRequest(
+            $request,
+            new BindToken(
+                'uid=alice',
+                '12345',
+                new Dn('cn=Alice,dc=example,dc=com'),
+            ),
         );
     }
 
@@ -70,7 +103,10 @@ final class ServerWhoAmIHandlerTest extends TestCase
 
         $this->subject->handleRequest(
             $request,
-            new BindToken('foo@bar.local', '12345'),
+            BindToken::fromDn(
+                'foo@bar.local',
+                '12345',
+            ),
         );
     }
 

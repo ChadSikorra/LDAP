@@ -69,12 +69,18 @@ final class AnonymousBindTest extends TestCase
             ))
             ->willReturnSelf();
 
-        self::assertEquals(
-            new AnonToken('foo'),
-            $this->subject->bind(new LdapMessageRequest(
-                1,
-                Operations::bindAnonymously('foo'),
-            )),
+        $token = $this->subject->bind(new LdapMessageRequest(
+            1,
+            Operations::bindAnonymously('foo'),
+        ));
+
+        self::assertInstanceOf(
+            AnonToken::class,
+            $token,
+        );
+        self::assertSame(
+            'foo',
+            $token->getUsername(),
         );
     }
 
