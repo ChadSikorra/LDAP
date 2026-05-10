@@ -11,6 +11,8 @@ use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
+use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Write\Command\AddCommand;
@@ -100,17 +102,26 @@ class LdapServerBackend implements WritableLdapBackendInterface, PasswordAuthent
         return false;
     }
 
-    public function verifyPassword(
+    public function authenticate(
         string $name,
         string $password,
-    ): bool {
-
+    ): AuthenticatedTokenInterface {
         $this->logRequest(
             'bind',
             "username => $name, password => $password",
         );
 
-        return isset($this->users[$name]) && $this->users[$name] === $password;
+        if (!isset($this->users[$name]) || $this->users[$name] !== $password) {
+            throw new OperationException(
+                'Invalid credentials.',
+                ResultCode::INVALID_CREDENTIALS,
+            );
+        }
+
+        return BindToken::fromDn(
+            $name,
+            $password,
+        );
     }
 
     public function add(

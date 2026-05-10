@@ -46,4 +46,22 @@ final class AnonTokenTest extends TestCase
             $this->subject->getVersion(),
         );
     }
+
+    public function test_it_should_return_a_uuid_as_its_id(): void
+    {
+        self::assertMatchesRegularExpression(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/',
+            $this->subject->getId(),
+        );
+    }
+
+    public function test_it_should_return_a_unique_id_per_instance(): void
+    {
+        $other = new AnonToken('foo');
+
+        self::assertNotSame(
+            $this->subject->getId(),
+            $other->getId(),
+        );
+    }
 }

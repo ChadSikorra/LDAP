@@ -19,6 +19,8 @@ use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
+use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
@@ -39,6 +41,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         private readonly ServerQueue $queue,
         private readonly LdapBackendInterface $backend,
         private readonly FilterEvaluatorInterface $filterEvaluator,
+        private readonly AccessControlInterface $accessControl,
         private readonly SearchLimits $limits = new SearchLimits(),
     ) {}
 
@@ -52,7 +55,12 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         $request = $this->getSearchRequestFromMessage($message);
 
         try {
-            $this->assertBaseDnProvided($request);
+            $baseDn = $this->assertBaseDnProvided($request);
+            $this->accessControl->authorizeOperation(
+                OperationType::Search,
+                $token,
+                $baseDn,
+            );
 
             $backendResult = $this->backend->search(
                 $request,
@@ -65,6 +73,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                     $backendResult,
                     $request,
                     $state,
+                    $token,
                 ),
                 (string) $request->getBaseDn(),
                 $state,
@@ -93,6 +102,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         EntryStream $backend,
         SearchRequest $request,
         SearchResultState $state,
+        TokenInterface $token,
     ): Generator {
         $sizeLimit = $this->effectiveSizeLimit(
             $request->getSizeLimit(),
@@ -107,8 +117,21 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                 continue;
             }
 
-            yield $this->applyAttributeFilter(
+            $filtered = $this->accessControl->filterEntry(
+                $token,
                 $entry,
+            );
+
+            if ($filtered === null) {
+                continue;
+            }
+
+            if ($filtered !== $entry && !$this->filterEvaluator->evaluate($filtered, $filter)) {
+                continue;
+            }
+
+            yield $this->applyAttributeFilter(
+                $filtered,
                 $request->getAttributes(),
                 $request->getAttributesOnly(),
             );

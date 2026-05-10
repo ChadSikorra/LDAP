@@ -27,6 +27,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerPagingHandler;
 use FreeDSx\Ldap\Search\Filters;
+use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Paging\PagingRequest;
@@ -48,6 +49,8 @@ class ServerPagingHandlerTest extends TestCase
 
     private FilterEvaluatorInterface&MockObject $mockFilterEvaluator;
 
+    private AccessControlInterface&MockObject $mockAccessControl;
+
     private ServerPagingHandler $subject;
 
     private TokenInterface&MockObject $mockToken;
@@ -63,12 +66,17 @@ class ServerPagingHandlerTest extends TestCase
         $this->mockQueue = $this->createMock(ServerQueue::class);
         $this->mockBackend = $this->createMock(LdapBackendInterface::class);
         $this->mockFilterEvaluator = $this->createMock(FilterEvaluatorInterface::class);
+        $this->mockAccessControl = $this->createMock(AccessControlInterface::class);
         $this->requestHistory = new RequestHistory();
         $this->sentMessages = [];
 
         $this->mockFilterEvaluator
             ->method('evaluate')
             ->willReturn(true);
+
+        $this->mockAccessControl
+            ->method('filterEntry')
+            ->willReturnArgument(1);
 
         $this->mockQueue
             ->method('sendMessages')
@@ -88,6 +96,7 @@ class ServerPagingHandlerTest extends TestCase
             queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $this->mockAccessControl,
             requestHistory: $this->requestHistory,
         );
     }
@@ -409,6 +418,7 @@ class ServerPagingHandlerTest extends TestCase
             queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $this->mockAccessControl,
             requestHistory: $this->requestHistory,
             limits: new SearchLimits(maxSearchSize: 1),
         );
@@ -439,6 +449,7 @@ class ServerPagingHandlerTest extends TestCase
             queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $this->mockAccessControl,
             requestHistory: $this->requestHistory,
             limits: new SearchLimits(maxSearchPageSize: 1),
         );
@@ -470,6 +481,7 @@ class ServerPagingHandlerTest extends TestCase
             queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $this->mockAccessControl,
             requestHistory: $this->requestHistory,
             limits: new SearchLimits(maxSearchPageSize: 2),
         );
@@ -496,6 +508,7 @@ class ServerPagingHandlerTest extends TestCase
             queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $this->mockAccessControl,
             requestHistory: $this->requestHistory,
             limits: new SearchLimits(maxSearchPageSize: 5),
         );
@@ -507,6 +520,85 @@ class ServerPagingHandlerTest extends TestCase
             $this->entryMessages(),
         );
         self::assertNotSame('', $this->donePagingControl()->getCookie());
+    }
+
+    public function test_it_should_suppress_entry_when_filter_entry_returns_null(): void
+    {
+        $entry1 = Entry::create(
+            'cn=1,dc=foo,dc=bar',
+            ['cn' => '1'],
+        );
+        $entry2 = Entry::create(
+            'cn=2,dc=foo,dc=bar',
+            ['cn' => '2'],
+        );
+        $message = $this->makeSearchMessage(size: 10);
+
+        $mockAccessControl = $this->createMock(AccessControlInterface::class);
+        $mockAccessControl
+            ->method('filterEntry')
+            ->willReturnCallback(static function (TokenInterface $token, Entry $entry) use ($entry1): ?Entry {
+                return $entry === $entry1 ? null : $entry;
+            });
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator(
+                $entry1,
+                $entry2,
+            )));
+
+        $subject = new ServerPagingHandler(
+            queue: $this->mockQueue,
+            backend: $this->mockBackend,
+            filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $mockAccessControl,
+            requestHistory: $this->requestHistory,
+        );
+        $subject->handleRequest($message, $this->mockToken);
+
+        self::assertEquals(
+            [new LdapMessageResponse(2, new SearchResultEntry($entry2))],
+            $this->entryMessages(),
+        );
+    }
+
+    public function test_it_should_skip_entry_when_filter_no_longer_matches_after_acl_stripping(): void
+    {
+        $entry = Entry::create(
+            'cn=1,dc=foo,dc=bar',
+            ['cn' => '1', 'secret' => 'val'],
+        );
+        $stripped = Entry::create(
+            'cn=1,dc=foo,dc=bar',
+            ['cn' => '1'],
+        );
+        $message = $this->makeSearchMessage(size: 10);
+
+        $mockAccessControl = $this->createMock(AccessControlInterface::class);
+        $mockAccessControl
+            ->method('filterEntry')
+            ->willReturn($stripped);
+
+        $mockFilterEvaluator = $this->createMock(FilterEvaluatorInterface::class);
+        $mockFilterEvaluator
+            ->method('evaluate')
+            ->willReturnCallback(static fn(Entry $e): bool => $e === $entry);
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator($entry)));
+
+        $subject = new ServerPagingHandler(
+            queue: $this->mockQueue,
+            backend: $this->mockBackend,
+            filterEvaluator: $mockFilterEvaluator,
+            accessControl: $mockAccessControl,
+            requestHistory: $this->requestHistory,
+        );
+        $subject->handleRequest($message, $this->mockToken);
+
+        self::assertSame([], $this->entryMessages());
     }
 
     private function makeExistingPagingRequest(

@@ -1,0 +1,238 @@
+Access Control
+================
+
+* [Overview](#overview)
+* [Default Behaviour: SimpleAccessControl](#default-behaviour-simpleaccesscontrol)
+* [Rule-Based Access Control](#rule-based-access-control)
+    * [Rule Evaluation Order](#rule-evaluation-order)
+    * [Default Effect](#default-effect)
+* [Subject Reference](#subject-reference)
+* [Target Reference](#target-reference)
+* [Attribute Rules](#attribute-rules)
+* [Custom Access Control](#custom-access-control)
+
+## Overview
+
+Access control operates at two levels:
+
+- **Operation level**: Checked before each operation executes. Denial sends `INSUFFICIENT_ACCESS_RIGHTS` to the
+  client. Covers the following operations: Search, Add, Modify, Delete, ModifyDn, and Compare.
+- **Attribute level**: Checked for each attribute involved in Compare, Add, and Modify operations. Also applied to
+  each Search result entry: disallowed attributes are stripped before the entry is sent; if the entry itself is
+  denied at operation level, it is suppressed entirely from results (not sent to the client).
+
+Configure via `ServerOptions::setOperationRules()` / `ServerOptions::setAttributeRules()`. See [Configuration](Configuration.md).
+
+Bind, WhoAmI, and StartTLS are handled before access control and are always permitted.
+
+## Default Behaviour: SimpleAccessControl
+
+When no rules are configured, the server uses `SimpleAccessControl`: all operations are denied for anonymous clients
+and allowed for authenticated clients. No attribute filtering is applied.
+
+## Rule-Based Access Control
+
+Configure operation and attribute rules on `ServerOptions`. Rules are evaluated in definition order (first match wins).
+If no rule matches, a configurable default effect applies (deny by default).
+
+```php
+use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\ServerOptions;
+use FreeDSx\Ldap\Server\AccessControl\OperationType;
+use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeRule;
+use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
+use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
+use FreeDSx\Ldap\Server\AccessControl\Target\Target;
+
+$server = new LdapServer(
+    (new ServerOptions())
+        ->setOperationRules([
+            // Admin group can do anything.
+            OperationRule::allow(
+                Subject::group('cn=admins,dc=example,dc=com'),
+            ),
+            // Authenticated users can search and compare.
+            OperationRule::allow(
+                Subject::authenticated(),
+                Target::any(),
+                OperationType::Search,
+                OperationType::Compare,
+            ),
+            // Users can modify their own entry.
+            OperationRule::allow(
+                Subject::self(),
+                Target::any(),
+                OperationType::Modify,
+            ),
+            // Deny everything else.
+            OperationRule::deny(Subject::anyone()),
+        ])
+        ->setAttributeRules([
+            // Users can see their own userPassword.
+            AttributeRule::allow(
+                Subject::self(),
+                Target::any(),
+                'userPassword',
+            ),
+            // Hide userPassword from everyone else.
+            AttributeRule::deny(
+                Subject::anyone(),
+                Target::any(),
+                'userPassword',
+            ),
+        ])
+);
+
+$server->useBackend(new MyDirectoryBackend());
+```
+
+### Rule Evaluation Order
+
+Rules are evaluated in definition order. For each rule:
+
+| Check          | Passes when…                                                           | On fail                                                             |
+|----------------|------------------------------------------------------------------------|---------------------------------------------------------------------|
+| Operation type | Rule has no operations listed, **or** current operation is in the list | Skip to next rule                                                   |
+| Target DN      | Target matcher returns true for the entry DN                           | Skip to next rule                                                   |
+| Subject        | Subject matcher returns true for the bound user                        | Skip to next rule                                                   |
+| Effect         | —                                                                      | `Allow` → permit; `Deny` → reject with `INSUFFICIENT_ACCESS_RIGHTS` |
+
+If no rule matches, the [default effect](#default-effect) is applied.
+
+For attribute rules the same logic applies per attribute. Any attribute that matches no rule is kept (default allow).
+
+### Default Effect
+
+When no operation rule matches, `setDefaultAccessRule()` determines the outcome (default: `Effect::Deny`).
+
+```php
+use FreeDSx\Ldap\Server\AccessControl\Rule\Effect;
+
+// Allow everything not explicitly matched (open policy).
+(new ServerOptions())->setDefaultAccessRule(Effect::Allow);
+```
+
+## Subject Reference
+
+Use the `Subject` factory to build subject matchers.
+
+| Factory method                                                                                       | Matches                                                               |
+|------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------|
+| `Subject::anyone()`                                                                                  | Every client (including anonymous)                                    |
+| `Subject::anonymous()`                                                                               | Anonymous (unbound) clients only                                      |
+| `Subject::authenticated()`                                                                           | Any successfully bound client                                         |
+| `Subject::self()`                                                                                    | A client whose bound DN equals the target entry DN (case-insensitive) |
+| `Subject::dn(string $dn)`                                                                            | A client bound as the specific DN (case-insensitive)                  |
+| `Subject::dnSubtree(string $dn)`                                                                     | A client whose bound DN is within the given subtree                   |
+| `Subject::group(string $groupDn, string $memberAttribute = 'member', int $maxCacheSize = 200)` | A client whose bound DN appears in the group entry's member attribute |
+| `Subject::callback(Closure $fn)`                                                                     | Delegates to `fn(TokenInterface $token, Dn $targetDn): bool`          |
+
+**Group membership caching**: `Subject::group()` fetches the group entry once per connection. The cache size is
+controlled by `$maxCacheSize` (default: 200, FIFO; 0 to disable cache). Membership changes made after the first evaluation for a
+given connection are not visible until the client reconnects.
+
+**Group rename**: If a referenced group entry is renamed or deleted, the rule fails closed (access denied). Protect
+ACL group entries with their own rules to prevent unauthorized `ModifyDn` on them:
+
+```php
+// Prevent non-admins from renaming entries under ou=groups.
+OperationRule::deny(
+    Subject::authenticated(),
+    Target::subtree('ou=groups,dc=example,dc=com'),
+    OperationType::ModifyDn,
+),
+```
+
+## Target Reference
+
+Use the `Target` factory to build target matchers.
+
+| Factory method                | Matches                                 |
+|-------------------------------|-----------------------------------------|
+| `Target::any()`               | Every entry DN                          |
+| `Target::dn(string $dn)`      | The specific DN only (case-insensitive) |
+| `Target::subtree(string $dn)` | The given DN and all entries beneath it |
+
+## Attribute Rules
+
+`AttributeRule` follows the same subject/target/first-match-wins structure as operation rules. An empty attribute list
+matches all attributes.
+
+Attribute rules are enforced in three places:
+
+- **Search**: denied attributes are stripped from each result entry before it is sent. If the bound user is denied
+  the Search operation on an entry's DN, the entry is suppressed entirely (not sent at all).
+- **Compare**: a Compare request is rejected if the bound user is denied access to the compared attribute.
+- **Add / Modify**: the request is rejected if the bound user is denied access to any attribute being written.
+
+```php
+->setAttributeRules([
+    // Only admins can see or write userPassword.
+    AttributeRule::allow(
+        Subject::group('cn=admins,dc=example,dc=com'),
+        Target::any(),
+        'userPassword',
+    ),
+    AttributeRule::deny(
+        Subject::anyone(),
+        Target::any(),
+        'userPassword',
+    ),
+    // Strip all attributes from ou=internal entries for non-admins (only DN returned).
+    AttributeRule::deny(
+        Subject::authenticated(),
+        Target::subtree('ou=internal,dc=example,dc=com'),
+    ),
+])
+```
+
+## Custom Access Control
+
+For cases where the built-in rule system is insufficient, implement `AccessControlInterface` and pass it via
+`LdapServer::useAccessControl()`:
+
+```php
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
+use FreeDSx\Ldap\Server\AccessControl\OperationType;
+use FreeDSx\Ldap\Server\Token\TokenInterface;
+
+class MyAccessControl implements AccessControlInterface
+{
+    public function authorizeOperation(
+        OperationType $operation,
+        TokenInterface $token,
+        Dn $dn,
+    ): void {
+        if (!$this->isAllowed($operation, $token, $dn)) {
+            throw new OperationException(
+                'Access denied.',
+                ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+            );
+        }
+    }
+
+    public function authorizeAttribute(
+        TokenInterface $token,
+        Dn $dn,
+        string $attribute,
+    ): void {
+        // Throw OperationException to deny access to the attribute.
+    }
+
+    /**
+     * Return null to suppress the entry from search results entirely.
+     */
+    public function filterEntry(
+        TokenInterface $token,
+        Entry $entry,
+    ): ?Entry {
+        return $entry;
+    }
+}
+
+$server->useAccessControl(new MyAccessControl());
+```

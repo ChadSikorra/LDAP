@@ -13,8 +13,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 
+use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\PlainMechanismOptionsBuilder;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\Options\PlainOptions;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -40,13 +43,16 @@ final class PlainMechanismOptionsBuilderTest extends TestCase
         self::assertIsCallable($options->getValidate());
     }
 
-    public function test_the_validate_callable_delegates_to_backend_verify_password(): void
+    public function test_the_validate_callable_delegates_to_backend_authenticate(): void
     {
         $this->mockAuthenticator
             ->expects(self::once())
-            ->method('verifyPassword')
+            ->method('authenticate')
             ->with('cn=user,dc=foo,dc=bar', '12345')
-            ->willReturn(true);
+            ->willReturn(BindToken::fromDn(
+                'cn=user,dc=foo,dc=bar',
+                '12345',
+            ));
 
         $options = $this->subject->buildOptions(null, MechanismName::PLAIN);
         self::assertInstanceOf(PlainOptions::class, $options);
@@ -57,11 +63,14 @@ final class PlainMechanismOptionsBuilderTest extends TestCase
         self::assertTrue($result);
     }
 
-    public function test_the_validate_callable_returns_false_when_verify_password_fails(): void
+    public function test_the_validate_callable_returns_false_when_authenticate_throws(): void
     {
         $this->mockAuthenticator
-            ->method('verifyPassword')
-            ->willReturn(false);
+            ->method('authenticate')
+            ->willThrowException(new OperationException(
+                'Invalid credentials.',
+                ResultCode::INVALID_CREDENTIALS,
+            ));
 
         $options = $this->subject->buildOptions(null, MechanismName::PLAIN);
         self::assertInstanceOf(PlainOptions::class, $options);

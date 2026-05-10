@@ -22,18 +22,21 @@ final class RequestContextTest extends TestCase
 {
     private RequestContext $subject;
 
+    private AnonToken $token;
+
     protected function setUp(): void
     {
+        $this->token = new AnonToken(null);
         $this->subject = new RequestContext(
             new ControlBag(),
-            new AnonToken(null),
+            $this->token,
         );
     }
 
     public function test_it_should_get_the_token(): void
     {
-        self::assertEquals(
-            new AnonToken(null),
+        self::assertSame(
+            $this->token,
             $this->subject->token(),
         );
     }

@@ -22,7 +22,7 @@ final class BindTokenTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->subject = new BindToken(
+        $this->subject = BindToken::fromDn(
             'foo',
             'bar',
         );
@@ -49,6 +49,40 @@ final class BindTokenTest extends TestCase
         self::assertSame(
             3,
             $this->subject->getVersion(),
+        );
+    }
+
+    public function test_it_should_return_a_uuid_as_its_id(): void
+    {
+        self::assertMatchesRegularExpression(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/',
+            $this->subject->getId(),
+        );
+    }
+
+    public function test_it_should_return_a_unique_id_per_instance(): void
+    {
+        $other = BindToken::fromDn(
+            'foo',
+            'bar',
+        );
+
+        self::assertNotSame(
+            $this->subject->getId(),
+            $other->getId(),
+        );
+    }
+
+    public function test_it_should_return_the_resolved_dn(): void
+    {
+        $token = BindToken::fromDn(
+            'cn=foo,dc=bar',
+            'secret',
+        );
+
+        self::assertSame(
+            'cn=foo,dc=bar',
+            $token->getResolvedDn()->toString(),
         );
     }
 }

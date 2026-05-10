@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Auth;
 
+use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use SensitiveParameter;
 
@@ -24,13 +26,15 @@ use SensitiveParameter;
 interface PasswordAuthenticatableInterface
 {
     /**
-     * Return true if $password is valid for $name; $name is the raw LDAP bind name and need not be a DN.
+     * Authenticate $name with $password and return a token representing the bound identity.
+     *
+     * @throws OperationException on invalid credentials or unresolvable bind name
      */
-    public function verifyPassword(
+    public function authenticate(
         string $name,
         #[SensitiveParameter]
         string $password,
-    ): bool;
+    ): AuthenticatedTokenInterface;
 
     /**
      * Return the plaintext password for $username (SCRAM/CRAM derive keys from plaintext), or null to reject the bind.

@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Token;
 
+use FreeDSx\Ldap\Server\Utility\Uuid;
+
 /**
  * Represents a token for an anonymous bind.
  *
@@ -20,6 +22,8 @@ namespace FreeDSx\Ldap\Server\Token;
  */
 class AnonToken implements TokenInterface
 {
+    private string $id;
+
     private ?string $username;
 
     private int $version;
@@ -28,8 +32,14 @@ class AnonToken implements TokenInterface
         ?string $username = null,
         int $version = 3,
     ) {
+        $this->id = Uuid::v4();
         $this->username = $username;
         $this->version = $version;
+    }
+
+    public function getId(): string
+    {
+        return $this->id;
     }
 
     public function getUsername(): ?string

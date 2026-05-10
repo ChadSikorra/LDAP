@@ -22,6 +22,8 @@ use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
+use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Paging\PagingRequest;
 use FreeDSx\Ldap\Server\Paging\PagingRequestComparator;
@@ -46,6 +48,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         private readonly ServerQueue $queue,
         private readonly LdapBackendInterface $backend,
         private readonly FilterEvaluatorInterface $filterEvaluator,
+        private readonly AccessControlInterface $accessControl,
         private readonly RequestHistory $requestHistory,
         private readonly PagingRequestComparator $requestComparator = new PagingRequestComparator(),
         private readonly SearchLimits $limits = new SearchLimits(),
@@ -65,7 +68,17 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         $response = null;
         $controls = [];
         try {
-            $response = $this->handlePaging($pagingRequest, $message);
+            $baseDn = $this->assertBaseDnProvided($searchRequest);
+            $this->accessControl->authorizeOperation(
+                OperationType::Search,
+                $token,
+                $baseDn,
+            );
+            $response = $this->handlePaging(
+                $pagingRequest,
+                $message,
+                $token,
+            );
             if ($response->isSizeLimitExceeded()) {
                 $searchResult = SearchResult::makeSizeLimitResult(
                     $response->getEntries(),
@@ -125,21 +138,30 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
     private function handlePaging(
         PagingRequest $pagingRequest,
         LdapMessageRequest $message,
+        TokenInterface $token,
     ): PagingResponse {
         if (!$pagingRequest->isPagingStart()) {
-            return $this->handleExistingCookie($pagingRequest, $message);
+            return $this->handleExistingCookie(
+                $pagingRequest,
+                $message,
+                $token,
+            );
         }
 
-        return $this->handlePagingStart($pagingRequest);
+        return $this->handlePagingStart(
+            $pagingRequest,
+            $token,
+        );
     }
 
     /**
      * @throws OperationException
      */
-    private function handlePagingStart(PagingRequest $pagingRequest): PagingResponse
-    {
+    private function handlePagingStart(
+        PagingRequest $pagingRequest,
+        TokenInterface $token,
+    ): PagingResponse {
         $searchRequest = $pagingRequest->getSearchRequest();
-        $this->assertBaseDnProvided($searchRequest);
 
         $result = $this->backend->search(
             $searchRequest,
@@ -153,6 +175,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $pagingRequest->getSize(),
             $searchRequest,
             0,
+            $token,
             $isPreFiltered,
         );
 
@@ -170,6 +193,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
     private function handleExistingCookie(
         PagingRequest $pagingRequest,
         LdapMessageRequest $message,
+        TokenInterface $token,
     ): PagingResponse {
         $newPagingRequest = $this->makePagingRequest($message);
 
@@ -204,6 +228,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $pagingRequest->getSize(),
             $pagingRequest->getSearchRequest(),
             $pagingRequest->getTotalSent(),
+            $token,
             $isPreFiltered,
         );
 
@@ -258,6 +283,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         int $pageSize,
         SearchRequest $request,
         int $totalAlreadySent,
+        TokenInterface $token,
         bool $isPreFiltered = false,
     ): CollectedPage {
         $page = [];
@@ -278,8 +304,23 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $entry = $generator->current();
 
             if ($entry instanceof Entry && ($isPreFiltered || $this->filterEvaluator->evaluate($entry, $filter))) {
-                $page[] = $this->applyAttributeFilter(
+                $filtered = $this->accessControl->filterEntry(
+                    $token,
                     $entry,
+                );
+
+                if ($filtered === null) {
+                    $generator->next();
+                    continue;
+                }
+
+                if ($filtered !== $entry && !$this->filterEvaluator->evaluate($filtered, $filter)) {
+                    $generator->next();
+                    continue;
+                }
+
+                $page[] = $this->applyAttributeFilter(
+                    $filtered,
                     $request->getAttributes(),
                     $request->getAttributesOnly(),
                 );

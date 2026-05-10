@@ -70,7 +70,7 @@ final class AuthenticatorTest extends TestCase
             $bindReq,
         );
 
-        $token = new BindToken(
+        $token = BindToken::fromDn(
             'foo',
             'bar',
         );

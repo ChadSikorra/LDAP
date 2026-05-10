@@ -16,9 +16,12 @@ namespace Tests\Unit\FreeDSx\Ldap\Server\Backend\Auth\NameResolver;
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticator;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -48,50 +51,55 @@ final class PasswordAuthenticatorTest extends TestCase
         );
     }
 
-    public function test_returns_false_when_entry_not_found(): void
+    public function test_throws_when_entry_not_found(): void
     {
-        self::assertFalse(
-            $this->subject(null)->verifyPassword('cn=Unknown,dc=example,dc=com', 'secret'),
-        );
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
+
+        $this->subject(null)->authenticate('cn=Unknown,dc=example,dc=com', 'secret');
     }
 
-    public function test_returns_false_when_entry_has_no_user_password(): void
+    public function test_throws_when_entry_has_no_user_password(): void
     {
         $entry = new Entry(
             new Dn('cn=Alice,dc=example,dc=com'),
             new Attribute('cn', 'Alice'),
         );
 
-        self::assertFalse(
-            $this->subject($entry)->verifyPassword('cn=Alice,dc=example,dc=com', 'secret'),
-        );
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
+
+        $this->subject($entry)->authenticate('cn=Alice,dc=example,dc=com', 'secret');
     }
 
-    public function test_returns_true_for_correct_plain_text_password(): void
+    public function test_returns_token_for_correct_plain_text_password(): void
     {
         $entry = new Entry(
             new Dn('cn=Alice,dc=example,dc=com'),
             new Attribute('userPassword', 'secret'),
         );
 
-        self::assertTrue(
-            $this->subject($entry)->verifyPassword('cn=Alice,dc=example,dc=com', 'secret'),
-        );
+        $token = $this->subject($entry)->authenticate('cn=Alice,dc=example,dc=com', 'secret');
+
+        self::assertInstanceOf(BindToken::class, $token);
+        self::assertSame('cn=Alice,dc=example,dc=com', $token->getUsername());
+        self::assertSame('cn=Alice,dc=example,dc=com', $token->getResolvedDn()->toString());
     }
 
-    public function test_returns_false_for_wrong_plain_text_password(): void
+    public function test_throws_for_wrong_plain_text_password(): void
     {
         $entry = new Entry(
             new Dn('cn=Alice,dc=example,dc=com'),
             new Attribute('userPassword', 'secret'),
         );
 
-        self::assertFalse(
-            $this->subject($entry)->verifyPassword('cn=Alice,dc=example,dc=com', 'wrong'),
-        );
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
+
+        $this->subject($entry)->authenticate('cn=Alice,dc=example,dc=com', 'wrong');
     }
 
-    public function test_returns_true_for_correct_sha_password(): void
+    public function test_returns_token_for_correct_sha_password(): void
     {
         $hashed = '{SHA}' . base64_encode(sha1('mypassword', true));
         $entry = new Entry(
@@ -99,12 +107,12 @@ final class PasswordAuthenticatorTest extends TestCase
             new Attribute('userPassword', $hashed),
         );
 
-        self::assertTrue(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'mypassword'),
-        );
+        $token = $this->subject($entry)->authenticate('cn=Test,dc=example,dc=com', 'mypassword');
+
+        self::assertInstanceOf(BindToken::class, $token);
     }
 
-    public function test_returns_false_for_wrong_sha_password(): void
+    public function test_throws_for_wrong_sha_password(): void
     {
         $hashed = '{SHA}' . base64_encode(sha1('mypassword', true));
         $entry = new Entry(
@@ -112,12 +120,13 @@ final class PasswordAuthenticatorTest extends TestCase
             new Attribute('userPassword', $hashed),
         );
 
-        self::assertFalse(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'wrong'),
-        );
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
+
+        $this->subject($entry)->authenticate('cn=Test,dc=example,dc=com', 'wrong');
     }
 
-    public function test_returns_true_for_correct_ssha_password(): void
+    public function test_returns_token_for_correct_ssha_password(): void
     {
         $salt = 'salt';
         $hashed = '{SSHA}' . base64_encode(sha1('mypassword' . $salt, true) . $salt);
@@ -126,12 +135,12 @@ final class PasswordAuthenticatorTest extends TestCase
             new Attribute('userPassword', $hashed),
         );
 
-        self::assertTrue(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'mypassword'),
-        );
+        $token = $this->subject($entry)->authenticate('cn=Test,dc=example,dc=com', 'mypassword');
+
+        self::assertInstanceOf(BindToken::class, $token);
     }
 
-    public function test_returns_false_for_wrong_ssha_password(): void
+    public function test_throws_for_wrong_ssha_password(): void
     {
         $salt = 'salt';
         $hashed = '{SSHA}' . base64_encode(sha1('mypassword' . $salt, true) . $salt);
@@ -140,12 +149,13 @@ final class PasswordAuthenticatorTest extends TestCase
             new Attribute('userPassword', $hashed),
         );
 
-        self::assertFalse(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'wrong'),
-        );
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
+
+        $this->subject($entry)->authenticate('cn=Test,dc=example,dc=com', 'wrong');
     }
 
-    public function test_returns_true_for_correct_md5_password(): void
+    public function test_returns_token_for_correct_md5_password(): void
     {
         $hashed = '{MD5}' . base64_encode(md5('mypassword', true));
         $entry = new Entry(
@@ -153,12 +163,12 @@ final class PasswordAuthenticatorTest extends TestCase
             new Attribute('userPassword', $hashed),
         );
 
-        self::assertTrue(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'mypassword'),
-        );
+        $token = $this->subject($entry)->authenticate('cn=Test,dc=example,dc=com', 'mypassword');
+
+        self::assertInstanceOf(BindToken::class, $token);
     }
 
-    public function test_returns_false_for_wrong_md5_password(): void
+    public function test_throws_for_wrong_md5_password(): void
     {
         $hashed = '{MD5}' . base64_encode(md5('mypassword', true));
         $entry = new Entry(
@@ -166,12 +176,13 @@ final class PasswordAuthenticatorTest extends TestCase
             new Attribute('userPassword', $hashed),
         );
 
-        self::assertFalse(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'wrong'),
-        );
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
+
+        $this->subject($entry)->authenticate('cn=Test,dc=example,dc=com', 'wrong');
     }
 
-    public function test_returns_true_for_correct_smd5_password(): void
+    public function test_returns_token_for_correct_smd5_password(): void
     {
         $salt = 'salt';
         $hashed = '{SMD5}' . base64_encode(md5('mypassword' . $salt, true) . $salt);
@@ -180,12 +191,12 @@ final class PasswordAuthenticatorTest extends TestCase
             new Attribute('userPassword', $hashed),
         );
 
-        self::assertTrue(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'mypassword'),
-        );
+        $token = $this->subject($entry)->authenticate('cn=Test,dc=example,dc=com', 'mypassword');
+
+        self::assertInstanceOf(BindToken::class, $token);
     }
 
-    public function test_returns_false_for_wrong_smd5_password(): void
+    public function test_throws_for_wrong_smd5_password(): void
     {
         $salt = 'salt';
         $hashed = '{SMD5}' . base64_encode(md5('mypassword' . $salt, true) . $salt);
@@ -194,9 +205,23 @@ final class PasswordAuthenticatorTest extends TestCase
             new Attribute('userPassword', $hashed),
         );
 
-        self::assertFalse(
-            $this->subject($entry)->verifyPassword('cn=Test,dc=example,dc=com', 'wrong'),
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
+
+        $this->subject($entry)->authenticate('cn=Test,dc=example,dc=com', 'wrong');
+    }
+
+    public function test_resolved_dn_is_the_entry_dn_not_the_raw_bind_name(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=Alice,dc=example,dc=com'),
+            new Attribute('userPassword', 'secret'),
         );
+
+        $token = $this->subject($entry)->authenticate('uid=alice', 'secret');
+
+        self::assertSame('uid=alice', $token->getUsername());
+        self::assertSame('cn=Alice,dc=example,dc=com', $token->getResolvedDn()->toString());
     }
 
     public function test_get_password_returns_null_when_entry_not_found(): void

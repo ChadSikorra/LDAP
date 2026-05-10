@@ -30,6 +30,8 @@ use FreeDSx\Ldap\Server\Backend\Write\Command\MoveCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
+use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Write\WritableBackendTrait;
@@ -108,13 +110,18 @@ class ProxyBackend implements WritableLdapBackendInterface, PasswordAuthenticata
         );
     }
 
-    public function verifyPassword(
+    public function authenticate(
         string $name,
         #[SensitiveParameter]
         string $password,
-    ): bool {
+    ): AuthenticatedTokenInterface {
         try {
-            return (bool) $this->ldap()->bind($name, $password);
+            $this->ldap()->bind($name, $password);
+
+            return BindToken::fromDn(
+                $name,
+                $password,
+            );
         } catch (BindException $e) {
             throw new OperationException(
                 $e->getMessage(),

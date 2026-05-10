@@ -22,6 +22,11 @@ use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
+use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
+use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeRule;
+use FreeDSx\Ldap\Server\AccessControl\Rule\Effect;
+use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
+use FreeDSx\Ldap\Server\AccessControl\SimpleAccessControl;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\SearchLimits;
@@ -132,6 +137,20 @@ final class ServerOptions
     private ?Schema $schema = null;
 
     private SchemaValidationMode $schemaValidationMode = SchemaValidationMode::Strict;
+
+    private ?AccessControlInterface $accessControl = null;
+
+    /**
+     * @var OperationRule[]
+     */
+    private array $operationRules = [];
+
+    /**
+     * @var AttributeRule[]
+     */
+    private array $attributeRules = [];
+
+    private Effect $defaultAccessRule = Effect::Deny;
 
     private ?LoggerInterface $logger = null;
 
@@ -450,6 +469,66 @@ final class ServerOptions
         $this->schemaValidationMode = $mode;
 
         return $this;
+    }
+
+    public function getAccessControl(): AccessControlInterface
+    {
+        return $this->accessControl ??= new SimpleAccessControl();
+    }
+
+    public function setAccessControl(AccessControlInterface $accessControl): self
+    {
+        $this->accessControl = $accessControl;
+
+        return $this;
+    }
+
+    /**
+     * @param OperationRule[] $rules
+     */
+    public function setOperationRules(array $rules): self
+    {
+        $this->operationRules = $rules;
+
+        return $this;
+    }
+
+    /**
+     * @return OperationRule[]
+     */
+    public function getOperationRules(): array
+    {
+        return $this->operationRules;
+    }
+
+    /**
+     * @param AttributeRule[] $rules
+     */
+    public function setAttributeRules(array $rules): self
+    {
+        $this->attributeRules = $rules;
+
+        return $this;
+    }
+
+    /**
+     * @return AttributeRule[]
+     */
+    public function getAttributeRules(): array
+    {
+        return $this->attributeRules;
+    }
+
+    public function setDefaultAccessRule(Effect $effect): self
+    {
+        $this->defaultAccessRule = $effect;
+
+        return $this;
+    }
+
+    public function getDefaultAccessRule(): Effect
+    {
+        return $this->defaultAccessRule;
     }
 
     public function getLogger(): ?LoggerInterface

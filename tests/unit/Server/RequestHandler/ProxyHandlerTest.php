@@ -43,7 +43,10 @@ final class ProxyHandlerTest extends TestCase
             ->willReturn(new ControlBag());
         $this->mockContext
             ->method('token')
-            ->willReturn(new BindToken('foo', 'bar'));
+            ->willReturn(BindToken::fromDn(
+                'foo',
+                'bar',
+            ));
 
         $this->subject = new ProxyHandler($this->mockClient);
         ;

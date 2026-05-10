@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerSearchHandler;
 use FreeDSx\Ldap\Search\Filters;
+use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
@@ -43,6 +44,8 @@ final class ServerSearchHandlerTest extends TestCase
 
     private FilterEvaluatorInterface&MockObject $mockFilterEvaluator;
 
+    private AccessControlInterface&MockObject $mockAccessControl;
+
     private TokenInterface&MockObject $mockToken;
 
     /**
@@ -56,7 +59,12 @@ final class ServerSearchHandlerTest extends TestCase
         $this->mockQueue = $this->createMock(ServerQueue::class);
         $this->mockBackend = $this->createMock(LdapBackendInterface::class);
         $this->mockFilterEvaluator = $this->createMock(FilterEvaluatorInterface::class);
+        $this->mockAccessControl = $this->createMock(AccessControlInterface::class);
         $this->sentMessages = [];
+
+        $this->mockAccessControl
+            ->method('filterEntry')
+            ->willReturnArgument(1);
 
         $this->mockQueue
             ->method('sendMessages')
@@ -76,6 +84,7 @@ final class ServerSearchHandlerTest extends TestCase
             queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $this->mockAccessControl,
         );
     }
 
@@ -285,6 +294,7 @@ final class ServerSearchHandlerTest extends TestCase
             queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $this->mockAccessControl,
             limits: new SearchLimits(maxSearchSize: 1),
         );
         $subject->handleRequest($search, $this->mockToken);
@@ -319,6 +329,7 @@ final class ServerSearchHandlerTest extends TestCase
             queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $this->mockAccessControl,
             limits: new SearchLimits(maxSearchSize: 5),
         );
         $subject->handleRequest($search, $this->mockToken);
@@ -353,6 +364,7 @@ final class ServerSearchHandlerTest extends TestCase
             queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $this->mockAccessControl,
             limits: new SearchLimits(maxSearchSize: 1),
         );
         $subject->handleRequest($search, $this->mockToken);
@@ -379,6 +391,102 @@ final class ServerSearchHandlerTest extends TestCase
             $search,
             $this->mockToken,
         );
+
+        $this->assertSentMessages([
+            new LdapMessageResponse(
+                2,
+                new SearchResultDone(0, 'dc=foo,dc=bar'),
+            ),
+        ]);
+    }
+
+    public function test_it_should_suppress_entry_when_filter_entry_returns_null(): void
+    {
+        $entry1 = Entry::create(
+            'dc=foo,dc=bar',
+            ['cn' => 'foo'],
+        );
+        $entry2 = Entry::create(
+            'dc=bar,dc=foo',
+            ['cn' => 'bar'],
+        );
+
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::equal('foo', 'bar')))->base('dc=foo,dc=bar'),
+        );
+
+        $mockAccessControl = $this->createMock(AccessControlInterface::class);
+        $mockAccessControl
+            ->method('filterEntry')
+            ->willReturnCallback(static function (TokenInterface $token, Entry $entry) use ($entry1): ?Entry {
+                return $entry === $entry1 ? null : $entry;
+            });
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator(
+                $entry1,
+                $entry2,
+            )));
+
+        $this->mockFilterEvaluator
+            ->method('evaluate')
+            ->willReturn(true);
+
+        $subject = new ServerSearchHandler(
+            queue: $this->mockQueue,
+            backend: $this->mockBackend,
+            filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $mockAccessControl,
+        );
+        $subject->handleRequest($search, $this->mockToken);
+
+        $this->assertSentMessages([
+            new LdapMessageResponse(2, new SearchResultEntry($entry2)),
+            new LdapMessageResponse(
+                2,
+                new SearchResultDone(0, 'dc=foo,dc=bar'),
+            ),
+        ]);
+    }
+
+    public function test_it_should_skip_entry_when_filter_no_longer_matches_after_acl_stripping(): void
+    {
+        $entry = Entry::create(
+            'dc=foo,dc=bar',
+            ['cn' => 'foo', 'secret' => 'val'],
+        );
+        $stripped = Entry::create(
+            'dc=foo,dc=bar',
+            ['cn' => 'foo'],
+        );
+
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::equal('secret', 'val')))->base('dc=foo,dc=bar'),
+        );
+
+        $mockAccessControl = $this->createMock(AccessControlInterface::class);
+        $mockAccessControl
+            ->method('filterEntry')
+            ->willReturn($stripped);
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator($entry)));
+
+        $this->mockFilterEvaluator
+            ->method('evaluate')
+            ->willReturnCallback(static fn(Entry $e): bool => $e === $entry);
+
+        $subject = new ServerSearchHandler(
+            queue: $this->mockQueue,
+            backend: $this->mockBackend,
+            filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $mockAccessControl,
+        );
+        $subject->handleRequest($search, $this->mockToken);
 
         $this->assertSentMessages([
             new LdapMessageResponse(

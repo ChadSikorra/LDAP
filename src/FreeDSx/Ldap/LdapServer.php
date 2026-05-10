@@ -15,6 +15,11 @@ namespace FreeDSx\Ldap;
 
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
+use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
+use FreeDSx\Ldap\Server\AccessControl\BackendAwareInterface;
+use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeRule;
+use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
+use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\OperationalAttributeGenerator;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
@@ -38,6 +43,8 @@ class LdapServer
 {
     private Container $container;
 
+    private ?AccessControlInterface $accessControl = null;
+
     public function __construct(
         private readonly ServerOptions $options = new ServerOptions(),
         ?Container $container = null,
@@ -54,9 +61,88 @@ class LdapServer
      */
     public function run(): void
     {
+        $this->init();
+
         $runner = $this->options->getServerRunner() ?? $this->container->get(ServerRunnerInterface::class);
 
         $runner->run();
+    }
+
+    /**
+     * Specify a fully custom access control implementation; rare — prefer ServerOptions rules instead.
+     */
+    public function useAccessControl(AccessControlInterface $acl): self
+    {
+        $this->accessControl = $acl;
+
+        return $this;
+    }
+
+    private function init(): void
+    {
+        $this->options->setAccessControl($this->resolveAccessControl());
+    }
+
+    private function resolveAccessControl(): AccessControlInterface
+    {
+        if ($this->accessControl !== null) {
+            return $this->injectBackendIfNeeded($this->accessControl);
+        }
+
+        $operationRules = $this->options->getOperationRules();
+        $attributeRules = $this->options->getAttributeRules();
+
+        if ($operationRules === [] && $attributeRules === []) {
+            return $this->options->getAccessControl();
+        }
+
+        $backend = $this->options->getBackend();
+        if ($backend !== null) {
+            $this->propagateBackend(
+                $backend,
+                $operationRules,
+                $attributeRules,
+            );
+        }
+
+        return new RuleBasedAccessControl(
+            $operationRules,
+            $attributeRules,
+            $this->options->getDefaultAccessRule(),
+        );
+    }
+
+    private function injectBackendIfNeeded(AccessControlInterface $acl): AccessControlInterface
+    {
+        $backend = $this->options->getBackend();
+
+        if ($backend !== null && $acl instanceof BackendAwareInterface) {
+            $acl->setBackend($backend);
+        }
+
+        return $acl;
+    }
+
+    /**
+     * @param OperationRule[] $operationRules
+     * @param AttributeRule[] $attributeRules
+     */
+    private function propagateBackend(
+        LdapBackendInterface $backend,
+        array $operationRules,
+        array $attributeRules,
+    ): void {
+        foreach ($operationRules as $rule) {
+            if ($rule->subject instanceof BackendAwareInterface) {
+                $rule->subject->setBackend($backend);
+            }
+        }
+
+        foreach ($attributeRules as $rule) {
+            if ($rule->subject instanceof BackendAwareInterface) {
+                $rule->subject->setBackend($backend);
+            }
+        }
     }
 
     /**

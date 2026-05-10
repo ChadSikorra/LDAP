@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Control\PagingControl;
 use FreeDSx\Ldap\Entry\Attribute;
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\RuntimeException;
@@ -107,14 +108,18 @@ trait ServerSearchTrait
     /**
      * @throws OperationException
      */
-    private function assertBaseDnProvided(SearchRequest $request): void
+    private function assertBaseDnProvided(SearchRequest $request): Dn
     {
-        if ($request->getBaseDn() === null) {
+        $baseDn = $request->getBaseDn();
+
+        if ($baseDn === null) {
             throw new OperationException(
                 'No base DN provided.',
                 ResultCode::PROTOCOL_ERROR,
             );
         }
+
+        return $baseDn;
     }
 
     /**

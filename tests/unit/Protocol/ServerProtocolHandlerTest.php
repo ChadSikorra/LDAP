@@ -140,7 +140,10 @@ final class ServerProtocolHandlerTest extends TestCase
 
         $this->mockAuthenticator
             ->method('bind')
-            ->willReturn(new BindToken('foo', 'bar'));
+            ->willReturn(BindToken::fromDn(
+                'foo',
+                'bar',
+            ));
 
         $this->mockProtocolHandler
             ->expects($this->never())
@@ -302,7 +305,10 @@ final class ServerProtocolHandlerTest extends TestCase
         $this->mockAuthenticator
             ->expects($this->once())
             ->method('bind')
-            ->willReturn(new BindToken('foo@bar', 'bar'));
+            ->willReturn(BindToken::fromDn(
+                'foo@bar',
+                'bar',
+            ));
 
         $this->mockProtocolHandler
             ->expects($this->never())
@@ -334,7 +340,10 @@ final class ServerProtocolHandlerTest extends TestCase
         $this->mockAuthenticator
             ->expects($this->once())
             ->method('bind')
-            ->willReturn(new BindToken('foo@bar', 'bar'));
+            ->willReturn(BindToken::fromDn(
+                'foo@bar',
+                'bar',
+            ));
 
         $this->mockProtocolHandler
             ->expects($this->once())

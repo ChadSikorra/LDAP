@@ -194,7 +194,7 @@ class SaslBind implements BindInterface
             $this->queue->setMessageWrapper(new SaslMessageWrapper($mech->securityLayer(), $context));
         }
 
-        return new BindToken(
+        return BindToken::fromDn(
             $username,
             '',
         );

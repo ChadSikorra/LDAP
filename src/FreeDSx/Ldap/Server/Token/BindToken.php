@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Token;
 
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Server\Utility\Uuid;
 use SensitiveParameter;
 
 /**
@@ -20,9 +22,13 @@ use SensitiveParameter;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class BindToken implements TokenInterface
+class BindToken implements AuthenticatedTokenInterface
 {
+    private string $id;
+
     private string $username;
+
+    private readonly Dn $resolvedDn;
 
     private string $password;
 
@@ -32,11 +38,33 @@ class BindToken implements TokenInterface
         string $username,
         #[SensitiveParameter]
         string $password,
+        Dn $resolvedDn,
         int $version = 3,
     ) {
+        $this->id = Uuid::v4();
         $this->username = $username;
+        $this->resolvedDn = $resolvedDn;
         $this->password = $password;
         $this->version = $version;
+    }
+
+    public static function fromDn(
+        string $dn,
+        #[SensitiveParameter]
+        string $password,
+        int $version = 3,
+    ): self {
+        return new self(
+            $dn,
+            $password,
+            new Dn($dn),
+            $version,
+        );
+    }
+
+    public function getId(): string
+    {
+        return $this->id;
     }
 
     public function getUsername(): ?string
@@ -47,6 +75,11 @@ class BindToken implements TokenInterface
     public function getPassword(): ?string
     {
         return $this->password;
+    }
+
+    public function getResolvedDn(): Dn
+    {
+        return $this->resolvedDn;
     }
 
     public function getVersion(): int
