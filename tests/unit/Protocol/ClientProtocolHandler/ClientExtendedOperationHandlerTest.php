@@ -65,6 +65,29 @@ final class ClientExtendedOperationHandlerTest extends TestCase
         );
     }
 
+    public function test_it_should_redecode_the_response_when_there_is_a_mapped_class(): void
+    {
+        $extendedResponse = new PasswordModifyResponse(new LdapResult(0));
+
+        $this->mockResponseFactory
+            ->method('has')
+            ->willReturn(true);
+        $this->mockResponseFactory
+            ->expects($this->once())
+            ->method('get')
+            ->willReturn($extendedResponse);
+
+        $result = $this->subject->handleResponse(
+            new LdapMessageRequest(1, new ExtendedRequest('foo', 'bar')),
+            new LdapMessageResponse(1, new ExtendedResponse(new LdapResult(0), 'bar')),
+        );
+
+        self::assertInstanceOf(
+            PasswordModifyResponse::class,
+            $result?->getResponse(),
+        );
+    }
+
     public function test_it_should_handle_an_extended_response_that_has_a_mapped_class(): void
     {
         $extendedResponse = new PasswordModifyResponse(new LdapResult(0));

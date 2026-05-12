@@ -31,14 +31,11 @@ final class PasswordAuthenticatorTest extends TestCase
 {
     private BindNameResolverInterface&MockObject $mockResolver;
 
-    private BindNameResolverInterface&MockObject $mockSaslResolver;
-
     private LdapBackendInterface&MockObject $mockBackend;
 
     protected function setUp(): void
     {
         $this->mockResolver = $this->createMock(BindNameResolverInterface::class);
-        $this->mockSaslResolver = $this->createMock(BindNameResolverInterface::class);
         $this->mockBackend = $this->createMock(LdapBackendInterface::class);
     }
 
@@ -46,26 +43,15 @@ final class PasswordAuthenticatorTest extends TestCase
     {
         $this->mockResolver
             ->method('resolve')
-            ->with(self::isType('string'), $this->mockBackend)
+            ->with(
+                self::isType('string'),
+                $this->mockBackend,
+            )
             ->willReturn($resolvedEntry);
 
         return new PasswordAuthenticator(
             $this->mockResolver,
             $this->mockBackend,
-        );
-    }
-
-    private function saslSubject(?Entry $resolvedEntry = null): PasswordAuthenticator
-    {
-        $this->mockSaslResolver
-            ->method('resolve')
-            ->with(self::isType('string'), $this->mockBackend)
-            ->willReturn($resolvedEntry);
-
-        return new PasswordAuthenticator(
-            $this->mockResolver,
-            $this->mockBackend,
-            $this->mockSaslResolver,
         );
     }
 
@@ -245,7 +231,7 @@ final class PasswordAuthenticatorTest extends TestCase
     public function test_get_sasl_identity_returns_null_when_entry_not_found(): void
     {
         self::assertNull(
-            $this->saslSubject()->getSaslIdentity('unknown', MechanismName::SCRAM_SHA256),
+            $this->subject()->getSaslIdentity('unknown', MechanismName::SCRAM_SHA256),
         );
     }
 
@@ -257,7 +243,7 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         self::assertNull(
-            $this->saslSubject($entry)->getSaslIdentity('cn=Alice,dc=example,dc=com', MechanismName::SCRAM_SHA256),
+            $this->subject($entry)->getSaslIdentity('cn=Alice,dc=example,dc=com', MechanismName::SCRAM_SHA256),
         );
     }
 
@@ -268,7 +254,7 @@ final class PasswordAuthenticatorTest extends TestCase
             new Attribute('userPassword', 'secret'),
         );
 
-        $identity = $this->saslSubject($entry)->getSaslIdentity('alice', MechanismName::SCRAM_SHA256);
+        $identity = $this->subject($entry)->getSaslIdentity('alice', MechanismName::SCRAM_SHA256);
 
         self::assertInstanceOf(SaslIdentity::class, $identity);
         self::assertSame('secret', $identity->password);
@@ -283,7 +269,7 @@ final class PasswordAuthenticatorTest extends TestCase
             new Attribute('userPassword', $hashed),
         );
 
-        $identity = $this->saslSubject($entry)->getSaslIdentity('alice', MechanismName::SCRAM_SHA256);
+        $identity = $this->subject($entry)->getSaslIdentity('alice', MechanismName::SCRAM_SHA256);
 
         self::assertInstanceOf(SaslIdentity::class, $identity);
         self::assertSame(
@@ -296,7 +282,7 @@ final class PasswordAuthenticatorTest extends TestCase
         );
     }
 
-    public function test_get_sasl_identity_uses_sasl_resolver_not_simple_bind_resolver(): void
+    public function test_get_sasl_identity_uses_the_same_resolver_as_authenticate(): void
     {
         $entry = new Entry(
             new Dn('cn=Alice,dc=example,dc=com'),
@@ -304,10 +290,6 @@ final class PasswordAuthenticatorTest extends TestCase
         );
 
         $this->mockResolver
-            ->expects(self::never())
-            ->method('resolve');
-
-        $this->mockSaslResolver
             ->expects(self::once())
             ->method('resolve')
             ->willReturn($entry);
@@ -315,7 +297,6 @@ final class PasswordAuthenticatorTest extends TestCase
         $identity = (new PasswordAuthenticator(
             $this->mockResolver,
             $this->mockBackend,
-            $this->mockSaslResolver,
         ))->getSaslIdentity('alice', MechanismName::SCRAM_SHA256);
 
         self::assertInstanceOf(SaslIdentity::class, $identity);

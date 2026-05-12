@@ -123,9 +123,7 @@ final class ServerOptions
 
     private ?PasswordAuthenticatableInterface $passwordAuthenticator = null;
 
-    private ?BindNameResolverInterface $bindNameResolver = null;
-
-    private ?BindNameResolverInterface $saslBindNameResolver = null;
+    private ?BindNameResolverInterface $identityResolver = null;
 
     private ?RootDseHandlerInterface $rootDseHandler = null;
 
@@ -398,26 +396,14 @@ final class ServerOptions
         return $this;
     }
 
-    public function getBindNameResolver(): ?BindNameResolverInterface
+    public function getIdentityResolver(): ?BindNameResolverInterface
     {
-        return $this->bindNameResolver;
+        return $this->identityResolver;
     }
 
-    public function setBindNameResolver(?BindNameResolverInterface $bindNameResolver): self
+    public function setIdentityResolver(?BindNameResolverInterface $identityResolver): self
     {
-        $this->bindNameResolver = $bindNameResolver;
-
-        return $this;
-    }
-
-    public function getSaslBindNameResolver(): ?BindNameResolverInterface
-    {
-        return $this->saslBindNameResolver;
-    }
-
-    public function setSaslBindNameResolver(?BindNameResolverInterface $saslBindNameResolver): self
-    {
-        $this->saslBindNameResolver = $saslBindNameResolver;
+        $this->identityResolver = $identityResolver;
 
         return $this;
     }

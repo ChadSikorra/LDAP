@@ -21,4 +21,5 @@ enum OperationType
     case Delete;
     case ModifyDn;
     case Compare;
+    case PasswordModify;
 }

@@ -18,7 +18,7 @@ LDAP Server Configuration
     * [ServerOptions:setFilterEvaluator](#setfilterevaluator)
     * [ServerOptions:setRootDseHandler](#setrootdsehandler)
     * [ServerOptions:setPasswordAuthenticator](#setpasswordauthenticator)
-    * [ServerOptions:setBindNameResolver](#setbindnameresolver)
+    * [ServerOptions:setIdentityResolver](#setidentityresolver)
 * [RootDSE Options](#rootdse-options)
     * [ServerOptions:setDseNamingContexts](#setdsenamingcontexts)
     * [ServerOptions:setDseAltServer](#setdsealtserver)
@@ -34,7 +34,6 @@ LDAP Server Configuration
     * [ServerOptions:setMaxSearchPageSize](#setmaxsearchpagesize)
 * [SASL Options](#sasl-options)
     * [ServerOptions:setSaslMechanisms](#setsaslmechanisms)
-    * [ServerOptions:setSaslBindNameResolver](#setsaslbindnameresolver-1)
 
 The LDAP server is configured through a `ServerOptions` object. The configuration object is passed to the server
 on construction:
@@ -321,57 +320,24 @@ $server = new LdapServer(
 **Default**: `null` (resolved automatically as described above)
 
 ------------------
-#### setBindNameResolver
+#### setIdentityResolver
 
 This should be an object instance that implements `FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface`.
-It translates a raw LDAP bind name into an `Entry` so the built-in `PasswordAuthenticator` can locate and verify credentials.
+It controls how the built-in `PasswordAuthenticator` and the Password Modify handler translate a bind name or user
+identity into a directory entry.
 
-The default resolver (`DnBindNameResolver`) treats the bind name as a literal DN and delegates to `LdapBackendInterface::get()`.
-Supply a custom resolver when clients bind with something other than a full DN — for example, a bare username or an email address:
+The resolver is consulted in three places:
 
-```php
-use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Entry\Entry;
+- **Simple bind** — translates the raw bind name to an entry for password verification
+- **SASL bind** — translates the SASL username to an entry for identity resolution
+- **Password Modify** — translates the `userIdentity` field in an RFC 3062 request to the target entry
 
-class UidBindNameResolver implements BindNameResolverInterface
-{
-    public function resolve(
-        string $name,
-        LdapBackendInterface $backend
-    ): ?Entry {
-        // Search for an entry whose uid attribute matches the bind name
-        // ...
-    }
-}
-```
+The server always tries `DnBindNameResolver` first (treats the name as a literal DN). It
+falls back to the configured resolver or (if none is set) `AttributeSearchBindNameResolver` (searches for an
+entry where `uid` equals the name, starting from the directory root).
 
-```php
-use FreeDSx\Ldap\ServerOptions;
-use FreeDSx\Ldap\LdapServer;
-
-$server = new LdapServer(
-    (new ServerOptions)
-        ->setBackend(new MyDirectoryBackend())
-        ->setBindNameResolver(new UidBindNameResolver())
-);
-```
-
-**Note**: This option applies to **simple bind** only. SASL bind name resolution is configured separately via
-`setSaslBindNameResolver()`. If you provide a fully custom authenticator via `setPasswordAuthenticator()`, name
-resolution is your responsibility and this option has no effect.
-
-**Default**: `null` (`DnBindNameResolver` is used, treating the bind name as a literal DN)
-
-------------------
-#### setSaslBindNameResolver
-
-Controls how the built-in `PasswordAuthenticator` maps a SASL identity (typically a bare username) to a directory
-entry during SASL binds.
-
-**Default**: `AttributeSearchBindNameResolver`, which searches for an entry where the `uid` attribute equals the
-SASL identity, starting from the directory root. Configure it when your directory uses a different attribute or
-you want to restrict the search base:
+Configure `AttributeSearchBindNameResolver` when clients bind with a non-DN identifier and your directory uses a
+different attribute or a restricted search base:
 
 ```php
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\AttributeSearchBindNameResolver;
@@ -380,7 +346,7 @@ use FreeDSx\Ldap\LdapServer;
 
 $server = new LdapServer(
     (new ServerOptions)
-        ->setSaslBindNameResolver(
+        ->setIdentityResolver(
             new AttributeSearchBindNameResolver(
                 baseDn: 'ou=People,dc=example,dc=com',
                 attribute: 'mail',
@@ -389,22 +355,13 @@ $server = new LdapServer(
 );
 ```
 
-To share the same resolver as simple bind, pass the same instance to both options:
+For fully custom logic, implement `BindNameResolverInterface` and supply it here.
 
-```php
-$resolver = new UidBindNameResolver();
+**Note**: If you provide a fully custom authenticator via `setPasswordAuthenticator()`, name resolution for bind
+operations is your responsibility and this option has no effect on bind authentication. It still applies to
+Password Modify requests.
 
-$options = (new ServerOptions)
-    ->setBindNameResolver($resolver)
-    ->setSaslBindNameResolver($resolver);
-```
-
-For full control, supply any `BindNameResolverInterface` implementation.
-
-**Note**: This option is only used when the built-in `PasswordAuthenticator` is active. If you provide a custom
-authenticator via `setPasswordAuthenticator()`, SASL identity resolution is your responsibility.
-
-**Default**: `AttributeSearchBindNameResolver` (searches `uid` attribute from the directory root)
+**Default**: `null` (`DnBindNameResolver` is tried first; falls back to `AttributeSearchBindNameResolver`)
 
 ## RootDSE Options
 
@@ -553,8 +510,3 @@ protected by TLS (via StartTLS or `setUseSsl`).
 See [SASL Authentication](General-Usage.md#sasl-authentication) for full usage details.
 
 **Default**: `[]` (SASL disabled)
-
-------------------
-#### setSaslBindNameResolver
-
-See [Backend › setSaslBindNameResolver](#setsaslbindnameresolver) above.

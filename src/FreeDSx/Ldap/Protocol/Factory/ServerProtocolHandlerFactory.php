@@ -46,6 +46,14 @@ class ServerProtocolHandlerFactory
     ): ServerProtocolHandlerInterface {
         if ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_WHOAMI) {
             return new ServerProtocolHandler\ServerWhoAmIHandler($this->queue);
+        } elseif ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_PWD_MODIFY) {
+            return new ServerProtocolHandler\ServerPasswordModifyHandler(
+                queue: $this->queue,
+                backend: $this->handlerFactory->makeBackend(),
+                writeDispatcher: $this->handlerFactory->makeWriteDispatcher(),
+                accessControl: $this->options->getAccessControl(),
+                identityResolver: $this->handlerFactory->makeIdentityResolverChain(),
+            );
         } elseif ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_START_TLS) {
             return new ServerProtocolHandler\ServerStartTlsHandler(
                 options: $this->options,

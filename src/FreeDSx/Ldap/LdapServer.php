@@ -202,11 +202,11 @@ class LdapServer
     }
 
     /**
-     * Override the bind name resolver used to translate a raw bind name to an Entry.
+     * Set the identity resolver used to translate a name to an Entry for simple bind, SASL bind, and PasswordModify.
      */
-    public function useBindNameResolver(BindNameResolverInterface $resolver): self
+    public function useIdentityResolver(BindNameResolverInterface $resolver): self
     {
-        $this->options->setBindNameResolver($resolver);
+        $this->options->setIdentityResolver($resolver);
 
         return $this;
     }

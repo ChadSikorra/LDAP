@@ -16,7 +16,7 @@ Access Control
 Access control operates at two levels:
 
 - **Operation level**: Checked before each operation executes. Denial sends `INSUFFICIENT_ACCESS_RIGHTS` to the
-  client. Covers the following operations: Search, Add, Modify, Delete, ModifyDn, and Compare.
+  client. Covers the following operations: Search, Add, Modify, Delete, ModifyDn, Compare, and PasswordModify.
 - **Attribute level**: Checked for each attribute involved in Compare, Add, and Modify operations. Also applied to
   each Search result entry: disallowed attributes are stripped before the entry is sent; if the entry itself is
   denied at operation level, it is suppressed entirely from results (not sent to the client).

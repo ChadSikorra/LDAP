@@ -14,6 +14,8 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\RequestHandler;
 
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\AttributeSearchBindNameResolver;
+use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverChain;
+use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticator;
@@ -87,13 +89,20 @@ class HandlerFactory implements HandlerFactoryInterface
             return $backend;
         }
 
-        $nameResolver = $this->options->getBindNameResolver() ?? new DnBindNameResolver();
-
         return new PasswordAuthenticator(
-            $nameResolver,
+            $this->makeIdentityResolverChain(),
             $backend,
-            $this->options->getSaslBindNameResolver() ?? new AttributeSearchBindNameResolver(),
         );
+    }
+
+    public function makeIdentityResolverChain(): BindNameResolverInterface
+    {
+        $configured = $this->options->getIdentityResolver();
+
+        return new BindNameResolverChain([
+            new DnBindNameResolver(),
+            $configured ?? new AttributeSearchBindNameResolver(),
+        ]);
     }
 
     /**
