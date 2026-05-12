@@ -15,7 +15,6 @@ namespace FreeDSx\Ldap\Server\Backend\Auth;
 
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\AttributeSearchBindNameResolver;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
@@ -31,9 +30,8 @@ use SensitiveParameter;
 final class PasswordAuthenticator implements PasswordAuthenticatableInterface
 {
     public function __construct(
-        private readonly BindNameResolverInterface $nameResolver,
+        private readonly BindNameResolverInterface $resolver,
         private readonly LdapBackendInterface $backend,
-        private readonly BindNameResolverInterface $saslNameResolver = new AttributeSearchBindNameResolver(),
         private readonly PasswordHashVerifier $hashVerifier = new PasswordHashVerifier(),
     ) {}
 
@@ -42,7 +40,7 @@ final class PasswordAuthenticator implements PasswordAuthenticatableInterface
         #[SensitiveParameter]
         string $password,
     ): AuthenticatedTokenInterface {
-        $entry = $this->nameResolver->resolve(
+        $entry = $this->resolver->resolve(
             $name,
             $this->backend,
         );
@@ -74,7 +72,7 @@ final class PasswordAuthenticator implements PasswordAuthenticatableInterface
         string $username,
         MechanismName $mechanism,
     ): ?SaslIdentity {
-        $entry = $this->saslNameResolver->resolve(
+        $entry = $this->resolver->resolve(
             $username,
             $this->backend,
         );

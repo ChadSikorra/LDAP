@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server;
 
+use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
@@ -60,4 +61,9 @@ interface HandlerFactoryInterface
      *      returned by the backend's get() method.
      */
     public function makePasswordAuthenticator(): PasswordAuthenticatableInterface;
+
+    /**
+     * Build the identity resolver chain: DnBindNameResolver first, then the configured resolver (or AttributeSearchBindNameResolver as the default fallback).
+     */
+    public function makeIdentityResolverChain(): BindNameResolverInterface;
 }

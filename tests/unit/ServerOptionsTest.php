@@ -381,20 +381,20 @@ final class ServerOptionsTest extends TestCase
         );
     }
 
-    public function test_bind_name_resolver_is_null_by_default(): void
+    public function test_identity_resolver_is_null_by_default(): void
     {
-        self::assertNull($this->subject->getBindNameResolver());
+        self::assertNull($this->subject->getIdentityResolver());
     }
 
-    public function test_it_can_set_bind_name_resolver(): void
+    public function test_it_can_set_identity_resolver(): void
     {
         $resolver = $this->createMock(BindNameResolverInterface::class);
 
-        $this->subject->setBindNameResolver($resolver);
+        $this->subject->setIdentityResolver($resolver);
 
         self::assertSame(
             $resolver,
-            $this->subject->getBindNameResolver(),
+            $this->subject->getIdentityResolver(),
         );
     }
 

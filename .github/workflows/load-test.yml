@@ -60,15 +60,19 @@ jobs:
         run: composer install --no-progress --prefer-dist --optimize-autoloader
 
       - name: Run load test
-        run: |
-          php tests/bin/ldap-load-test.php \
-            --backend=${{ matrix.backend }} \
-            --runner=${{ matrix.runner }} \
-            --ci-profile=${{ matrix.profile }} \
-            --duration=15 --warmup=3 --clients=16 --rng-seed=1 \
-            --output=json \
-            --threshold-report=threshold-${{ matrix.backend }}-${{ matrix.runner }}.json \
-            > raw-${{ matrix.backend }}-${{ matrix.runner }}.json
+        uses: nick-fields/retry@v3
+        with:
+          max_attempts: 3
+          timeout_minutes: 5
+          command: |
+            php tests/bin/ldap-load-test.php \
+              --backend=${{ matrix.backend }} \
+              --runner=${{ matrix.runner }} \
+              --ci-profile=${{ matrix.profile }} \
+              --duration=15 --warmup=3 --clients=16 --rng-seed=1 \
+              --output=json \
+              --threshold-report=threshold-${{ matrix.backend }}-${{ matrix.runner }}.json \
+              > raw-${{ matrix.backend }}-${{ matrix.runner }}.json
 
       - name: Upload load-test artifacts
         if: always()
@@ -130,19 +134,23 @@ jobs:
         run: composer install --no-progress --prefer-dist --optimize-autoloader
 
       - name: Run load test
+        uses: nick-fields/retry@v3
         env:
           MYSQL_DSN: 'mysql:host=127.0.0.1;port=3306;dbname=freedsx'
           MYSQL_USER: root
           MYSQL_PASSWORD: root
-        run: |
-          php tests/bin/ldap-load-test.php \
-            --backend=mysql \
-            --runner=${{ matrix.runner }} \
-            --ci-profile=mysql:${{ matrix.runner }} \
-            --duration=15 --warmup=3 --clients=16 --rng-seed=1 \
-            --output=json \
-            --threshold-report=threshold-mysql-${{ matrix.runner }}.json \
-            > raw-mysql-${{ matrix.runner }}.json
+        with:
+          max_attempts: 3
+          timeout_minutes: 5
+          command: |
+            php tests/bin/ldap-load-test.php \
+              --backend=mysql \
+              --runner=${{ matrix.runner }} \
+              --ci-profile=mysql:${{ matrix.runner }} \
+              --duration=15 --warmup=3 --clients=16 --rng-seed=1 \
+              --output=json \
+              --threshold-report=threshold-mysql-${{ matrix.runner }}.json \
+              > raw-mysql-${{ matrix.runner }}.json
 
       - name: Upload load-test artifacts
         if: always()

@@ -22,12 +22,14 @@ use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerDispatchHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerPagingHandler;
+use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerPasswordModifyHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerRootDseHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerSearchHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerStartTlsHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerSubschemaHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerUnbindHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerWhoAmIHandler;
+use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Server\Backend\GenericBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
@@ -63,11 +65,26 @@ final class ServerProtocolHandlerFactoryTest extends TestCase
             ->method('makeWriteDispatcher')
             ->willReturn(new WriteOperationDispatcher());
 
+        $this->mockHandlerFactory
+            ->method('makeIdentityResolverChain')
+            ->willReturn(new DnBindNameResolver());
+
         $this->subject = new ServerProtocolHandlerFactory(
             $this->mockHandlerFactory,
             new ServerOptions(),
             new RequestHistory(),
             $this->mockQueue,
+        );
+    }
+
+    public function test_it_should_get_a_password_modify_handler(): void
+    {
+        self::assertInstanceOf(
+            ServerPasswordModifyHandler::class,
+            $this->subject->get(
+                Operations::extended(ExtendedRequest::OID_PWD_MODIFY),
+                new ControlBag(),
+            ),
         );
     }
 

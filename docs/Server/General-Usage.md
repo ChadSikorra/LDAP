@@ -26,6 +26,8 @@ General LDAP Server Usage
 * [SASL Authentication](#sasl-authentication)
   * [PLAIN Mechanism](#plain-mechanism)
   * [Challenge-Based Mechanisms (CRAM-MD5, DIGEST-MD5, and SCRAM)](#challenge-based-mechanisms-cram-md5-digest-md5-and-scram)
+  * [Identity Resolution for SASL](#identity-resolution-for-sasl)
+* [Password Modify Extended Operation](#password-modify-extended-operation)
 
 The LdapServer class runs an LDAP server process that accepts client requests and sends back responses. It defaults to
 using a forking method (PCNTL) for handling client connections, which is only available on Linux.
@@ -77,48 +79,33 @@ Clients bind as `cn=admin,dc=example,dc=com` with password `secret`. No further 
 
 ### File-Backed Server with Custom Bind Names
 
-A persistent directory stored in a JSON file. Clients bind with a bare username (`alice`) instead of a full DN — a
-custom `BindNameResolverInterface` translates the username to an entry.
+A persistent directory stored in a JSON file. Clients bind with a bare username (`alice`) instead of a full DN.
+The built-in identity resolver already handles this; if the bind name is not a valid DN, it falls back to
+searching for an entry where the `uid` attribute matches.
 
 ```php
 use FreeDSx\Ldap\LdapServer;
-use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
-use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\ServerOptions;
-
-class UidBindNameResolver implements BindNameResolverInterface
-{
-    public function resolve(string $name, LdapBackendInterface $backend): ?Entry
-    {
-        foreach ($backend->search(/* uid=$name search context */) as $entry) {
-            return $entry;
-        }
-
-        return null;
-    }
-}
 
 $server = new LdapServer(
     (new ServerOptions())
         ->setDseNamingContexts('dc=example,dc=com')
         ->setSaslMechanisms(ServerOptions::SASL_PLAIN)
-        ->setBindNameResolver(new UidBindNameResolver())
 );
 
 $server->useStorage(JsonFileStorage::forPcntl('/var/lib/myapp/ldap.json'));
 $server->run();
 ```
 
-The custom resolver drives simple bind authentication. SASL uses `AttributeSearchBindNameResolver` (searching by
-`uid`) by default — supply `setSaslBindNameResolver()` to share the same resolver or use a different one.
+To use a different attribute (e.g. `mail`) or restrict the search base, configure `setIdentityResolver()` via
+[configuration](Configuration.md#setidentityresolver).
 
 ---
 
 ### Challenge SASL with a Custom Authenticator
 
-For full control over credential storage — for example, delegating to an external user store or database — implement
+For full control over credential storage, such as delegating to an external user store or database, implement
 `PasswordAuthenticatableInterface` directly. This single interface covers all bind types:
 
 - `authenticate()` is called for simple binds
@@ -753,37 +740,27 @@ no additional configuration required.
 
 ### Custom Bind Name Resolution
 
-By default, the built-in `PasswordAuthenticator` treats the bind name as a literal DN. If clients bind with something
-else — a bare username, an email address, etc. — supply a custom `BindNameResolverInterface`:
+By default, the built-in `PasswordAuthenticator` treats the bind name as a literal DN. If clients bind with a
+non-DN identifier (a bare username, an email address, etc.), configure `AttributeSearchBindNameResolver` or
+supply a custom `BindNameResolverInterface` via `setIdentityResolver()`:
 
 ```php
-use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Entry\Entry;
-
-class UidBindNameResolver implements BindNameResolverInterface
-{
-    public function resolve(
-        string $name,
-         LdapBackendInterface $backend
-    ): ?Entry {
-        // Translate the bind name to an entry however you like.
-        // Return null to reject authentication.
-    }
-}
-```
-
-```php
+use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\AttributeSearchBindNameResolver;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Ldap\LdapServer;
 
 $server = new LdapServer(
-    (new ServerOptions)->setBindNameResolver(new UidBindNameResolver())
+    (new ServerOptions)->setIdentityResolver(
+        new AttributeSearchBindNameResolver(
+            baseDn: 'ou=People,dc=example,dc=com',
+            attribute: 'mail',
+        ),
+    )
 );
 ```
 
-The resolver is used for **simple bind** through the built-in `PasswordAuthenticator`. SASL bind name resolution
-is configured separately — see `setSaslBindNameResolver()` in [Configuration](Configuration.md#setsaslbindnameresolver).
+The resolver applies to simple bind, SASL bind, and Password Modify identity resolution. See
+[Configuration](Configuration.md#setidentityresolver) for full details.
 
 ### Custom Authenticator
 
@@ -916,21 +893,21 @@ custom authenticator that can return a recoverable value.
 **Note**: Because challenge mechanisms require a recoverable password, they are fundamentally incompatible with
 one-way hashing. If one-way hashing is a hard requirement, use `PLAIN` over TLS instead.
 
-### SASL Bind Name Resolution
+### Identity Resolution for SASL
 
-By default, the built-in `PasswordAuthenticator` resolves SASL identities using `AttributeSearchBindNameResolver`,
-which searches for an entry where the `uid` attribute matches the SASL identity (e.g. the username sent by the
-client). This differs from simple bind, which treats the bind name as a literal DN by default.
+The built-in `PasswordAuthenticator` resolves SASL identities using a resolver chain. A full DN is tried first;
+if that lookup returns no entry, the configured resolver (or `AttributeSearchBindNameResolver` searching by `uid`
+by default) is applied. This same chain also drives simple bind and Password Modify identity resolution.
 
-Configure the SASL resolver via `setSaslBindNameResolver()` when your directory uses a different attribute or a
-restricted search base:
+Configure the resolver via `setIdentityResolver()` when your directory uses a different attribute or a restricted
+search base:
 
 ```php
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\AttributeSearchBindNameResolver;
 use FreeDSx\Ldap\ServerOptions;
 
 $options = (new ServerOptions)
-    ->setSaslBindNameResolver(
+    ->setIdentityResolver(
         new AttributeSearchBindNameResolver(
             baseDn: 'ou=People,dc=example,dc=com',
             attribute: 'mail',
@@ -976,3 +953,59 @@ $server = new LdapServer($options);
 
 $server->run();
 ```
+
+## Password Modify Extended Operation
+
+The server supports RFC 3062 Password Modify (OID `1.3.6.1.4.1.4203.1.11.1`). Authenticated clients may change
+their own password or — if permitted by the configured access control — another user's password.
+
+### Self-service password change
+
+A client changes its own password by omitting `userIdentity`. The server resolves the target entry from the bound
+DN. Supply the current password in `oldPassword` for verification:
+
+```php
+use FreeDSx\Ldap\Operation\Request\PasswordModifyRequest;
+
+$client->sendAndReceive(
+    new PasswordModifyRequest(null, 'currentPassword', 'newPassword'),
+);
+```
+
+### Server-generated passwords
+
+Omit `newPassword` to let the server generate a secure random password. The generated password is returned in the
+response:
+
+```php
+use FreeDSx\Ldap\Operation\Request\PasswordModifyRequest;
+use FreeDSx\Ldap\Operation\Response\PasswordModifyResponse;
+
+/** @var PasswordModifyResponse $response */
+$response = $client->sendAndReceive(
+    new PasswordModifyRequest(null, 'currentPassword', null),
+)->getResponse();
+
+$generated = $response->getGeneratedPassword(); // 16-character random string
+```
+
+### Admin password reset
+
+An admin may reset another user's password by supplying a `userIdentity`. The identity is resolved using the same
+chain as bind operations — a full DN, or any name your configured `setIdentityResolver()` understands:
+
+```php
+$client->sendAndReceive(
+    new PasswordModifyRequest('cn=user,dc=example,dc=com', null, 'resetPassword'),
+);
+```
+
+### Access control
+
+Password Modify is protected at two levels:
+
+1. **Operation level** (`OperationType::PasswordModify`) — controls who may invoke the operation.
+2. **Attribute level** (`userPassword`) — controls who may write the password attribute.
+
+See [Access Control](Access-Control.md) for rule configuration. Anonymous access is always denied before the
+handler runs when `requireAuthentication` is enabled (the default).
