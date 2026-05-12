@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\RequestHandler;
 
+use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\AttributeSearchBindNameResolver;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticator;
@@ -91,6 +92,7 @@ class HandlerFactory implements HandlerFactoryInterface
         return new PasswordAuthenticator(
             $nameResolver,
             $backend,
+            $this->options->getSaslBindNameResolver() ?? new AttributeSearchBindNameResolver(),
         );
     }
 

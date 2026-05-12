@@ -13,11 +13,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 
-use FreeDSx\Ldap\Exception\OperationException;
-use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\PlainMechanismOptionsBuilder;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
-use FreeDSx\Ldap\Server\Token\BindToken;
+use FreeDSx\Ldap\Server\Backend\Auth\SaslIdentity;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\Options\PlainOptions;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -43,16 +42,15 @@ final class PlainMechanismOptionsBuilderTest extends TestCase
         self::assertIsCallable($options->getValidate());
     }
 
-    public function test_the_validate_callable_delegates_to_backend_authenticate(): void
+    public function test_the_validate_callable_returns_true_for_correct_credentials(): void
     {
+        $identity = new SaslIdentity('12345', new Dn('cn=user,dc=foo,dc=bar'));
+
         $this->mockAuthenticator
             ->expects(self::once())
-            ->method('authenticate')
-            ->with('cn=user,dc=foo,dc=bar', '12345')
-            ->willReturn(BindToken::fromDn(
-                'cn=user,dc=foo,dc=bar',
-                '12345',
-            ));
+            ->method('getSaslIdentity')
+            ->with('cn=user,dc=foo,dc=bar', MechanismName::PLAIN)
+            ->willReturn($identity);
 
         $options = $this->subject->buildOptions(null, MechanismName::PLAIN);
         self::assertInstanceOf(PlainOptions::class, $options);
@@ -63,20 +61,34 @@ final class PlainMechanismOptionsBuilderTest extends TestCase
         self::assertTrue($result);
     }
 
-    public function test_the_validate_callable_returns_false_when_authenticate_throws(): void
+    public function test_the_validate_callable_returns_false_when_identity_is_not_found(): void
     {
         $this->mockAuthenticator
-            ->method('authenticate')
-            ->willThrowException(new OperationException(
-                'Invalid credentials.',
-                ResultCode::INVALID_CREDENTIALS,
-            ));
+            ->method('getSaslIdentity')
+            ->willReturn(null);
 
         $options = $this->subject->buildOptions(null, MechanismName::PLAIN);
         self::assertInstanceOf(PlainOptions::class, $options);
         $validate = $options->getValidate();
         assert(is_callable($validate));
-        $result = $validate(null, 'user', 'wrong');
+        $result = $validate(null, 'unknown', 'wrong');
+
+        self::assertFalse($result);
+    }
+
+    public function test_the_validate_callable_returns_false_for_wrong_password(): void
+    {
+        $identity = new SaslIdentity('correct', new Dn('cn=user,dc=foo,dc=bar'));
+
+        $this->mockAuthenticator
+            ->method('getSaslIdentity')
+            ->willReturn($identity);
+
+        $options = $this->subject->buildOptions(null, MechanismName::PLAIN);
+        self::assertInstanceOf(PlainOptions::class, $options);
+        $validate = $options->getValidate();
+        assert(is_callable($validate));
+        $result = $validate(null, 'cn=user,dc=foo,dc=bar', 'wrong');
 
         self::assertFalse($result);
     }
@@ -88,5 +100,25 @@ final class PlainMechanismOptionsBuilderTest extends TestCase
 
         self::assertInstanceOf(PlainOptions::class, $optionsWithNull);
         self::assertInstanceOf(PlainOptions::class, $optionsWithBytes);
+    }
+
+    public function test_get_resolved_dn_is_populated_after_successful_validation(): void
+    {
+        $identity = new SaslIdentity('12345', new Dn('cn=user,dc=foo,dc=bar'));
+
+        $this->mockAuthenticator
+            ->method('getSaslIdentity')
+            ->willReturn($identity);
+
+        $options = $this->subject->buildOptions(null, MechanismName::PLAIN);
+        assert($options instanceof PlainOptions);
+        $validate = $options->getValidate();
+        assert(is_callable($validate));
+        $validate('authzid', 'cn=user,dc=foo,dc=bar', '12345');
+
+        self::assertSame(
+            'cn=user,dc=foo,dc=bar',
+            $this->subject->getResolvedDn()?->toString(),
+        );
     }
 }

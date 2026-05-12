@@ -13,8 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 
-use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\Options\ChallengeOptionsInterface;
 use FreeDSx\Sasl\Options\PlainOptions;
@@ -26,7 +26,12 @@ use FreeDSx\Sasl\Options\PlainOptions;
  */
 class PlainMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
 {
-    public function __construct(private readonly PasswordAuthenticatableInterface $authenticator) {}
+    use RequireIdentityTrait;
+
+    public function __construct(
+        private readonly PasswordAuthenticatableInterface $authenticator,
+        private readonly PasswordHashVerifier $hashVerifier = new PasswordHashVerifier(),
+    ) {}
 
     /**
      * {@inheritDoc}
@@ -37,13 +42,18 @@ class PlainMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
     ): ?ChallengeOptionsInterface {
         return (new PlainOptions())->setValidate(
             function (?string $authzId, string $authcId, string $password): bool {
-                try {
-                    $this->authenticator->authenticate($authcId, $password);
+                $identity = $this->authenticator->getSaslIdentity(
+                    $authcId,
+                    MechanismName::PLAIN,
+                );
 
-                    return true;
-                } catch (OperationException) {
+                if ($identity === null || !$this->hashVerifier->verify($password, $identity->password)) {
                     return false;
                 }
+
+                $this->requireIdentity($identity);
+
+                return true;
             },
         );
     }

@@ -13,11 +13,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\DigestMD5MechanismOptionsBuilder;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor\SaslUsernameExtractorInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\SaslIdentity;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\Options\DigestMD5Options;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -49,15 +51,20 @@ final class DigestMD5MechanismOptionsBuilderTest extends TestCase
 
     public function test_it_builds_options_with_the_password_when_bytes_are_received(): void
     {
+        $identity = new SaslIdentity(
+            '12345',
+            new Dn('cn=user,dc=foo,dc=bar'),
+        );
+
         $this->mockUsernameExtractor
             ->method('extractUsername')
             ->with(MechanismName::DIGEST_MD5, 'client-response')
             ->willReturn('cn=user,dc=foo,dc=bar');
 
         $this->mockHandler
-            ->method('getPassword')
+            ->method('getSaslIdentity')
             ->with('cn=user,dc=foo,dc=bar', MechanismName::DIGEST_MD5)
-            ->willReturn('12345');
+            ->willReturn($identity);
 
         $options = $this->subject->buildOptions('client-response', MechanismName::DIGEST_MD5);
 
@@ -72,12 +79,35 @@ final class DigestMD5MechanismOptionsBuilderTest extends TestCase
             ->willReturn('unknown-user');
 
         $this->mockHandler
-            ->method('getPassword')
+            ->method('getSaslIdentity')
             ->willReturn(null);
 
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
 
         $this->subject->buildOptions('client-response', MechanismName::DIGEST_MD5);
+    }
+
+    public function test_get_resolved_dn_is_populated_after_successful_build(): void
+    {
+        $identity = new SaslIdentity(
+            '12345',
+            new Dn('cn=user,dc=foo,dc=bar'),
+        );
+
+        $this->mockUsernameExtractor
+            ->method('extractUsername')
+            ->willReturn('cn=user,dc=foo,dc=bar');
+
+        $this->mockHandler
+            ->method('getSaslIdentity')
+            ->willReturn($identity);
+
+        $this->subject->buildOptions('client-response', MechanismName::DIGEST_MD5);
+
+        self::assertSame(
+            'cn=user,dc=foo,dc=bar',
+            $this->subject->getResolvedDn()?->toString(),
+        );
     }
 }

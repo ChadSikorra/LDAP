@@ -37,12 +37,12 @@ interface PasswordAuthenticatableInterface
     ): AuthenticatedTokenInterface;
 
     /**
-     * Return the plaintext password for $username (SCRAM/CRAM derive keys from plaintext), or null to reject the bind.
+     * Resolve $username to a directory entry and return its stored password and DN, or null to reject the bind.
      *
      * RFC 5803 pre-computed StoredKey/ServerKey is not supported.
      */
-    public function getPassword(
+    public function getSaslIdentity(
         string $username,
         MechanismName $mechanism,
-    ): ?string;
+    ): ?SaslIdentity;
 }

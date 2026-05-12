@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\Options\ChallengeOptionsInterface;
 
@@ -30,4 +31,9 @@ interface MechanismOptionsBuilderInterface
         ?string $received,
         MechanismName $mechanism,
     ): ?ChallengeOptionsInterface;
+
+    /**
+     * The resolved directory DN for the authenticated identity, available after the exchange completes.
+     */
+    public function getResolvedDn(): ?Dn;
 }

@@ -6,11 +6,13 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\SaslIdentity;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Sasl\Mechanism\MechanismName;
@@ -176,11 +178,11 @@ class LdapServerBackend implements WritableLdapBackendInterface, PasswordAuthent
         $this->logRequest('modify-dn', "dn => {$command->dn->toString()}, $dnLog");
     }
 
-    public function getPassword(
+    public function getSaslIdentity(
         string $username,
         MechanismName $mechanism,
-    ): ?string {
-        return $this->users[$username] ?? null;
+    ): ?SaslIdentity {
+        return null;
     }
 
     private function logRequest(string $type, string $message): void
@@ -238,14 +240,40 @@ $options = (new ServerOptions())
     ->setSocketAcceptTimeout(0.1)
     ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL));
 
+$server = new LdapServer($options);
+
 if ($handler === 'sasl') {
     $options->setSaslMechanisms(
         ServerOptions::SASL_PLAIN,
         ServerOptions::SASL_CRAM_MD5,
         ServerOptions::SASL_SCRAM_SHA_256,
     );
-}
 
-$server = (new LdapServer($options))->useBackend($backend);
+    // InMemoryStorage to test SASL end to end.
+    $server->useStorage(
+        new InMemoryStorage([
+            Entry::fromArray(
+                'cn=user,dc=foo,dc=bar',
+                [
+                    'objectClass' => 'inetOrgPerson',
+                    'cn' => 'user',
+                    'uid' => 'user',
+                    'userPassword' => '12345',
+                ],
+            ),
+            Entry::fromArray(
+                'cn=other,dc=foo,dc=bar',
+                [
+                    'objectClass' => 'inetOrgPerson',
+                    'cn' => 'other',
+                    'uid' => 'other',
+                    'userPassword' => 'secret',
+                ],
+            ),
+        ]),
+    );
+} else {
+    $server->useBackend($backend);
+}
 
 $server->run();

@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\Bind\Sasl;
 
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Sasl\SaslContext;
 
@@ -21,12 +22,13 @@ use FreeDSx\Sasl\SaslContext;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class SaslExchangeResult
+final readonly class SaslExchangeResult
 {
     public function __construct(
-        private readonly SaslContext $context,
-        private readonly LdapMessageRequest $lastMessage,
-        private readonly ?string $usernameCredentials,
+        private SaslContext $context,
+        private LdapMessageRequest $lastMessage,
+        private ?string $usernameCredentials,
+        private ?Dn $resolvedDn = null,
     ) {}
 
     public function getContext(): SaslContext
@@ -42,5 +44,10 @@ final class SaslExchangeResult
     public function getUsernameCredentials(): ?string
     {
         return $this->usernameCredentials;
+    }
+
+    public function getResolvedDn(): ?Dn
+    {
+        return $this->resolvedDn;
     }
 }

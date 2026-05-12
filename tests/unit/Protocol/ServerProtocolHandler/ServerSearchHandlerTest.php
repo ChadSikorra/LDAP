@@ -139,32 +139,40 @@ final class ServerSearchHandlerTest extends TestCase
         ]);
     }
 
-    public function test_it_should_filter_entries_that_do_not_match_the_filter(): void
+    public function test_entry_stripped_by_acl_is_excluded_when_it_no_longer_matches_filter(): void
     {
-        $entry1 = Entry::create('dc=foo,dc=bar', ['cn' => 'foo']);
-        $entry2 = Entry::create('dc=bar,dc=foo', ['cn' => 'bar']);
+        $entry = Entry::create('dc=foo,dc=bar', ['userPassword' => 'secret', 'cn' => 'foo']);
+        $stripped = Entry::create('dc=foo,dc=bar', ['cn' => 'foo']);
 
         $search = new LdapMessageRequest(
             2,
-            (new SearchRequest(Filters::equal('foo', 'bar')))->base('dc=foo,dc=bar'),
+            (new SearchRequest(Filters::present('userPassword')))->base('dc=foo,dc=bar'),
+        );
+
+        $mockAccessControl = $this->createMock(AccessControlInterface::class);
+        $mockAccessControl->method('filterEntry')->willReturn($stripped);
+
+        $subject = new ServerSearchHandler(
+            queue: $this->mockQueue,
+            backend: $this->mockBackend,
+            filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $mockAccessControl,
         );
 
         $this->mockBackend
-            ->expects(self::once())
             ->method('search')
-            ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
+            ->willReturn(new EntryStream($this->makeGenerator($entry)));
 
         $this->mockFilterEvaluator
             ->method('evaluate')
-            ->willReturnOnConsecutiveCalls(true, false);
+            ->willReturn(false);
 
-        $this->subject->handleRequest(
+        $subject->handleRequest(
             $search,
             $this->mockToken,
         );
 
         $this->assertSentMessages([
-            new LdapMessageResponse(2, new SearchResultEntry($entry1)),
             new LdapMessageResponse(
                 2,
                 new SearchResultDone(0, 'dc=foo,dc=bar'),

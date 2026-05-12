@@ -65,11 +65,13 @@ final class WritableStorageBackendTest extends TestCase
         );
         $this->alice = new Entry(
             new Dn('cn=Alice,dc=example,dc=com'),
+            new Attribute('objectClass', 'person'),
             new Attribute('cn', 'Alice'),
             new Attribute('userPassword', 'secret'),
         );
         $this->bob = new Entry(
             new Dn('cn=Bob,ou=People,dc=example,dc=com'),
+            new Attribute('objectClass', 'person'),
             new Attribute('cn', 'Bob'),
         );
 

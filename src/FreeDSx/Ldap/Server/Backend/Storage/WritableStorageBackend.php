@@ -136,7 +136,8 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             );
         }
 
-        if (!$this->storage->exists($normBase)) {
+        // no chance to be confused with the RootDSE, which is handled special elsewhere.
+        if ($normBase->toString() !== '' && !$this->storage->exists($normBase)) {
             $this->throwNoSuchObject($baseDn);
         }
 

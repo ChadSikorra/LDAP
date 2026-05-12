@@ -25,7 +25,7 @@ use FreeDSx\Sasl\Options\CramMD5Options;
  */
 class CramMD5MechanismOptionsBuilder implements MechanismOptionsBuilderInterface
 {
-    use RequiresPasswordTrait;
+    use RequireIdentityTrait;
 
     public function __construct(private readonly PasswordAuthenticatableInterface $handler) {}
 
@@ -42,7 +42,7 @@ class CramMD5MechanismOptionsBuilder implements MechanismOptionsBuilderInterface
 
         return (new CramMD5Options())->setPasswordCallback(
             function (string $username, string $challenge): string {
-                $password = $this->requirePassword($this->handler->getPassword(
+                $identity = $this->requireIdentity($this->handler->getSaslIdentity(
                     $username,
                     MechanismName::CRAM_MD5,
                 ));
@@ -50,7 +50,7 @@ class CramMD5MechanismOptionsBuilder implements MechanismOptionsBuilderInterface
                 return hash_hmac(
                     'md5',
                     $challenge,
-                    $password,
+                    $identity->password,
                 );
             },
         );

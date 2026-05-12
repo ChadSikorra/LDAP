@@ -111,8 +111,8 @@ $server->useStorage(JsonFileStorage::forPcntl('/var/lib/myapp/ldap.json'));
 $server->run();
 ```
 
-The custom resolver drives all auth paths: simple bind, SASL PLAIN, and (if enabled) challenge SASL all use it
-through the built-in `PasswordAuthenticator`.
+The custom resolver drives simple bind authentication. SASL uses `AttributeSearchBindNameResolver` (searching by
+`uid`) by default — supply `setSaslBindNameResolver()` to share the same resolver or use a different one.
 
 ---
 
@@ -121,34 +121,41 @@ through the built-in `PasswordAuthenticator`.
 For full control over credential storage — for example, delegating to an external user store or database — implement
 `PasswordAuthenticatableInterface` directly. This single interface covers all bind types:
 
-- `verifyPassword()` is called for simple binds and SASL PLAIN
-- `getPassword()` is called for challenge mechanisms (CRAM-MD5, DIGEST-MD5, SCRAM-*)
+- `authenticate()` is called for simple binds
+- `getSaslIdentity()` is called for all SASL mechanisms (PLAIN, CRAM-MD5, DIGEST-MD5, SCRAM-*)
 
 ```php
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\SaslIdentity;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
+use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\ServerOptions;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use SensitiveParameter;
 
 class MyAuthenticator implements PasswordAuthenticatableInterface
 {
-    public function verifyPassword(
+    public function authenticate(
         string $name,
         #[SensitiveParameter]
         string $password,
-    ): bool {
-        // Verify against your user store — hashed comparison is fine here.
-        $stored = $this->lookupPassword($name);
-
-        return $stored !== null && password_verify($password, $stored);
+    ): AuthenticatedTokenInterface {
+        // Verify against your user store — any hashing scheme works here.
     }
 
-    public function getPassword(string $username, string $mechanism): ?string
-    {
+    public function getSaslIdentity(
+        string $username,
+        MechanismName $mechanism,
+    ): ?SaslIdentity {
         // Challenge SASL requires a plaintext (or recoverable) password.
         // Passwords stored with one-way hashing (bcrypt, argon2) cannot be used here.
-        return $this->lookupPlaintextPassword($username);
+        $password = $this->lookupPlaintextPassword($username);
+        $dn = $this->lookupDn($username);
+
+        return $password !== null && $dn !== null
+            ? new SaslIdentity($password, $dn)
+            : null;
     }
 }
 
@@ -719,18 +726,18 @@ The `PasswordAuthenticatableInterface` covers all bind types through two methods
 ```php
 interface PasswordAuthenticatableInterface
 {
-    // Called for simple binds and SASL PLAIN.
-    public function verifyPassword(
+    // Called for simple binds.
+    public function authenticate(
         string $name,
-        string $password
-    ): bool;
+        string $password,
+    ): AuthenticatedTokenInterface;
 
-    // Called for challenge-based SASL (CRAM-MD5, DIGEST-MD5, SCRAM-*).
-    // Return the plaintext password, or null to reject.
-    public function getPassword(
+    // Called for all SASL mechanisms (PLAIN, CRAM-MD5, DIGEST-MD5, SCRAM-*).
+    // Return a SaslIdentity with the stored password and resolved DN, or null to reject.
+    public function getSaslIdentity(
         string $username,
-        string $mechanism
-    ): ?string;
+        MechanismName $mechanism,
+    ): ?SaslIdentity;
 }
 ```
 
@@ -775,8 +782,8 @@ $server = new LdapServer(
 );
 ```
 
-The resolver is used for all auth paths (simple bind, SASL PLAIN, and challenge SASL) through the built-in
-`PasswordAuthenticator`.
+The resolver is used for **simple bind** through the built-in `PasswordAuthenticator`. SASL bind name resolution
+is configured separately — see `setSaslBindNameResolver()` in [Configuration](Configuration.md#setsaslbindnameresolver).
 
 ### Custom Authenticator
 
@@ -786,19 +793,27 @@ For full control — external auth services, custom credential storage, etc. —
 ```php
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\SaslIdentity;
+use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use SensitiveParameter;
 
 class MyAuthenticator implements PasswordAuthenticatableInterface
 {
-    public function verifyPassword(string $name, #[SensitiveParameter] string $password): bool
-    {
-        // Your credential verification logic.
+    public function authenticate(
+        string $name,
+        #[SensitiveParameter]
+        string $password,
+    ): AuthenticatedTokenInterface {
+        // Your simple-bind credential verification logic.
     }
 
-    public function getPassword(string $username, string $mechanism): ?string
-    {
-        // Return plaintext password for challenge SASL, or null to reject.
-        // Return null here if you don't support challenge SASL.
+    public function getSaslIdentity(
+        string $username,
+        MechanismName $mechanism,
+    ): ?SaslIdentity {
+        // Return a SaslIdentity with the stored password and resolved DN, or null to reject.
+        // Challenge mechanisms require a plaintext or recoverable password.
     }
 }
 
@@ -881,9 +896,9 @@ modification is needed.
 ### PLAIN Mechanism
 
 The `PLAIN` mechanism extracts the username and password from the SASL credentials and calls
-`PasswordAuthenticatableInterface::verifyPassword()` — the same path as a simple bind. The built-in
-`PasswordAuthenticator` handles this automatically, so no additional configuration is needed beyond enabling the
-mechanism.
+`PasswordAuthenticatableInterface::getSaslIdentity()`. The built-in `PasswordAuthenticator` then verifies the
+supplied password against the stored `userPassword` using `PasswordHashVerifier`, which supports `{SHA}`, `{SSHA}`,
+`{MD5}`, `{SMD5}`, and plaintext. No additional configuration is needed beyond enabling the mechanism.
 
 **Note**: PLAIN transmits credentials in cleartext. Only enable it when the connection is protected by TLS (StartTLS
 or `setUseSsl`).
@@ -892,14 +907,36 @@ or `setUseSsl`).
 
 `CRAM-MD5`, `DIGEST-MD5`, and the `SCRAM-*` family are challenge-response mechanisms. The server issues a challenge
 to the client and verifies the response against a digest computed from the user's plaintext password. The server calls
-`PasswordAuthenticatableInterface::getPassword()` to retrieve the password.
+`PasswordAuthenticatableInterface::getSaslIdentity()` to retrieve the password.
 
-The built-in `PasswordAuthenticator` implements `getPassword()` by reading the raw value of the `userPassword`
-attribute from the resolved entry. This works when passwords are stored in plaintext. If passwords are stored as
-one-way hashes (bcrypt, argon2) you must supply a custom authenticator that can return a recoverable value.
+The built-in `PasswordAuthenticator` reads the raw `userPassword` attribute from the resolved entry. This works when
+passwords are stored in plaintext. If passwords are stored as one-way hashes (bcrypt, argon2) you must supply a
+custom authenticator that can return a recoverable value.
 
 **Note**: Because challenge mechanisms require a recoverable password, they are fundamentally incompatible with
 one-way hashing. If one-way hashing is a hard requirement, use `PLAIN` over TLS instead.
+
+### SASL Bind Name Resolution
+
+By default, the built-in `PasswordAuthenticator` resolves SASL identities using `AttributeSearchBindNameResolver`,
+which searches for an entry where the `uid` attribute matches the SASL identity (e.g. the username sent by the
+client). This differs from simple bind, which treats the bind name as a literal DN by default.
+
+Configure the SASL resolver via `setSaslBindNameResolver()` when your directory uses a different attribute or a
+restricted search base:
+
+```php
+use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\AttributeSearchBindNameResolver;
+use FreeDSx\Ldap\ServerOptions;
+
+$options = (new ServerOptions)
+    ->setSaslBindNameResolver(
+        new AttributeSearchBindNameResolver(
+            baseDn: 'ou=People,dc=example,dc=com',
+            attribute: 'mail',
+        ),
+    );
+```
 
 **SCRAM variants**: The following constants are available. `SCRAM-SHA-256` is the recommended choice for new
 deployments ([RFC 7677](https://www.rfc-editor.org/rfc/rfc7677) standardises it as the preferred mechanism).

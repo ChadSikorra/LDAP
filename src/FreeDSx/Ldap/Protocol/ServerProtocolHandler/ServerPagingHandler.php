@@ -168,7 +168,6 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $pagingRequest->controls(),
         );
         $generator = $result->entries;
-        $isPreFiltered = $result->isPreFiltered;
 
         $collected = $this->collectFromGenerator(
             $generator,
@@ -176,14 +175,12 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $searchRequest,
             0,
             $token,
-            $isPreFiltered,
         );
 
         return $this->buildPagingResponse(
             $collected,
             $pagingRequest,
             $generator,
-            $isPreFiltered,
         );
     }
 
@@ -220,7 +217,6 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             );
         }
 
-        $isPreFiltered = $this->requestHistory->getPagingGeneratorIsPreFiltered($currentCookie);
         $this->requestHistory->removePagingGenerator($currentCookie);
 
         $collected = $this->collectFromGenerator(
@@ -229,14 +225,12 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $pagingRequest->getSearchRequest(),
             $pagingRequest->getTotalSent(),
             $token,
-            $isPreFiltered,
         );
 
         return $this->buildPagingResponse(
             $collected,
             $pagingRequest,
             $generator,
-            $isPreFiltered,
         );
     }
 
@@ -247,7 +241,6 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         CollectedPage $collected,
         PagingRequest $pagingRequest,
         Generator $generator,
-        bool $isPreFiltered,
     ): PagingResponse {
         if ($collected->isSizeLimitExceeded) {
             return PagingResponse::makeSizeLimitExceeded(new Entries(...$collected->entries));
@@ -264,7 +257,6 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         $this->requestHistory->storePagingGenerator(
             $nextCookie,
             $generator,
-            $isPreFiltered,
         );
 
         return PagingResponse::make(
@@ -284,7 +276,6 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         SearchRequest $request,
         int $totalAlreadySent,
         TokenInterface $token,
-        bool $isPreFiltered = false,
     ): CollectedPage {
         $page = [];
         $effectivePageSize = $this->effectiveSizeLimit(
@@ -303,7 +294,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         while ($generator->valid() && $this->pageHasCapacity($page, $pageLimit)) {
             $entry = $generator->current();
 
-            if ($entry instanceof Entry && ($isPreFiltered || $this->filterEvaluator->evaluate($entry, $filter))) {
+            if ($entry instanceof Entry) {
                 $filtered = $this->accessControl->filterEntry(
                     $token,
                     $entry,

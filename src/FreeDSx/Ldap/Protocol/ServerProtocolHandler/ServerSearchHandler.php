@@ -109,14 +109,9 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
             $this->limits->maxSearchSize,
         );
         $filter = $request->getFilter();
-        $isPreFiltered = $backend->isPreFiltered;
         $emitted = 0;
 
         foreach ($backend->entries as $entry) {
-            if (!$isPreFiltered && !$this->filterEvaluator->evaluate($entry, $filter)) {
-                continue;
-            }
-
             $filtered = $this->accessControl->filterEntry(
                 $token,
                 $entry,

@@ -13,10 +13,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\CramMD5MechanismOptionsBuilder;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\SaslIdentity;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\Options\CramMD5Options;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -52,10 +54,15 @@ final class CramMD5MechanismOptionsBuilderTest extends TestCase
 
     public function test_the_password_callable_returns_an_hmac_of_the_challenge(): void
     {
+        $identity = new SaslIdentity(
+            '12345',
+            new Dn('cn=user,dc=foo,dc=bar'),
+        );
+
         $this->mockHandler
-            ->method('getPassword')
+            ->method('getSaslIdentity')
             ->with('cn=user,dc=foo,dc=bar', MechanismName::CRAM_MD5)
-            ->willReturn('12345');
+            ->willReturn($identity);
 
         $options = $this->subject->buildOptions('some-bytes', MechanismName::CRAM_MD5);
         self::assertInstanceOf(CramMD5Options::class, $options);
@@ -75,7 +82,7 @@ final class CramMD5MechanismOptionsBuilderTest extends TestCase
     public function test_the_password_callable_throws_invalid_credentials_when_user_not_found(): void
     {
         $this->mockHandler
-            ->method('getPassword')
+            ->method('getSaslIdentity')
             ->willReturn(null);
 
         $options = $this->subject->buildOptions(
@@ -90,5 +97,28 @@ final class CramMD5MechanismOptionsBuilderTest extends TestCase
         self::expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
 
         $callback('unknown-user', 'challenge');
+    }
+
+    public function test_get_resolved_dn_is_populated_after_successful_callback(): void
+    {
+        $identity = new SaslIdentity(
+            '12345',
+            new Dn('cn=user,dc=foo,dc=bar'),
+        );
+
+        $this->mockHandler
+            ->method('getSaslIdentity')
+            ->willReturn($identity);
+
+        $options = $this->subject->buildOptions('some-bytes', MechanismName::CRAM_MD5);
+        assert($options instanceof CramMD5Options);
+        $callback = $options->getPasswordCallback();
+        assert(is_callable($callback));
+        $callback('cn=user,dc=foo,dc=bar', '<challenge@example.com>');
+
+        self::assertSame(
+            'cn=user,dc=foo,dc=bar',
+            $this->subject->getResolvedDn()?->toString(),
+        );
     }
 }

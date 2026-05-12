@@ -38,7 +38,7 @@ final class LdapSaslServerTest extends ServerTestCase
     public function testItCanAuthenticateWithSaslPlain(): void
     {
         $response = $this->ldapClient()->bindSasl(
-            (new PlainOptions())->setUsername('cn=user,dc=foo,dc=bar')->setPassword('12345'),
+            (new PlainOptions())->setUsername('user')->setPassword('12345'),
             MechanismName::PLAIN,
         )->getResponse();
 
@@ -51,7 +51,17 @@ final class LdapSaslServerTest extends ServerTestCase
         $this->expectException(BindException::class);
 
         $this->ldapClient()->bindSasl(
-            (new PlainOptions())->setUsername('cn=user,dc=foo,dc=bar')->setPassword('wrong'),
+            (new PlainOptions())->setUsername('user')->setPassword('wrong'),
+            MechanismName::PLAIN,
+        );
+    }
+
+    public function testSaslPlainFailsWithUnknownUser(): void
+    {
+        $this->expectException(BindException::class);
+
+        $this->ldapClient()->bindSasl(
+            (new PlainOptions())->setUsername('nobody')->setPassword('12345'),
             MechanismName::PLAIN,
         );
     }
@@ -59,7 +69,7 @@ final class LdapSaslServerTest extends ServerTestCase
     public function testItCanAuthenticateWithSaslCramMD5(): void
     {
         $response = $this->ldapClient()->bindSasl(
-            (new CramMD5Options())->setUsername('cn=user,dc=foo,dc=bar')->setPassword('12345'),
+            (new CramMD5Options())->setUsername('user')->setPassword('12345'),
             MechanismName::CRAM_MD5,
         )->getResponse();
 
@@ -72,7 +82,7 @@ final class LdapSaslServerTest extends ServerTestCase
         $this->expectException(BindException::class);
 
         $this->ldapClient()->bindSasl(
-            (new CramMD5Options())->setUsername('cn=user,dc=foo,dc=bar')->setPassword('wrong'),
+            (new CramMD5Options())->setUsername('user')->setPassword('wrong'),
             MechanismName::CRAM_MD5,
         );
     }
@@ -80,7 +90,7 @@ final class LdapSaslServerTest extends ServerTestCase
     public function testItCanAuthenticateWithSaslScramSha256(): void
     {
         $response = $this->ldapClient()->bindSasl(
-            (new ScramOptions())->setUsername('cn=user,dc=foo,dc=bar')->setPassword('12345'),
+            (new ScramOptions())->setUsername('user')->setPassword('12345'),
             MechanismName::SCRAM_SHA256,
         )->getResponse();
 
@@ -99,7 +109,7 @@ final class LdapSaslServerTest extends ServerTestCase
         $this->expectException(BindException::class);
 
         $this->ldapClient()->bindSasl(
-            (new ScramOptions())->setUsername('cn=user,dc=foo,dc=bar')->setPassword('wrong'),
+            (new ScramOptions())->setUsername('user')->setPassword('wrong'),
             MechanismName::SCRAM_SHA256,
         );
     }
