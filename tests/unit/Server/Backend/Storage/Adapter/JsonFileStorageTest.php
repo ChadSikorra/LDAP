@@ -42,6 +42,7 @@ final class JsonFileStorageTest extends TestCase
         $this->tempFile = sys_get_temp_dir() . '/ldap_test_' . uniqid() . '.json';
         $this->alice = new Entry(
             new Dn('cn=Alice,dc=example,dc=com'),
+            new Attribute('objectClass', 'person'),
             new Attribute('cn', 'Alice'),
             new Attribute('userPassword', 'secret'),
         );
@@ -50,7 +51,11 @@ final class JsonFileStorageTest extends TestCase
         $this->subject = new WritableStorageBackend($this->storage);
         $this->subject->add(
             new AddCommand(
-                new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
+                new Entry(
+                    new Dn('dc=example,dc=com'),
+                    new Attribute('objectClass', 'dcObject'),
+                    new Attribute('dc', 'example'),
+                ),
             ),
             $this->context(),
         );
@@ -190,7 +195,11 @@ final class JsonFileStorageTest extends TestCase
     {
         // dc=example,dc=com and Alice are already in storage from setUp.
         // Add a grandchild to verify it is excluded from single-level results.
-        $grandchild = new Entry(new Dn('cn=Sub,cn=Alice,dc=example,dc=com'), new Attribute('cn', 'Sub'));
+        $grandchild = new Entry(
+            new Dn('cn=Sub,cn=Alice,dc=example,dc=com'),
+            new Attribute('objectClass', 'person'),
+            new Attribute('cn', 'Sub'),
+        );
         $this->subject->add(
             new AddCommand($grandchild),
             $this->context(),
@@ -215,7 +224,11 @@ final class JsonFileStorageTest extends TestCase
     {
         // dc=example,dc=com and Alice are already in storage from setUp.
         // Add a grandchild; the subtree search should return all three entries.
-        $grandchild = new Entry(new Dn('cn=Sub,cn=Alice,dc=example,dc=com'), new Attribute('cn', 'Sub'));
+        $grandchild = new Entry(
+            new Dn('cn=Sub,cn=Alice,dc=example,dc=com'),
+            new Attribute('objectClass', 'person'),
+            new Attribute('cn', 'Sub'),
+        );
         $this->subject->add(
             new AddCommand($grandchild),
             $this->context(),

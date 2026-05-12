@@ -125,6 +125,8 @@ final class ServerOptions
 
     private ?BindNameResolverInterface $bindNameResolver = null;
 
+    private ?BindNameResolverInterface $saslBindNameResolver = null;
+
     private ?RootDseHandlerInterface $rootDseHandler = null;
 
     /**
@@ -404,6 +406,18 @@ final class ServerOptions
     public function setBindNameResolver(?BindNameResolverInterface $bindNameResolver): self
     {
         $this->bindNameResolver = $bindNameResolver;
+
+        return $this;
+    }
+
+    public function getSaslBindNameResolver(): ?BindNameResolverInterface
+    {
+        return $this->saslBindNameResolver;
+    }
+
+    public function setSaslBindNameResolver(?BindNameResolverInterface $saslBindNameResolver): self
+    {
+        $this->saslBindNameResolver = $saslBindNameResolver;
 
         return $this;
     }

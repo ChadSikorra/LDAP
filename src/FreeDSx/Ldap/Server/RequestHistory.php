@@ -39,13 +39,6 @@ final class RequestHistory
      */
     private array $pagingGenerators = [];
 
-    /**
-     * Tracks whether each paging generator's entries are pre-filtered.
-     *
-     * @var array<string, bool>
-     */
-    private array $pagingGeneratorPreFiltered = [];
-
     public function __construct(?PagingRequests $pagingRequests = null)
     {
         $this->pagingRequests = $pagingRequests ?? new PagingRequests();
@@ -91,10 +84,8 @@ final class RequestHistory
     public function storePagingGenerator(
         string $cookie,
         Generator $generator,
-        bool $isPreFiltered = false,
     ): void {
         $this->pagingGenerators[$cookie] = $generator;
-        $this->pagingGeneratorPreFiltered[$cookie] = $isPreFiltered;
     }
 
     /**
@@ -107,18 +98,10 @@ final class RequestHistory
     }
 
     /**
-     * Returns true when the generator for the given cookie produced pre-filtered entries.
-     */
-    public function getPagingGeneratorIsPreFiltered(string $cookie): bool
-    {
-        return $this->pagingGeneratorPreFiltered[$cookie] ?? false;
-    }
-
-    /**
      * Remove and discard the generator associated with the given cookie.
      */
     public function removePagingGenerator(string $cookie): void
     {
-        unset($this->pagingGenerators[$cookie], $this->pagingGeneratorPreFiltered[$cookie]);
+        unset($this->pagingGenerators[$cookie]);
     }
 }

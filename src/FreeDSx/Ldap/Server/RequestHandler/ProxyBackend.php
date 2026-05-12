@@ -30,6 +30,7 @@ use FreeDSx\Ldap\Server\Backend\Write\Command\MoveCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\SaslIdentity;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Sasl\Mechanism\MechanismName;
@@ -71,10 +72,7 @@ class ProxyBackend implements WritableLdapBackendInterface, PasswordAuthenticata
         SearchRequest $request,
         ControlBag $controls = new ControlBag(),
     ): EntryStream {
-        return new EntryStream(
-            $this->yieldSearchResults($request, $controls),
-            isPreFiltered: true,
-        );
+        return new EntryStream($this->yieldSearchResults($request, $controls));
     }
 
     /**
@@ -130,10 +128,10 @@ class ProxyBackend implements WritableLdapBackendInterface, PasswordAuthenticata
         }
     }
 
-    public function getPassword(
+    public function getSaslIdentity(
         string $username,
         MechanismName $mechanism,
-    ): ?string {
+    ): ?SaslIdentity {
         return null;
     }
 

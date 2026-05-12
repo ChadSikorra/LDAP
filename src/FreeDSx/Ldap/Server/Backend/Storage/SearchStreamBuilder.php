@@ -18,6 +18,7 @@ use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Search\Filter\FilterInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\TimeLimitExceededException;
 use FreeDSx\Ldap\Server\SearchLimits;
 use Generator;
@@ -32,6 +33,7 @@ final readonly class SearchStreamBuilder
     public function __construct(
         private EntryStorageInterface $storage,
         private SearchLimits $limits = new SearchLimits(),
+        private FilterEvaluatorInterface $filterEvaluator = new FilterEvaluator(),
     ) {}
 
     public function effectiveTimeLimit(int $requestLimit): int
@@ -72,13 +74,20 @@ final readonly class SearchStreamBuilder
     ): EntryStream {
         $generator = $this->wrapWithTimeLimitHandling($stream->entries);
 
+        if (!$stream->isPreFiltered) {
+            $generator = $this->wrapWithFilterEvaluation(
+                $generator,
+                $request->getFilter(),
+            );
+        }
+
         if ($this->requestsHasSubordinates($request)) {
             $generator = $this->wrapWithHasSubordinates($generator);
         }
 
         return new EntryStream(
             $generator,
-            $stream->isPreFiltered,
+            true,
         );
     }
 
@@ -110,6 +119,21 @@ final readonly class SearchStreamBuilder
         );
 
         return $clone;
+    }
+
+    /**
+     * @param Generator<Entry> $generator
+     * @return Generator<Entry>
+     */
+    private function wrapWithFilterEvaluation(
+        Generator $generator,
+        FilterInterface $filter,
+    ): Generator {
+        foreach ($generator as $entry) {
+            if ($this->filterEvaluator->evaluate($entry, $filter)) {
+                yield $entry;
+            }
+        }
     }
 
     /**

@@ -62,6 +62,22 @@ class BindToken implements AuthenticatedTokenInterface
         );
     }
 
+    /**
+     * Creates a token for a SASL-authenticated identity; no plaintext password is carried.
+     */
+    public static function fromSasl(
+        string $username,
+        Dn $resolvedDn,
+        int $version = 3,
+    ): self {
+        return new self(
+            $username,
+            '',
+            $resolvedDn,
+            $version,
+        );
+    }
+
     public function getId(): string
     {
         return $this->id;

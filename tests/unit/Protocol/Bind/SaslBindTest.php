@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\Bind;
 
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Operation\Request\AnonBindRequest;
@@ -26,8 +27,10 @@ use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\SaslIdentity;
 use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Ldap\ServerOptions;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -107,17 +110,15 @@ final class SaslBindTest extends TestCase
 
     public function test_it_can_authenticate_with_plain(): void
     {
-        // PLAIN credential format: "authzid\x00authcid\x00passwd" (all three parts must be non-empty)
+        // PLAIN credential format: "authzid\x00authcid\x00passwd"
         $credentials = "user\x00cn=user,dc=foo,dc=bar\x0012345";
+        $identity = new SaslIdentity('12345', new Dn('cn=user,dc=foo,dc=bar'));
 
         $this->mockAuthenticator
             ->expects(self::once())
-            ->method('authenticate')
-            ->with('cn=user,dc=foo,dc=bar', '12345')
-            ->willReturn(BindToken::fromDn(
-                'cn=user,dc=foo,dc=bar',
-                '12345',
-            ));
+            ->method('getSaslIdentity')
+            ->with('cn=user,dc=foo,dc=bar', MechanismName::PLAIN)
+            ->willReturn($identity);
 
         $this->mockQueue
             ->expects(self::once())
@@ -142,14 +143,12 @@ final class SaslBindTest extends TestCase
     {
         $credentials = "user\x00cn=user,dc=foo,dc=bar\x00wrong";
 
+        // Returning null means identity not found → validate() returns false → INVALID_CREDENTIALS.
         $this->mockAuthenticator
             ->expects(self::once())
-            ->method('authenticate')
-            ->with('cn=user,dc=foo,dc=bar', 'wrong')
-            ->willThrowException(new OperationException(
-                'Invalid credentials.',
-                ResultCode::INVALID_CREDENTIALS,
-            ));
+            ->method('getSaslIdentity')
+            ->with('cn=user,dc=foo,dc=bar', MechanismName::PLAIN)
+            ->willReturn(null);
 
         $this->mockQueue
             ->expects(self::once())
@@ -176,11 +175,13 @@ final class SaslBindTest extends TestCase
             mechanisms: [ServerOptions::SASL_CRAM_MD5],
         );
 
-        // Return a real password so the HMAC callable runs; the client digest is wrong so
+        // Return a real identity so the HMAC callable runs; the client digest is wrong so
         // the challenge will set isAuthenticated=false and isComplete=true.
+        $identity = new SaslIdentity('correctpassword', new Dn('cn=user,dc=foo,dc=bar'));
+
         $this->mockAuthenticator
-            ->method('getPassword')
-            ->willReturn('correctpassword');
+            ->method('getSaslIdentity')
+            ->willReturn($identity);
 
         // First sendMessage: SASL_BIND_IN_PROGRESS (the server challenge).
         // Second sendMessage: INVALID_CREDENTIALS (the failure response).

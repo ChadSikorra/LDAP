@@ -124,17 +124,6 @@ final class ProxyBackendTest extends TestCase
         iterator_to_array($this->subject->search($this->makeRequest())->entries);
     }
 
-    public function test_search_marks_stream_pre_filtered(): void
-    {
-        $this->mockLdap
-            ->method('search')
-            ->willReturn(new Entries());
-
-        $stream = $this->subject->search($this->makeRequest());
-
-        self::assertTrue($stream->isPreFiltered);
-    }
-
     public function test_search_forwards_size_and_time_limits(): void
     {
         $this->mockLdap

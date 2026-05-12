@@ -34,6 +34,7 @@ LDAP Server Configuration
     * [ServerOptions:setMaxSearchPageSize](#setmaxsearchpagesize)
 * [SASL Options](#sasl-options)
     * [ServerOptions:setSaslMechanisms](#setsaslmechanisms)
+    * [ServerOptions:setSaslBindNameResolver](#setsaslbindnameresolver-1)
 
 The LDAP server is configured through a `ServerOptions` object. The configuration object is passed to the server
 on construction:
@@ -261,11 +262,11 @@ $server = new LdapServer(
 #### setPasswordAuthenticator
 
 This should be an object instance that implements `FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface`.
-It handles all password-based bind authentication — both simple binds and SASL mechanisms — through two methods:
+It handles all password-based bind authentication through two methods:
 
-* `verifyPassword(string $name, string $password): bool` — called for simple binds and SASL PLAIN
-* `getPassword(string $username, string $mechanism): ?string` — called for challenge-based SASL mechanisms
-  (CRAM-MD5, DIGEST-MD5, SCRAM-*) that need a server-side credential to compute a digest
+* `authenticate(string $name, string $password): AuthenticatedTokenInterface` — called for simple binds
+* `getSaslIdentity(string $username, MechanismName $mechanism): ?SaslIdentity` — called for all SASL mechanisms
+  (PLAIN, CRAM-MD5, DIGEST-MD5, SCRAM-*). Returns the stored password and resolved DN, or `null` to reject.
 
 The server resolves an authenticator in this order:
 
@@ -279,18 +280,26 @@ an identity provider, etc.) without implementing the storage backend interface:
 
 ```php
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\SaslIdentity;
+use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 
 class ExternalAuthenticator implements PasswordAuthenticatableInterface
 {
-    public function verifyPassword(string $name, #[\SensitiveParameter] string $password): bool
-    {
-        // delegate to your auth system
+    public function authenticate(
+        string $name,
+        #[\SensitiveParameter] string $password,
+    ): AuthenticatedTokenInterface {
+        // Verify the password and return a token representing the bound identity.
     }
 
-    public function getPassword(string $username, string $mechanism): ?string
-    {
-        // return plaintext password for SASL challenge mechanisms,
-        // or null to disable challenge SASL for this user
+    public function getSaslIdentity(
+        string $username,
+        MechanismName $mechanism,
+    ): ?SaslIdentity {
+        // Resolve the SASL identity to an entry. Return null to reject the bind.
+        // Challenge mechanisms (CRAM-MD5, DIGEST-MD5, SCRAM-*) require a plaintext
+        // or recoverable password; one-way hashes (bcrypt, argon2) cannot be used.
         return null;
     }
 }
@@ -306,8 +315,8 @@ $server = new LdapServer(
 );
 ```
 
-**Note**: Challenge-based SASL mechanisms (CRAM-MD5, DIGEST-MD5, SCRAM-*) require `getPassword()` to return a
-plaintext (or recoverable) credential. If `getPassword()` returns `null`, the mechanism will fail for that user.
+**Note**: Challenge-based mechanisms (CRAM-MD5, DIGEST-MD5, SCRAM-*) require `getSaslIdentity()` to return a
+`SaslIdentity` with a plaintext or recoverable password. Return `null` to reject SASL for that user.
 
 **Default**: `null` (resolved automatically as described above)
 
@@ -348,10 +357,54 @@ $server = new LdapServer(
 );
 ```
 
-**Note**: This option is only used when the built-in `PasswordAuthenticator` is active. If you provide a fully custom
-authenticator via `setPasswordAuthenticator()`, name resolution is entirely your responsibility and this option has no effect.
+**Note**: This option applies to **simple bind** only. SASL bind name resolution is configured separately via
+`setSaslBindNameResolver()`. If you provide a fully custom authenticator via `setPasswordAuthenticator()`, name
+resolution is your responsibility and this option has no effect.
 
 **Default**: `null` (`DnBindNameResolver` is used, treating the bind name as a literal DN)
+
+------------------
+#### setSaslBindNameResolver
+
+Controls how the built-in `PasswordAuthenticator` maps a SASL identity (typically a bare username) to a directory
+entry during SASL binds.
+
+**Default**: `AttributeSearchBindNameResolver`, which searches for an entry where the `uid` attribute equals the
+SASL identity, starting from the directory root. Configure it when your directory uses a different attribute or
+you want to restrict the search base:
+
+```php
+use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\AttributeSearchBindNameResolver;
+use FreeDSx\Ldap\ServerOptions;
+use FreeDSx\Ldap\LdapServer;
+
+$server = new LdapServer(
+    (new ServerOptions)
+        ->setSaslBindNameResolver(
+            new AttributeSearchBindNameResolver(
+                baseDn: 'ou=People,dc=example,dc=com',
+                attribute: 'mail',
+            ),
+        )
+);
+```
+
+To share the same resolver as simple bind, pass the same instance to both options:
+
+```php
+$resolver = new UidBindNameResolver();
+
+$options = (new ServerOptions)
+    ->setBindNameResolver($resolver)
+    ->setSaslBindNameResolver($resolver);
+```
+
+For full control, supply any `BindNameResolverInterface` implementation.
+
+**Note**: This option is only used when the built-in `PasswordAuthenticator` is active. If you provide a custom
+authenticator via `setPasswordAuthenticator()`, SASL identity resolution is your responsibility.
+
+**Default**: `AttributeSearchBindNameResolver` (searches `uid` attribute from the directory root)
 
 ## RootDSE Options
 
@@ -455,23 +508,27 @@ The maximum number of entries the server will return per page in a paged search.
 The SASL mechanisms the server should support and advertise to clients via the `supportedSaslMechanisms` RootDSE attribute.
 Use the constants defined on `ServerOptions` to specify mechanisms:
 
-| Constant                                  | Mechanism             | Auth method called on `PasswordAuthenticatableInterface` |
-|-------------------------------------------|-----------------------|----------------------------------------------------------|
-| `ServerOptions::SASL_PLAIN`               | `PLAIN`               | `verifyPassword()`                                       |
-| `ServerOptions::SASL_CRAM_MD5`            | `CRAM-MD5`            | `getPassword()` (plaintext credential required)          |
-| `ServerOptions::SASL_DIGEST_MD5`          | `DIGEST-MD5`          | `getPassword()` (plaintext credential required)          |
-| `ServerOptions::SASL_SCRAM_SHA_1`         | `SCRAM-SHA-1`         | `getPassword()` (plaintext credential required)          |
-| `ServerOptions::SASL_SCRAM_SHA_1_PLUS`    | `SCRAM-SHA-1-PLUS`    | `getPassword()` (plaintext credential required)          |
-| `ServerOptions::SASL_SCRAM_SHA_224`       | `SCRAM-SHA-224`       | `getPassword()` (plaintext credential required)          |
-| `ServerOptions::SASL_SCRAM_SHA_224_PLUS`  | `SCRAM-SHA-224-PLUS`  | `getPassword()` (plaintext credential required)          |
-| `ServerOptions::SASL_SCRAM_SHA_256`       | `SCRAM-SHA-256`       | `getPassword()` (plaintext credential required)          |
-| `ServerOptions::SASL_SCRAM_SHA_256_PLUS`  | `SCRAM-SHA-256-PLUS`  | `getPassword()` (plaintext credential required)          |
-| `ServerOptions::SASL_SCRAM_SHA_384`       | `SCRAM-SHA-384`       | `getPassword()` (plaintext credential required)          |
-| `ServerOptions::SASL_SCRAM_SHA_384_PLUS`  | `SCRAM-SHA-384-PLUS`  | `getPassword()` (plaintext credential required)          |
-| `ServerOptions::SASL_SCRAM_SHA_512`       | `SCRAM-SHA-512`       | `getPassword()` (plaintext credential required)          |
-| `ServerOptions::SASL_SCRAM_SHA_512_PLUS`  | `SCRAM-SHA-512-PLUS`  | `getPassword()` (plaintext credential required)          |
-| `ServerOptions::SASL_SCRAM_SHA3_512`      | `SCRAM-SHA3-512`      | `getPassword()` (plaintext credential required)          |
-| `ServerOptions::SASL_SCRAM_SHA3_512_PLUS` | `SCRAM-SHA3-512-PLUS` | `getPassword()` (plaintext credential required)          |
+| Constant                                  | Mechanism             |
+|-------------------------------------------|-----------------------|
+| `ServerOptions::SASL_PLAIN`               | `PLAIN`               |
+| `ServerOptions::SASL_CRAM_MD5`            | `CRAM-MD5`            |
+| `ServerOptions::SASL_DIGEST_MD5`          | `DIGEST-MD5`          |
+| `ServerOptions::SASL_SCRAM_SHA_1`         | `SCRAM-SHA-1`         |
+| `ServerOptions::SASL_SCRAM_SHA_1_PLUS`    | `SCRAM-SHA-1-PLUS`    |
+| `ServerOptions::SASL_SCRAM_SHA_224`       | `SCRAM-SHA-224`       |
+| `ServerOptions::SASL_SCRAM_SHA_224_PLUS`  | `SCRAM-SHA-224-PLUS`  |
+| `ServerOptions::SASL_SCRAM_SHA_256`       | `SCRAM-SHA-256`       |
+| `ServerOptions::SASL_SCRAM_SHA_256_PLUS`  | `SCRAM-SHA-256-PLUS`  |
+| `ServerOptions::SASL_SCRAM_SHA_384`       | `SCRAM-SHA-384`       |
+| `ServerOptions::SASL_SCRAM_SHA_384_PLUS`  | `SCRAM-SHA-384-PLUS`  |
+| `ServerOptions::SASL_SCRAM_SHA_512`       | `SCRAM-SHA-512`       |
+| `ServerOptions::SASL_SCRAM_SHA_512_PLUS`  | `SCRAM-SHA-512-PLUS`  |
+| `ServerOptions::SASL_SCRAM_SHA3_512`      | `SCRAM-SHA3-512`      |
+| `ServerOptions::SASL_SCRAM_SHA3_512_PLUS` | `SCRAM-SHA3-512-PLUS` |
+
+All mechanisms call `getSaslIdentity()` on `PasswordAuthenticatableInterface`. PLAIN accepts any hash scheme
+supported by `PasswordHashVerifier`; challenge mechanisms (CRAM-MD5, DIGEST-MD5, SCRAM-*) require a plaintext or
+recoverable password since the digest is computed server-side.
 
 All mechanisms are handled through `PasswordAuthenticatableInterface` — no separate handler interface is required.
 Configure authentication via `setPasswordAuthenticator()` or by implementing `PasswordAuthenticatableInterface`
@@ -496,3 +553,8 @@ protected by TLS (via StartTLS or `setUseSsl`).
 See [SASL Authentication](General-Usage.md#sasl-authentication) for full usage details.
 
 **Default**: `[]` (SASL disabled)
+
+------------------
+#### setSaslBindNameResolver
+
+See [Backend › setSaslBindNameResolver](#setsaslbindnameresolver) above.

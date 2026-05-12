@@ -48,22 +48,60 @@ final class SaslExchange
     {
         $mechName = $input->getMechName();
         $optionsBuilder = $this->optionsBuilderFactory->make($mechName);
-        $challenge = $input->getChallenge();
         $message = $input->getInitialMessage();
-        $received = $input->getInitialCredentials();
-
-        // Tracks the credentials that contain the username (differs per mechanism).
-        // For PLAIN, it's the initial credentials. For challenge-based mechanisms,
-        // it's the first non-null response received back from the client.
-        $usernameCredentials = $received;
-        $context = null;
-        $prevContextResponse = null;
 
         /** @var Closure(?string): SaslContext $challengeProcessor */
-        $challengeProcessor = fn(?string $challengeReceived): SaslContext => $challenge->challenge(
+        $challengeProcessor = fn(?string $challengeReceived): SaslContext => $input->getChallenge()->challenge(
             $challengeReceived,
             $optionsBuilder->buildOptions($challengeReceived, $mechName),
         );
+
+        try {
+            [$context, $usernameCredentials] = $this->runExchangeLoop(
+                $challengeProcessor,
+                $input->getInitialCredentials(),
+                $message,
+            );
+        } catch (OperationException $e) {
+            // Once $message is a continuation, the outer ServerProtocolHandler holds a stale
+            // initial-bind ID. Send the error here with the correct ID before re-throwing.
+            if ($message !== $input->getInitialMessage()) {
+                $this->queue->sendMessage($this->responseFactory->getStandardResponse(
+                    $message,
+                    $e->getCode(),
+                    $e->getMessage(),
+                ));
+            }
+
+            throw $e;
+        }
+
+        return new SaslExchangeResult(
+            $context,
+            $message,
+            $usernameCredentials,
+            $optionsBuilder->getResolvedDn(),
+        );
+    }
+
+    /**
+     * Drives the challenge-response loop until the mechanism completes.
+     *
+     * $message is passed by reference so the caller's catch block always holds the latest message ID.
+     *
+     * @param Closure(?string): SaslContext $challengeProcessor
+     * @return array{SaslContext, ?string} [context, usernameCredentials]
+     * @throws OperationException
+     */
+    private function runExchangeLoop(
+        Closure $challengeProcessor,
+        ?string $received,
+        LdapMessageRequest &$message,
+    ): array {
+        $context = null;
+        $prevContextResponse = null;
+        // PLAIN: credentials are in $received from the start; others: first non-null continuation.
+        $usernameCredentials = $received;
 
         while (true) {
             // DIGEST-MD5 re-entry: context is already complete from the previous iteration
@@ -90,22 +128,19 @@ final class SaslExchange
                 $prevContextResponse,
             );
 
-            // Update $message before any throw so the correct ID is used if we send a
-            // response directly (the outer handler always sees the first bind's ID).
+            // Update $message so the correct ID is available if an error occurs in a later step.
             $message = $this->queue->getMessage();
-            $nextRequest = $this->requireSaslContinuation($message);
-            $received = $nextRequest->getCredentials();
+            $received = $this->requireSaslContinuation($message)->getCredentials();
 
             if ($usernameCredentials === null && $received !== null) {
                 $usernameCredentials = $received;
             }
         }
 
-        return new SaslExchangeResult(
+        return [
             $context,
-            $message,
             $usernameCredentials,
-        );
+        ];
     }
 
     /**
@@ -163,19 +198,13 @@ final class SaslExchange
     {
         $request = $message->getRequest();
 
-        if (!$request instanceof SaslBindRequest) {
-            $this->queue->sendMessage($this->responseFactory->getStandardResponse(
-                $message,
-                ResultCode::PROTOCOL_ERROR,
-                'Expected a SASL bind continuation during the exchange.',
-            ));
-
-            throw new OperationException(
-                'Expected a SASL bind continuation during the exchange.',
-                ResultCode::PROTOCOL_ERROR,
-            );
+        if ($request instanceof SaslBindRequest) {
+            return $request;
         }
 
-        return $request;
+        throw new OperationException(
+            'Expected a SASL bind continuation during the exchange.',
+            ResultCode::PROTOCOL_ERROR,
+        );
     }
 }

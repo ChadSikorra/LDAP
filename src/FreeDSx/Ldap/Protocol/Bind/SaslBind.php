@@ -158,8 +158,6 @@ class SaslBind implements BindInterface
             );
         }
 
-        // Extract the username before sending the success response so that if extraction
-        // fails we haven't committed to SUCCESS yet and can send the correct error response.
         try {
             $usernameCredentials = $result->getUsernameCredentials();
 
@@ -176,6 +174,15 @@ class SaslBind implements BindInterface
                     $mechName,
                     $usernameCredentials,
                 );
+
+            $resolvedDn = $result->getResolvedDn();
+
+            if ($resolvedDn === null) {
+                throw new OperationException(
+                    'Invalid credentials.',
+                    ResultCode::INVALID_CREDENTIALS,
+                );
+            }
         } catch (OperationException $e) {
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(
                 $message,
@@ -194,9 +201,9 @@ class SaslBind implements BindInterface
             $this->queue->setMessageWrapper(new SaslMessageWrapper($mech->securityLayer(), $context));
         }
 
-        return BindToken::fromDn(
+        return BindToken::fromSasl(
             $username,
-            '',
+            $resolvedDn,
         );
     }
 }

@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Server\Backend\Auth;
 
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\AttributeSearchBindNameResolver;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
@@ -32,6 +33,8 @@ final class PasswordAuthenticator implements PasswordAuthenticatableInterface
     public function __construct(
         private readonly BindNameResolverInterface $nameResolver,
         private readonly LdapBackendInterface $backend,
+        private readonly BindNameResolverInterface $saslNameResolver = new AttributeSearchBindNameResolver(),
+        private readonly PasswordHashVerifier $hashVerifier = new PasswordHashVerifier(),
     ) {}
 
     public function authenticate(
@@ -55,7 +58,7 @@ final class PasswordAuthenticator implements PasswordAuthenticatableInterface
         }
 
         foreach ($attr->getValues() as $stored) {
-            if ($this->checkPassword($password, $stored)) {
+            if ($this->hashVerifier->verify($password, $stored)) {
                 return new BindToken(
                     $name,
                     $password,
@@ -67,53 +70,36 @@ final class PasswordAuthenticator implements PasswordAuthenticatableInterface
         $this->denyCredentials();
     }
 
+    public function getSaslIdentity(
+        string $username,
+        MechanismName $mechanism,
+    ): ?SaslIdentity {
+        $entry = $this->saslNameResolver->resolve(
+            $username,
+            $this->backend,
+        );
+
+        if ($entry === null) {
+            return null;
+        }
+
+        $password = $entry->get('userPassword')?->getValues()[0];
+
+        if ($password === null) {
+            return null;
+        }
+
+        return new SaslIdentity(
+            $password,
+            $entry->getDn(),
+        );
+    }
+
     private function denyCredentials(): never
     {
         throw new OperationException(
             'Invalid credentials.',
             ResultCode::INVALID_CREDENTIALS,
         );
-    }
-
-    public function getPassword(
-        string $username,
-        MechanismName $mechanism,
-    ): ?string {
-        $entry = $this->nameResolver->resolve($username, $this->backend);
-
-        return $entry?->get('userPassword')?->getValues()[0] ?? null;
-    }
-
-    /**
-     * Verify plaintext against the stored value, which may be {SHA}, {SSHA}, {MD5}, {SMD5}, or plaintext.
-     */
-    private function checkPassword(
-        #[SensitiveParameter]
-        string $plain,
-        string $stored,
-    ): bool {
-        if (str_starts_with($stored, '{SHA}')) {
-            return base64_encode(sha1($plain, true)) === substr($stored, 5);
-        }
-
-        if (str_starts_with($stored, '{SSHA}')) {
-            $decoded = base64_decode(substr($stored, 6));
-            $salt = substr($decoded, 20);
-
-            return substr($decoded, 0, 20) === sha1($plain . $salt, true);
-        }
-
-        if (str_starts_with($stored, '{MD5}')) {
-            return base64_encode(md5($plain, true)) === substr($stored, 5);
-        }
-
-        if (str_starts_with($stored, '{SMD5}')) {
-            $decoded = base64_decode(substr($stored, 6));
-            $salt = substr($decoded, 16);
-
-            return substr($decoded, 0, 16) === md5($plain . $salt, true);
-        }
-
-        return $plain === $stored;
     }
 }

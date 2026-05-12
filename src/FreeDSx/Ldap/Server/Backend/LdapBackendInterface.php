@@ -28,9 +28,6 @@ use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
  */
 interface LdapBackendInterface
 {
-    /**
-     * Set EntryStream::$isPreFiltered to true when the backend has applied the filter exactly; otherwise FilterEvaluator re-checks each yielded entry.
-     */
     public function search(
         SearchRequest $request,
         ControlBag $controls = new ControlBag(),

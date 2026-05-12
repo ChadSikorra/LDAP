@@ -31,7 +31,7 @@ use FreeDSx\Sasl\Options\ScramOptions;
  */
 class ScramMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
 {
-    use RequiresPasswordTrait;
+    use RequireIdentityTrait;
 
     private ?string $username = null;
 
@@ -56,11 +56,12 @@ class ScramMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
                 );
             }
 
-            return (new ScramOptions())->setPassword(
-                $this->requirePassword(
-                    $this->handler->getPassword($this->username, $mechanism),
-                ),
-            );
+            $identity = $this->requireIdentity($this->handler->getSaslIdentity(
+                $this->username,
+                $mechanism,
+            ));
+
+            return (new ScramOptions())->setPassword($identity->password);
         }
 
         // Client-first-message: extract and store the username for the next round.
