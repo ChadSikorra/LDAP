@@ -212,7 +212,7 @@ $server = new LdapServer(
 );
 ```
 
-**Default**: `null` (a no-op backend that returns errors for all operations)
+**Default**: `null` (falls back to an empty in-memory backend: searches return no entries, writes are rejected with `unwillingToPerform`)
 
 ------------------
 #### setFilterEvaluator

@@ -168,7 +168,7 @@ about the other.
 ## Running The Server
 
 In its simplest form you construct the server and call `run()`. Without a backend configured, the server accepts
-connections but rejects all operations with `unwillingToPerform`.
+connections and returns empty results for searches; write operations are rejected with `unwillingToPerform`.
 
 ```php
 use FreeDSx\Ldap\LdapServer;
@@ -800,7 +800,11 @@ $server = (new LdapServer())->usePasswordAuthenticator(new MyAuthenticator());
 ## Handling the RootDSE
 
 The server generates a default RootDSE from `ServerOptions` values (`setDseNamingContexts()`, `setDseVendorName()`,
-etc.). For most deployments this is sufficient.
+etc.). For most deployments this is sufficient. The default entry always advertises:
+
+- `supportedControl`: paging (RFC 2696)
+- `supportedExtension`: WhoAmI (RFC 4532), Password Modify (RFC 3062), and StartTLS (RFC 4511) if an SSL certificate is configured
+- `supportedLDAPVersion`: `3`
 
 If you need full control — for example to proxy RootDSE requests to an upstream server, or to add custom attributes —
 implement `RootDseHandlerInterface`. Your implementation receives the default-generated entry and returns a (possibly

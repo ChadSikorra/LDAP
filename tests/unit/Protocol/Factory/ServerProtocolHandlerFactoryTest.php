@@ -31,7 +31,8 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerUnbindHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerWhoAmIHandler;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
-use FreeDSx\Ldap\Server\Backend\GenericBackend;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\RequestHistory;
@@ -55,7 +56,7 @@ final class ServerProtocolHandlerFactoryTest extends TestCase
 
         $this->mockHandlerFactory
             ->method('makeBackend')
-            ->willReturn(new GenericBackend());
+            ->willReturn(new WritableStorageBackend(new InMemoryStorage()));
 
         $this->mockHandlerFactory
             ->method('makeFilterEvaluator')

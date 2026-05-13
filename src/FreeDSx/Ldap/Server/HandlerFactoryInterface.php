@@ -28,7 +28,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 interface HandlerFactoryInterface
 {
     /**
-     * Return the configured backend, or a GenericBackend no-op if none is set.
+     * Return the configured backend, or an empty in-memory backend if none is set.
      */
     public function makeBackend(): LdapBackendInterface;
 
