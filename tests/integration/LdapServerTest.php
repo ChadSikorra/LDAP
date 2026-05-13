@@ -212,8 +212,12 @@ class LdapServerTest extends ServerTestCase
                 'subschemaSubentry' => [
                     'cn=Subschema',
                 ],
+                'supportedControl' => [
+                    '1.2.840.113556.1.4.319',
+                ],
                 'supportedExtension' => [
                     '1.3.6.1.4.1.4203.1.11.3',
+                    '1.3.6.1.4.1.4203.1.11.1',
                     '1.3.6.1.4.1.1466.20037',
                 ],
                 'supportedLDAPVersion' => [
@@ -221,9 +225,6 @@ class LdapServerTest extends ServerTestCase
                 ],
                 'vendorName' => [
                     'FreeDSx',
-                ],
-                'supportedControl' => [
-                    '1.2.840.113556.1.4.319',
                 ],
             ],
             $rootDse->toArray(),

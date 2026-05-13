@@ -14,7 +14,8 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Server;
 
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
-use FreeDSx\Ldap\Server\Backend\GenericBackend;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\ServerProtocolFactory;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
@@ -38,7 +39,7 @@ final class ServerProtocolFactoryTest extends TestCase
 
         $this->mockHandlerFactory
             ->method('makeBackend')
-            ->willReturn(new GenericBackend());
+            ->willReturn(new WritableStorageBackend(new InMemoryStorage()));
 
         $this->mockHandlerFactory
             ->method('makeFilterEvaluator')
@@ -58,7 +59,7 @@ final class ServerProtocolFactoryTest extends TestCase
         $this->mockHandlerFactory
             ->expects($this->once())
             ->method('makeBackend')
-            ->willReturn(new GenericBackend());
+            ->willReturn(new WritableStorageBackend(new InMemoryStorage()));
 
         $this->subject->make($mockSocket);
     }

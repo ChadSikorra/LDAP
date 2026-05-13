@@ -55,8 +55,12 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
         $entry = Entry::fromArray('', [
             'namingContexts' => $this->options->getDseNamingContexts(),
             'subschemaSubentry' => [$this->options->getSubschemaEntry()->toString()],
+            'supportedControl' => [
+                Control::OID_PAGING,
+            ],
             'supportedExtension' => [
                 ExtendedRequest::OID_WHOAMI,
+                ExtendedRequest::OID_PWD_MODIFY,
             ],
             'supportedLDAPVersion' => ['3'],
             'vendorName' => $this->options->getDseVendorName(),
@@ -65,12 +69,6 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
             $entry->add(
                 'supportedExtension',
                 ExtendedRequest::OID_START_TLS,
-            );
-        }
-        if ($this->options->getBackend() !== null) {
-            $entry->add(
-                'supportedControl',
-                Control::OID_PAGING,
             );
         }
         if ($this->options->getDseVendorVersion()) {

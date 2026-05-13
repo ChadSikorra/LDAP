@@ -16,8 +16,8 @@ namespace Tests\Unit\FreeDSx\Ldap\Server\RequestHandler;
 use FreeDSx\Ldap\LdapClient;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticator;
-use FreeDSx\Ldap\Server\Backend\GenericBackend;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\RequestHandler\HandlerFactory;
 use FreeDSx\Ldap\Server\RequestHandler\ProxyHandler;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
@@ -31,12 +31,12 @@ final class HandlerFactoryTest extends TestCase
 {
     private HandlerFactory $subject;
 
-    public function test_it_should_return_a_generic_backend_when_none_is_configured(): void
+    public function test_it_should_return_an_in_memory_backend_when_none_is_configured(): void
     {
         $this->subject = new HandlerFactory(new ServerOptions());
 
         self::assertInstanceOf(
-            GenericBackend::class,
+            WritableStorageBackend::class,
             $this->subject->makeBackend(),
         );
     }
