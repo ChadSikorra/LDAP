@@ -202,7 +202,7 @@ class LdapServerPagingBackend extends LdapServerBackend
 
     private function yieldPagingResults(): Generator
     {
-        for ($i = 1; $i <= 300; $i++) {
+        for ($i = 1; $i <= 5000; $i++) {
             yield Entry::fromArray(
                 "cn=foo$i,dc=foo,dc=bar",
                 [

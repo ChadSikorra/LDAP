@@ -356,7 +356,7 @@ class ServerPagingHandlerTest extends TestCase
         self::assertSame('', $this->donePagingControl()->getCookie());
     }
 
-    public function test_it_should_accumulate_size_limit_across_pages(): void
+    public function test_size_limit_applies_per_page_not_cumulatively(): void
     {
         $searchRequest = (new SearchRequest(Filters::raw('(foo=bar)')))
             ->base('dc=foo,dc=bar')
@@ -365,11 +365,12 @@ class ServerPagingHandlerTest extends TestCase
         $entry1 = Entry::create('cn=1,dc=foo,dc=bar', ['cn' => '1']);
         $entry2 = Entry::create('cn=2,dc=foo,dc=bar', ['cn' => '2']);
         $entry3 = Entry::create('cn=3,dc=foo,dc=bar', ['cn' => '3']);
+        $entry4 = Entry::create('cn=4,dc=foo,dc=bar', ['cn' => '4']);
 
         $this->mockBackend
             ->expects(self::once())
             ->method('search')
-            ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2, $entry3)));
+            ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2, $entry3, $entry4)));
 
         // First page: pageSize=1, sizeLimit=2 — gets entry1, stores generator
         $this->subject->handleRequest(
@@ -380,7 +381,7 @@ class ServerPagingHandlerTest extends TestCase
         $capturedCookie = $this->donePagingControl()->getCookie();
         self::assertNotSame('', $capturedCookie, 'Expected a non-empty cookie after the first page.');
 
-        // Second page: totalSent=1, gets entry2 — hits sizeLimit(2), returns SIZE_LIMIT_EXCEEDED
+        // Second page: pageSize=10, sizeLimit=2 — gets entry2+entry3 (hits limit), entry4 still in generator → SIZE_LIMIT_EXCEEDED
         $pagingReq = $this->requestHistory->pagingRequest()->findByNextCookie($capturedCookie);
         $this->subject->handleRequest(
             $this->makeSearchMessage(size: 10, cookie: $capturedCookie, searchRequest: $pagingReq->getSearchRequest()),

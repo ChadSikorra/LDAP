@@ -61,6 +61,7 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
             'supportedExtension' => [
                 ExtendedRequest::OID_WHOAMI,
                 ExtendedRequest::OID_PWD_MODIFY,
+                ExtendedRequest::OID_CANCEL,
             ],
             'supportedLDAPVersion' => ['3'],
             'vendorName' => $this->options->getDseVendorName(),

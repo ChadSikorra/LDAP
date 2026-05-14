@@ -15,7 +15,11 @@ namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\LdapResult;
+use FreeDSx\Ldap\Operation\Request\AbandonRequest;
+use FreeDSx\Ldap\Operation\Request\CancelRequest;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
+use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\Response\SearchResultDone;
 use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Operation\ResultCode;
@@ -502,5 +506,89 @@ final class ServerSearchHandlerTest extends TestCase
                 new SearchResultDone(0, 'dc=foo,dc=bar'),
             ),
         ]);
+    }
+
+    public function test_abandon_mid_stream_stops_entries_and_sends_no_response(): void
+    {
+        $entries = array_map(
+            static fn(int $i): Entry => Entry::create("cn=$i,dc=foo,dc=bar"),
+            range(1, 51),
+        );
+
+        $abandonSignal = new LdapMessageRequest(3, new AbandonRequest(2));
+
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::present('cn')))->base('dc=foo,dc=bar'),
+        );
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator(...$entries)));
+
+        $this->mockFilterEvaluator
+            ->method('evaluate')
+            ->willReturn(true);
+
+        $this->mockQueue
+            ->method('peekForCancelSignal')
+            ->willReturn($abandonSignal);
+
+        $this->subject->handleRequest($search, $this->mockToken);
+
+        $sentDone = array_filter(
+            $this->sentMessages,
+            static fn(LdapMessageResponse $r): bool => $r->getResponse() instanceof SearchResultDone,
+        );
+
+        self::assertEmpty($sentDone);
+    }
+
+    public function test_cancel_mid_stream_stops_entries_and_sends_canceled_plus_success(): void
+    {
+        $entries = array_map(
+            static fn(int $i): Entry => Entry::create("cn=$i,dc=foo,dc=bar"),
+            range(1, 51),
+        );
+
+        $cancelSignal = new LdapMessageRequest(3, new CancelRequest(2));
+
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::present('cn')))->base('dc=foo,dc=bar'),
+        );
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator(...$entries)));
+
+        $this->mockFilterEvaluator
+            ->method('evaluate')
+            ->willReturn(true);
+
+        $this->mockQueue
+            ->method('peekForCancelSignal')
+            ->willReturn($cancelSignal);
+
+        $this->subject->handleRequest($search, $this->mockToken);
+
+        $nonEntryMessages = array_values(array_filter(
+            $this->sentMessages,
+            static fn(LdapMessageResponse $r): bool => !$r->getResponse() instanceof SearchResultEntry,
+        ));
+
+        self::assertEquals(
+            [
+                new LdapMessageResponse(
+                    2,
+                    new SearchResultDone(ResultCode::CANCELED, 'dc=foo,dc=bar'),
+                ),
+                new LdapMessageResponse(
+                    3,
+                    new ExtendedResponse(new LdapResult(ResultCode::SUCCESS)),
+                ),
+            ],
+            $nonEntryMessages,
+        );
     }
 }

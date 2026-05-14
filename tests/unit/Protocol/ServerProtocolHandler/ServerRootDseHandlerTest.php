@@ -81,6 +81,7 @@ final class ServerRootDseHandlerTest extends TestCase
                     'supportedExtension' => [
                         ExtendedRequest::OID_WHOAMI,
                         ExtendedRequest::OID_PWD_MODIFY,
+                        ExtendedRequest::OID_CANCEL,
                     ],
                     'supportedLDAPVersion' => ['3'],
                     'vendorName' => 'Foo',
@@ -146,6 +147,7 @@ final class ServerRootDseHandlerTest extends TestCase
             'supportedExtension' => [
                 ExtendedRequest::OID_WHOAMI,
                 ExtendedRequest::OID_PWD_MODIFY,
+                ExtendedRequest::OID_CANCEL,
             ],
             'supportedLDAPVersion' => ['3'],
             'vendorName' => 'Foo',

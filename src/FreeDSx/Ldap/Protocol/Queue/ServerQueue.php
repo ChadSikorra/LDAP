@@ -19,6 +19,9 @@ use FreeDSx\Asn1\Type\AbstractType;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Exception\UnsolicitedNotificationException;
+use FreeDSx\Ldap\Operation\Request\AbandonRequest;
+use FreeDSx\Ldap\Operation\Request\CancelRequest;
+use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\LdapQueue;
@@ -33,12 +36,21 @@ use FreeDSx\Socket\Queue\Message;
 class ServerQueue extends LdapQueue
 {
     /**
+     * @var LdapMessageRequest[]
+     */
+    private array $pendingMessages = [];
+
+    /**
      * @throws ProtocolException
      * @throws UnsolicitedNotificationException
      * @throws ConnectionException
      */
     public function getMessage(?int $id = null): LdapMessageRequest
     {
+        if ($id === null && $this->pendingMessages !== []) {
+            return array_shift($this->pendingMessages);
+        }
+
         $message = $this->getAndValidateMessage($id);
 
         if (!$message instanceof LdapMessageRequest) {
@@ -49,6 +61,29 @@ class ServerQueue extends LdapQueue
         }
 
         return $message;
+    }
+
+    /**
+     * Checks whether an Abandon or Cancel targeting a message ID has arrived.
+     *
+     * Other messages received while peeking are buffered.
+     */
+    public function peekForCancelSignal(int $inFlightMessageId): ?LdapMessageRequest
+    {
+        if (!$this->hasPendingData()) {
+            return null;
+        }
+
+        $message = $this->getMessage();
+        $request = $message->getRequest();
+
+        if ($this->isAbandonOrCancelRequest($request, $inFlightMessageId)) {
+            return $message;
+        }
+
+        $this->pendingMessages[] = $message;
+
+        return null;
     }
 
     /**
@@ -72,6 +107,19 @@ class ServerQueue extends LdapQueue
         $this->sendLdapMessage($responses);
 
         return $this;
+    }
+
+    /**
+     * @param RequestInterface $request
+     * @param int $inFlightMessageId
+     * @return bool
+     */
+    private function isAbandonOrCancelRequest(
+        RequestInterface $request,
+        int $inFlightMessageId,
+    ): bool {
+        return ($request instanceof AbandonRequest || $request instanceof CancelRequest)
+            && $request->getMessageId() === $inFlightMessageId;
     }
 
     /**

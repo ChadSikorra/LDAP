@@ -17,8 +17,12 @@ use FreeDSx\Asn1\Asn1;
 use FreeDSx\Asn1\Encoder\EncoderInterface;
 use FreeDSx\Asn1\Type\IncompleteType;
 use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Operation\Request\AbandonRequest;
+use FreeDSx\Ldap\Operation\Request\CancelRequest;
+use FreeDSx\Ldap\Operation\Request\DeleteRequest;
 use FreeDSx\Ldap\Operation\Response\DeleteResponse;
 use FreeDSx\Ldap\Protocol\LdapEncoder;
+use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\MessageWrapperInterface;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
@@ -149,5 +153,118 @@ final class ServerQueueTest extends TestCase
         $this->subject->setMessageWrapper($mockWrapper);
 
         $this->subject->getMessage();
+    }
+
+    public function test_peek_returns_null_when_no_socket_data(): void
+    {
+        $socket = $this->createMock(Socket::class);
+        $socket->method('read')->willReturn(false);
+
+        $queue = new ServerQueue($socket, new LdapEncoder());
+
+        self::assertNull($queue->peekForCancelSignal(2));
+    }
+
+    public function test_peek_returns_abandon_request_targeting_in_flight_message(): void
+    {
+        $queue = $this->makeQueueWithEncodedRequest(
+            new LdapMessageRequest(3, new AbandonRequest(2)),
+        );
+
+        $result = $queue->peekForCancelSignal(2);
+
+        self::assertNotNull($result);
+        self::assertInstanceOf(
+            AbandonRequest::class,
+            $result->getRequest(),
+        );
+    }
+
+    public function test_peek_returns_cancel_request_targeting_in_flight_message(): void
+    {
+        $queue = $this->makeQueueWithEncodedRequest(
+            new LdapMessageRequest(3, new CancelRequest(2)),
+        );
+
+        $result = $queue->peekForCancelSignal(2);
+
+        self::assertNotNull($result);
+        self::assertInstanceOf(
+            CancelRequest::class,
+            $result->getRequest(),
+        );
+    }
+
+    public function test_peek_buffers_non_cancel_message_and_returns_null(): void
+    {
+        $queue = $this->makeQueueWithEncodedRequest(
+            new LdapMessageRequest(5, new DeleteRequest('dc=foo,dc=bar')),
+        );
+
+        self::assertNull($queue->peekForCancelSignal(2));
+
+        $buffered = $queue->getMessage();
+
+        self::assertSame(
+            5,
+            $buffered->getMessageId(),
+        );
+        self::assertInstanceOf(
+            DeleteRequest::class,
+            $buffered->getRequest(),
+        );
+    }
+
+    public function test_peek_buffers_abandon_targeting_different_message_and_returns_null(): void
+    {
+        $queue = $this->makeQueueWithEncodedRequest(
+            new LdapMessageRequest(3, new AbandonRequest(99)),
+        );
+
+        self::assertNull($queue->peekForCancelSignal(2));
+
+        $buffered = $queue->getMessage();
+
+        self::assertInstanceOf(
+            AbandonRequest::class,
+            $buffered->getRequest(),
+        );
+    }
+
+    public function test_get_message_drains_pending_before_reading_socket(): void
+    {
+        $encoder = new LdapEncoder();
+        $bytes = $encoder->encode(
+            (new LdapMessageRequest(5, new DeleteRequest('dc=foo,dc=bar')))->toAsn1(),
+        );
+
+        $socket = $this->createMock(Socket::class);
+        $socket->expects(self::once())
+            ->method('read')
+            ->willReturn($bytes);
+
+        $queue = new ServerQueue($socket, $encoder);
+
+        // Peek decodes and buffers the DeleteRequest into pendingMessages
+        $queue->peekForCancelSignal(2);
+
+        // getMessage() must drain pendingMessages — no second socket read
+        $result = $queue->getMessage();
+
+        self::assertInstanceOf(
+            DeleteRequest::class,
+            $result->getRequest(),
+        );
+    }
+
+    private function makeQueueWithEncodedRequest(LdapMessageRequest $message): ServerQueue
+    {
+        $encoder = new LdapEncoder();
+        $bytes = $encoder->encode($message->toAsn1());
+
+        $socket = $this->createMock(Socket::class);
+        $socket->method('read')->willReturn($bytes);
+
+        return new ServerQueue($socket, $encoder);
     }
 }

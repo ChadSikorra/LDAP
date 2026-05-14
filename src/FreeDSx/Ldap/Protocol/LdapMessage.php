@@ -200,6 +200,7 @@ abstract class LdapMessage implements ProtocolElementInterface, PduInterface
             13 => Response\ModifyDnResponse::fromAsn1($opAsn1),
             14 => Request\CompareRequest::fromAsn1($opAsn1),
             15 => Response\CompareResponse::fromAsn1($opAsn1),
+            16 => Request\AbandonRequest::fromAsn1($opAsn1),
             19 => Response\SearchResultReference::fromAsn1($opAsn1),
             23 => Request\ExtendedRequest::fromAsn1($opAsn1),
             24 => Response\ExtendedResponse::fromAsn1($opAsn1),

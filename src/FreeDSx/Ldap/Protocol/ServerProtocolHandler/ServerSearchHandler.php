@@ -15,6 +15,8 @@ namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\Request\AbandonRequest;
+use FreeDSx\Ldap\Operation\Request\CancelRequest;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
@@ -36,6 +38,8 @@ use Generator;
 class ServerSearchHandler implements ServerProtocolHandlerInterface
 {
     use ServerSearchTrait;
+
+    private const CANCEL_CHECK_INTERVAL = 50;
 
     public function __construct(
         private readonly ServerQueue $queue,
@@ -74,6 +78,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                     $request,
                     $state,
                     $token,
+                    $message->getMessageId(),
                 ),
                 (string) $request->getBaseDn(),
                 $state,
@@ -96,6 +101,8 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
     /**
      * Streams filtered + attribute-projected entries from the backend.
      *
+     * Checks for cancel signals periodically.
+     *
      * @return Generator<Entry>
      */
     private function filteredEntryStream(
@@ -103,6 +110,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         SearchRequest $request,
         SearchResultState $state,
         TokenInterface $token,
+        int $messageId,
     ): Generator {
         $sizeLimit = $this->effectiveSizeLimit(
             $request->getSizeLimit(),
@@ -112,6 +120,10 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         $emitted = 0;
 
         foreach ($backend->entries as $entry) {
+            if ($this->shouldCancelSearch($emitted, $messageId, $state)) {
+                return;
+            }
+
             $filtered = $this->accessControl->filterEntry(
                 $token,
                 $entry,
@@ -138,5 +150,33 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                 return;
             }
         }
+    }
+
+    private function shouldCancelSearch(
+        int $emitted,
+        int $messageId,
+        SearchResultState $state,
+    ): bool {
+        if ($emitted === 0 || $emitted % self::CANCEL_CHECK_INTERVAL !== 0) {
+            return false;
+        }
+
+        $signal = $this->queue->peekForCancelSignal($messageId);
+        if ($signal === null) {
+            return false;
+        }
+
+        $request = $signal->getRequest();
+        if ($request instanceof AbandonRequest) {
+            $state->isAbandoned = true;
+
+            return true;
+        }
+
+        if ($request instanceof CancelRequest) {
+            $state->cancelSignal = $signal;
+        }
+
+        return true;
     }
 }
