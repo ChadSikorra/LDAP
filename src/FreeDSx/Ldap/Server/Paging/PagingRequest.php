@@ -34,8 +34,6 @@ final class PagingRequest
 
     private bool $hasProcessed = false;
 
-    private int $totalSent = 0;
-
     public function __construct(
         private PagingControl $control,
         private readonly SearchRequest $request,
@@ -154,22 +152,6 @@ final class PagingRequest
     public function updateNextCookie(string $cookie): void
     {
         $this->nextCookie = $cookie;
-    }
-
-    /**
-     * Total entries sent to the client across all completed pages of this paging session.
-     */
-    public function getTotalSent(): int
-    {
-        return $this->totalSent;
-    }
-
-    /**
-     * @internal
-     */
-    public function incrementTotalSent(int $count): void
-    {
-        $this->totalSent += $count;
     }
 
     /**

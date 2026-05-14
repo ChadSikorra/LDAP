@@ -218,6 +218,7 @@ class LdapServerTest extends ServerTestCase
                 'supportedExtension' => [
                     '1.3.6.1.4.1.4203.1.11.3',
                     '1.3.6.1.4.1.4203.1.11.1',
+                    '1.3.6.1.1.8',
                     '1.3.6.1.4.1.1466.20037',
                 ],
                 'supportedLDAPVersion' => [
@@ -318,8 +319,8 @@ class LdapServerTest extends ServerTestCase
             );
         }
 
-        $this->assertSame(3, $iterations);
-        $this->assertCount(300, $allEntries);
+        $this->assertSame(50, $iterations);
+        $this->assertCount(5000, $allEntries);
     }
 
     public function testItDoesASearchWhenPagingIsNotMarkedAsCritical(): void

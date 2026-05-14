@@ -13,20 +13,18 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
-use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
+use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
- * Late-bound result code / diagnostic for a streaming search.
+ * Handles AbandonRequest — RFC 4511 §4.11 requires no response.
+ *
+ * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class SearchResultState
+final class ServerAbandonHandler implements ServerProtocolHandlerInterface
 {
-    public bool $isAbandoned = false;
-
-    public ?LdapMessageRequest $cancelSignal = null;
-
-    public function __construct(
-        public int $resultCode = ResultCode::SUCCESS,
-        public string $diagnosticMessage = '',
-    ) {}
+    public function handleRequest(
+        LdapMessageRequest $message,
+        TokenInterface $token,
+    ): void {}
 }

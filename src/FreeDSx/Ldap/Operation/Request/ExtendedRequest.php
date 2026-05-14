@@ -138,9 +138,18 @@ class ExtendedRequest implements RequestInterface
      *
      * @param AbstractType<mixed> $type
      */
-    public static function fromAsn1(AbstractType $type): static
+    public static function fromAsn1(AbstractType $type): self
     {
-        return new static(...self::parseAsn1ExtendedRequest($type));
+        [$oid, $value] = self::parseAsn1ExtendedRequest($type);
+
+        if ($oid === self::OID_CANCEL) {
+            return CancelRequest::fromAsn1($type);
+        }
+
+        return new static(
+            $oid,
+            $value,
+        );
     }
 
     /**

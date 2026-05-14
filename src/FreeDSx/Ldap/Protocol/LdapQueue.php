@@ -150,6 +150,25 @@ class LdapQueue extends Asn1MessageQueue
     }
 
     /**
+     * True if data is already buffered or available on the socket without blocking.
+     */
+    protected function hasPendingData(): bool
+    {
+        if ($this->hasBuffer()) {
+            return true;
+        }
+
+        $data = $this->socket->read(false);
+        if ($data === false || $data === '') {
+            return false;
+        }
+
+        $this->buffer .= $data;
+
+        return true;
+    }
+
+    /**
      * @throws ConnectionException
      * @throws ProtocolException
      * @throws UnsolicitedNotificationException

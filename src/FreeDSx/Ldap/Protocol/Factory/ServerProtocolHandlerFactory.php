@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Protocol\Factory;
 
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ControlBag;
+use FreeDSx\Ldap\Operation\Request\AbandonRequest;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
@@ -44,7 +45,11 @@ class ServerProtocolHandlerFactory
         RequestInterface $request,
         ControlBag $controls,
     ): ServerProtocolHandlerInterface {
-        if ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_WHOAMI) {
+        if ($request instanceof AbandonRequest) {
+            return new ServerProtocolHandler\ServerAbandonHandler();
+        } elseif ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_CANCEL) {
+            return new ServerProtocolHandler\ServerCancelHandler($this->queue);
+        } elseif ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_WHOAMI) {
             return new ServerProtocolHandler\ServerWhoAmIHandler($this->queue);
         } elseif ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_PWD_MODIFY) {
             return new ServerProtocolHandler\ServerPasswordModifyHandler(

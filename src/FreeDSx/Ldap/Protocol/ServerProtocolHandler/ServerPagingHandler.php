@@ -173,7 +173,6 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $generator,
             $pagingRequest->getSize(),
             $searchRequest,
-            0,
             $token,
         );
 
@@ -223,7 +222,6 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $generator,
             $pagingRequest->getSize(),
             $pagingRequest->getSearchRequest(),
-            $pagingRequest->getTotalSent(),
             $token,
         );
 
@@ -253,7 +251,6 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             return PagingResponse::makeFinal(new Entries(...$collected->entries));
         }
 
-        $pagingRequest->incrementTotalSent(count($collected->entries));
         $this->requestHistory->storePagingGenerator(
             $nextCookie,
             $generator,
@@ -274,7 +271,6 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         Generator $generator,
         int $pageSize,
         SearchRequest $request,
-        int $totalAlreadySent,
         TokenInterface $token,
     ): CollectedPage {
         $page = [];
@@ -316,7 +312,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
                     $request->getAttributesOnly(),
                 );
 
-                if ($sizeLimit > 0 && ($totalAlreadySent + count($page)) >= $sizeLimit) {
+                if ($sizeLimit > 0 && count($page) >= $sizeLimit) {
                     $generator->next();
                     break;
                 }
@@ -328,7 +324,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         $generatorExhausted = !$generator->valid();
         $sizeLimitExceeded = !$generatorExhausted
             && $sizeLimit > 0
-            && ($totalAlreadySent + count($page)) >= $sizeLimit;
+            && count($page) >= $sizeLimit;
 
         return new CollectedPage(
             $page,

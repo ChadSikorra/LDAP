@@ -21,7 +21,10 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\RuntimeException;
+use FreeDSx\Ldap\Operation\LdapResult;
+use FreeDSx\Ldap\Operation\Request\CancelRequest;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
+use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\Response\SearchResultDone;
 use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Operation\ResultCode;
@@ -47,6 +50,7 @@ trait ServerSearchTrait
 
     /**
      * Yields a SearchResultEntry per backend entry followed by the terminal SearchResultDone.
+     * Yields nothing for abandoned requests; yields CANCELED + SUCCESS for cancelled requests.
      *
      * @return Generator<LdapMessageResponse>
      */
@@ -63,6 +67,27 @@ trait ServerSearchTrait
         }
 
         $state = $searchResult->getState();
+
+        if ($state->isAbandoned) {
+            return;
+        }
+        $cancelSignal = $state->cancelSignal;
+
+        if ($cancelSignal !== null && $cancelSignal->getRequest() instanceof CancelRequest) {
+            yield new LdapMessageResponse(
+                $messageId,
+                new SearchResultDone(
+                    ResultCode::CANCELED,
+                    $searchResult->getBaseDn(),
+                ),
+            );
+            yield new LdapMessageResponse(
+                $cancelSignal->getMessageId(),
+                new ExtendedResponse(new LdapResult(ResultCode::SUCCESS)),
+            );
+
+            return;
+        }
 
         yield new LdapMessageResponse(
             $messageId,
