@@ -30,7 +30,7 @@ final class LdapPasswordModifyServerTest extends ServerTestCase
 
         parent::setUp();
 
-        $this->createServerProcess('tcp', 'file');
+        $this->createServerProcess('tcp', ['--storage=json']);
     }
 
     public function testAnonymousIsRejected(): void

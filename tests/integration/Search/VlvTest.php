@@ -18,10 +18,10 @@ use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Search\Vlv;
-use Tests\Integration\FreeDSx\Ldap\LdapTestCase;
+use Tests\Integration\FreeDSx\Ldap\ExternalLdapTestCase;
 use Throwable;
 
-class VlvTest extends LdapTestCase
+class VlvTest extends ExternalLdapTestCase
 {
     private Vlv $vlv;
 

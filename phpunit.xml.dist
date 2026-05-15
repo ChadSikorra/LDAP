@@ -25,22 +25,14 @@
   <testsuites>
     <testsuite name="integration">
       <directory>./tests/integration</directory>
-      <exclude>./tests/integration/LdapClientTest.php</exclude>
-      <exclude>./tests/integration/LdapClientReferralTest.php</exclude>
-      <exclude>./tests/integration/Search</exclude>
-      <exclude>./tests/integration/Sync</exclude>
-    </testsuite>
-    <testsuite name="integration-openldap">
-      <file>./tests/integration/LdapClientTest.php</file>
-      <file>./tests/integration/LdapClientReferralTest.php</file>
-      <directory>./tests/integration/Search</directory>
-      <directory>./tests/integration/Sync</directory>
     </testsuite>
     <testsuite name="unit">
       <directory>./tests/unit</directory>
     </testsuite>
   </testsuites>
   <php>
+    <env name="XDEBUG_MODE" value="off"/>
+    <env name="LDAP_TESTS_ENABLED" value="0"/>
     <env name="LDAP_SERVER" value="localhost"/>
     <env name="LDAP_USERNAME" value="cn=admin,dc=example,dc=com"/>
     <env name="LDAP_PASSWORD" value="P@ssword12345"/>

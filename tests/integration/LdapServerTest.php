@@ -13,14 +13,16 @@ declare(strict_types=1);
 
 namespace Tests\Integration\FreeDSx\Ldap;
 
+use FreeDSx\Ldap\ClientOptions;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\BindException;
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\Response\BindResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Search\Filters;
 
-class LdapServerTest extends ServerTestCase
+final class LdapServerTest extends ServerTestCase
 {
     public static function setUpBeforeClass(): void
     {
@@ -52,95 +54,74 @@ class LdapServerTest extends ServerTestCase
             'cn=user,dc=foo,dc=bar',
             '12345',
         );
-        $output = $this->waitForServerOutput('---bind---');
-
-        $this->assertStringContainsString(
-            'username => cn=user,dc=foo,dc=bar',
-            $output,
-        );
-        $this->assertStringContainsString(
-            'password => 12345',
-            $output,
+        $this->assertSame(
+            'dn:cn=user,dc=foo,dc=bar',
+            $this->ldapClient()->whoami(),
         );
     }
 
     public function testItRejectsBindWithIncorrectCredentials(): void
     {
-        $bindException = null;
+        $this->expectException(BindException::class);
 
-        try {
-            $this->ldapClient()->bind(
-                'cn=fake,dc=foo,dc=bar',
-                'also-fake',
-            );
-        } catch (BindException $exception) {
-            $bindException = $exception;
-        }
-
-        $this->assertNotNull($bindException);
+        $this->ldapClient()->bind(
+            'cn=fake,dc=foo,dc=bar',
+            'also-fake',
+        );
     }
 
     public function testItPerformsAnAdd(): void
     {
         $this->authenticate();
         $this->ldapClient()->create(Entry::fromArray(
-            'cn=meh,dc=foo,dc=bar',
-            [
-                'foo' => 'bar',
-            ],
+            'cn=added,dc=foo,dc=bar',
+            ['cn' => 'added', 'sn' => 'Test', 'objectClass' => 'inetOrgPerson'],
         ));
-        $output = $this->waitForServerOutput('---add---');
 
-        $this->assertStringContainsString(
-            'dn => cn=meh,dc=foo,dc=bar',
-            $output,
-        );
-        $this->assertStringContainsString(
-            'Attributes: foo => bar',
-            $output,
+        $result = $this->ldapClient()->read('cn=added,dc=foo,dc=bar');
+        $this->assertNotNull($result);
+        $this->assertSame(
+            'Test',
+            $result->get('sn')?->firstValue(),
         );
     }
 
     public function testItPerformsDelete(): void
     {
         $this->authenticate();
-        $this->ldapClient()->delete('cn=meh,dc=foo,dc=bar');
-        $output = $this->waitForServerOutput('---delete---');
+        $this->ldapClient()->create(Entry::fromArray(
+            'cn=todelete,dc=foo,dc=bar',
+            ['cn' => 'todelete', 'sn' => 'Delete', 'objectClass' => 'inetOrgPerson'],
+        ));
+        $this->ldapClient()->delete('cn=todelete,dc=foo,dc=bar');
 
-        $this->assertStringContainsString(
-            'dn => cn=meh,dc=foo,dc=bar',
-            $output,
-        );
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::NO_SUCH_OBJECT);
+        $this->ldapClient()->readOrFail('cn=todelete,dc=foo,dc=bar');
     }
 
     public function testItPerformsModify(): void
     {
         $this->authenticate();
+        $this->ldapClient()->create(Entry::fromArray(
+            'cn=tomodify,dc=foo,dc=bar',
+            ['cn' => 'tomodify', 'sn' => 'Before', 'mail' => 'before@example.com', 'objectClass' => 'inetOrgPerson'],
+        ));
 
-        $entry = Entry::fromArray(
-            'cn=meh,dc=foo,dc=bar',
-            [
-                'phone' => '123-456-7890',
-                'email' => 'meh@bleh.local',
-                'surname' => 'oh',
-                'givenName' => 'fake',
-            ],
+        $changes = Entry::fromArray('cn=tomodify,dc=foo,dc=bar', []);
+        $changes->set('sn', 'After');
+        $changes->add('mail', 'added@example.com');
+        $this->ldapClient()->update($changes);
+
+        $result = $this->ldapClient()->read('cn=tomodify,dc=foo,dc=bar');
+        $this->assertNotNull($result);
+        $this->assertSame(
+            'After',
+            $result->get('sn')?->firstValue(),
         );
-        $entry->add('email', 'foo@bar.local');
-        $entry->remove('givenName', 'FirstName');
-        $entry->set('surname', 'LastName');
-        $entry->reset('phone');
-
-        $this->ldapClient()->update($entry);
-        $output = $this->waitForServerOutput('---modify---');
-
-        $this->assertStringContainsString(
-            'dn => cn=meh,dc=foo,dc=bar',
-            $output,
-        );
-        $this->assertStringContainsString(
-            'Changes: (0)email => foo@bar.local, (1)givenName => FirstName, (2)surname => LastName, (1)phone => ',
-            $output,
+        $this->assertContains(
+            'added@example.com',
+            $result->get('mail')?->getValues() ?? [],
         );
     }
 
@@ -148,17 +129,11 @@ class LdapServerTest extends ServerTestCase
     {
         $this->authenticate();
 
-        $response = $this->ldapClient()->read('cn=meh,dc=foo,dc=bar');
-        $output = $this->waitForServerOutput('---search---');
-
-        $this->assertNotNull($response);
-        $this->assertStringContainsString(
-            'dn => cn=meh,dc=foo,dc=bar',
-            $output,
-        );
-        $this->assertStringContainsString(
-            'filter => (objectClass=*)',
-            $output,
+        $result = $this->ldapClient()->read('cn=user,dc=foo,dc=bar');
+        $this->assertNotNull($result);
+        $this->assertSame(
+            'cn=user,dc=foo,dc=bar',
+            $result->getDn()->toString(),
         );
     }
 
@@ -166,36 +141,33 @@ class LdapServerTest extends ServerTestCase
     {
         $this->authenticate();
 
-        $result = $this->ldapClient()->compare(
-            'cn=meh,dc=foo,dc=bar',
-            'foo',
-            'bar',
+        $this->assertTrue(
+            $this->ldapClient()->compare(
+                'cn=user,dc=foo,dc=bar',
+                'cn',
+                'user',
+            ),
         );
-
-        $this->assertTrue($result);
     }
 
     public function testItCanModifyDn(): void
     {
         $this->authenticate();
+        $this->ldapClient()->create(Entry::fromArray(
+            'cn=tomove,dc=foo,dc=bar',
+            ['cn' => 'tomove', 'sn' => 'Move', 'objectClass' => 'inetOrgPerson'],
+        ));
+        $this->ldapClient()->rename(
+            'cn=tomove,dc=foo,dc=bar',
+            'cn=moved',
+            true,
+        );
 
-        $this->ldapClient()->move(
-            'cn=meh,dc=foo,dc=bar',
-            'cn=bleh,dc=foo,dc=bar',
-        );
-        $output = $this->waitForServerOutput('---modify-dn---');
-
-        $this->assertStringContainsString(
-            'dn => cn=meh,dc=foo,dc=bar',
-            $output,
-        );
-        $this->assertStringContainsString(
-            'ParentDn => cn=bleh,dc=foo,dc=bar',
-            $output,
-        );
-        $this->assertStringContainsString(
-            'ParentRdn => cn=meh',
-            $output,
+        $result = $this->ldapClient()->read('cn=moved,dc=foo,dc=bar');
+        $this->assertNotNull($result);
+        $this->assertSame(
+            'cn=moved,dc=foo,dc=bar',
+            $result->getDn()->toString(),
         );
     }
 
@@ -237,7 +209,11 @@ class LdapServerTest extends ServerTestCase
         $this->expectException(OperationException::class);
         $this->expectExceptionCode(ResultCode::INSUFFICIENT_ACCESS_RIGHTS);
 
-        $this->ldapClient()->compare('dc=foo,dc=bar', 'foo', 'bar');
+        $this->ldapClient()->compare(
+            'dc=foo,dc=bar',
+            'foo',
+            'bar',
+        );
     }
 
     public function testThatOperationSearchRequireAuthentication(): void
@@ -253,7 +229,10 @@ class LdapServerTest extends ServerTestCase
         $this->expectException(OperationException::class);
         $this->expectExceptionCode(ResultCode::INSUFFICIENT_ACCESS_RIGHTS);
 
-        $this->ldapClient()->create(Entry::fromArray('dc=foo,dc=bar', ['foo' => 'bar']));
+        $this->ldapClient()->create(Entry::fromArray(
+            'dc=foo,dc=bar',
+            ['foo' => 'bar'],
+        ));
     }
 
     public function testThatOperationDeleteRequireAuthentication(): void
@@ -280,7 +259,10 @@ class LdapServerTest extends ServerTestCase
         $this->expectException(OperationException::class);
         $this->expectExceptionCode(ResultCode::INSUFFICIENT_ACCESS_RIGHTS);
 
-        $this->ldapClient()->move('dc=foo,dc=bar', 'cn=here, dc=foo, dc=bar');
+        $this->ldapClient()->move(
+            'dc=foo,dc=bar',
+            'cn=here, dc=foo, dc=bar',
+        );
     }
 
     public function testWhoAmIWhenAuthenticated(): void
@@ -288,7 +270,10 @@ class LdapServerTest extends ServerTestCase
         $this->authenticate();
         $output = $this->ldapClient()->whoami();
 
-        $this->assertSame('dn:cn=user,dc=foo,dc=bar', $output);
+        $this->assertSame(
+            'dn:cn=user,dc=foo,dc=bar',
+            $output,
+        );
     }
 
     public function testWhoAmIWhenNotAuthenticated(): void
@@ -301,7 +286,7 @@ class LdapServerTest extends ServerTestCase
     public function testItCanHandlingPaging(): void
     {
         $this->stopServer();
-        $this->createServerProcess('tcp', 'paging');
+        $this->createServerProcess('tcp', ['--entries=5000']);
         $this->authenticate();
 
         $allEntries = [];
@@ -327,7 +312,7 @@ class LdapServerTest extends ServerTestCase
     {
         $this->authenticate();
 
-        $search = Operations::search(Filters::raw('(name=user)'))->base('dc=foo,dc=bar');
+        $search = Operations::search(Filters::raw('(cn=user)'))->base('dc=foo,dc=bar');
         $paging = $this->ldapClient()->paging($search);
         $result = $paging->getEntries();
 
@@ -368,5 +353,80 @@ class LdapServerTest extends ServerTestCase
 
         $result = $client2->read();
         $this->assertNotNull($result);
+    }
+
+    public function testAnonymousBindSucceeds(): void
+    {
+        $this->stopServer();
+        $this->createServerProcess('tcp', ['--allow-anonymous']);
+
+        $response = $this->ldapClient()
+            ->send(Operations::bindAnonymously())
+            ?->getResponse();
+
+        $this->assertInstanceOf(
+            BindResponse::class,
+            $response,
+        );
+        $this->assertSame(
+            0,
+            $response->getResultCode(),
+        );
+    }
+
+    public function testRenameWithoutDeleteKeepsOldRdn(): void
+    {
+        $this->authenticate();
+        $this->ldapClient()->create(Entry::fromArray(
+            'cn=torenameold,dc=foo,dc=bar',
+            [
+                'cn' => 'torenameold',
+                'sn' => 'RenameOld',
+                'objectClass' => 'inetOrgPerson',
+            ],
+        ));
+        $this->ldapClient()->rename(
+            'cn=torenameold,dc=foo,dc=bar',
+            'cn=torenamednew',
+            false,
+        );
+
+        $result = $this->ldapClient()->read('cn=torenamednew,dc=foo,dc=bar', ['cn']);
+        $this->assertNotNull($result);
+        $cn = $result->get('cn');
+        $this->assertNotNull($cn);
+        $this->assertContains(
+            'torenameold',
+            $cn->getValues(),
+        );
+        $this->assertContains(
+            'torenamednew',
+            $cn->getValues(),
+        );
+    }
+
+    public function testSetOptionsForceDisconnectsClient(): void
+    {
+        $this->authenticate();
+        $this->ldapClient()->setOptions(
+            options: new ClientOptions(),
+            forceDisconnect: true,
+        );
+
+        $this->assertFalse($this->ldapClient()->isConnected());
+    }
+
+    public function testItCanEndPagingEarly(): void
+    {
+        $this->authenticate();
+
+        $search = Operations::search(Filters::present('objectClass'))->base('dc=foo,dc=bar');
+        $paging = $this->ldapClient()->paging($search);
+
+        $paging->getEntries(1);
+        $this->assertTrue($paging->hasEntries());
+
+        $paging->end();
+        $this->assertFalse($paging->hasEntries());
     }
 }

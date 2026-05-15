@@ -21,11 +21,11 @@ use FreeDSx\Ldap\Operation\Request\SimpleBindRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\ReferralChaserInterface;
 
-final class TestReferralChaser implements ReferralChaserInterface
+final readonly class TestReferralChaser implements ReferralChaserInterface
 {
     public function __construct(
-        private readonly string $username,
-        private readonly string $password,
+        private string $username,
+        private string $password,
     ) {}
 
     public function chase(

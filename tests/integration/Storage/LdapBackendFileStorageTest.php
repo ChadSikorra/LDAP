@@ -48,7 +48,7 @@ final class LdapBackendFileStorageTest extends LdapBackendStorageTest
             return;
         }
 
-        static::initSharedServer('ldap-backend-storage', 'tcp', 'file');
+        static::initSharedServer('ldap-backend-storage', 'tcp', ['--storage=json']);
     }
 
     public static function tearDownAfterClass(): void
@@ -65,7 +65,7 @@ final class LdapBackendFileStorageTest extends LdapBackendStorageTest
             $this->stopServer();
             $this->createServerProcess(
                 'tcp',
-                'file',
+                ['--storage=json'],
             );
         }
     }

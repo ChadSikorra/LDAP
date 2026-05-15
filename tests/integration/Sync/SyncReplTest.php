@@ -18,9 +18,9 @@ use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Sync\Result\SyncEntryResult;
 use FreeDSx\Ldap\Sync\Session;
 use Symfony\Component\Process\Process;
-use Tests\Integration\FreeDSx\Ldap\LdapTestCase;
+use Tests\Integration\FreeDSx\Ldap\ExternalLdapTestCase;
 
-class SyncReplTest extends LdapTestCase
+class SyncReplTest extends ExternalLdapTestCase
 {
     private ?Process $syncWriteProcess = null;
 

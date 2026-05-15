@@ -348,10 +348,20 @@ final class LdapQueryTest extends TestCase
     public function test_first_returns_the_first_entry(): void
     {
         $entry = Entry::create('cn=foo,dc=example,dc=local');
+        $entryResult = new EntryResult(new LdapMessageResponse(
+            1,
+            new SearchResultEntry($entry),
+        ));
 
         $this->client
             ->method('search')
-            ->willReturn(new Entries($entry));
+            ->willReturnCallback(function (SearchRequest $request) use ($entryResult): Entries {
+                $handler = $request->getEntryHandler();
+                self::assertNotNull($handler);
+                $handler($entryResult);
+
+                return new Entries();
+            });
 
         $result = $this->subject
             ->andWhere(Filters::equal('cn', 'foo'))

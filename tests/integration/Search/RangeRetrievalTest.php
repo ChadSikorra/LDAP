@@ -16,10 +16,10 @@ namespace Tests\Integration\FreeDSx\Ldap\Search;
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\LdapClient;
 use FreeDSx\Ldap\Search\RangeRetrieval;
-use Tests\Integration\FreeDSx\Ldap\LdapTestCase;
+use Tests\Integration\FreeDSx\Ldap\ExternalLdapTestCase;
 use Throwable;
 
-class RangeRetrievalTest extends LdapTestCase
+class RangeRetrievalTest extends ExternalLdapTestCase
 {
     private LdapClient $client;
 

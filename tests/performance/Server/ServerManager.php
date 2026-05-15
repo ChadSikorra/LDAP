@@ -53,7 +53,7 @@ final class ServerManager
             $command[] = '-dopcache.jit=tracing';
         }
         $command[] = self::BOOTSTRAP_PATH;
-        $command[] = 'tcp';
+        $command[] = '--transport=tcp';
         $command[] = '--storage=' . $this->config->backend;
         $command[] = '--runner=' . $this->config->runner;
         $command[] = '--port=' . $this->config->port;

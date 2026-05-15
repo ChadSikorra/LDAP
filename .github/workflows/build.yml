@@ -125,6 +125,7 @@ jobs:
 
       - name: Run Integration Tests
         env:
+          LDAP_TESTS_ENABLED: '1'
           MYSQL_DSN: ${{ runner.os == 'Linux' && 'mysql:host=127.0.0.1;port=3306;dbname=freedsx' || '' }}
           MYSQL_USER: root
           MYSQL_PASSWORD: root

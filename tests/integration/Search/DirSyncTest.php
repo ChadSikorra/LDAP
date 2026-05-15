@@ -17,9 +17,9 @@ use FreeDSx\Ldap\LdapClient;
 use FreeDSx\Ldap\Search\DirSync;
 use FreeDSx\Ldap\Search\Filter\FilterInterface;
 use FreeDSx\Ldap\Search\Filters;
-use Tests\Integration\FreeDSx\Ldap\LdapTestCase;
+use Tests\Integration\FreeDSx\Ldap\ExternalLdapTestCase;
 
-class DirSyncTest extends LdapTestCase
+final class DirSyncTest extends ExternalLdapTestCase
 {
     private LdapClient $client;
 

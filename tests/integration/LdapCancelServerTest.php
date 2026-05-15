@@ -29,7 +29,7 @@ final class LdapCancelServerTest extends ServerTestCase
 
         $this->createServerProcess(
             'tcp',
-            'paging',
+            ['--entries=5000'],
         );
         $this->authenticate();
     }

@@ -36,7 +36,10 @@ class ServerTestCase extends LdapTestCase
 
     private static string $sharedTransport = 'tcp';
 
-    private static ?string $sharedHandler = null;
+    /**
+     * @var list<string>
+     */
+    private static array $sharedExtraArgs = [];
 
     /**
      * Per-test client — a fresh connection to the shared server for each test.
@@ -91,7 +94,7 @@ class ServerTestCase extends LdapTestCase
             self::launchSharedProcess(
                 self::$sharedMode,
                 self::$sharedTransport,
-                self::$sharedHandler,
+                self::$sharedExtraArgs,
             );
             $this->needsSharedRestart = false;
         }
@@ -100,16 +103,19 @@ class ServerTestCase extends LdapTestCase
     /**
      * Shared-server lifecycle — called from setUpBeforeClass / tearDownAfterClass
      */
+    /**
+     * @param list<string> $extraArgs
+     */
     protected static function initSharedServer(
         string $mode,
         string $transport,
-        ?string $handler = null,
+        array $extraArgs = [],
     ): void {
         self::$sharedMode = $mode;
         self::$sharedTransport = $transport;
-        self::$sharedHandler = $handler;
+        self::$sharedExtraArgs = $extraArgs;
 
-        self::launchSharedProcess($mode, $transport, $handler);
+        self::launchSharedProcess($mode, $transport, $extraArgs);
     }
 
     protected static function tearDownSharedServer(): void
@@ -119,22 +125,21 @@ class ServerTestCase extends LdapTestCase
     }
 
     /**
-     * Per-test server override. For tests that require a different config
+     * Per-test server override. For tests that require a different config.
+     *
+     * @param list<string> $extraArgs
      */
     protected function createServerProcess(
         string $transport,
-        ?string $handler = null,
+        array $extraArgs = [],
     ): void {
         $processArgs = [
             'php',
             '-dpcov.enabled=0',
             __DIR__ . '/../bin/' . $this->serverMode . '.php',
-            $transport,
+            '--transport=' . $transport,
+            ...$extraArgs,
         ];
-
-        if ($handler !== null) {
-            $processArgs[] = $handler;
-        }
 
         $process = new Process($processArgs);
         $process->start();
@@ -192,21 +197,21 @@ class ServerTestCase extends LdapTestCase
         return $this->client ?? throw new RuntimeException('The test LDAP client is not set.');
     }
 
+    /**
+     * @param list<string> $extraArgs
+     */
     private static function launchSharedProcess(
         string $mode,
         string $transport,
-        ?string $handler,
+        array $extraArgs,
     ): void {
         $processArgs = [
             'php',
             '-dpcov.enabled=0',
             __DIR__ . '/../bin/' . $mode . '.php',
-            $transport,
+            '--transport=' . $transport,
+            ...$extraArgs,
         ];
-
-        if ($handler !== null) {
-            $processArgs[] = $handler;
-        }
 
         $process = new Process($processArgs);
         $process->start();

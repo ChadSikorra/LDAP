@@ -20,7 +20,7 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Operations;
 use Throwable;
 
-final class LdapClientReferralTest extends LdapTestCase
+final class LdapClientReferralTest extends ExternalLdapTestCase
 {
     private const REFERRAL_DN = 'ou=Referral-Test,ou=FreeDSx-Test,dc=example,dc=com';
 

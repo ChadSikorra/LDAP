@@ -31,7 +31,7 @@ final class LdapSaslServerTest extends ServerTestCase
 
         $this->createServerProcess(
             'tcp',
-            'sasl',
+            ['--sasl'],
         );
     }
 

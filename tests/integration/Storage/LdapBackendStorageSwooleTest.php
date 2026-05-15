@@ -53,7 +53,7 @@ final class LdapBackendStorageSwooleTest extends LdapBackendStorageTest
         static::initSharedServer(
             'ldap-backend-storage',
             'tcp',
-            'swoole',
+            ['--runner=swoole'],
         );
     }
 
@@ -76,7 +76,7 @@ final class LdapBackendStorageSwooleTest extends LdapBackendStorageTest
             // connection yet), so stopServer() will find no active Swoole
             // connections and the drain coroutine exits immediately.
             $this->stopServer();
-            $this->createServerProcess('tcp', 'swoole');
+            $this->createServerProcess('tcp', ['--runner=swoole']);
         }
     }
 }

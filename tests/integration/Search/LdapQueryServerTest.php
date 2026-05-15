@@ -14,46 +14,61 @@ declare(strict_types=1);
 namespace Tests\Integration\FreeDSx\Ldap\Search;
 
 use FreeDSx\Ldap\Entry\Entries;
-use FreeDSx\Ldap\LdapClient;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Search\LdapQuery;
 use FreeDSx\Ldap\Search\Result\EntryResult;
-use Tests\Integration\FreeDSx\Ldap\LdapTestCase;
-use Throwable;
+use Tests\Integration\FreeDSx\Ldap\ServerTestCase;
 
-final class LdapQueryTest extends LdapTestCase
+final class LdapQueryServerTest extends ServerTestCase
 {
-    private const BASE_DN = 'ou=FreeDSx-Test,dc=example,dc=com';
+    private const ENTRY_COUNT = 5;
 
-    private LdapClient $client;
+    private const BASE_DN = 'dc=foo,dc=bar';
 
     private LdapQuery $subject;
 
-    protected function setUp(): void
+    public static function setUpBeforeClass(): void
     {
-        $this->client = $this->getClient();
-        $this->bindClient($this->client);
-        $this->subject = $this->client
-            ->query()
-            ->from(self::BASE_DN);
+        parent::setUpBeforeClass();
+
+        if (!extension_loaded('pcntl')) {
+            return;
+        }
+
+        static::initSharedServer(
+            'ldap-server',
+            'tcp',
+            ['--entries=' . self::ENTRY_COUNT],
+        );
     }
 
-    protected function tearDown(): void
+    public static function tearDownAfterClass(): void
     {
-        try {
-            $this->client->unbind();
-        } catch (Throwable) {
-        }
+        parent::tearDownAfterClass();
+        static::tearDownSharedServer();
+    }
+
+    public function setUp(): void
+    {
+        $this->setServerMode('ldap-server');
+        parent::setUp();
+        $this->authenticate();
+        $this->subject = $this->ldapClient()
+            ->query()
+            ->from(self::BASE_DN);
     }
 
     public function testGetReturnsAllMatchingEntries(): void
     {
         $entries = $this->subject
-            ->select('ou')
-            ->andWhere(Filters::equal('objectClass', 'organizationalUnit'))
+            ->select('cn')
+            ->andWhere(Filters::equal('objectClass', 'inetOrgPerson'))
             ->get();
 
-        $this->assertCount(12, $entries);
+        $this->assertCount(
+            self::ENTRY_COUNT + 1,
+            $entries,
+        );
     }
 
     public function testGetWithAndWhereAccumulatesFilters(): void
@@ -61,11 +76,11 @@ final class LdapQueryTest extends LdapTestCase
         $entries = $this->subject
             ->select('cn')
             ->andWhere(Filters::equal('objectClass', 'inetOrgPerson'))
-            ->andWhere(Filters::startsWith('cn', 'A'))
+            ->andWhere(Filters::equal('sn', 'User'))
             ->get();
 
         $this->assertCount(
-            843,
+            1,
             $entries,
         );
     }
@@ -74,8 +89,8 @@ final class LdapQueryTest extends LdapTestCase
     {
         $entries = $this->subject
             ->select('cn')
-            ->orWhere(Filters::equal('cn', 'Birgit Pankhurst'))
-            ->orWhere(Filters::equal('cn', 'Carmelina Esposito'))
+            ->orWhere(Filters::equal('cn', 'user'))
+            ->orWhere(Filters::equal('cn', 'entry-1'))
             ->get();
 
         $this->assertCount(
@@ -88,7 +103,7 @@ final class LdapQueryTest extends LdapTestCase
     {
         $entry = $this->subject
             ->select('cn')
-            ->andWhere(Filters::equal('cn', 'Birgit Pankhurst'))
+            ->andWhere(Filters::equal('cn', 'user'))
             ->first();
 
         $this->assertNotNull($entry);
@@ -98,10 +113,7 @@ final class LdapQueryTest extends LdapTestCase
 
     public function testUseSingleLevelScopeSearchesDirectChildrenOnly(): void
     {
-        $payrollDn = 'ou=Payroll,' . self::BASE_DN;
-
         $entries = $this->subject
-            ->from($payrollDn)
             ->useSingleLevelScope()
             ->select('cn')
             ->andWhere(Filters::equal('objectClass', 'inetOrgPerson'))
@@ -111,7 +123,7 @@ final class LdapQueryTest extends LdapTestCase
 
         foreach ($entries as $entry) {
             $this->assertSame(
-                strtolower($payrollDn),
+                self::BASE_DN,
                 strtolower((string) $entry->getDn()->getParent()?->toString()),
             );
         }
@@ -121,20 +133,20 @@ final class LdapQueryTest extends LdapTestCase
     {
         $entry = $this->subject
             ->select('cn')
-            ->andWhere(Filters::equal('cn', 'Birgit Pankhurst'))
+            ->andWhere(Filters::equal('cn', 'user'))
             ->first();
 
         $this->assertNotNull($entry);
         $this->assertSame(
-            strtolower('cn=Birgit Pankhurst,ou=Janitorial,' . self::BASE_DN),
-            strtolower($entry->getDn()->toString()),
+            'cn=user,' . self::BASE_DN,
+            $entry->getDn()->toString(),
         );
     }
 
     public function testFirstReturnsNullWhenNoEntryMatches(): void
     {
         $entry = $this->subject
-            ->andWhere(Filters::equal('cn', 'ThisPersonDoesNotExist12345'))
+            ->andWhere(Filters::equal('cn', 'nobody-here'))
             ->first();
 
         $this->assertNull($entry);
@@ -143,17 +155,18 @@ final class LdapQueryTest extends LdapTestCase
     public function testPagingReturnsAllResultsAcrossPages(): void
     {
         $paging = $this->subject
-            ->select('ou')
-            ->andWhere(Filters::equal('objectClass', 'organizationalUnit'))
-            ->paging(4);
+            ->select('cn')
+            ->andWhere(Filters::equal('objectClass', 'inetOrgPerson'))
+            ->paging(2);
 
         $entries = new Entries();
+
         while ($paging->hasEntries()) {
             $entries->add(...$paging->getEntries()->toArray());
         }
 
         $this->assertCount(
-            12,
+            self::ENTRY_COUNT + 1,
             $entries,
         );
     }
@@ -161,24 +174,31 @@ final class LdapQueryTest extends LdapTestCase
     public function testStreamYieldsAllMatchingResults(): void
     {
         $subject = $this->subject
-            ->select('ou')
-            ->andWhere(Filters::equal('objectClass', 'organizationalUnit'));
+            ->select('cn')
+            ->andWhere(Filters::equal('objectClass', 'inetOrgPerson'));
 
         $count = 0;
+
         foreach ($subject->stream() as $result) {
-            $this->assertInstanceOf(EntryResult::class, $result);
-            $this->assertNotNull($result->getEntry()->get('ou'));
+            $this->assertInstanceOf(
+                EntryResult::class,
+                $result,
+            );
+            $this->assertNotNull($result->getEntry()->get('cn'));
             $count++;
         }
 
-        $this->assertSame(12, $count);
+        $this->assertSame(
+            self::ENTRY_COUNT + 1,
+            $count,
+        );
     }
 
     public function testStreamYieldsResultsWithAccessibleMessageControls(): void
     {
         $subject = $this->subject
             ->select('cn')
-            ->andWhere(Filters::equal('cn', 'Birgit Pankhurst'));
+            ->andWhere(Filters::equal('cn', 'user'));
 
         foreach ($subject->stream() as $result) {
             $this->assertNotNull($result->getEntry());
