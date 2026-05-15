@@ -16,7 +16,7 @@ namespace Tests\Integration\FreeDSx\Ldap;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Search\Filters;
 
-class LdapProxyTest extends ServerTestCase
+final class LdapProxyTest extends ServerTestCase
 {
     public static function setUpBeforeClass(): void
     {

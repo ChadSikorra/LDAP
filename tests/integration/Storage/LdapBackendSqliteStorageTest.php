@@ -52,7 +52,7 @@ final class LdapBackendSqliteStorageTest extends LdapBackendStorageTest
         static::initSharedServer(
             'ldap-backend-storage',
             'tcp',
-            'sqlite',
+            ['--storage=sqlite'],
         );
     }
 
@@ -69,7 +69,7 @@ final class LdapBackendSqliteStorageTest extends LdapBackendStorageTest
             $this->stopServer();
             $this->createServerProcess(
                 'tcp',
-                'sqlite',
+                ['--storage=sqlite'],
             );
         }
     }

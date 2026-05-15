@@ -22,6 +22,8 @@ use FreeDSx\Ldap\Entry\Entries;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\LdapClient;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
+use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Search\Filter\AndFilter;
 use FreeDSx\Ldap\Search\Filter\FilterInterface;
 use FreeDSx\Ldap\Search\Filter\OrFilter;
@@ -198,11 +200,22 @@ final class LdapQuery
             $request->sizeLimit(1);
         }
 
-        return $this->client
-            ->search(
-                $request,
-                ...$controls,
-            )->first();
+        $found = null;
+        $request->useEntryHandler(
+            function (EntryResult $result) use (&$found): void {
+                $found ??= $result->getEntry();
+            },
+        );
+
+        try {
+            $this->client->search($request, ...$controls);
+        } catch (OperationException $e) {
+            if ($e->getCode() !== ResultCode::SIZE_LIMIT_EXCEEDED) {
+                throw $e;
+            }
+        }
+
+        return $found;
     }
 
     /**
