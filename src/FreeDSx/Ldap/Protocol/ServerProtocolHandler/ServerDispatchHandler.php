@@ -36,6 +36,8 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  */
 readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
 {
+    use ServerCriticalControlTrait;
+
     public function __construct(
         private ServerQueue $queue,
         private LdapBackendInterface $backend,
@@ -55,6 +57,7 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         TokenInterface $token,
     ): void {
         try {
+            $this->assertNoCriticalUnsupportedControls($message->controls());
             $request = $message->getRequest();
             $this->authorizeRequest(
                 $request,

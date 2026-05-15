@@ -38,6 +38,8 @@ use function count;
  */
 class ServerRootDseHandler implements ServerProtocolHandlerInterface
 {
+    use ServerCriticalControlTrait;
+
     public function __construct(
         private readonly ServerOptions $options,
         private readonly ServerQueue $queue,
@@ -52,6 +54,7 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
         LdapMessageRequest $message,
         TokenInterface $token,
     ): void {
+        $this->assertNoCriticalUnsupportedControls($message->controls());
         $entry = Entry::fromArray('', [
             'namingContexts' => $this->options->getDseNamingContexts(),
             'subschemaSubentry' => [$this->options->getSubschemaEntry()->toString()],

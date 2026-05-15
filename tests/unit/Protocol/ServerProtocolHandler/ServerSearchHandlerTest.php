@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
+use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\LdapResult;
@@ -590,5 +591,60 @@ final class ServerSearchHandlerTest extends TestCase
             ],
             $nonEntryMessages,
         );
+    }
+
+    public function test_critical_unsupported_control_returns_unavailable_critical_extension(): void
+    {
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::present('cn')))->base('dc=foo,dc=bar'),
+            new Control('1.2.3.4.5', criticality: true),
+        );
+
+        $this->mockBackend
+            ->expects(self::never())
+            ->method('search');
+
+        $this->subject->handleRequest(
+            $search,
+            $this->mockToken,
+        );
+
+        $this->assertSentMessages([
+            new LdapMessageResponse(
+                2,
+                new SearchResultDone(
+                    ResultCode::UNAVAILABLE_CRITICAL_EXTENSION,
+                    'dc=foo,dc=bar',
+                    'Critical control 1.2.3.4.5 is not supported.',
+                ),
+            ),
+        ]);
+    }
+
+    public function test_non_critical_unsupported_control_does_not_cause_an_error(): void
+    {
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::present('cn')))->base('dc=foo,dc=bar'),
+            new Control('1.2.3.4.5', criticality: false),
+        );
+
+        $this->mockBackend
+            ->expects(self::once())
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator()));
+
+        $this->subject->handleRequest(
+            $search,
+            $this->mockToken,
+        );
+
+        $this->assertSentMessages([
+            new LdapMessageResponse(
+                2,
+                new SearchResultDone(ResultCode::SUCCESS, 'dc=foo,dc=bar'),
+            ),
+        ]);
     }
 }
