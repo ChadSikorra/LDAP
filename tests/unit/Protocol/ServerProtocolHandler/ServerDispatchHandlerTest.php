@@ -13,10 +13,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
+use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
-use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Operation\Request\AbandonRequest;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Operation\Request\CompareRequest;
@@ -402,6 +403,47 @@ final class ServerDispatchHandlerTest extends TestCase
                     && $msg->getResponse()->getResultCode() === ResultCode::INSUFFICIENT_ACCESS_RIGHTS;
             }))
             ->willReturnSelf();
+
+        $this->subject->handleRequest(
+            $request,
+            $this->mockToken,
+        );
+    }
+
+    public function test_critical_unsupported_control_returns_unavailable_critical_extension(): void
+    {
+        $request = new LdapMessageRequest(
+            1,
+            new DeleteRequest('cn=foo,dc=bar'),
+            new Control('1.2.3.4.5', criticality: true),
+        );
+
+        $this->mockQueue
+            ->expects(self::once())
+            ->method('sendMessage')
+            ->with(self::callback(function (LdapMessageResponse $msg): bool {
+                return $msg->getResponse() instanceof LdapResult
+                    && $msg->getResponse()->getResultCode() === ResultCode::UNAVAILABLE_CRITICAL_EXTENSION;
+            }))
+            ->willReturnSelf();
+
+        $this->subject->handleRequest(
+            $request,
+            $this->mockToken,
+        );
+    }
+
+    public function test_non_critical_unsupported_control_does_not_cause_an_error(): void
+    {
+        $request = new LdapMessageRequest(
+            1,
+            new DeleteRequest('cn=foo,dc=bar'),
+            new Control('1.2.3.4.5', criticality: false),
+        );
+
+        $this->mockWriteHandler
+            ->expects(self::once())
+            ->method('handle');
 
         $this->subject->handleRequest(
             $request,

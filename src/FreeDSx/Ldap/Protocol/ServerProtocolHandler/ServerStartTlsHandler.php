@@ -34,6 +34,8 @@ use function extension_loaded;
  */
 class ServerStartTlsHandler implements ServerProtocolHandlerInterface
 {
+    use ServerCriticalControlTrait;
+
     private static ?bool $hasOpenssl = null;
 
     public function __construct(
@@ -54,6 +56,7 @@ class ServerStartTlsHandler implements ServerProtocolHandlerInterface
         LdapMessageRequest $message,
         TokenInterface $token,
     ): void {
+        $this->assertNoCriticalUnsupportedControls($message->controls());
         # If we don't have a SSL cert or the OpenSSL extension is not available, then we can do nothing...
         if ($this->options->getSslCert() === null || !self::$hasOpenssl) {
             $this->queue->sendMessage(new LdapMessageResponse($message->getMessageId(), new ExtendedResponse(

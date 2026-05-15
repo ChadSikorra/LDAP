@@ -33,6 +33,8 @@ use FreeDSx\Ldap\ServerOptions;
  */
 class ServerSubschemaHandler implements ServerProtocolHandlerInterface
 {
+    use ServerCriticalControlTrait;
+
     public function __construct(
         private readonly ServerOptions $options,
         private readonly ServerQueue $queue,
@@ -42,6 +44,7 @@ class ServerSubschemaHandler implements ServerProtocolHandlerInterface
         LdapMessageRequest $message,
         TokenInterface $token,
     ): void {
+        $this->assertNoCriticalUnsupportedControls($message->controls());
         $schemaDn = $this->options->getSubschemaEntry();
         $rdn = $schemaDn->getRdn();
         $schema = $this->options->getSchema();

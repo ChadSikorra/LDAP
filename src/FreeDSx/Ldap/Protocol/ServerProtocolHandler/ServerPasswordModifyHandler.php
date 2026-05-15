@@ -46,6 +46,8 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  */
 readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInterface
 {
+    use ServerCriticalControlTrait;
+
     public function __construct(
         private ServerQueue $queue,
         private LdapBackendInterface $backend,
@@ -67,6 +69,7 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
         TokenInterface $token,
     ): void {
         try {
+            $this->assertNoCriticalUnsupportedControls($message->controls());
             $this->process(
                 $message,
                 $token,

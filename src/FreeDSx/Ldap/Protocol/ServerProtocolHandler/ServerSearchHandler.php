@@ -38,6 +38,8 @@ use Generator;
 class ServerSearchHandler implements ServerProtocolHandlerInterface
 {
     use ServerSearchTrait;
+    use ServerCriticalControlTrait;
+
 
     private const CANCEL_CHECK_INTERVAL = 50;
 
@@ -59,6 +61,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         $request = $this->getSearchRequestFromMessage($message);
 
         try {
+            $this->assertNoCriticalUnsupportedControls($message->controls());
             $baseDn = $this->assertBaseDnProvided($request);
             $this->accessControl->authorizeOperation(
                 OperationType::Search,

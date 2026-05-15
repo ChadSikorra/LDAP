@@ -31,6 +31,8 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  */
 class ServerWhoAmIHandler implements ServerProtocolHandlerInterface
 {
+    use ServerCriticalControlTrait;
+
     public function __construct(private readonly ServerQueue $queue) {}
 
     /**
@@ -41,6 +43,7 @@ class ServerWhoAmIHandler implements ServerProtocolHandlerInterface
         LdapMessageRequest $message,
         TokenInterface $token,
     ): void {
+        $this->assertNoCriticalUnsupportedControls($message->controls());
         $userId = null;
 
         if ($token instanceof AuthenticatedTokenInterface) {
