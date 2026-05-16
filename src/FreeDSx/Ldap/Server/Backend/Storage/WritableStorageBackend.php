@@ -37,6 +37,7 @@ use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
 use FreeDSx\Ldap\Server\SearchLimits;
+use Generator;
 
 /**
  * Applies LDAP semantics over a pluggable EntryStorageInterface; writes are routed through EntryStorageInterface::atomic().
@@ -168,12 +169,11 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
 
         try {
             $stream = $this->storage->list($options);
-        } catch (InvalidAttributeException $e) {
-            throw new OperationException(
-                $e->getMessage(),
-                ResultCode::PROTOCOL_ERROR,
-                $e,
-            );
+        } catch (InvalidAttributeException) {
+            # RFC 4511 §4.5.1.7: unrecognized attribute descriptions evaluate to Undefined; yield zero entries.
+            return new EntryStream((static function (): Generator {
+                yield from [];
+            })());
         }
 
         return $this->searchStream->buildForList(

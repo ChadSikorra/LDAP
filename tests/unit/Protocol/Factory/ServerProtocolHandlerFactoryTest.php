@@ -28,6 +28,7 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerSearchHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerStartTlsHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerSubschemaHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerUnbindHandler;
+use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerUnsupportedExtendedHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerWhoAmIHandler;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
@@ -152,6 +153,17 @@ final class ServerProtocolHandlerFactoryTest extends TestCase
             ServerSubschemaHandler::class,
             $this->subject->get(
                 Operations::read('cn=Subschema'),
+                new ControlBag(),
+            ),
+        );
+    }
+
+    public function test_it_should_get_the_unsupported_extended_handler_for_an_unknown_oid(): void
+    {
+        self::assertInstanceOf(
+            ServerUnsupportedExtendedHandler::class,
+            $this->subject->get(
+                Operations::extended('1.2.3.4.5.6.7.8.9'),
                 new ControlBag(),
             ),
         );
