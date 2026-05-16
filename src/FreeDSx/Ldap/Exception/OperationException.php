@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Exception;
 
 use Exception;
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Operation\ResultCode;
 use Throwable;
 
@@ -30,6 +31,7 @@ class OperationException extends Exception
         string $message = '',
         int $code = ResultCode::OPERATIONS_ERROR,
         ?Throwable $previous = null,
+        private readonly ?Dn $matchedDn = null,
     ) {
         $message = empty($message)
             ? $this->generateMessage($code)
@@ -40,6 +42,14 @@ class OperationException extends Exception
             $code,
             $previous,
         );
+    }
+
+    /**
+     * The deepest DIT ancestor found when the noSuchObject result code was returned; null if no ancestor exists.
+     */
+    public function getMatchedDn(): ?Dn
+    {
+        return $this->matchedDn;
     }
 
     /**

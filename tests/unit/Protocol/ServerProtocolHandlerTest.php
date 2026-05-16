@@ -189,7 +189,7 @@ final class ServerProtocolHandlerTest extends TestCase
                 1,
                 new ModifyDnResponse(
                     ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
-                    'cn=foo,dc=bar',
+                    '',
                     'Authentication required.',
                 ),
             )))
@@ -361,7 +361,7 @@ final class ServerProtocolHandlerTest extends TestCase
                     2,
                     new ModifyResponse(
                         ResultCode::CONFIDENTIALITY_REQUIRED,
-                        'cn=foo,dc=bar',
+                        '',
                         'Foo.',
                     ),
                 ),

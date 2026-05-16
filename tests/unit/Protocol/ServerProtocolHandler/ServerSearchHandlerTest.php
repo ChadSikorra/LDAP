@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\Sorting\SortKey;
 use FreeDSx\Ldap\Control\Sorting\SortingControl;
 use FreeDSx\Ldap\Control\Sorting\SortingResponseControl;
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\LdapResult;
@@ -217,7 +218,7 @@ final class ServerSearchHandlerTest extends TestCase
                 2,
                 new SearchResultDone(
                     ResultCode::OPERATIONS_ERROR,
-                    'dc=foo,dc=bar',
+                    '',
                     "Fail",
                 ),
             ),
@@ -618,7 +619,7 @@ final class ServerSearchHandlerTest extends TestCase
                 2,
                 new SearchResultDone(
                     ResultCode::UNAVAILABLE_CRITICAL_EXTENSION,
-                    'dc=foo,dc=bar',
+                    '',
                     'Critical control 1.2.3.4.5 is not supported.',
                 ),
             ),
@@ -679,6 +680,99 @@ final class ServerSearchHandlerTest extends TestCase
             0,
             $sortControl->getResult(),
         );
+    }
+
+    public function test_matched_dn_from_exception_is_used_in_SearchResultDone_on_error(): void
+    {
+        $matchedDn = new Dn('dc=foo,dc=bar');
+        $matchedEntry = Entry::create('dc=foo,dc=bar');
+
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::equal('foo', 'bar')))->base('cn=Missing,dc=foo,dc=bar'),
+        );
+
+        $this->mockBackend
+            ->method('search')
+            ->willThrowException(new OperationException(
+                'No such object.',
+                ResultCode::NO_SUCH_OBJECT,
+                null,
+                $matchedDn,
+            ));
+        $this->mockBackend
+            ->method('get')
+            ->willReturn($matchedEntry);
+        $this->mockAccessControl
+            ->method('filterEntry')
+            ->willReturn($matchedEntry);
+
+        $this->subject->handleRequest(
+            $search,
+            $this->mockToken,
+        );
+
+        $this->assertSentMessages([
+            new LdapMessageResponse(
+                2,
+                new SearchResultDone(
+                    ResultCode::NO_SUCH_OBJECT,
+                    'dc=foo,dc=bar',
+                    'No such object.',
+                ),
+            ),
+        ]);
+    }
+
+    public function test_matched_dn_is_dropped_when_access_control_hides_ancestor_on_search(): void
+    {
+        $matchedDn = new Dn('dc=foo,dc=bar');
+        $matchedEntry = Entry::create('dc=foo,dc=bar');
+
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::equal('foo', 'bar')))->base('cn=Missing,dc=foo,dc=bar'),
+        );
+
+        $this->mockBackend
+            ->method('search')
+            ->willThrowException(new OperationException(
+                'No such object.',
+                ResultCode::NO_SUCH_OBJECT,
+                null,
+                $matchedDn,
+            ));
+        $this->mockBackend
+            ->method('get')
+            ->willReturn($matchedEntry);
+
+        $mockAccessControl = $this->createMock(AccessControlInterface::class);
+        $mockAccessControl
+            ->method('filterEntry')
+            ->willReturn(null);
+
+        $subject = new ServerSearchHandler(
+            queue: $this->mockQueue,
+            backend: $this->mockBackend,
+            filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $mockAccessControl,
+        );
+
+        $subject->handleRequest(
+            $search,
+            $this->mockToken,
+        );
+
+        $this->assertSentMessages([
+            new LdapMessageResponse(
+                2,
+                new SearchResultDone(
+                    ResultCode::NO_SUCH_OBJECT,
+                    '',
+                    'No such object.',
+                ),
+            ),
+        ]);
     }
 
     public function test_no_sort_control_does_not_append_sorting_response_control(): void

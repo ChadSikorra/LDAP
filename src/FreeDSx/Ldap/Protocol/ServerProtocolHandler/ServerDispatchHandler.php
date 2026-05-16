@@ -37,6 +37,7 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
 readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
 {
     use ServerCriticalControlTrait;
+    use MatchedDnAccessFilterTrait;
 
     public function __construct(
         private ServerQueue $queue,
@@ -99,6 +100,12 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                 $message,
                 $e->getCode(),
                 $e->getMessage(),
+                $this->filterMatchedDn(
+                    $e->getMatchedDn(),
+                    $token,
+                    $this->backend,
+                    $this->accessControl,
+                ),
             ));
         }
     }

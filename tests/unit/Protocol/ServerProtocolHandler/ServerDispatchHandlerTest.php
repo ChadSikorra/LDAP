@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Operation\Response\DeleteResponse;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\AbandonRequest;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
@@ -430,6 +431,128 @@ final class ServerDispatchHandlerTest extends TestCase
         $this->subject->handleRequest(
             $request,
             $this->mockToken,
+        );
+    }
+
+    public function test_matched_dn_from_exception_is_used_in_write_response(): void
+    {
+        $matchedDn = new Dn('dc=bar');
+        $matchedEntry = Entry::create('dc=bar');
+        $delete = new LdapMessageRequest(1, new DeleteRequest('cn=Missing,dc=bar'));
+
+        $this->mockWriteHandler
+            ->method('handle')
+            ->willThrowException(new OperationException(
+                'No such object.',
+                ResultCode::NO_SUCH_OBJECT,
+                null,
+                $matchedDn,
+            ));
+
+        $this->mockBackend
+            ->method('get')
+            ->willReturn($matchedEntry);
+        $this->mockAccessControl
+            ->method('filterEntry')
+            ->willReturn($matchedEntry);
+
+        $captured = null;
+        $this->mockQueue
+            ->expects(self::once())
+            ->method('sendMessage')
+            ->willReturnCallback(function (LdapMessageResponse $msg) use (&$captured): LdapMessageResponse {
+                $captured = $msg;
+
+                return $msg;
+            });
+
+        $this->subject->handleRequest($delete, $this->mockToken);
+
+        $response = $captured?->getResponse();
+        self::assertInstanceOf(DeleteResponse::class, $response);
+        self::assertSame(
+            'dc=bar',
+            $response->getDn()->toString(),
+        );
+    }
+
+    public function test_matched_dn_is_dropped_when_access_control_hides_ancestor(): void
+    {
+        $matchedDn = new Dn('dc=bar');
+        $matchedEntry = Entry::create('dc=bar');
+        $delete = new LdapMessageRequest(1, new DeleteRequest('cn=Missing,dc=bar'));
+
+        $this->mockWriteHandler
+            ->method('handle')
+            ->willThrowException(new OperationException(
+                'No such object.',
+                ResultCode::NO_SUCH_OBJECT,
+                null,
+                $matchedDn,
+            ));
+
+        $this->mockBackend
+            ->method('get')
+            ->willReturn($matchedEntry);
+        $this->mockAccessControl
+            ->method('filterEntry')
+            ->willReturn(null);
+
+        $captured = null;
+        $this->mockQueue
+            ->expects(self::once())
+            ->method('sendMessage')
+            ->willReturnCallback(function (LdapMessageResponse $msg) use (&$captured): LdapMessageResponse {
+                $captured = $msg;
+
+                return $msg;
+            });
+
+        $this->subject->handleRequest($delete, $this->mockToken);
+
+        $response = $captured?->getResponse();
+        self::assertInstanceOf(DeleteResponse::class, $response);
+        self::assertSame(
+            '',
+            $response->getDn()->toString(),
+        );
+    }
+
+    public function test_matched_dn_is_dropped_when_backend_returns_no_entry_for_ancestor(): void
+    {
+        $matchedDn = new Dn('dc=bar');
+        $delete = new LdapMessageRequest(1, new DeleteRequest('cn=Missing,dc=bar'));
+
+        $this->mockWriteHandler
+            ->method('handle')
+            ->willThrowException(new OperationException(
+                'No such object.',
+                ResultCode::NO_SUCH_OBJECT,
+                null,
+                $matchedDn,
+            ));
+
+        $this->mockBackend
+            ->method('get')
+            ->willReturn(null);
+
+        $captured = null;
+        $this->mockQueue
+            ->expects(self::once())
+            ->method('sendMessage')
+            ->willReturnCallback(function (LdapMessageResponse $msg) use (&$captured): LdapMessageResponse {
+                $captured = $msg;
+
+                return $msg;
+            });
+
+        $this->subject->handleRequest($delete, $this->mockToken);
+
+        $response = $captured?->getResponse();
+        self::assertInstanceOf(DeleteResponse::class, $response);
+        self::assertSame(
+            '',
+            $response->getDn()->toString(),
         );
     }
 

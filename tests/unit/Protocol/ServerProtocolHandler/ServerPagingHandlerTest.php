@@ -19,6 +19,7 @@ use FreeDSx\Ldap\Control\PagingControl;
 use FreeDSx\Ldap\Control\Sorting\SortKey;
 use FreeDSx\Ldap\Control\Sorting\SortingControl;
 use FreeDSx\Ldap\Control\Sorting\SortingResponseControl;
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
@@ -269,7 +270,7 @@ class ServerPagingHandlerTest extends TestCase
                     $message->getMessageId(),
                     new SearchResultDone(
                         ResultCode::OPERATIONS_ERROR,
-                        'dc=foo,dc=bar',
+                        '',
                         "The search request and controls must be identical between paging requests.",
                     ),
                     new PagingControl(0, ''),
@@ -671,6 +672,91 @@ class ServerPagingHandlerTest extends TestCase
 
         self::assertNull(
             $this->doneMessage()->controls()->get(Control::OID_SORTING_RESPONSE),
+        );
+    }
+
+    public function test_matched_dn_from_exception_is_used_in_SearchResultDone_when_access_control_allows(): void
+    {
+        $matchedDn = new Dn('dc=foo,dc=bar');
+        $matchedEntry = Entry::create('dc=foo,dc=bar');
+
+        $message = $this->makeSearchMessage(size: 10);
+
+        $this->mockBackend
+            ->method('search')
+            ->willThrowException(new OperationException(
+                'No such object.',
+                ResultCode::NO_SUCH_OBJECT,
+                null,
+                $matchedDn,
+            ));
+        $this->mockBackend
+            ->method('get')
+            ->willReturn($matchedEntry);
+
+        $this->subject->handleRequest(
+            $message,
+            $this->mockToken,
+        );
+
+        $done = $this->doneMessage()->getResponse();
+        self::assertInstanceOf(SearchResultDone::class, $done);
+        self::assertSame(
+            ResultCode::NO_SUCH_OBJECT,
+            $done->getResultCode(),
+        );
+        self::assertSame(
+            'dc=foo,dc=bar',
+            $done->getDn()->toString(),
+        );
+    }
+
+    public function test_matched_dn_is_dropped_when_access_control_hides_ancestor_on_paged_search(): void
+    {
+        $matchedDn = new Dn('dc=foo,dc=bar');
+        $matchedEntry = Entry::create('dc=foo,dc=bar');
+
+        $message = $this->makeSearchMessage(size: 10);
+
+        $this->mockBackend
+            ->method('search')
+            ->willThrowException(new OperationException(
+                'No such object.',
+                ResultCode::NO_SUCH_OBJECT,
+                null,
+                $matchedDn,
+            ));
+        $this->mockBackend
+            ->method('get')
+            ->willReturn($matchedEntry);
+
+        $mockAccessControl = $this->createMock(AccessControlInterface::class);
+        $mockAccessControl
+            ->method('filterEntry')
+            ->willReturn(null);
+
+        $subject = new ServerPagingHandler(
+            queue: $this->mockQueue,
+            backend: $this->mockBackend,
+            filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $mockAccessControl,
+            requestHistory: $this->requestHistory,
+        );
+
+        $subject->handleRequest(
+            $message,
+            $this->mockToken,
+        );
+
+        $done = $this->doneMessage()->getResponse();
+        self::assertInstanceOf(SearchResultDone::class, $done);
+        self::assertSame(
+            ResultCode::NO_SUCH_OBJECT,
+            $done->getResultCode(),
+        );
+        self::assertSame(
+            '',
+            $done->getDn()->toString(),
         );
     }
 
