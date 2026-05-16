@@ -30,6 +30,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerPagingHandler;
+use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
@@ -59,6 +60,8 @@ class ServerPagingHandlerTest extends TestCase
 
     private TokenInterface&MockObject $mockToken;
 
+    private Schema $schema;
+
     /**
      * @var list<LdapMessageResponse>
      */
@@ -72,6 +75,7 @@ class ServerPagingHandlerTest extends TestCase
         $this->mockFilterEvaluator = $this->createMock(FilterEvaluatorInterface::class);
         $this->mockAccessControl = $this->createMock(AccessControlInterface::class);
         $this->requestHistory = new RequestHistory();
+        $this->schema = new Schema();
         $this->sentMessages = [];
 
         $this->mockFilterEvaluator
@@ -102,6 +106,7 @@ class ServerPagingHandlerTest extends TestCase
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $this->mockAccessControl,
             requestHistory: $this->requestHistory,
+            schema: $this->schema,
         );
     }
 
@@ -425,6 +430,7 @@ class ServerPagingHandlerTest extends TestCase
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $this->mockAccessControl,
             requestHistory: $this->requestHistory,
+            schema: $this->schema,
             limits: new SearchLimits(maxSearchSize: 1),
         );
         $subject->handleRequest($message, $this->mockToken);
@@ -456,6 +462,7 @@ class ServerPagingHandlerTest extends TestCase
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $this->mockAccessControl,
             requestHistory: $this->requestHistory,
+            schema: $this->schema,
             limits: new SearchLimits(maxSearchPageSize: 1),
         );
         $subject->handleRequest($message, $this->mockToken);
@@ -488,6 +495,7 @@ class ServerPagingHandlerTest extends TestCase
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $this->mockAccessControl,
             requestHistory: $this->requestHistory,
+            schema: $this->schema,
             limits: new SearchLimits(maxSearchPageSize: 2),
         );
         $subject->handleRequest($message, $this->mockToken);
@@ -515,6 +523,7 @@ class ServerPagingHandlerTest extends TestCase
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $this->mockAccessControl,
             requestHistory: $this->requestHistory,
+            schema: $this->schema,
             limits: new SearchLimits(maxSearchPageSize: 5),
         );
         $subject->handleRequest($message, $this->mockToken);
@@ -559,6 +568,7 @@ class ServerPagingHandlerTest extends TestCase
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $mockAccessControl,
             requestHistory: $this->requestHistory,
+            schema: $this->schema,
         );
         $subject->handleRequest($message, $this->mockToken);
 
@@ -600,6 +610,7 @@ class ServerPagingHandlerTest extends TestCase
             filterEvaluator: $mockFilterEvaluator,
             accessControl: $mockAccessControl,
             requestHistory: $this->requestHistory,
+            schema: $this->schema,
         );
         $subject->handleRequest($message, $this->mockToken);
 
@@ -741,6 +752,7 @@ class ServerPagingHandlerTest extends TestCase
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $mockAccessControl,
             requestHistory: $this->requestHistory,
+            schema: $this->schema,
         );
 
         $subject->handleRequest(

@@ -373,6 +373,22 @@ final class FilterEvaluatorTest extends TestCase
         ));
     }
 
+    public function test_rfc_4526_empty_and_filter_evaluates_to_true(): void
+    {
+        self::assertTrue($this->subject->evaluate(
+            $this->entry,
+            Filters::and(),
+        ));
+    }
+
+    public function test_rfc_4526_empty_or_filter_evaluates_to_false(): void
+    {
+        self::assertFalse($this->subject->evaluate(
+            $this->entry,
+            Filters::or(),
+        ));
+    }
+
     public function test_not_negates_match(): void
     {
         $filter = Filters::not(Filters::equal('cn', 'Alice'));

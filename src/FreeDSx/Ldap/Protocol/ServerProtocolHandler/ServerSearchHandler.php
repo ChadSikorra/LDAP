@@ -26,6 +26,7 @@ use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\SearchLimits;
@@ -51,6 +52,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         private readonly LdapBackendInterface $backend,
         private readonly FilterEvaluatorInterface $filterEvaluator,
         private readonly AccessControlInterface $accessControl,
+        private readonly Schema $schema,
         private readonly SearchLimits $limits = new SearchLimits(),
     ) {}
 
@@ -78,6 +80,11 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
             );
 
             $state = new SearchResultState();
+            $projection = AttributeProjection::forRequest(
+                $request->getAttributes(),
+                $request->getAttributesOnly(),
+                $this->schema,
+            );
             $searchResult = SearchResult::makeSuccessResult(
                 $this->filteredEntryStream(
                     $backendResult,
@@ -85,6 +92,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                     $state,
                     $token,
                     $message->getMessageId(),
+                    $projection,
                 ),
                 (string) $request->getBaseDn(),
                 $state,
@@ -139,6 +147,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         SearchResultState $state,
         TokenInterface $token,
         int $messageId,
+        AttributeProjection $projection,
     ): Generator {
         $sizeLimit = $this->effectiveSizeLimit(
             $request->getSizeLimit(),
@@ -165,11 +174,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                 continue;
             }
 
-            yield $this->applyAttributeFilter(
-                $filtered,
-                $request->getAttributes(),
-                $request->getAttributesOnly(),
-            );
+            yield $projection->project($filtered);
             $emitted++;
 
             if ($sizeLimit > 0 && $emitted >= $sizeLimit) {

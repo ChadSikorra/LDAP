@@ -81,6 +81,7 @@ class ServerProtocolHandlerFactory
                 backend: $this->handlerFactory->makeBackend(),
                 filterEvaluator: $this->handlerFactory->makeFilterEvaluator(),
                 accessControl: $this->options->getAccessControl(),
+                schema: $this->options->getSchema(),
                 limits: $this->options->makeSearchLimits(),
             );
         } elseif ($request instanceof UnbindRequest) {
@@ -143,6 +144,7 @@ class ServerProtocolHandlerFactory
             filterEvaluator: $this->handlerFactory->makeFilterEvaluator(),
             accessControl: $this->options->getAccessControl(),
             requestHistory: $this->requestHistory,
+            schema: $this->options->getSchema(),
             limits: $this->options->makeSearchLimits(),
         );
     }

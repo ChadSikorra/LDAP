@@ -98,6 +98,23 @@ final class InMemoryStorageTest extends TestCase
             ))->entries,
         );
 
+        $dns = array_map(
+            static fn(Entry $entry): string => $entry->getDn()->toString(),
+            $entries,
+        );
+
+        self::assertContains(
+            'dc=example,dc=com',
+            $dns,
+        );
+        self::assertContains(
+            'cn=Bob,dc=example,dc=com',
+            $dns,
+        );
+        self::assertContains(
+            'cn=Sub,cn=Bob,dc=example,dc=com',
+            $dns,
+        );
         self::assertCount(
             3,
             $entries,

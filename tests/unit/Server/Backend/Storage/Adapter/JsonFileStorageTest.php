@@ -239,6 +239,23 @@ final class JsonFileStorageTest extends TestCase
             ->useSubtreeScope();
         $results = iterator_to_array($this->subject->search($request)->entries);
 
+        $dns = array_map(
+            static fn(Entry $entry): string => $entry->getDn()->toString(),
+            $results,
+        );
+
+        self::assertContains(
+            'dc=example,dc=com',
+            $dns,
+        );
+        self::assertContains(
+            'cn=Alice,dc=example,dc=com',
+            $dns,
+        );
+        self::assertContains(
+            'cn=Sub,cn=Alice,dc=example,dc=com',
+            $dns,
+        );
         self::assertCount(
             3,
             $results,

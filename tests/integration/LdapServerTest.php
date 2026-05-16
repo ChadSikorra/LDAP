@@ -194,6 +194,10 @@ final class LdapServerTest extends ServerTestCase
                     '1.3.6.1.1.8',
                     '1.3.6.1.4.1.1466.20037',
                 ],
+                'supportedFeatures' => [
+                    '1.3.6.1.4.1.4203.1.5.1',
+                    '1.3.6.1.4.1.4203.1.5.3',
+                ],
                 'supportedLDAPVersion' => [
                     '3',
                 ],

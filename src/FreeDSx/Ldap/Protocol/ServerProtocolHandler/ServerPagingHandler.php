@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
@@ -54,6 +55,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         private readonly FilterEvaluatorInterface $filterEvaluator,
         private readonly AccessControlInterface $accessControl,
         private readonly RequestHistory $requestHistory,
+        private readonly Schema $schema,
         private readonly PagingRequestComparator $requestComparator = new PagingRequestComparator(),
         private readonly SearchLimits $limits = new SearchLimits(),
     ) {}
@@ -203,6 +205,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $pagingRequest->getSize(),
             $searchRequest,
             $token,
+            $this->projectionFor($searchRequest),
         );
 
         return $this->buildPagingResponse(
@@ -252,6 +255,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $pagingRequest->getSize(),
             $pagingRequest->getSearchRequest(),
             $token,
+            $this->projectionFor($pagingRequest->getSearchRequest()),
         );
 
         return $this->buildPagingResponse(
@@ -301,6 +305,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         int $pageSize,
         SearchRequest $request,
         TokenInterface $token,
+        AttributeProjection $projection,
     ): CollectedPage {
         $page = [];
         $effectivePageSize = $this->effectiveSizeLimit(
@@ -335,11 +340,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
                     continue;
                 }
 
-                $page[] = $this->applyAttributeFilter(
-                    $filtered,
-                    $request->getAttributes(),
-                    $request->getAttributesOnly(),
-                );
+                $page[] = $projection->project($filtered);
 
                 if ($sizeLimit > 0 && count($page) >= $sizeLimit) {
                     $generator->next();
@@ -359,6 +360,15 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $page,
             $generatorExhausted,
             $sizeLimitExceeded,
+        );
+    }
+
+    private function projectionFor(SearchRequest $request): AttributeProjection
+    {
+        return AttributeProjection::forRequest(
+            $request->getAttributes(),
+            $request->getAttributesOnly(),
+            $this->schema,
         );
     }
 
