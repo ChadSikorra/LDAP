@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Server\ServerRunner;
 
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
+use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\ServerProtocolFactory;
 use FreeDSx\Ldap\Server\SocketServerFactory;
 use FreeDSx\Ldap\ServerOptions;
@@ -203,7 +204,10 @@ class SwooleServerRunner implements ServerRunnerInterface
         int $socketId,
     ): void {
         try {
-            $handler = $this->serverProtocolFactory->make($socket);
+            $handler = $this->serverProtocolFactory->make(
+                $socket,
+                new ConnectionContext(connId: $socketId),
+            );
             $this->activeHandlers[$socketId] = $handler;
             $this->logClientConnected();
             $handler->handle();

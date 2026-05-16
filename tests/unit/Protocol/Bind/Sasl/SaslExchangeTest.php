@@ -122,15 +122,14 @@ final class SaslExchangeTest extends TestCase
         $this->mockQueue
             ->expects(self::once())
             ->method('getMessage')
-            ->willReturn(new LdapMessageRequest(2, new SaslBindRequest(self::MECH, 'client-response')));
+            ->willReturn(new LdapMessageRequest(2, new SaslBindRequest(self::MECH, "authzid\0alice\0secret")));
 
         $result = $this->subject->run($this->makeInput());
 
         self::assertTrue($result->getContext()->isAuthenticated());
-        // Username credentials are set from the client response received in round 1.
         self::assertSame(
-            'client-response',
-            $result->getUsernameCredentials(),
+            'alice',
+            $result->getUsername(),
         );
     }
 
@@ -184,20 +183,20 @@ final class SaslExchangeTest extends TestCase
         $this->mockQueue->method('sendMessage');
         $this->mockQueue
             ->method('getMessage')
-            ->willReturn(new LdapMessageRequest(2, new SaslBindRequest('TEST', 'username-in-response')));
+            ->willReturn(new LdapMessageRequest(2, new SaslBindRequest(self::MECH, "authzid\0bob\0secret")));
 
         $result = $this->subject->run($this->makeInput());
 
         self::assertSame(
-            'username-in-response',
-            $result->getUsernameCredentials(),
+            'bob',
+            $result->getUsername(),
         );
     }
 
     public function test_it_preserves_initial_credentials_as_username_credentials(): void
     {
-        // When credentials are present in the initial bind (e.g. PLAIN), they become
-        // the username credentials without waiting for a client response.
+        // When credentials are present in the initial bind (e.g. PLAIN), they are
+        // extracted directly without waiting for a client response.
         $this->mockChallenge
             ->expects(self::once())
             ->method('challenge')
@@ -206,11 +205,11 @@ final class SaslExchangeTest extends TestCase
         // isComplete && response==null → responseIsNew = (null !== null) = false → stale break.
         $this->mockQueue->expects(self::never())->method('sendMessage');
 
-        $result = $this->subject->run($this->makeInput(initialCredentials: 'authzid\x00user\x00pass'));
+        $result = $this->subject->run($this->makeInput(initialCredentials: "authzid\0user\0pass"));
 
         self::assertSame(
-            'authzid\x00user\x00pass',
-            $result->getUsernameCredentials(),
+            'user',
+            $result->getUsername(),
         );
     }
 

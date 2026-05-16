@@ -13,13 +13,34 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\AccessControl;
 
-enum OperationType
+use FreeDSx\Ldap\Operation\Request\AddRequest;
+use FreeDSx\Ldap\Operation\Request\CompareRequest;
+use FreeDSx\Ldap\Operation\Request\DeleteRequest;
+use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
+use FreeDSx\Ldap\Operation\Request\ModifyRequest;
+use FreeDSx\Ldap\Operation\Request\RequestInterface;
+use FreeDSx\Ldap\Operation\Request\SearchRequest;
+
+enum OperationType: string
 {
-    case Search;
-    case Add;
-    case Modify;
-    case Delete;
-    case ModifyDn;
-    case Compare;
-    case PasswordModify;
+    case Search = 'search';
+    case Add = 'add';
+    case Modify = 'modify';
+    case Delete = 'delete';
+    case ModifyDn = 'modify_dn';
+    case Compare = 'compare';
+    case PasswordModify = 'password_modify';
+
+    public static function fromRequest(RequestInterface $request): ?self
+    {
+        return match (true) {
+            $request instanceof AddRequest => self::Add,
+            $request instanceof ModifyRequest => self::Modify,
+            $request instanceof DeleteRequest => self::Delete,
+            $request instanceof ModifyDnRequest => self::ModifyDn,
+            $request instanceof CompareRequest => self::Compare,
+            $request instanceof SearchRequest => self::Search,
+            default => null,
+        };
+    }
 }

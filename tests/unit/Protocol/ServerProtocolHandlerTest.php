@@ -34,13 +34,15 @@ use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\Exception\ConnectionException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\LoggerInterface;
-use Psr\Log\LogLevel;
+use RuntimeException;
+use Tests\Support\FreeDSx\Ldap\Logging\RecordingLogger;
 
 final class ServerProtocolHandlerTest extends TestCase
 {
@@ -50,8 +52,6 @@ final class ServerProtocolHandlerTest extends TestCase
 
     private ServerProtocolHandlerFactory&MockObject $mockProtocolHandlerFactory;
 
-    private LoggerInterface&MockObject $mockLogger;
-
     private Authenticator&MockObject $mockAuthenticator;
 
     private ServerProtocolHandler\ServerProtocolHandlerInterface&MockObject $mockProtocolHandler;
@@ -60,7 +60,6 @@ final class ServerProtocolHandlerTest extends TestCase
     {
         $this->mockQueue = $this->createMock(ServerQueue::class);
         $this->mockProtocolHandlerFactory = $this->createMock(ServerProtocolHandlerFactory::class);
-        $this->mockLogger = $this->createMock(LoggerInterface::class);
         $this->mockAuthenticator = $this->createMock(Authenticator::class);
         $this->mockProtocolHandler = $this->createMock(ServerProtocolHandler\ServerProtocolHandlerInterface::class);
 
@@ -84,7 +83,6 @@ final class ServerProtocolHandlerTest extends TestCase
             $this->mockProtocolHandlerFactory,
             new ServerAuthorization(new ServerOptions()),
             $this->mockAuthenticator,
-            $this->mockLogger,
         );
     }
 
@@ -227,14 +225,9 @@ final class ServerProtocolHandlerTest extends TestCase
             ->method('getMessage')
             ->willThrowException(new ConnectionException("Foo"));
 
-        $this->mockLogger
-            ->expects($this->once())
-            ->method('log')
-            ->with(
-                LogLevel::INFO,
-                'Ending LDAP client due to client connection issues.',
-                $this->anything(),
-            );
+        $this->mockQueue
+            ->expects($this->never())
+            ->method('sendMessage');
 
         $this->subject->handle();
     }
@@ -387,5 +380,135 @@ final class ServerProtocolHandlerTest extends TestCase
             ->method('close');
 
         $this->subject->shutdown();
+    }
+
+    public function test_unexpected_throwable_emits_notice_of_disconnect_with_exception_context(): void
+    {
+        $recordingLogger = new RecordingLogger();
+        $subject = $this->makeSubjectWithEventLogger(new EventLogger(
+            $recordingLogger,
+            EventLogPolicy::default(),
+        ));
+
+        $this->mockQueue
+            ->method('getMessage')
+            ->willThrowException(new RuntimeException('boom'));
+
+        $subject->handle();
+
+        $disconnectRecord = $this->findRecord(
+            $recordingLogger,
+            'session.disconnect_notice',
+        );
+        self::assertSame(
+            RuntimeException::class,
+            $disconnectRecord['context']['exception_class'],
+        );
+        self::assertSame(
+            'boom',
+            $disconnectRecord['context']['exception_message'],
+        );
+        self::assertArrayHasKey(
+            'exception_origin',
+            $disconnectRecord['context'],
+        );
+        self::assertArrayNotHasKey(
+            'exception_trace',
+            $disconnectRecord['context'],
+            'Trace must not appear with the default policy.',
+        );
+    }
+
+    public function test_unexpected_throwable_includes_trace_when_policy_opts_in(): void
+    {
+        $recordingLogger = new RecordingLogger();
+        $subject = $this->makeSubjectWithEventLogger(new EventLogger(
+            $recordingLogger,
+            EventLogPolicy::default()->withExceptionTraces(),
+        ));
+
+        $this->mockQueue
+            ->method('getMessage')
+            ->willThrowException(new RuntimeException('boom'));
+
+        $subject->handle();
+
+        $disconnectRecord = $this->findRecord(
+            $recordingLogger,
+            'session.disconnect_notice',
+        );
+        self::assertNotEmpty($disconnectRecord['context']['exception_trace']);
+    }
+
+    public function test_propagated_critical_control_rejection_emits_structured_event(): void
+    {
+        $recordingLogger = new RecordingLogger();
+        $subject = $this->makeSubjectWithEventLogger(new EventLogger(
+            $recordingLogger,
+            EventLogPolicy::default(),
+        ));
+
+        $messages = [
+            new LdapMessageRequest(7, new ExtendedRequest(ExtendedRequest::OID_START_TLS)),
+        ];
+        $this->mockQueue
+            ->method('getMessage')
+            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
+                if ($messages === []) {
+                    throw new ConnectionException();
+                }
+
+                return array_shift($messages);
+            });
+
+        $this->mockProtocolHandler
+            ->expects(self::once())
+            ->method('handleRequest')
+            ->willThrowException(new OperationException(
+                'Critical control 1.2.3.4 is not supported.',
+                ResultCode::UNAVAILABLE_CRITICAL_EXTENSION,
+            ));
+
+        $subject->handle();
+
+        $record = $this->findRecord(
+            $recordingLogger,
+            'control.critical.rejected',
+        );
+        self::assertSame(
+            7,
+            $record['context']['message_id'],
+        );
+        self::assertSame(
+            ResultCode::UNAVAILABLE_CRITICAL_EXTENSION,
+            $record['context']['result_code'],
+        );
+    }
+
+    private function makeSubjectWithEventLogger(EventLogger $eventLogger): ServerProtocolHandler
+    {
+        return new ServerProtocolHandler(
+            $this->mockQueue,
+            $this->mockProtocolHandlerFactory,
+            new ServerAuthorization(new ServerOptions()),
+            $this->mockAuthenticator,
+            $eventLogger,
+        );
+    }
+
+    /**
+     * @return array{level: string, message: string, context: array<string, mixed>}
+     */
+    private function findRecord(
+        RecordingLogger $logger,
+        string $event,
+    ): array {
+        foreach ($logger->records as $record) {
+            if ($record['message'] === $event) {
+                return $record;
+            }
+        }
+
+        self::fail(sprintf('No record found for event "%s".', $event));
     }
 }

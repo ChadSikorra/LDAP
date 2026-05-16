@@ -7,6 +7,7 @@ LDAP Server Configuration
     * [ServerOptions:setUnixSocket](#setunixsocket)
     * [ServerOptions:setTransport](#settransport)
     * [ServerOptions:setLogger](#setlogger)
+    * [ServerOptions:setEventLogPolicy](#seteventlogpolicy)
     * [ServerOptions:setIdleTimeout](#setidletimeout)
     * [ServerOptions:setRequireAuthentication](#setrequireauthentication)
     * [ServerOptions:setAllowAnonymous](#setallowanonymous)
@@ -92,7 +93,9 @@ If using `unix` for the transport you can change set the `unix_socket` to a file
 ------------------
 #### setLogger
 
-Specify a PSR-3 compatible logging instance to use. This will log various server events and errors.
+Specify a PSR-3 compatible logging instance to use. The server emits structured audit events
+(bind outcomes, authorization details, schema violations, etc.) through this logger. See
+[Server Logging](Logging.md) for the full event catalog and log properties.
 
 You can also set the logger after instantiating the server and before running it:
 
@@ -107,6 +110,27 @@ $server->useLogger($logger);
 ```
 
 **Default**: `null`
+
+------------------
+#### setEventLogPolicy
+
+Tune which catalogued events the server emits. By default, security-relevant events are on
+(bind outcomes, ACL denials, schema violations, StartTLS, Notice of Disconnect); high-volume
+per-operation success events are off and opt-in via `withAuditTrail()`. Full exception traces
+on `session.disconnect_notice` events are also opt-in via `withExceptionTraces()`.
+
+```php
+use FreeDSx\Ldap\ServerOptions;
+use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
+
+$options = (new ServerOptions())
+    ->setEventLogPolicy(EventLogPolicy::default()->withAuditTrail());
+```
+
+See [Server Logging](Logging.md) for the full event catalog, the context-key reference, and
+the policy API.
+
+**Default**: `EventLogPolicy::default()`
 
 ------------------
 #### setIdleTimeout

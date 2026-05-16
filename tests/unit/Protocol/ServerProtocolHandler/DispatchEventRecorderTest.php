@@ -1,0 +1,383 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * This file is part of the FreeDSx LDAP package.
+ *
+ * (c) Chad Sikorra <Chad.Sikorra@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
+
+use FreeDSx\Ldap\Entry\Attribute;
+use FreeDSx\Ldap\Entry\Change;
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\Request\AddRequest;
+use FreeDSx\Ldap\Operation\Request\CompareRequest;
+use FreeDSx\Ldap\Operation\Request\DeleteRequest;
+use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
+use FreeDSx\Ldap\Operation\Request\ModifyRequest;
+use FreeDSx\Ldap\Operation\Request\RequestInterface;
+use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Protocol\LdapMessageRequest;
+use FreeDSx\Ldap\Protocol\ServerProtocolHandler\DispatchEventRecorder;
+use FreeDSx\Ldap\Search\Filter\EqualityFilter;
+use FreeDSx\Ldap\Server\Logging\EventContext;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
+use FreeDSx\Ldap\Server\Token\BindToken;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\TestCase;
+use Tests\Support\FreeDSx\Ldap\Logging\RecordingLogger;
+
+final class DispatchEventRecorderTest extends TestCase
+{
+    private const TARGET_DN = 'cn=Bob,dc=example,dc=com';
+
+    private const ACTOR_DN = 'cn=alice,dc=example,dc=com';
+
+    private const MESSAGE_ID = 7;
+
+    private RecordingLogger $recordingLogger;
+
+    private DispatchEventRecorder $subject;
+
+    private BindToken $token;
+
+    protected function setUp(): void
+    {
+        $this->recordingLogger = new RecordingLogger();
+        $this->subject = new DispatchEventRecorder(new EventLogger(
+            $this->recordingLogger,
+            EventLogPolicy::all(),
+        ));
+        $this->token = new BindToken(
+            self::ACTOR_DN,
+            'secret',
+            new Dn(self::ACTOR_DN),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $expectedTarget
+     */
+    #[DataProvider('provideWriteSuccessCases')]
+    public function test_record_write_success_emits_per_operation_event(
+        RequestInterface $request,
+        string $expectedEvent,
+        string $expectedOperation,
+        array $expectedTarget,
+    ): void {
+        $this->subject->recordWriteSuccess(
+            self::wrap($request),
+            $this->token,
+        );
+
+        $record = $this->onlyRecord();
+        self::assertSame(
+            $expectedEvent,
+            $record['message'],
+        );
+        self::assertSame(
+            self::MESSAGE_ID,
+            $record['context'][EventContext::MESSAGE_ID],
+        );
+        self::assertSame(
+            $expectedOperation,
+            $record['context'][EventContext::OPERATION],
+        );
+        self::assertSame(
+            $expectedTarget,
+            $record['context'][EventContext::TARGET],
+        );
+        self::assertSame(
+            [
+                EventContext::USERNAME => self::ACTOR_DN,
+                EventContext::DN => self::ACTOR_DN,
+            ],
+            $record['context'][EventContext::SUBJECT],
+        );
+        self::assertSame(
+            [],
+            $record['context'][EventContext::CONTROL_OIDS],
+        );
+    }
+
+    /**
+     * @return array<string, array{RequestInterface, string, string, array<string, mixed>}>
+     */
+    public static function provideWriteSuccessCases(): array
+    {
+        return [
+            'add' => [
+                new AddRequest(new Entry(
+                    new Dn(self::TARGET_DN),
+                    new Attribute('cn', 'Bob'),
+                )),
+                'entry.added',
+                'add',
+                [EventContext::DN => self::TARGET_DN],
+            ],
+            'modify' => [
+                new ModifyRequest(
+                    self::TARGET_DN,
+                    Change::replace('cn', 'Bob'),
+                ),
+                'entry.modified',
+                'modify',
+                [EventContext::DN => self::TARGET_DN],
+            ],
+            'delete' => [
+                new DeleteRequest(self::TARGET_DN),
+                'entry.deleted',
+                'delete',
+                [EventContext::DN => self::TARGET_DN],
+            ],
+            'modify_dn' => [
+                new ModifyDnRequest(
+                    self::TARGET_DN,
+                    'cn=Robert',
+                    true,
+                ),
+                'entry.renamed',
+                'modify_dn',
+                [
+                    EventContext::DN => self::TARGET_DN,
+                    EventContext::NEW_RDN => 'cn=Robert',
+                ],
+            ],
+        ];
+    }
+
+    public function test_modify_dn_target_includes_new_rdn_and_new_superior(): void
+    {
+        $request = new ModifyDnRequest(
+            self::TARGET_DN,
+            'cn=Robert',
+            true,
+            'ou=staff,dc=example,dc=com',
+        );
+
+        $this->subject->recordWriteSuccess(
+            self::wrap($request),
+            $this->token,
+        );
+
+        self::assertSame(
+            [
+                EventContext::DN => self::TARGET_DN,
+                EventContext::NEW_RDN => 'cn=Robert',
+                EventContext::NEW_SUPERIOR_DN => 'ou=staff,dc=example,dc=com',
+            ],
+            $this->onlyRecord()['context'][EventContext::TARGET],
+        );
+    }
+
+    public function test_record_compare_completed_carries_attribute_and_match(): void
+    {
+        $request = new CompareRequest(
+            self::TARGET_DN,
+            new EqualityFilter('cn', 'Bob'),
+        );
+
+        $this->subject->recordCompareCompleted(
+            self::wrap($request),
+            match: true,
+            token: $this->token,
+        );
+
+        $record = $this->onlyRecord();
+        self::assertSame(
+            'compare.completed',
+            $record['message'],
+        );
+        self::assertTrue($record['context'][EventContext::MATCH]);
+        self::assertSame(
+            [
+                EventContext::DN => self::TARGET_DN,
+                EventContext::ATTRIBUTE => 'cn',
+            ],
+            $record['context'][EventContext::TARGET],
+        );
+    }
+
+    public function test_control_oids_lists_attached_controls(): void
+    {
+        $message = new LdapMessageRequest(
+            self::MESSAGE_ID,
+            new DeleteRequest(self::TARGET_DN),
+            new Control('1.2.3.4', criticality: true),
+            new Control('5.6.7.8', criticality: false),
+        );
+
+        $this->subject->recordWriteSuccess(
+            $message,
+            $this->token,
+        );
+
+        self::assertSame(
+            ['1.2.3.4', '5.6.7.8'],
+            $this->onlyRecord()['context'][EventContext::CONTROL_OIDS],
+        );
+    }
+
+    public function test_record_failure_discriminates_acl_denial(): void
+    {
+        $request = new ModifyRequest(
+            self::TARGET_DN,
+            Change::replace('cn', 'Bob'),
+        );
+
+        $this->subject->recordFailure(
+            self::wrap($request),
+            new OperationException(
+                'Denied',
+                ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+            ),
+            $this->token,
+        );
+
+        $record = $this->onlyRecord();
+        self::assertSame(
+            'authz.denied.write',
+            $record['message'],
+        );
+        self::assertSame(
+            self::MESSAGE_ID,
+            $record['context'][EventContext::MESSAGE_ID],
+        );
+        self::assertSame(
+            'modify',
+            $record['context'][EventContext::OPERATION],
+        );
+        self::assertSame(
+            ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+            $record['context'][EventContext::RESULT_CODE],
+        );
+        self::assertSame(
+            'Denied',
+            $record['context'][EventContext::REASON],
+        );
+    }
+
+    public function test_record_failure_discriminates_critical_control(): void
+    {
+        $message = new LdapMessageRequest(
+            self::MESSAGE_ID,
+            new DeleteRequest(self::TARGET_DN),
+            new Control('1.2.3.4', criticality: true),
+        );
+
+        $this->subject->recordFailure(
+            $message,
+            new OperationException(
+                'Critical control not supported.',
+                ResultCode::UNAVAILABLE_CRITICAL_EXTENSION,
+            ),
+            $this->token,
+        );
+
+        $record = $this->onlyRecord();
+        self::assertSame(
+            'control.critical.rejected',
+            $record['message'],
+        );
+        self::assertSame(
+            ['1.2.3.4'],
+            $record['context'][EventContext::CONTROL_OIDS],
+        );
+    }
+
+    #[DataProvider('provideSchemaViolationCodes')]
+    public function test_record_failure_discriminates_schema_violations(int $resultCode): void
+    {
+        $this->subject->recordFailure(
+            self::wrap(new AddRequest(new Entry(
+                new Dn(self::TARGET_DN),
+                new Attribute('cn', 'Bob'),
+            ))),
+            new OperationException(
+                'Schema problem',
+                $resultCode,
+            ),
+            $this->token,
+        );
+
+        self::assertSame(
+            'schema.violation',
+            $this->onlyRecord()['message'],
+        );
+    }
+
+    /**
+     * @return array<string, array{int}>
+     */
+    public static function provideSchemaViolationCodes(): array
+    {
+        return [
+            'object class violation' => [ResultCode::OBJECT_CLASS_VIOLATION],
+            'invalid attribute syntax' => [ResultCode::INVALID_ATTRIBUTE_SYNTAX],
+            'not allowed on RDN' => [ResultCode::NOT_ALLOWED_ON_RDN],
+            'naming violation' => [ResultCode::NAMING_VIOLATION],
+            'attribute or value exists' => [ResultCode::ATTRIBUTE_OR_VALUE_EXISTS],
+        ];
+    }
+
+    public function test_record_failure_is_silent_for_benign_codes(): void
+    {
+        // NO_SUCH_OBJECT and ENTRY_ALREADY_EXISTS are normal client mistakes; not audit-worthy.
+        $this->subject->recordFailure(
+            self::wrap(new DeleteRequest(self::TARGET_DN)),
+            new OperationException(
+                'Not found',
+                ResultCode::NO_SUCH_OBJECT,
+            ),
+            $this->token,
+        );
+        $this->subject->recordFailure(
+            self::wrap(new AddRequest(new Entry(
+                new Dn(self::TARGET_DN),
+                new Attribute('cn', 'Bob'),
+            ))),
+            new OperationException(
+                'Exists',
+                ResultCode::ENTRY_ALREADY_EXISTS,
+            ),
+            $this->token,
+        );
+
+        self::assertSame(
+            [],
+            $this->recordingLogger->records,
+        );
+    }
+
+    private static function wrap(RequestInterface $request): LdapMessageRequest
+    {
+        return new LdapMessageRequest(
+            self::MESSAGE_ID,
+            $request,
+        );
+    }
+
+    /**
+     * @return array{level: string, message: string, context: array<string, mixed>}
+     */
+    private function onlyRecord(): array
+    {
+        self::assertCount(
+            1,
+            $this->recordingLogger->records,
+            'Expected exactly one log record.',
+        );
+
+        return $this->recordingLogger->records[0];
+    }
+}

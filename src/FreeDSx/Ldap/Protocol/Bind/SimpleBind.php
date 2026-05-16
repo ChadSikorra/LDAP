@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\Bind;
 
+use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Operation\Request\BindRequest;
 use FreeDSx\Ldap\Operation\Request\SimpleBindRequest;
@@ -20,6 +21,9 @@ use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Logging\EventContext;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -34,6 +38,7 @@ class SimpleBind implements BindInterface
     public function __construct(
         private readonly ServerQueue $queue,
         private readonly PasswordAuthenticatableInterface $authenticator,
+        private readonly EventLogger $eventLogger = new EventLogger(null),
         private readonly ResponseFactory $responseFactory = new ResponseFactory(),
     ) {}
 
@@ -52,8 +57,34 @@ class SimpleBind implements BindInterface
         }
 
         self::validateVersion($request);
-        $token = $this->simpleBind($request);
+
+        try {
+            $token = $this->simpleBind($request);
+        } catch (OperationException $e) {
+            $this->eventLogger->recordFailure(
+                ServerEvent::BindFailure,
+                $e,
+                [
+                    EventContext::MECHANISM => 'simple',
+                    EventContext::VERSION => $request->getVersion(),
+                ],
+                subject: [EventContext::USERNAME => $request->getUsername()],
+                message: $message,
+            );
+
+            throw $e;
+        }
+
         $this->queue->sendMessage($this->responseFactory->getStandardResponse($message));
+        $this->eventLogger->record(
+            ServerEvent::BindSuccess,
+            [
+                EventContext::MECHANISM => 'simple',
+                EventContext::VERSION => $request->getVersion(),
+            ],
+            subject: $token,
+            message: $message,
+        );
 
         return $token;
     }

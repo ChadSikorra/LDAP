@@ -13,16 +13,16 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server;
 
+use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\SocketServer;
 use FreeDSx\Socket\SocketServerOptions;
 use FreeDSx\Socket\Transport;
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 
 class SocketServerFactory
 {
-    use LoggerTrait;
-
     public function __construct(
         private readonly ServerOptions $options,
         private readonly ?LoggerInterface $logger,
@@ -63,17 +63,23 @@ class SocketServerFactory
         }
 
         if (!is_writeable($socket)) {
-            $this->logAndThrow(sprintf(
+            $message = sprintf(
                 'The socket "%s" already exists and is not writeable. To run the LDAP server, you must remove the existing socket.',
                 $socket,
-            ));
+            );
+            $this->logger?->log(LogLevel::ERROR, $message);
+
+            throw new RuntimeException($message);
         }
 
         if (!unlink($socket)) {
-            $this->logAndThrow(sprintf(
+            $message = sprintf(
                 'The existing socket "%s" could not be removed. To run the LDAP server, you must remove the existing socket.',
                 $socket,
-            ));
+            );
+            $this->logger?->log(LogLevel::ERROR, $message);
+
+            throw new RuntimeException($message);
         }
     }
 }

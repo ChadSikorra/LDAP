@@ -26,6 +26,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Paging\PagingRequest;
@@ -58,6 +59,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         private readonly Schema $schema,
         private readonly PagingRequestComparator $requestComparator = new PagingRequestComparator(),
         private readonly SearchLimits $limits = new SearchLimits(),
+        private readonly EventLogger $eventLogger = new EventLogger(null),
     ) {}
 
     /**
@@ -119,6 +121,19 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
                 $e->getMessage(),
             );
             $controls[] = new PagingControl(0, '');
+            $this->eventLogger->recordSearchFailure(
+                $message,
+                $e,
+                $token,
+            );
+        }
+
+        if ($response !== null) {
+            $this->eventLogger->recordSearchSuccess(
+                $message,
+                $response->getEntries()->count(),
+                $token,
+            );
         }
 
         $sortControl = $this->sortingControl($message);

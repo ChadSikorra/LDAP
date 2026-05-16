@@ -20,11 +20,14 @@ use FreeDSx\Ldap\Operation\Request\SaslBindRequest;
 use FreeDSx\Ldap\Operation\Response\BindResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\MechanismOptionsBuilderFactory;
+use FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor\SaslUsernameExtractorFactory;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\SaslContext;
+use Throwable;
 
 /**
  * Drives the SASL challenge-response loop on the server side.
@@ -37,6 +40,7 @@ final class SaslExchange
         private readonly ServerQueue $queue,
         private readonly ResponseFactory $responseFactory,
         private readonly MechanismOptionsBuilderFactory $optionsBuilderFactory,
+        private readonly SaslUsernameExtractorFactory $usernameExtractorFactory = new SaslUsernameExtractorFactory(),
     ) {}
 
     /**
@@ -79,9 +83,32 @@ final class SaslExchange
         return new SaslExchangeResult(
             $context,
             $message,
-            $usernameCredentials,
+            $this->extractUsername(
+                $usernameCredentials,
+                $mechName,
+            ),
             $optionsBuilder->getResolvedDn(),
         );
+    }
+
+    private function extractUsername(
+        ?string $credentials,
+        MechanismName $mechName,
+    ): ?string {
+        if ($credentials === null) {
+            return null;
+        }
+
+        try {
+            return $this->usernameExtractorFactory
+                ->make($mechName)
+                ->extractUsername(
+                    $mechName,
+                    $credentials,
+                );
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /**

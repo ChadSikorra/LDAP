@@ -27,7 +27,7 @@ final readonly class SaslExchangeResult
     public function __construct(
         private SaslContext $context,
         private LdapMessageRequest $lastMessage,
-        private ?string $usernameCredentials,
+        private ?string $username,
         private ?Dn $resolvedDn = null,
     ) {}
 
@@ -41,9 +41,9 @@ final readonly class SaslExchangeResult
         return $this->lastMessage;
     }
 
-    public function getUsernameCredentials(): ?string
+    public function getUsername(): ?string
     {
-        return $this->usernameCredentials;
+        return $this->username;
     }
 
     public function getResolvedDn(): ?Dn

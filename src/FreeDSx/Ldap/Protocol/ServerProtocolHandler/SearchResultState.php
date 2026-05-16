@@ -25,6 +25,8 @@ final class SearchResultState
 
     public ?LdapMessageRequest $cancelSignal = null;
 
+    public int $entriesReturned = 0;
+
     public function __construct(
         public int $resultCode = ResultCode::SUCCESS,
         public string $diagnosticMessage = '',

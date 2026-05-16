@@ -21,6 +21,9 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Logging\EventContext;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\Exception\ConnectionException;
@@ -41,6 +44,7 @@ class ServerStartTlsHandler implements ServerProtocolHandlerInterface
     public function __construct(
         private readonly ServerOptions $options,
         private readonly ServerQueue $queue,
+        private readonly EventLogger $eventLogger = new EventLogger(null),
     ) {
         if (self::$hasOpenssl === null) {
             $this::$hasOpenssl = extension_loaded('openssl');
@@ -67,6 +71,14 @@ class ServerStartTlsHandler implements ServerProtocolHandlerInterface
                 ),
                 ExtendedRequest::OID_START_TLS,
             )));
+            $this->eventLogger->record(
+                ServerEvent::StartTlsFailed,
+                [
+                    EventContext::RESULT_CODE => ResultCode::UNAVAILABLE,
+                    EventContext::REASON => 'The server is not configured to provide TLS.',
+                ],
+                message: $message,
+            );
 
             return;
         }
@@ -76,6 +88,14 @@ class ServerStartTlsHandler implements ServerProtocolHandlerInterface
                 new LdapResult(ResultCode::OPERATIONS_ERROR, '', 'The current LDAP session is already encrypted.'),
                 ExtendedRequest::OID_START_TLS,
             )));
+            $this->eventLogger->record(
+                ServerEvent::StartTlsFailed,
+                [
+                    EventContext::RESULT_CODE => ResultCode::OPERATIONS_ERROR,
+                    EventContext::REASON => 'The current LDAP session is already encrypted.',
+                ],
+                message: $message,
+            );
 
             return;
         }
@@ -85,5 +105,9 @@ class ServerStartTlsHandler implements ServerProtocolHandlerInterface
             ExtendedRequest::OID_START_TLS,
         )));
         $this->queue->encrypt();
+        $this->eventLogger->record(
+            ServerEvent::StartTlsSucceeded,
+            message: $message,
+        );
     }
 }

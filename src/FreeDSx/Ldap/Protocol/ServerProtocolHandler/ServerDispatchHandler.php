@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Asn1\Exception\EncoderException;
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
@@ -27,6 +28,7 @@ use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteCommandFactory;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -44,6 +46,7 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         private LdapBackendInterface $backend,
         private WriteOperationDispatcher $writeDispatcher,
         private AccessControlInterface $accessControl,
+        private DispatchEventRecorder $eventRecorder = new DispatchEventRecorder(new EventLogger(null)),
         private WriteCommandFactory $commandFactory = new WriteCommandFactory(),
         private ResponseFactory $responseFactory = new ResponseFactory(),
     ) {}
@@ -82,6 +85,11 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                         ? ResultCode::COMPARE_TRUE
                         : ResultCode::COMPARE_FALSE,
                 ));
+                $this->eventRecorder->recordCompareCompleted(
+                    $message,
+                    $match,
+                    $token,
+                );
 
                 return;
             }
@@ -95,6 +103,10 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
             );
 
             $this->queue->sendMessage($this->responseFactory->getStandardResponse($message));
+            $this->eventRecorder->recordWriteSuccess(
+                $message,
+                $token,
+            );
         } catch (OperationException $e) {
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(
                 $message,
@@ -107,7 +119,24 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                     $this->accessControl,
                 ),
             ));
+            $this->eventRecorder->recordFailure(
+                $message,
+                $e,
+                $token,
+            );
         }
+    }
+
+    private function dnFor(RequestInterface $request): ?Dn
+    {
+        return match (true) {
+            $request instanceof Request\AddRequest => $request->getEntry()->getDn(),
+            $request instanceof Request\ModifyRequest,
+            $request instanceof Request\DeleteRequest,
+            $request instanceof Request\ModifyDnRequest,
+            $request instanceof Request\CompareRequest => $request->getDn(),
+            default => null,
+        };
     }
 
     /**
@@ -158,19 +187,17 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
             return;
         }
 
-        $result = match (true) {
-            $request instanceof Request\CompareRequest => [OperationType::Compare, $request->getDn()],
-            $request instanceof Request\AddRequest => [OperationType::Add, $request->getEntry()->getDn()],
-            $request instanceof Request\DeleteRequest => [OperationType::Delete, $request->getDn()],
-            $request instanceof Request\ModifyRequest => [OperationType::Modify, $request->getDn()],
-            default => null,
-        };
+        $operationType = OperationType::fromRequest($request);
 
-        if ($result === null) {
+        if ($operationType === null || $operationType === OperationType::Search) {
             return;
         }
 
-        [$operationType, $dn] = $result;
+        $dn = $this->dnFor($request);
+
+        if ($dn === null) {
+            return;
+        }
 
         $this->accessControl->authorizeOperation(
             $operationType,
