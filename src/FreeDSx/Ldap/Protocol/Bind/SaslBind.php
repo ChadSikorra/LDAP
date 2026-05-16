@@ -20,11 +20,13 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\SaslExchange;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\SaslExchangeInput;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\SaslExchangeResult;
-use FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor\SaslUsernameExtractorFactory;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\MessageWrapper\SaslMessageWrapper;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Logging\EventContext;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Ldap\Operation\Request\SaslBindRequest;
@@ -52,7 +54,7 @@ class SaslBind implements BindInterface
         private readonly SaslInterface $sasl = new Sasl(),
         private readonly array $mechanisms = [],
         private readonly ResponseFactory $responseFactory = new ResponseFactory(),
-        private readonly SaslUsernameExtractorFactory $usernameExtractorFactory = new SaslUsernameExtractorFactory(),
+        private readonly EventLogger $eventLogger = new EventLogger(null),
     ) {}
 
     /**
@@ -72,21 +74,53 @@ class SaslBind implements BindInterface
     {
         $request = $this->validateRequest($message);
         $mechNameStr = $request->getMechanism();
-        $this->validateMechanism($mechNameStr);
+        $attemptedUsername = null;
 
-        $mechName = MechanismName::from($mechNameStr);
+        try {
+            $this->validateMechanism($mechNameStr);
 
-        $result = $this->exchange->run(new SaslExchangeInput(
-            challenge: $this->getServerChallenge($mechName),
-            mechName: $mechName,
-            initialMessage: $message,
-            initialCredentials: $request->getCredentials(),
-        ));
+            $mechName = MechanismName::from($mechNameStr);
 
-        return $this->finalize(
-            $result,
-            $mechName,
+            $result = $this->exchange->run(new SaslExchangeInput(
+                challenge: $this->getServerChallenge($mechName),
+                mechName: $mechName,
+                initialMessage: $message,
+                initialCredentials: $request->getCredentials(),
+            ));
+            $attemptedUsername = $result->getUsername();
+
+            $token = $this->finalize(
+                $result,
+                $mechName,
+            );
+        } catch (OperationException $e) {
+            $this->eventLogger->recordFailure(
+                ServerEvent::BindFailure,
+                $e,
+                [
+                    EventContext::MECHANISM => $mechNameStr,
+                    EventContext::VERSION => $request->getVersion(),
+                ],
+                subject: $attemptedUsername !== null
+                    ? [EventContext::USERNAME => $attemptedUsername]
+                    : null,
+                message: $message,
+            );
+
+            throw $e;
+        }
+
+        $this->eventLogger->record(
+            ServerEvent::BindSuccess,
+            [
+                EventContext::MECHANISM => $mechNameStr,
+                EventContext::VERSION => $request->getVersion(),
+            ],
+            subject: $token,
+            message: $message,
         );
+
+        return $token;
     }
 
     /**
@@ -159,21 +193,14 @@ class SaslBind implements BindInterface
         }
 
         try {
-            $usernameCredentials = $result->getUsernameCredentials();
+            $username = $result->getUsername();
 
-            if ($usernameCredentials === null) {
+            if ($username === null) {
                 throw new OperationException(
-                    sprintf('Unable to extract username for mechanism "%s": no credentials were received.', $mechName->value),
+                    sprintf('Unable to extract username for mechanism "%s".', $mechName->value),
                     ResultCode::PROTOCOL_ERROR,
                 );
             }
-
-            $username = $this->usernameExtractorFactory
-                ->make($mechName)
-                ->extractUsername(
-                    $mechName,
-                    $usernameCredentials,
-                );
 
             $resolvedDn = $result->getResolvedDn();
 

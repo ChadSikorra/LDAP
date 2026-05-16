@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerProtocolHandlerInterface;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\ServerOptions;
 
@@ -39,6 +40,7 @@ class ServerProtocolHandlerFactory
         private readonly ServerOptions $options,
         private readonly RequestHistory $requestHistory,
         private readonly ServerQueue $queue,
+        private readonly EventLogger $eventLogger = new EventLogger(null),
     ) {}
 
     public function get(
@@ -58,11 +60,13 @@ class ServerProtocolHandlerFactory
                 writeDispatcher: $this->handlerFactory->makeWriteDispatcher(),
                 accessControl: $this->options->getAccessControl(),
                 identityResolver: $this->handlerFactory->makeIdentityResolverChain(),
+                eventLogger: $this->eventLogger,
             );
         } elseif ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_START_TLS) {
             return new ServerProtocolHandler\ServerStartTlsHandler(
                 options: $this->options,
                 queue: $this->queue,
+                eventLogger: $this->eventLogger,
             );
         } elseif ($request instanceof ExtendedRequest) {
             return new ServerProtocolHandler\ServerUnsupportedExtendedHandler($this->queue);
@@ -83,6 +87,7 @@ class ServerProtocolHandlerFactory
                 accessControl: $this->options->getAccessControl(),
                 schema: $this->options->getSchema(),
                 limits: $this->options->makeSearchLimits(),
+                eventLogger: $this->eventLogger,
             );
         } elseif ($request instanceof UnbindRequest) {
             return new ServerProtocolHandler\ServerUnbindHandler($this->queue);
@@ -92,6 +97,7 @@ class ServerProtocolHandlerFactory
                 backend: $this->handlerFactory->makeBackend(),
                 writeDispatcher: $this->handlerFactory->makeWriteDispatcher(),
                 accessControl: $this->options->getAccessControl(),
+                eventRecorder: new ServerProtocolHandler\DispatchEventRecorder($this->eventLogger),
             );
         }
     }
@@ -146,6 +152,7 @@ class ServerProtocolHandlerFactory
             requestHistory: $this->requestHistory,
             schema: $this->options->getSchema(),
             limits: $this->options->makeSearchLimits(),
+            eventLogger: $this->eventLogger,
         );
     }
 }

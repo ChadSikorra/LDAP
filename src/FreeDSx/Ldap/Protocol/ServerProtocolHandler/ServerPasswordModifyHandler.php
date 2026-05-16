@@ -36,6 +36,9 @@ use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
+use FreeDSx\Ldap\Server\Logging\EventContext;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
@@ -54,6 +57,7 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
         private WriteOperationDispatcher $writeDispatcher,
         private AccessControlInterface $accessControl,
         private BindNameResolverInterface $identityResolver,
+        private EventLogger $eventLogger = new EventLogger(null),
         private PasswordHashVerifier $hashVerifier = new PasswordHashVerifier(),
         private PasswordHasher $hasher = new PasswordHasher(),
         private ResponseFactory $responseFactory = new ResponseFactory(),
@@ -68,9 +72,11 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
         LdapMessageRequest $message,
         TokenInterface $token,
     ): void {
+        $targetDn = null;
+
         try {
             $this->assertNoCriticalUnsupportedControls($message->controls());
-            $this->process(
+            $targetDn = $this->process(
                 $message,
                 $token,
             );
@@ -80,7 +86,24 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
                 $e->getCode(),
                 $e->getMessage(),
             ));
+            $this->recordFailure(
+                $e,
+                $token,
+                $targetDn,
+                $message,
+            );
+
+            return;
         }
+
+        $this->eventLogger->record(
+            ServerEvent::PasswordModifySuccess,
+            [
+                EventContext::TARGET => [EventContext::DN => $targetDn->toString()],
+            ],
+            subject: $token,
+            message: $message,
+        );
     }
 
     /**
@@ -90,7 +113,7 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
     private function process(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): void {
+    ): Dn {
         if (!$token instanceof AuthenticatedTokenInterface) {
             throw new OperationException(
                 'Authentication required.',
@@ -138,6 +161,39 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
                 $generated,
             ),
         ));
+
+        return $targetDn;
+    }
+
+    private function recordFailure(
+        OperationException $exception,
+        TokenInterface $token,
+        ?Dn $targetDn,
+        LdapMessageRequest $message,
+    ): void {
+        $event = ServerEvent::fromOperationException(
+            $exception,
+            ServerEvent::AuthorizationDeniedWrite,
+            ServerEvent::PasswordModifyFailed,
+        );
+
+        if ($event === null) {
+            return;
+        }
+
+        $context = [];
+
+        if ($targetDn !== null) {
+            $context[EventContext::TARGET] = [EventContext::DN => $targetDn->toString()];
+        }
+
+        $this->eventLogger->recordFailure(
+            $event,
+            $exception,
+            $context,
+            subject: $token,
+            message: $message,
+        );
     }
 
     /**

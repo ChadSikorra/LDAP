@@ -22,13 +22,13 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
-use FreeDSx\Ldap\Server\LoggerTrait;
+use FreeDSx\Ldap\Server\Logging\EventContext;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
-use Psr\Log\LoggerInterface;
 use Throwable;
 
-use function array_merge;
 use function in_array;
 
 /**
@@ -38,8 +38,6 @@ use function in_array;
  */
 class ServerProtocolHandler
 {
-    use LoggerTrait;
-
     /**
      * @var int[]
      */
@@ -50,17 +48,16 @@ class ServerProtocolHandler
         private readonly ServerProtocolHandlerFactory $protocolHandlerFactory,
         private readonly ServerAuthorization $authorizer,
         private readonly Authenticator $authenticator,
-        private readonly ?LoggerInterface $logger,
+        private readonly EventLogger $eventLogger = new EventLogger(null),
         private readonly ResponseFactory $responseFactory = new ResponseFactory(),
     ) {}
 
     /**
      * Listens for messages from the socket and handles the responses/actions needed.
      *
-     * @param array<string, mixed> $defaultContext
      * @throws EncoderException
      */
-    public function handle(array $defaultContext = []): void
+    public function handle(): void
     {
         $message = null;
 
@@ -80,32 +77,27 @@ class ServerProtocolHandler
                 $e->getCode(),
                 $e->getMessage(),
             ));
-        } catch (ConnectionException $e) {
-            $this->logInfo(
-                'Ending LDAP client due to client connection issues.',
-                array_merge(
-                    ['message' => $e->getMessage()],
-                    $defaultContext,
-                ),
-            );
+
+            # Handlers without their own catch (StartTLS, WhoAmI, RootDse, etc.) only reach the audit log via this catch.
+            # Critical-control rejection is the realistic case; other codes are direction-dependent or already covered.
+            if ($e->getCode() === ResultCode::UNAVAILABLE_CRITICAL_EXTENSION) {
+                $this->eventLogger->recordFailure(
+                    ServerEvent::CriticalControlRejected,
+                    $e,
+                    [],
+                    subject: $this->authorizer->getToken(),
+                    message: $message,
+                );
+            }
+        } catch (ConnectionException) {
+            # Connection closure is recorded by the runner's lifecycle logging; no audit event for normal client disconnects.
         } catch (EncoderException|ProtocolException) {
             # Per RFC 4511, 4.1.1 if the PDU cannot be parsed or is otherwise malformed a disconnect should be sent with
-            # a result code of protocol error.
+            # a result code of protocol error. The NoticeOfDisconnectSent event records the malformed-PDU reason.
             $this->sendNoticeOfDisconnect('The message encoding is malformed.');
-            $this->logError(
-                'The client sent a malformed request. Terminating their connection.',
-                $defaultContext,
-            );
         } catch (Throwable $e) {
-            $this->logError(
-                'An unexpected exception was caught while handling the client. Terminating their connection.',
-                array_merge(
-                    $defaultContext,
-                    ['exception' => $e],
-                ),
-            );
             if ($this->queue->isConnected()) {
-                $this->sendNoticeOfDisconnect();
+                $this->sendNoticeOfDisconnect(cause: $e);
             }
         } finally {
             if ($this->queue->isConnected()) {
@@ -117,20 +109,15 @@ class ServerProtocolHandler
     /**
      * Used asynchronously to end a client session when the server process is shutting down.
      *
-     * @param array<string, mixed> $context
      * @throws EncoderException
      */
-    public function shutdown(array $context = []): void
+    public function shutdown(): void
     {
         $this->sendNoticeOfDisconnect(
             'The server is shutting down.',
             ResultCode::UNAVAILABLE,
         );
         $this->queue->close();
-        $this->logInfo(
-            'Sent notice of disconnect to client and closed the connection.',
-            $context,
-        );
     }
 
     /**
@@ -230,11 +217,19 @@ class ServerProtocolHandler
     private function sendNoticeOfDisconnect(
         string $message = '',
         int $reasonCode = ResultCode::PROTOCOL_ERROR,
+        ?Throwable $cause = null,
     ): void {
         $this->queue->sendMessage($this->responseFactory->getExtendedError(
             $message,
             $reasonCode,
             ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
         ));
+        $this->eventLogger->record(
+            ServerEvent::NoticeOfDisconnectSent,
+            [
+                EventContext::REASON_CODE => $reasonCode,
+                EventContext::REASON_MESSAGE => $message,
+            ] + $this->eventLogger->exceptionContextFor($cause),
+        );
     }
 }

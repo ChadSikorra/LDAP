@@ -27,6 +27,8 @@ use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
+use FreeDSx\Ldap\Server\Logging\ConnectionContext;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\Socket;
 
@@ -38,9 +40,16 @@ class ServerProtocolFactory
         private readonly ServerAuthorization $serverAuthorization,
     ) {}
 
-    public function make(Socket $socket): ServerProtocolHandler
-    {
+    public function make(
+        Socket $socket,
+        ConnectionContext $context = new ConnectionContext(),
+    ): ServerProtocolHandler {
         $serverQueue = new ServerQueue($socket);
+        $eventLogger = new EventLogger(
+            $this->options->getLogger(),
+            $this->options->getEventLogPolicy(),
+            $context->toLogContext(),
+        );
 
         $backend = $this->handlerFactory->makeBackend();
         $passwordAuthenticator = $this->handlerFactory->makePasswordAuthenticator();
@@ -49,8 +58,12 @@ class ServerProtocolFactory
             new SimpleBind(
                 queue: $serverQueue,
                 authenticator: $passwordAuthenticator,
+                eventLogger: $eventLogger,
             ),
-            new AnonymousBind($serverQueue),
+            new AnonymousBind(
+                $serverQueue,
+                $eventLogger,
+            ),
         ];
         $saslMechanisms = $this->options->getSaslMechanisms();
 
@@ -68,6 +81,7 @@ class ServerProtocolFactory
                 )),
                 mechanisms: $saslMechanisms,
                 responseFactory: $responseFactory,
+                eventLogger: $eventLogger,
             );
         }
 
@@ -78,10 +92,11 @@ class ServerProtocolFactory
                 options: $this->options,
                 requestHistory: new RequestHistory(),
                 queue: $serverQueue,
+                eventLogger: $eventLogger,
             ),
             authorizer: $this->serverAuthorization,
             authenticator: new Authenticator($authenticators),
-            logger: $this->options->getLogger(),
+            eventLogger: $eventLogger,
         );
     }
 

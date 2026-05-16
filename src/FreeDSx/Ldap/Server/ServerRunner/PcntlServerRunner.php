@@ -18,6 +18,7 @@ use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Server\ChildProcess;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
+use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\ServerProtocolFactory;
 use FreeDSx\Ldap\Server\SocketServerFactory;
 use FreeDSx\Socket\Socket;
@@ -231,7 +232,7 @@ class PcntlServerRunner implements ServerRunnerInterface
                         $context,
                     );
                     try {
-                        $protocolHandler->shutdown($context);
+                        $protocolHandler->shutdown();
                     } catch (Throwable $e) {
                         $this->logShutdownNotifyError($e, $context);
                     }
@@ -356,7 +357,10 @@ class PcntlServerRunner implements ServerRunnerInterface
             $backend->reset();
         }
 
-        $serverProtocolHandler = $this->serverProtocolFactory->make($socket);
+        $serverProtocolHandler = $this->serverProtocolFactory->make(
+            $socket,
+            new ConnectionContext(pid: $pid),
+        );
 
         $this->installChildSignalHandlers(
             $serverProtocolHandler,

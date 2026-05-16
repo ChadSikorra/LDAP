@@ -28,6 +28,7 @@ use FreeDSx\Ldap\Server\AccessControl\Rule\Effect;
 use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
 use FreeDSx\Ldap\Server\AccessControl\SimpleAccessControl;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
+use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
@@ -153,6 +154,8 @@ final class ServerOptions
     private Effect $defaultAccessRule = Effect::Deny;
 
     private ?LoggerInterface $logger = null;
+
+    private ?EventLogPolicy $eventLogPolicy = null;
 
     private ?ServerRunnerInterface $serverRunner = null;
 
@@ -539,6 +542,18 @@ final class ServerOptions
     public function setLogger(?LoggerInterface $logger): self
     {
         $this->logger = $logger;
+
+        return $this;
+    }
+
+    public function getEventLogPolicy(): EventLogPolicy
+    {
+        return $this->eventLogPolicy ??= EventLogPolicy::default();
+    }
+
+    public function setEventLogPolicy(EventLogPolicy $policy): self
+    {
+        $this->eventLogPolicy = $policy;
 
         return $this;
     }

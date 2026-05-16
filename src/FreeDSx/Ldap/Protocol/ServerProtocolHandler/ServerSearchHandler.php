@@ -29,6 +29,7 @@ use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use Generator;
@@ -54,6 +55,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         private readonly AccessControlInterface $accessControl,
         private readonly Schema $schema,
         private readonly SearchLimits $limits = new SearchLimits(),
+        private readonly EventLogger $eventLogger = new EventLogger(null),
     ) {}
 
     /**
@@ -64,6 +66,8 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         TokenInterface $token,
     ): void {
         $request = $this->getSearchRequestFromMessage($message);
+        $state = new SearchResultState();
+        $isSuccessful = true;
 
         try {
             $this->assertNoCriticalUnsupportedControls($message->controls());
@@ -79,7 +83,6 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                 $this->controlsForBackend($message),
             );
 
-            $state = new SearchResultState();
             $projection = AttributeProjection::forRequest(
                 $request->getAttributes(),
                 $request->getAttributesOnly(),
@@ -98,6 +101,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                 $state,
             );
         } catch (OperationException $e) {
+            $isSuccessful = false;
             $matchedDn = $this->filterMatchedDn(
                 $e->getMatchedDn(),
                 $token,
@@ -110,6 +114,11 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                     ? $matchedDn->toString()
                     : '',
                 $e->getMessage(),
+            );
+            $this->eventLogger->recordSearchFailure(
+                $message,
+                $e,
+                $token,
             );
         }
 
@@ -124,6 +133,14 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
             $this->queue,
             ...$responseControls,
         );
+
+        if ($isSuccessful) {
+            $this->eventLogger->recordSearchSuccess(
+                $message,
+                $state->entriesReturned,
+                $token,
+            );
+        }
     }
 
     /**
@@ -176,6 +193,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
 
             yield $projection->project($filtered);
             $emitted++;
+            $state->entriesReturned++;
 
             if ($sizeLimit > 0 && $emitted >= $sizeLimit) {
                 $state->resultCode = ResultCode::SIZE_LIMIT_EXCEEDED;

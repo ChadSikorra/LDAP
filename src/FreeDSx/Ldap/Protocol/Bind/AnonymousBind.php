@@ -18,6 +18,9 @@ use FreeDSx\Ldap\Operation\Request\AnonBindRequest;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Logging\EventContext;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\Token\AnonToken;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
@@ -32,6 +35,7 @@ class AnonymousBind implements BindInterface
 
     public function __construct(
         private readonly ServerQueue $queue,
+        private readonly EventLogger $eventLogger = new EventLogger(null),
         private readonly ResponseFactory $responseFactory = new ResponseFactory(),
     ) {}
 
@@ -50,6 +54,12 @@ class AnonymousBind implements BindInterface
 
         self::validateVersion($request);
         $this->queue->sendMessage($this->responseFactory->getStandardResponse($message));
+        $this->eventLogger->record(
+            ServerEvent::BindAnonymous,
+            [EventContext::VERSION => $request->getVersion()],
+            subject: [EventContext::USERNAME => $request->getUsername()],
+            message: $message,
+        );
 
         return new AnonToken(
             $request->getUsername(),
