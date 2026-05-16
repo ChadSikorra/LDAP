@@ -32,6 +32,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerSearchHandler;
+use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
@@ -57,6 +58,8 @@ final class ServerSearchHandlerTest extends TestCase
 
     private TokenInterface&MockObject $mockToken;
 
+    private Schema $schema;
+
     /**
      * @var list<LdapMessageResponse>
      */
@@ -69,6 +72,7 @@ final class ServerSearchHandlerTest extends TestCase
         $this->mockBackend = $this->createMock(LdapBackendInterface::class);
         $this->mockFilterEvaluator = $this->createMock(FilterEvaluatorInterface::class);
         $this->mockAccessControl = $this->createMock(AccessControlInterface::class);
+        $this->schema = new Schema();
         $this->sentMessages = [];
 
         $this->mockAccessControl
@@ -94,6 +98,7 @@ final class ServerSearchHandlerTest extends TestCase
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $this->mockAccessControl,
+            schema: $this->schema,
         );
     }
 
@@ -166,6 +171,7 @@ final class ServerSearchHandlerTest extends TestCase
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $mockAccessControl,
+            schema: $this->schema,
         );
 
         $this->mockBackend
@@ -312,6 +318,7 @@ final class ServerSearchHandlerTest extends TestCase
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $this->mockAccessControl,
+            schema: $this->schema,
             limits: new SearchLimits(maxSearchSize: 1),
         );
         $subject->handleRequest($search, $this->mockToken);
@@ -347,6 +354,7 @@ final class ServerSearchHandlerTest extends TestCase
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $this->mockAccessControl,
+            schema: $this->schema,
             limits: new SearchLimits(maxSearchSize: 5),
         );
         $subject->handleRequest($search, $this->mockToken);
@@ -382,6 +390,7 @@ final class ServerSearchHandlerTest extends TestCase
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $this->mockAccessControl,
+            schema: $this->schema,
             limits: new SearchLimits(maxSearchSize: 1),
         );
         $subject->handleRequest($search, $this->mockToken);
@@ -456,6 +465,7 @@ final class ServerSearchHandlerTest extends TestCase
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $mockAccessControl,
+            schema: $this->schema,
         );
         $subject->handleRequest($search, $this->mockToken);
 
@@ -502,6 +512,7 @@ final class ServerSearchHandlerTest extends TestCase
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $mockAccessControl,
+            schema: $this->schema,
         );
         $subject->handleRequest($search, $this->mockToken);
 
@@ -756,6 +767,7 @@ final class ServerSearchHandlerTest extends TestCase
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $mockAccessControl,
+            schema: $this->schema,
         );
 
         $subject->handleRequest(

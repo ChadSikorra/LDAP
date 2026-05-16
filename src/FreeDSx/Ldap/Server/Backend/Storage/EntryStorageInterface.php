@@ -40,7 +40,7 @@ interface EntryStorageInterface
     public function hasChildren(Dn $dn): bool;
 
     /**
-     * Lazily yield entries per $options scope: direct children when subtree is false, descendants (including base) when true; empty baseDn lists from the tree root.
+     * Lazily yield entries per $options scope: direct children when subtree is false; the base entry AND all descendants when true (RFC 4511 §4.5.1.2); empty baseDn lists from the tree root.
      */
     public function list(StorageListOptions $options): EntryStream;
 

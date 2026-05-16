@@ -14,6 +14,8 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Search;
 
 use FreeDSx\Ldap\Exception\FilterParseException;
+use FreeDSx\Ldap\Search\Filter\AndFilter;
+use FreeDSx\Ldap\Search\Filter\OrFilter;
 use FreeDSx\Ldap\Search\FilterParser;
 use FreeDSx\Ldap\Search\Filters;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -277,11 +279,66 @@ final class FilterParserTest extends TestCase
         FilterParser::parse('(=bar)');
     }
 
-    public function test_it_should_error_on_empty_containers(): void
+    public function test_it_should_parse_rfc_4526_absolute_true_filter(): void
+    {
+        $filter = FilterParser::parse('(&)');
+
+        self::assertInstanceOf(
+            AndFilter::class,
+            $filter,
+        );
+        self::assertEquals(
+            Filters::and(),
+            $filter,
+        );
+        self::assertCount(
+            0,
+            $filter,
+        );
+        self::assertSame(
+            '(&)',
+            $filter->toString(),
+        );
+    }
+
+    public function test_it_should_parse_rfc_4526_absolute_false_filter(): void
+    {
+        $filter = FilterParser::parse('(|)');
+
+        self::assertInstanceOf(
+            OrFilter::class,
+            $filter,
+        );
+        self::assertEquals(
+            Filters::or(),
+            $filter,
+        );
+        self::assertCount(
+            0,
+            $filter,
+        );
+        self::assertSame(
+            '(|)',
+            $filter->toString(),
+        );
+    }
+
+    public function test_rfc_4526_absolute_filters_round_trip_through_a_nested_container(): void
+    {
+        self::assertEquals(
+            Filters::and(
+                Filters::equal('cn', 'foo'),
+                Filters::or(),
+            ),
+            FilterParser::parse('(&(cn=foo)(|))'),
+        );
+    }
+
+    public function test_it_should_error_on_an_empty_not_filter_container(): void
     {
         self::expectException(FilterParseException::class);
 
-        FilterParser::parse('(&)');
+        FilterParser::parse('(!)');
     }
 
     public function test_it_should_error_on_an_empty_filter(): void

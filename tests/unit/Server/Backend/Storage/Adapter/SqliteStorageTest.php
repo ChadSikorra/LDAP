@@ -164,7 +164,27 @@ final class SqliteStorageTest extends TestCase
             ->useSubtreeScope();
         $results = iterator_to_array($this->subject->search($request)->entries);
 
-        self::assertCount(3, $results);
+        $dns = array_map(
+            static fn(Entry $entry): string => $entry->getDn()->toString(),
+            $results,
+        );
+
+        self::assertContains(
+            'dc=example,dc=com',
+            $dns,
+        );
+        self::assertContains(
+            'cn=Alice,dc=example,dc=com',
+            $dns,
+        );
+        self::assertContains(
+            'cn=Sub,cn=Alice,dc=example,dc=com',
+            $dns,
+        );
+        self::assertCount(
+            3,
+            $results,
+        );
     }
 
     public function test_list_from_root_returns_all_entries(): void

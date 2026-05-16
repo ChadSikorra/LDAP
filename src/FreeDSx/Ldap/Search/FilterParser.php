@@ -449,39 +449,58 @@ class FilterParser
      */
     private function parseContainerStart(int $i, ?int $child): array
     {
-        # Is the parenthesis followed by an (ie. |, &, !) operator? If so it can contain children ...
-        if (isset($this->filter[$i + 1]) && in_array($this->filter[$i + 1], FilterInterface::OPERATORS, true)) {
-            $child = $child === null ? 0 : $child + 1;
-            $this->containers[$child] = ['startAt' => $i, 'endAt' => null];
+        $operator = $this->filter[$i + 1] ?? null;
 
-            $i += 2;
-            # Container inside the container ...
-            if ($this->isAtFilterContainer($i)) {
-                $i--;
-                # Comparison filter inside the container...
-            } elseif (isset($this->filter[$i]) && $this->filter[$i] === FilterInterface::PAREN_LEFT) {
-                $i = $this->nextClosingParenthesis($i);
-                # An empty container is not allowed...
-            } elseif (isset($this->filter[$i]) && $this->filter[$i] === FilterInterface::PAREN_RIGHT) {
-                throw new FilterParseException(sprintf(
-                    'The filter container near position %s is empty.',
-                    $i,
-                ));
-                # Any other conditions possible? This shouldn't happen unless the filter is malformed..
-            } else {
-                throw new FilterParseException(sprintf(
-                    'Unexpected value after "%s" at position %s: %s',
-                    $this->filter[$i - 1] ?? '',
-                    $i + 1,
-                    $this->filter[$i + 1] ?? '',
-                ));
-            }
-            # If there is no operator this is a standard comparison filter, just find the next closing parenthesis
-        } else {
-            $i = $this->nextClosingParenthesis($i + 1);
+        # No leading operator → standard comparison filter; jump to its closing paren.
+        if ($operator === null || !in_array($operator, FilterInterface::OPERATORS, true)) {
+            return [$this->nextClosingParenthesis($i + 1), $child];
         }
 
-        return [$i, $child];
+        $child = $child === null ? 0 : $child + 1;
+        $this->containers[$child] = ['startAt' => $i, 'endAt' => null];
+
+        return [$this->advancePastContainerBody($operator, $i + 2), $child];
+    }
+
+    /**
+     * Returns the position the outer scan should resume from, given the operator and the index immediately after it.
+     *
+     * @throws FilterParseException
+     */
+    private function advancePastContainerBody(
+        string $operator,
+        int $i,
+    ): int {
+        # Nested logical container — step back one so the outer scan re-enters at its '('.
+        if ($this->isAtFilterContainer($i)) {
+            return $i - 1;
+        }
+
+        $char = $this->filter[$i] ?? null;
+
+        # Comparison filter inside the container.
+        if ($char === FilterInterface::PAREN_LEFT) {
+            return $this->nextClosingParenthesis($i);
+        }
+
+        # RFC 4526: (&) and (|) are the absolute true / false filters; only "!" requires an operand.
+        if ($char === FilterInterface::PAREN_RIGHT && $operator !== FilterInterface::OPERATOR_NOT) {
+            return $i - 1;
+        }
+
+        if ($char === FilterInterface::PAREN_RIGHT) {
+            throw new FilterParseException(sprintf(
+                'The filter container near position %s is empty.',
+                $i,
+            ));
+        }
+
+        throw new FilterParseException(sprintf(
+            'Unexpected value after "%s" at position %s: %s',
+            $this->filter[$i - 1] ?? '',
+            $i + 1,
+            $this->filter[$i + 1] ?? '',
+        ));
     }
 
     /**

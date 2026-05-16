@@ -149,6 +149,23 @@ final class WritableStorageBackendTest extends TestCase
             ->useSubtreeScope();
         $entries = iterator_to_array($this->subject->search($request)->entries);
 
+        $dns = array_map(
+            static fn(Entry $entry): string => $entry->getDn()->toString(),
+            $entries,
+        );
+
+        self::assertContains(
+            'dc=example,dc=com',
+            $dns,
+        );
+        self::assertContains(
+            'cn=Alice,dc=example,dc=com',
+            $dns,
+        );
+        self::assertContains(
+            'cn=Bob,ou=People,dc=example,dc=com',
+            $dns,
+        );
         self::assertCount(
             3,
             $entries,

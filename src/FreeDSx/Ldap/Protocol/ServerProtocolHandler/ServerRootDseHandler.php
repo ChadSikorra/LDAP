@@ -40,6 +40,16 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
 {
     use ServerCriticalControlTrait;
 
+    /**
+     * RFC 3673 §3 — return all operational attributes via the "+" attribute description.
+     */
+    private const FEATURE_OID_ALL_OPERATIONAL_ATTRS = '1.3.6.1.4.1.4203.1.5.1';
+
+    /**
+     * RFC 4526 — absolute True ("(&)") and False ("(|)") filters.
+     */
+    private const FEATURE_OID_ABSOLUTE_TRUE_FALSE_FILTERS = '1.3.6.1.4.1.4203.1.5.3';
+
     public function __construct(
         private readonly ServerOptions $options,
         private readonly ServerQueue $queue,
@@ -66,6 +76,10 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
                 ExtendedRequest::OID_WHOAMI,
                 ExtendedRequest::OID_PWD_MODIFY,
                 ExtendedRequest::OID_CANCEL,
+            ],
+            'supportedFeatures' => [
+                self::FEATURE_OID_ALL_OPERATIONAL_ATTRS,
+                self::FEATURE_OID_ABSOLUTE_TRUE_FALSE_FILTERS,
             ],
             'supportedLDAPVersion' => ['3'],
             'vendorName' => $this->options->getDseVendorName(),
