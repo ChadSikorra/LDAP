@@ -119,4 +119,14 @@ trait PdoDialectTrait
     {
         return 'INSERT INTO entry_attribute_values (entry_lc_dn, attr_name_lower, value_lower, value_original) VALUES ';
     }
+
+    public function sortKeyClause(string $direction): string
+    {
+        return <<<SQL
+            (SELECT MIN(eav.value_lower)
+             FROM entry_attribute_values eav
+             WHERE eav.entry_lc_dn = LOWER(dn)
+               AND eav.attr_name_lower = ?) $direction
+        SQL;
+    }
 }

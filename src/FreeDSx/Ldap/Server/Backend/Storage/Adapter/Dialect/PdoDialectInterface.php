@@ -122,4 +122,9 @@ interface PdoDialectInterface
      * Maximum DN byte-length allowed by the storage backend, or null if there is no practical limit.
      */
     public function maxDnLength(): ?int;
+
+    /**
+     * Returns a single ORDER BY term for one sort key; caller provides $direction ("ASC" or "DESC") and appends "?" for the attribute name param.
+     */
+    public function sortKeyClause(string $direction): string;
 }

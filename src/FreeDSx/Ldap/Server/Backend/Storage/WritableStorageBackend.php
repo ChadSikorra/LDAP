@@ -13,7 +13,9 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Storage;
 
+use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ControlBag;
+use FreeDSx\Ldap\Control\Sorting\SortingControl;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -142,12 +144,16 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         }
 
         $subtree = $request->getScope() === SearchRequest::SCOPE_WHOLE_SUBTREE;
+        $sortingControl = $controls->get(Control::OID_SORTING);
         $options = new StorageListOptions(
             baseDn: $normBase,
             subtree: $subtree,
             filter: $request->getFilter(),
             timeLimit: $this->searchStream->effectiveTimeLimit($request->getTimeLimit()),
             sizeLimit: $request->getSizeLimit(),
+            sortKeys: $sortingControl instanceof SortingControl
+                ? $sortingControl->getSortKeys()
+                : [],
         );
 
         try {

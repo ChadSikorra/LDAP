@@ -16,6 +16,9 @@ namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Control\PagingControl;
+use FreeDSx\Ldap\Control\Sorting\SortKey;
+use FreeDSx\Ldap\Control\Sorting\SortingControl;
+use FreeDSx\Ldap\Control\Sorting\SortingResponseControl;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
@@ -622,6 +625,53 @@ class ServerPagingHandlerTest extends TestCase
         $this->requestHistory->storePagingGenerator($nextCookie, $this->makeGenerator());
 
         return $pagingReq;
+    }
+
+    public function test_sort_control_appends_sorting_response_control_to_done_message(): void
+    {
+        $message = new LdapMessageRequest(
+            2,
+            $this->makeSearchRequest(),
+            new PagingControl(10, ''),
+            new SortingControl(SortKey::ascending('cn')),
+        );
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator()));
+
+        $this->subject->handleRequest(
+            $message,
+            $this->mockToken,
+        );
+
+        $sortControl = $this->doneMessage()->controls()->get(Control::OID_SORTING_RESPONSE);
+        self::assertInstanceOf(
+            SortingResponseControl::class,
+            $sortControl,
+        );
+        self::assertSame(
+            0,
+            $sortControl->getResult(),
+        );
+    }
+
+    public function test_no_sort_control_does_not_append_sorting_response_control(): void
+    {
+        $message = $this->makeSearchMessage(size: 10);
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator()));
+
+        $this->subject->handleRequest(
+            $message,
+            $this->mockToken,
+        );
+
+        self::assertNull(
+            $this->doneMessage()->controls()->get(Control::OID_SORTING_RESPONSE),
+        );
     }
 
     private function makeSearchMessage(
