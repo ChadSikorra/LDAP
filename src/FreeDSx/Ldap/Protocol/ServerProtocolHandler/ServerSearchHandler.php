@@ -41,6 +41,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
 {
     use ServerSearchTrait;
     use ServerCriticalControlTrait;
+    use MatchedDnAccessFilterTrait;
 
 
     private const CANCEL_CHECK_INTERVAL = 50;
@@ -89,9 +90,17 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                 $state,
             );
         } catch (OperationException $e) {
+            $matchedDn = $this->filterMatchedDn(
+                $e->getMatchedDn(),
+                $token,
+                $this->backend,
+                $this->accessControl,
+            );
             $searchResult = SearchResult::makeErrorResult(
                 $e->getCode(),
-                (string) $request->getBaseDn(),
+                $matchedDn !== null
+                    ? $matchedDn->toString()
+                    : '',
                 $e->getMessage(),
             );
         }

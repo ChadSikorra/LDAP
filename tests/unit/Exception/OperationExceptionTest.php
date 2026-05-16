@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Exception;
 
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use PHPUnit\Framework\TestCase;
@@ -55,6 +56,27 @@ final class OperationExceptionTest extends TestCase
         self::assertSame(
             'The result code 1 was thrown (operationsError). Indicates that the operation is not properly sequenced with relation to other operations (of same or different type).',
             $this->subject->getMessage(),
+        );
+    }
+
+    public function test_matched_dn_is_null_by_default(): void
+    {
+        self::assertNull($this->subject->getMatchedDn());
+    }
+
+    public function test_matched_dn_is_returned_when_provided(): void
+    {
+        $dn = new Dn('dc=example,dc=com');
+        $exception = new OperationException(
+            'No such object',
+            ResultCode::NO_SUCH_OBJECT,
+            null,
+            $dn,
+        );
+
+        self::assertSame(
+            $dn,
+            $exception->getMatchedDn(),
         );
     }
 }

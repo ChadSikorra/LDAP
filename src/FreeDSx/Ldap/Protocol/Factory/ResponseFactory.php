@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\Factory;
 
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Operation\Request\BindRequest;
@@ -43,32 +44,71 @@ class ResponseFactory
 {
     /**
      * Retrieve the expected response type for the request that was given.
+     *
+     * @param Dn|null $matchedDn Matched ancestor; emitted as matchedDN when non-null.
      */
     public function getStandardResponse(
         LdapMessageRequest $message,
         int $resultCode = ResultCode::SUCCESS,
         string $diagnostic = '',
+        ?Dn $matchedDn = null,
     ): LdapMessageResponse {
         $request = $message->getRequest();
+        $dn = $matchedDn?->toString() ?? '';
 
-        if ($request instanceof BindRequest) {
-            $response = new BindResponse(new LdapResult($resultCode, '', $diagnostic));
-        } elseif ($request instanceof SearchRequest) {
-            $response = new SearchResultDone($resultCode, '', $diagnostic);
-        } elseif ($request instanceof AddRequest) {
-            $response = new AddResponse($resultCode, $request->getEntry()->getDn()->toString(), $diagnostic);
-        } elseif ($request instanceof CompareRequest) {
-            $response = new CompareResponse($resultCode, $request->getDn()->toString(), $diagnostic);
-        } elseif ($request instanceof DeleteRequest) {
-            $response = new DeleteResponse($resultCode, $request->getDn()->toString(), $diagnostic);
-        } elseif ($request instanceof ModifyDnRequest) {
-            $response = new ModifyDnResponse($resultCode, $request->getDn()->toString(), $diagnostic);
-        } elseif ($request instanceof ModifyRequest) {
-            $response = new ModifyResponse($resultCode, $request->getDn()->toString(), $diagnostic);
-        } elseif ($request instanceof ExtendedRequest) {
-            $response = new ExtendedResponse(new LdapResult($resultCode, '', $diagnostic));
-        } else {
-            return $this->getExtendedError('Invalid request.', ResultCode::OPERATIONS_ERROR);
+        $response = match (true) {
+            $request instanceof BindRequest => new BindResponse(
+                new LdapResult(
+                    $resultCode,
+                    $dn,
+                    $diagnostic,
+                ),
+            ),
+            $request instanceof SearchRequest => new SearchResultDone(
+                $resultCode,
+                $dn,
+                $diagnostic,
+            ),
+            $request instanceof AddRequest => new AddResponse(
+                $resultCode,
+                $dn,
+                $diagnostic,
+            ),
+            $request instanceof CompareRequest => new CompareResponse(
+                $resultCode,
+                $dn,
+                $diagnostic,
+            ),
+            $request instanceof DeleteRequest => new DeleteResponse(
+                $resultCode,
+                $dn,
+                $diagnostic,
+            ),
+            $request instanceof ModifyDnRequest => new ModifyDnResponse(
+                $resultCode,
+                $dn,
+                $diagnostic,
+            ),
+            $request instanceof ModifyRequest => new ModifyResponse(
+                $resultCode,
+                $dn,
+                $diagnostic,
+            ),
+            $request instanceof ExtendedRequest => new ExtendedResponse(
+                new LdapResult(
+                    $resultCode,
+                    $dn,
+                    $diagnostic,
+                ),
+            ),
+            default => null,
+        };
+
+        if ($response === null) {
+            return $this->getExtendedError(
+                'Invalid request.',
+                ResultCode::OPERATIONS_ERROR,
+            );
         }
 
         return new LdapMessageResponse(
@@ -87,7 +127,14 @@ class ResponseFactory
     ): LdapMessageResponse {
         return new LdapMessageResponse(
             0,
-            new ExtendedResponse(new LdapResult($errorCode, '', $message), $responseName),
+            new ExtendedResponse(
+                new LdapResult(
+                    $errorCode,
+                    '',
+                    $message,
+                ),
+                $responseName,
+            ),
         );
     }
 }

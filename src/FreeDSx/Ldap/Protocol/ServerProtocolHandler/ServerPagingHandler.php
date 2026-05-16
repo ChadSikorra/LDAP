@@ -46,6 +46,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
 {
     use ServerSearchTrait;
     use ServerCriticalControlTrait;
+    use MatchedDnAccessFilterTrait;
 
     public function __construct(
         private readonly ServerQueue $queue,
@@ -102,9 +103,17 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
                 );
             }
         } catch (OperationException $e) {
+            $matchedDn = $this->filterMatchedDn(
+                $e->getMatchedDn(),
+                $token,
+                $this->backend,
+                $this->accessControl,
+            );
             $searchResult = SearchResult::makeErrorResult(
                 $e->getCode(),
-                (string) $searchRequest->getBaseDn(),
+                $matchedDn !== null
+                    ? $matchedDn->toString()
+                    : '',
                 $e->getMessage(),
             );
             $controls[] = new PagingControl(0, '');

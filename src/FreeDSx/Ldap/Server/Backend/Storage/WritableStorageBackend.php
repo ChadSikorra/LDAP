@@ -18,6 +18,7 @@ use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Control\Sorting\SortingControl;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
@@ -97,7 +98,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         $entry = $this->get($dn);
 
         if ($entry === null) {
-            $this->throwNoSuchObject($dn);
+            $this->throwNoSuchObject(
+                $this->storage,
+                $dn,
+            );
         }
 
         $attribute = $entry->get($filter->getAttribute());
@@ -129,7 +133,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             $entry = $this->storage->find($normBase);
 
             if ($entry === null) {
-                $this->throwNoSuchObject($baseDn);
+                $this->throwNoSuchObject(
+                    $this->storage,
+                    $baseDn,
+                );
             }
 
             return $this->searchStream->buildForBaseObject(
@@ -140,7 +147,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
 
         // no chance to be confused with the RootDSE, which is handled special elsewhere.
         if ($normBase->toString() !== '' && !$this->storage->exists($normBase)) {
-            $this->throwNoSuchObject($baseDn);
+            $this->throwNoSuchObject(
+                $this->storage,
+                $baseDn,
+            );
         }
 
         $subtree = $request->getScope() === SearchRequest::SCOPE_WHOLE_SUBTREE;
@@ -314,7 +324,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         $entry = $storage->find($dn);
 
         if ($entry === null) {
-            $this->throwNoSuchObject($dn);
+            $this->throwNoSuchObject(
+                $storage,
+                $dn,
+            );
         }
 
         return $entry;
@@ -334,7 +347,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         }
 
         if (!$storage->exists($parent)) {
-            $this->throwNoSuchObject($parent);
+            $this->throwNoSuchObject(
+                $storage,
+                $parent,
+            );
         }
     }
 
@@ -350,7 +366,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         $normNewParent = $command->newParent->normalize();
 
         if ($normNewParent->getParent() !== null && !$storage->exists($normNewParent)) {
-            $this->throwNoSuchObject($command->newParent);
+            $this->throwNoSuchObject(
+                $storage,
+                $command->newParent,
+            );
         }
     }
 
@@ -375,12 +394,43 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     /**
      * @throws OperationException
      */
-    private function throwNoSuchObject(Dn $dn): never
-    {
+    private function throwNoSuchObject(
+        EntryStorageInterface $storage,
+        Dn $dn,
+    ): never {
         throw new OperationException(
             sprintf('No such object: %s', $dn->toString()),
             ResultCode::NO_SUCH_OBJECT,
+            null,
+            $this->findMatchedDn(
+                $storage,
+                $dn,
+            ),
         );
+    }
+
+    /**
+     * Walks up the parent chain to find the deepest ancestor that exists in the DIT (RFC 4511 §4.1.9).
+     */
+    private function findMatchedDn(
+        EntryStorageInterface $storage,
+        Dn $dn,
+    ): ?Dn {
+        try {
+            $current = $dn->getParent();
+
+            while ($current !== null) {
+                if ($storage->exists($current->normalize())) {
+                    return $current;
+                }
+
+                $current = $current->getParent();
+            }
+        } catch (InvalidArgumentException) {
+            // DN has malformed components — no matched ancestor can be determined.
+        }
+
+        return null;
     }
 
     /**

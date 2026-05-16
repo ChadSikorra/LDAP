@@ -21,6 +21,7 @@ use FreeDSx\Ldap\Entry\Rdn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Search\Filter\PresentFilter;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\StandardSchemaProvider;
@@ -1099,6 +1100,128 @@ final class WritableStorageBackendTest extends TestCase
         $stored = $this->subject->get(new Dn('dc=example,dc=com'));
 
         self::assertNull($stored?->get('hasSubordinates'));
+    }
+
+    public function test_no_such_object_on_search_base_carries_matched_dn(): void
+    {
+        // dc=example,dc=com exists; cn=Missing does not — matchedDn should be dc=example,dc=com
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('cn=Missing,dc=example,dc=com')
+            ->useBaseScope();
+
+        try {
+            $this->subject->search($request);
+            self::fail('Expected OperationException was not thrown.');
+        } catch (OperationException $e) {
+            self::assertSame(
+                'dc=example,dc=com',
+                $e->getMatchedDn()?->toString(),
+            );
+        }
+    }
+
+    public function test_no_such_object_on_search_subtree_carries_matched_dn(): void
+    {
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('cn=Missing,dc=example,dc=com')
+            ->useSubtreeScope();
+
+        try {
+            $this->subject->search($request);
+            self::fail('Expected OperationException was not thrown.');
+        } catch (OperationException $e) {
+            self::assertSame(
+                'dc=example,dc=com',
+                $e->getMatchedDn()?->toString(),
+            );
+        }
+    }
+
+    public function test_no_such_object_on_delete_carries_matched_dn(): void
+    {
+        try {
+            $this->subject->delete(
+                new DeleteCommand(new Dn('cn=Nobody,dc=example,dc=com')),
+                $this->context(),
+            );
+            self::fail('Expected OperationException was not thrown.');
+        } catch (OperationException $e) {
+            self::assertSame(
+                'dc=example,dc=com',
+                $e->getMatchedDn()?->toString(),
+            );
+        }
+    }
+
+    public function test_no_such_object_on_update_carries_matched_dn(): void
+    {
+        try {
+            $this->subject->update(
+                new UpdateCommand(
+                    new Dn('cn=Nobody,dc=example,dc=com'),
+                    [new Change(Change::TYPE_REPLACE, 'cn', 'Nobody')],
+                ),
+                $this->context(),
+            );
+            self::fail('Expected OperationException was not thrown.');
+        } catch (OperationException $e) {
+            self::assertSame(
+                'dc=example,dc=com',
+                $e->getMatchedDn()?->toString(),
+            );
+        }
+    }
+
+    public function test_no_such_object_on_compare_carries_matched_dn(): void
+    {
+        try {
+            $this->subject->compare(
+                new Dn('cn=Nobody,dc=example,dc=com'),
+                new EqualityFilter('cn', 'Nobody'),
+            );
+            self::fail('Expected OperationException was not thrown.');
+        } catch (OperationException $e) {
+            self::assertSame(
+                'dc=example,dc=com',
+                $e->getMatchedDn()?->toString(),
+            );
+        }
+    }
+
+    public function test_no_such_object_on_add_with_missing_parent_carries_matched_dn(): void
+    {
+        // ou=Missing does not exist; dc=example,dc=com does — matchedDn should be dc=example,dc=com
+        try {
+            $this->subject->add(
+                new AddCommand(new Entry(
+                    new Dn('cn=New,ou=Missing,dc=example,dc=com'),
+                    new Attribute('cn', 'New'),
+                )),
+                $this->context(),
+            );
+            self::fail('Expected OperationException was not thrown.');
+        } catch (OperationException $e) {
+            self::assertSame(
+                'dc=example,dc=com',
+                $e->getMatchedDn()?->toString(),
+            );
+        }
+    }
+
+    public function test_no_such_object_with_no_existing_ancestor_has_null_matched_dn(): void
+    {
+        $backend = new WritableStorageBackend(new InMemoryStorage());
+
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('cn=Missing,dc=example,dc=com')
+            ->useBaseScope();
+
+        try {
+            $backend->search($request);
+            self::fail('Expected OperationException was not thrown.');
+        } catch (OperationException $e) {
+            self::assertNull($e->getMatchedDn());
+        }
     }
 
     /**
