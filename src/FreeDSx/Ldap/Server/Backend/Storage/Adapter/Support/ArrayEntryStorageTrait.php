@@ -15,7 +15,9 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Support;
 
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\TimeLimitExceededException;
+use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
 use Generator;
 
 /**
@@ -26,6 +28,55 @@ use Generator;
 trait ArrayEntryStorageTrait
 {
     use DefaultHasChildrenTrait;
+
+    /**
+     * @param array<string, Entry> $entries Entries keyed by normalised DN string
+     */
+    private function listFromArray(
+        StorageListOptions $options,
+        array $entries,
+    ): EntryStream {
+        if ($options->sortKeys === []) {
+            return new EntryStream(
+                $this->yieldByScope(
+                    $entries,
+                    $options->baseDn,
+                    $options->subtree,
+                    $options->timeLimit,
+                ),
+            );
+        }
+
+        return new EntryStream($this->sortedStreamFromArray(
+            $options,
+            $entries,
+        ));
+    }
+
+    /**
+     * @param array<string, Entry> $entries Entries keyed by normalised DN string
+     * @return Generator<Entry>
+     */
+    private function sortedStreamFromArray(
+        StorageListOptions $options,
+        array $entries,
+    ): Generator {
+        /** @var list<Entry> $collected */
+        $collected = iterator_to_array(
+            $this->yieldByScope(
+                $entries,
+                $options->baseDn,
+                $options->subtree,
+                $options->timeLimit,
+            ),
+            false,
+        );
+
+        yield from (new SortKeyComparator())->sort(
+            $collected,
+            $options->sortKeys,
+        );
+    }
 
     /**
      * @param array<string, Entry> $entries Entries keyed by normalised DN string

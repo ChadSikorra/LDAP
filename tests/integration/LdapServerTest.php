@@ -186,6 +186,7 @@ final class LdapServerTest extends ServerTestCase
                 ],
                 'supportedControl' => [
                     '1.2.840.113556.1.4.319',
+                    '1.2.840.113556.1.4.473',
                 ],
                 'supportedExtension' => [
                     '1.3.6.1.4.1.4203.1.11.3',

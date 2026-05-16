@@ -77,7 +77,10 @@ final class ServerRootDseHandlerTest extends TestCase
                 self::equalTo(new LdapMessageResponse(1, new SearchResultEntry(Entry::create('', [
                     'namingContexts' => 'dc=Foo,dc=Bar',
                     'subschemaSubentry' => ['cn=Subschema'],
-                    'supportedControl' => [Control::OID_PAGING],
+                    'supportedControl' => [
+                        Control::OID_PAGING,
+                        Control::OID_SORTING,
+                    ],
                     'supportedExtension' => [
                         ExtendedRequest::OID_WHOAMI,
                         ExtendedRequest::OID_PWD_MODIFY,
@@ -143,7 +146,10 @@ final class ServerRootDseHandlerTest extends TestCase
         $rootDse = Entry::create('', [
             'namingContexts' => 'dc=Foo,dc=Bar',
             'subschemaSubentry' => ['cn=Subschema'],
-            'supportedControl' => [Control::OID_PAGING],
+            'supportedControl' => [
+                Control::OID_PAGING,
+                Control::OID_SORTING,
+            ],
             'supportedExtension' => [
                 ExtendedRequest::OID_WHOAMI,
                 ExtendedRequest::OID_PWD_MODIFY,

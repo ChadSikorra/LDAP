@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
+use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Control\Sorting\SortingResponseControl;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\AbandonRequest;
@@ -71,7 +73,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
 
             $backendResult = $this->backend->search(
                 $request,
-                $this->nonPagingControls($message),
+                $this->controlsForBackend($message),
             );
 
             $state = new SearchResultState();
@@ -94,11 +96,25 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
             );
         }
 
+        $sortControl = $this->sortingControl($message);
+        $responseControls = $sortControl !== null
+            ? [new SortingResponseControl(0)]
+            : [];
+
         $this->sendEntriesToClient(
             $searchResult,
             $message,
             $this->queue,
+            ...$responseControls,
         );
+    }
+
+    /**
+     * @return string[]
+     */
+    private function supportedControls(): array
+    {
+        return [Control::OID_SORTING];
     }
 
     /**

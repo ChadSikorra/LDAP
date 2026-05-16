@@ -96,4 +96,14 @@ final class SqliteDialect implements PdoDialectInterface
     {
         return null;
     }
+
+    public function sortKeyClause(string $direction): string
+    {
+        return <<<SQL
+            (SELECT MIN(eav.value_lower)
+             FROM entry_attribute_values eav
+             WHERE eav.entry_lc_dn = LOWER(dn)
+               AND eav.attr_name_lower = ?) $direction NULLS LAST
+        SQL;
+    }
 }

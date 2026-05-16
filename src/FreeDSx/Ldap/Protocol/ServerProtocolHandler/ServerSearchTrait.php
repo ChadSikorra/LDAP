@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Control\PagingControl;
+use FreeDSx\Ldap\Control\Sorting\SortingControl;
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
@@ -169,10 +170,9 @@ trait ServerSearchTrait
     }
 
     /**
-     * Returns a ControlBag containing the message controls minus the paging control,
-     * which the server consumes itself and must not forward to backends.
+     * Returns a ControlBag with server-consumed controls stripped; only paging is excluded (sort passes through to backends).
      */
-    private function nonPagingControls(LdapMessageRequest $message): ControlBag
+    private function controlsForBackend(LdapMessageRequest $message): ControlBag
     {
         $filtered = array_filter(
             $message->controls()->toArray(),
@@ -180,6 +180,18 @@ trait ServerSearchTrait
         );
 
         return new ControlBag(...$filtered);
+    }
+
+    /**
+     * Extracts the sorting control from the message, or returns null if absent.
+     */
+    private function sortingControl(LdapMessageRequest $message): ?SortingControl
+    {
+        $control = $message->controls()->get(Control::OID_SORTING);
+
+        return $control instanceof SortingControl
+            ? $control
+            : null;
     }
 
     /**

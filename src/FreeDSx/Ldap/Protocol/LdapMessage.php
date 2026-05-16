@@ -160,6 +160,7 @@ abstract class LdapMessage implements ProtocolElementInterface, PduInterface
                         }
                         $controls[] = match ($control->getChild(0)->getValue()) {
                             Control\Control::OID_PAGING => Control\PagingControl::fromAsn1($control),
+                            Control\Control::OID_SORTING => Control\Sorting\SortingControl::fromAsn1($control),
                             Control\Control::OID_SORTING_RESPONSE => Control\Sorting\SortingResponseControl::fromAsn1($control),
                             Control\Control::OID_VLV_RESPONSE => Control\Vlv\VlvResponseControl::fromAsn1($control),
                             Control\Control::OID_DIR_SYNC => Control\Ad\DirSyncResponseControl::fromAsn1($control),

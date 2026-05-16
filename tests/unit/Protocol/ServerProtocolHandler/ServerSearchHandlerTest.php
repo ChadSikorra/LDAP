@@ -14,6 +14,9 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Control\Sorting\SortKey;
+use FreeDSx\Ldap\Control\Sorting\SortingControl;
+use FreeDSx\Ldap\Control\Sorting\SortingResponseControl;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\LdapResult;
@@ -646,5 +649,56 @@ final class ServerSearchHandlerTest extends TestCase
                 new SearchResultDone(ResultCode::SUCCESS, 'dc=foo,dc=bar'),
             ),
         ]);
+    }
+
+    public function test_sort_control_appends_sorting_response_control_to_done_message(): void
+    {
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::present('cn')))->base('dc=foo,dc=bar'),
+            new SortingControl(SortKey::ascending('cn')),
+        );
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator()));
+
+        $this->subject->handleRequest(
+            $search,
+            $this->mockToken,
+        );
+
+        $done = end($this->sentMessages);
+        self::assertInstanceOf(LdapMessageResponse::class, $done);
+        $sortControl = $done->controls()->get(Control::OID_SORTING_RESPONSE);
+        self::assertInstanceOf(
+            SortingResponseControl::class,
+            $sortControl,
+        );
+        self::assertSame(
+            0,
+            $sortControl->getResult(),
+        );
+    }
+
+    public function test_no_sort_control_does_not_append_sorting_response_control(): void
+    {
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::present('cn')))->base('dc=foo,dc=bar'),
+        );
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator()));
+
+        $this->subject->handleRequest(
+            $search,
+            $this->mockToken,
+        );
+
+        $done = end($this->sentMessages);
+        self::assertInstanceOf(LdapMessageResponse::class, $done);
+        self::assertNull($done->controls()->get(Control::OID_SORTING_RESPONSE));
     }
 }

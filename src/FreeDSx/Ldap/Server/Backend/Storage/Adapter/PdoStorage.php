@@ -18,11 +18,11 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConnectionProviderInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoListQueryBuilder;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PooledStatement;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\DnTooLongException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqlFilterResult;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqlFilterUtility;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
@@ -50,11 +50,15 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
      */
     private array $statementCache = [];
 
+    private readonly PdoListQueryBuilder $queryBuilder;
+
     public function __construct(
         private readonly PdoConnectionProviderInterface $provider,
         private readonly FilterTranslatorInterface $translator,
         private readonly PdoDialectInterface $dialect,
-    ) {}
+    ) {
+        $this->queryBuilder = new PdoListQueryBuilder($dialect);
+    }
 
     public function reset(): void
     {
@@ -121,11 +125,12 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
             ? $options->sizeLimit
             : null;
 
-        $stmt = $this->buildListStatement(
+        $query = $this->queryBuilder->build(
             $options->baseDn->toString(),
             $options->subtree,
             $filterResult,
             $sqlLimit,
+            $options->sortKeys,
         );
 
         $deadline = $options->timeLimit > 0
@@ -133,7 +138,10 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
             : null;
 
         return new EntryStream(
-            $this->generateRows($stmt, $deadline),
+            $this->generateRows(
+                $this->prepareAndExecute($query->sql, $query->params),
+                $deadline,
+            ),
             $isPreFiltered,
         );
     }
@@ -339,127 +347,6 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
                 $txState->broken = false;
             }
         }
-    }
-
-    private function buildListStatement(
-        string $base,
-        bool $subtree,
-        ?SqlFilterResult $filterResult,
-        ?int $sizeLimit,
-    ): PooledStatement {
-        if (!$subtree) {
-            return $this->buildChildQuery(
-                $base,
-                $filterResult,
-                $sizeLimit,
-            );
-        }
-
-        if ($base === '') {
-            return $this->buildRootQuery(
-                $filterResult,
-                $sizeLimit,
-            );
-        }
-
-        return $this->buildSubtreeQuery(
-            $base,
-            $filterResult,
-            $sizeLimit,
-        );
-    }
-
-    private function buildChildQuery(
-        string $base,
-        ?SqlFilterResult $filterResult,
-        ?int $sizeLimit,
-    ): PooledStatement {
-        $sql = $this->dialect->queryFetchChildren();
-        $params = [$base];
-
-        if ($filterResult !== null) {
-            $sql .= ' AND (' . $filterResult->sql . ')';
-            $params = array_merge(
-                $params,
-                $filterResult->params,
-            );
-        }
-
-        return $this->prepareAndExecute(
-            $sql . $this->buildLimitClause($sizeLimit),
-            $params,
-        );
-    }
-
-    private function buildRootQuery(
-        ?SqlFilterResult $filterResult,
-        ?int $sizeLimit,
-    ): PooledStatement {
-        $sql = $this->dialect->queryFetchAll();
-        $params = [];
-
-        if ($filterResult !== null) {
-            $sql .= ' WHERE (' . $filterResult->sql . ')';
-            $params = $filterResult->params;
-        }
-
-        return $this->prepareAndExecute(
-            $sql . $this->buildLimitClause($sizeLimit),
-            $params,
-        );
-    }
-
-    private function buildSubtreeQuery(
-        string $base,
-        ?SqlFilterResult $filterResult,
-        ?int $sizeLimit,
-    ): PooledStatement {
-        if ($filterResult !== null) {
-            return $this->buildFilteredSubtreeQuery(
-                $base,
-                $filterResult,
-                $sizeLimit,
-            );
-        }
-
-        return $this->prepareAndExecute(
-            $this->dialect->querySubtree() . $this->buildLimitClause($sizeLimit),
-            [$base],
-        );
-    }
-
-    /**
-     * Filter drives via the sidecar index; scope suffix is LIKE-checked per candidate.
-     */
-    private function buildFilteredSubtreeQuery(
-        string $base,
-        SqlFilterResult $filterResult,
-        ?int $sizeLimit,
-    ): PooledStatement {
-        $fetchAll = $this->dialect->queryFetchAll();
-        $filterSql = $filterResult->sql;
-        $sql = <<<SQL
-            $fetchAll WHERE ($filterSql)
-            AND (lc_dn = ? OR lc_dn LIKE ? ESCAPE '!')
-            SQL;
-
-        $params = $filterResult->params;
-        $params[] = $base;
-        $params[] = '%,' . SqlFilterUtility::escape($base);
-
-        return $this->prepareAndExecute(
-            $sql . $this->buildLimitClause($sizeLimit),
-            $params,
-        );
-    }
-
-    private function buildLimitClause(?int $sizeLimit): string
-    {
-        if ($sizeLimit === null) {
-            return '';
-        }
-
-        return ' LIMIT ' . $sizeLimit;
     }
 
     private function encodeAttributes(Entry $entry): string

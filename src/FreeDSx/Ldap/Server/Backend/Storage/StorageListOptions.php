@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Storage;
 
+use FreeDSx\Ldap\Control\Sorting\SortKey;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Search\Filter\AndFilter;
 use FreeDSx\Ldap\Search\Filter\FilterInterface;
@@ -24,12 +25,16 @@ use FreeDSx\Ldap\Search\Filter\FilterInterface;
  */
 final class StorageListOptions
 {
+    /**
+     * @param SortKey[] $sortKeys
+     */
     public function __construct(
         public readonly Dn $baseDn,
         public readonly bool $subtree,
         public readonly FilterInterface $filter,
         public readonly int $timeLimit = 0,
         public readonly int $sizeLimit = 0,
+        public readonly array $sortKeys = [],
     ) {}
 
     /**

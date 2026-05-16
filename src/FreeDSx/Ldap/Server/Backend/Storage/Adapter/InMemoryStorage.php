@@ -56,13 +56,9 @@ final class InMemoryStorage implements EntryStorageInterface
 
     public function list(StorageListOptions $options): EntryStream
     {
-        return new EntryStream(
-            $this->yieldByScope(
-                $this->entries,
-                $options->baseDn,
-                $options->subtree,
-                $options->timeLimit,
-            ),
+        return $this->listFromArray(
+            $options,
+            $this->entries,
         );
     }
 

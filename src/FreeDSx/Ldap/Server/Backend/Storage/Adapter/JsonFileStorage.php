@@ -80,13 +80,9 @@ final class JsonFileStorage implements EntryStorageInterface
 
     public function list(StorageListOptions $options): EntryStream
     {
-        return new EntryStream(
-            $this->yieldByScope(
-                $this->read(),
-                $options->baseDn,
-                $options->subtree,
-                $options->timeLimit,
-            ),
+        return $this->listFromArray(
+            $options,
+            $this->read(),
         );
     }
 

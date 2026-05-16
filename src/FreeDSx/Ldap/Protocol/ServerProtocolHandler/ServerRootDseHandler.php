@@ -60,6 +60,7 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
             'subschemaSubentry' => [$this->options->getSubschemaEntry()->toString()],
             'supportedControl' => [
                 Control::OID_PAGING,
+                Control::OID_SORTING,
             ],
             'supportedExtension' => [
                 ExtendedRequest::OID_WHOAMI,

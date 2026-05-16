@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace Tests\Integration\FreeDSx\Ldap\Storage;
 
+use FreeDSx\Ldap\Control\Sorting\SortingControl;
+use FreeDSx\Ldap\Control\Sorting\SortKey;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\BindException;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -442,5 +444,51 @@ class LdapBackendStorageTest extends ServerTestCase
 
         // Under ou=people only alice exists in the seed; NOT-equal alice leaves zero matches.
         self::assertCount(0, $entries);
+    }
+
+    public function testSortControlAscendingOrdersResults(): void
+    {
+        $this->authenticateUser();
+
+        $entries = $this->ldapClient()->search(
+            Operations::search(Filters::present('sn'))
+                ->base('dc=foo,dc=bar')
+                ->useSubtreeScope(),
+            new SortingControl(SortKey::ascending('sn')),
+        );
+
+        $sns = array_map(
+            static fn(Entry $e): string => $e->get('sn')?->getValues()[0] ?? '',
+            $entries->toArray(),
+        );
+
+        // Seed: cn=user (sn=Admin), cn=alice (sn=Smith). Admin < Smith ascending.
+        self::assertSame(
+            ['Admin', 'Smith'],
+            $sns,
+        );
+    }
+
+    public function testSortControlDescendingOrdersResults(): void
+    {
+        $this->authenticateUser();
+
+        $entries = $this->ldapClient()->search(
+            Operations::search(Filters::present('sn'))
+                ->base('dc=foo,dc=bar')
+                ->useSubtreeScope(),
+            new SortingControl(SortKey::descending('sn')),
+        );
+
+        $sns = array_map(
+            static fn(Entry $e): string => $e->get('sn')?->getValues()[0] ?? '',
+            $entries->toArray(),
+        );
+
+        // Seed: cn=user (sn=Admin), cn=alice (sn=Smith). Smith > Admin descending.
+        self::assertSame(
+            ['Smith', 'Admin'],
+            $sns,
+        );
     }
 }
