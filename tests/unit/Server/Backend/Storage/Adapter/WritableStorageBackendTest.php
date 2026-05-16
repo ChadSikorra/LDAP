@@ -29,6 +29,7 @@ use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
+use FreeDSx\Ldap\Server\Backend\Storage\Exception\InvalidAttributeException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\TimeLimitExceededException;
 use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
@@ -697,6 +698,31 @@ final class WritableStorageBackendTest extends TestCase
                 $e->getPrevious(),
             );
         }
+    }
+
+    public function test_search_returns_empty_stream_when_storage_rejects_filter_attribute(): void
+    {
+        /** @var EntryStorageInterface&MockObject $storage */
+        $storage = $this->createMock(EntryStorageInterface::class);
+        $storage->method('exists')
+            ->willReturn(true);
+        $storage->method('list')
+            ->willThrowException(new InvalidAttributeException(
+                'Attribute description "bogus attr" is not a valid RFC 4512 attribute description.',
+            ));
+
+        $subject = new WritableStorageBackend($storage);
+
+        $request = (new SearchRequest(new EqualityFilter('bogus attr', 'x')))
+            ->base('dc=example,dc=com')
+            ->useSubtreeScope();
+
+        $stream = $subject->search($request);
+
+        self::assertSame(
+            [],
+            iterator_to_array($stream->entries),
+        );
     }
 
     public function test_delete_converts_storage_io_exception_to_unavailable_operation_exception(): void

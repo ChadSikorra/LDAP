@@ -64,6 +64,8 @@ class ServerProtocolHandlerFactory
                 options: $this->options,
                 queue: $this->queue,
             );
+        } elseif ($request instanceof ExtendedRequest) {
+            return new ServerProtocolHandler\ServerUnsupportedExtendedHandler($this->queue);
         } elseif ($this->isRootDseSearch($request)) {
             return $this->getRootDseHandler();
         } elseif ($this->isSubschemaSearch($request)) {

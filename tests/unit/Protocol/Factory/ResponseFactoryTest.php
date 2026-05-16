@@ -146,14 +146,20 @@ final class ResponseFactoryTest extends TestCase
         );
     }
 
-    public function test_it_should_get_an_extended_response(): void
+    public function test_it_should_get_an_extended_response_echoing_the_request_name(): void
     {
         self::assertEquals(
-            new LdapMessageResponse(1, new ExtendedResponse(new LdapResult(0, '', 'foo'))),
+            new LdapMessageResponse(
+                1,
+                new ExtendedResponse(
+                    new LdapResult(0, '', 'foo'),
+                    '1.2.3.4',
+                ),
+            ),
             $this->subject->getStandardResponse(
                 new LdapMessageRequest(
                     1,
-                    new ExtendedRequest('foo', 'bar'),
+                    new ExtendedRequest('1.2.3.4', 'bar'),
                 ),
                 0,
                 'foo',

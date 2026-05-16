@@ -57,10 +57,14 @@ class ServerStartTlsHandler implements ServerProtocolHandlerInterface
         TokenInterface $token,
     ): void {
         $this->assertNoCriticalUnsupportedControls($message->controls());
-        # If we don't have a SSL cert or the OpenSSL extension is not available, then we can do nothing...
+        # RFC 4511 §4.14.2: return unavailable (not protocolError) when the server cannot negotiate TLS.
         if ($this->options->getSslCert() === null || !self::$hasOpenssl) {
             $this->queue->sendMessage(new LdapMessageResponse($message->getMessageId(), new ExtendedResponse(
-                new LdapResult(ResultCode::PROTOCOL_ERROR),
+                new LdapResult(
+                    ResultCode::UNAVAILABLE,
+                    '',
+                    'The server is not configured to provide TLS.',
+                ),
                 ExtendedRequest::OID_START_TLS,
             )));
 

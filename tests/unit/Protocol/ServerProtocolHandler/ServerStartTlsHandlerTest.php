@@ -126,7 +126,11 @@ final class ServerStartTlsHandlerTest extends TestCase
             ->with(self::equalTo(new LdapMessageResponse(
                 1,
                 new ExtendedResponse(
-                    new LdapResult(ResultCode::PROTOCOL_ERROR),
+                    new LdapResult(
+                        ResultCode::UNAVAILABLE,
+                        '',
+                        'The server is not configured to provide TLS.',
+                    ),
                     ExtendedRequest::OID_START_TLS,
                 ),
             )));
