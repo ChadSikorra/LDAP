@@ -32,6 +32,12 @@ final class EventLogPolicyTest extends TestCase
         ServerEvent::CriticalControlRejected,
         ServerEvent::SchemaViolation,
         ServerEvent::NoticeOfDisconnectSent,
+        ServerEvent::PasswordPolicyAccountLocked,
+        ServerEvent::PasswordPolicyAccountUnlocked,
+        ServerEvent::PasswordPolicyExpired,
+        ServerEvent::PasswordPolicyMustChange,
+        ServerEvent::PasswordPolicyGraceLogin,
+        ServerEvent::PasswordPolicyChangeRejected,
     ];
 
     private const AUDIT_TRAIL_ENABLED = [

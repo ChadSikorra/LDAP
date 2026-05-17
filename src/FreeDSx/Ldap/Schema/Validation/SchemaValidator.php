@@ -41,32 +41,41 @@ final class SchemaValidator
     /**
      * Validates an entry before it is added to storage.
      *
+     * @param bool $isSystem Skip the NO-USER-MODIFICATION check for server-initiated writes.
      * @throws OperationException
      */
-    public function validateAdd(Entry $entry): void
-    {
+    public function validateAdd(
+        Entry $entry,
+        bool $isSystem = false,
+    ): void {
         if ($this->mode === SchemaValidationMode::Off) {
             return;
         }
 
-        $this->checkNoUserModificationInEntry($entry);
+        if (!$isSystem) {
+            $this->checkNoUserModificationInEntry($entry);
+        }
         $this->validateStructure($entry);
     }
 
     /**
      * Validates the changes and resulting entry from an update operation.
      *
+     * @param bool $isSystem Skip the NO-USER-MODIFICATION check for server-initiated writes.
      * @throws OperationException
      */
     public function validateModify(
         UpdateCommand $command,
         Entry $result,
+        bool $isSystem = false,
     ): void {
         if ($this->mode === SchemaValidationMode::Off) {
             return;
         }
 
-        $this->checkNoUserModificationInChanges($command->changes);
+        if (!$isSystem) {
+            $this->checkNoUserModificationInChanges($command->changes);
+        }
         $this->validateStructure($result);
     }
 

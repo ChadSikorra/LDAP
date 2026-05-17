@@ -54,6 +54,32 @@ final class ServerEventTest extends TestCase
         }
     }
 
+    /**
+     * @return array<string, array{0: ServerEvent, 1: string}>
+     */
+    public static function passwordPolicyEventLevels(): array
+    {
+        return [
+            'account_locked is a warning' => [ServerEvent::PasswordPolicyAccountLocked, LogLevel::WARNING],
+            'expired is a notice' => [ServerEvent::PasswordPolicyExpired, LogLevel::NOTICE],
+            'change_rejected is a notice' => [ServerEvent::PasswordPolicyChangeRejected, LogLevel::NOTICE],
+            'account_unlocked is informational' => [ServerEvent::PasswordPolicyAccountUnlocked, LogLevel::INFO],
+            'must_change is informational' => [ServerEvent::PasswordPolicyMustChange, LogLevel::INFO],
+            'grace_login is informational' => [ServerEvent::PasswordPolicyGraceLogin, LogLevel::INFO],
+        ];
+    }
+
+    #[DataProvider('passwordPolicyEventLevels')]
+    public function test_password_policy_event_log_level(
+        ServerEvent $event,
+        string $expected,
+    ): void {
+        self::assertSame(
+            $expected,
+            $event->level(),
+        );
+    }
+
     #[DataProvider('provideExceptionDiscriminationCases')]
     public function test_from_operation_exception_with_fallback_maps_codes_to_events(
         int $resultCode,

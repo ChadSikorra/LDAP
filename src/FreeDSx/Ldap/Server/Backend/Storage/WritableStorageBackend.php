@@ -197,7 +197,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 $this->throwEntryAlreadyExists($command->entry->getDn());
             }
 
-            $this->validator?->validateAdd($command->entry);
+            $this->validator?->validateAdd(
+                $command->entry,
+                $context->isSystem(),
+            );
             $this->operationalAttrs->applyForAdd(
                 $command->entry,
                 $context,
@@ -244,7 +247,11 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             $dn = $command->dn->normalize();
             $entry = $this->findOrFail($storage, $dn);
             $updated = $this->entryHandler->apply($entry, $command);
-            $this->validator?->validateModify($command, $updated);
+            $this->validator?->validateModify(
+                $command,
+                $updated,
+                $context->isSystem(),
+            );
             $this->operationalAttrs->applyForModify(
                 $updated,
                 $context,
