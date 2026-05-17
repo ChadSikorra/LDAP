@@ -23,6 +23,7 @@ use FreeDSx\Ldap\Operation\Request\UnbindRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerProtocolHandlerInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHasher;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\RequestHistory;
@@ -61,6 +62,7 @@ class ServerProtocolHandlerFactory
                 accessControl: $this->options->getAccessControl(),
                 identityResolver: $this->handlerFactory->makeIdentityResolverChain(),
                 eventLogger: $this->eventLogger,
+                hasher: new PasswordHasher($this->options->getPasswordHashScheme()),
             );
         } elseif ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_START_TLS) {
             return new ServerProtocolHandler\ServerStartTlsHandler(

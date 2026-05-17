@@ -16,6 +16,7 @@ namespace Tests\Unit\FreeDSx\Ldap;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashScheme;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
@@ -659,6 +660,24 @@ final class ServerOptionsTest extends TestCase
 
         self::assertNotNull($schema->getAttributeType(PasswordPolicyOid::NAME_PWD_MIN_LENGTH));
         self::assertNotNull($schema->getObjectClass(PasswordPolicyOid::NAME_PWD_POLICY));
+    }
+
+    public function test_password_hash_scheme_defaults_to_bcrypt(): void
+    {
+        self::assertSame(
+            PasswordHashScheme::Bcrypt,
+            $this->subject->getPasswordHashScheme(),
+        );
+    }
+
+    public function test_setting_password_hash_scheme_is_round_tripped(): void
+    {
+        $this->subject->setPasswordHashScheme(PasswordHashScheme::Argon2);
+
+        self::assertSame(
+            PasswordHashScheme::Argon2,
+            $this->subject->getPasswordHashScheme(),
+        );
     }
 
     public function test_it_accepts_all_defined_mechanism_constants(): void

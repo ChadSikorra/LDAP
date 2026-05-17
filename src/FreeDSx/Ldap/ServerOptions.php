@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Schema\StandardSchemaProvider;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashScheme;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
@@ -158,6 +159,8 @@ final class ServerOptions
     private ?PasswordPolicy $passwordPolicy = null;
 
     private ?Dn $defaultPasswordPolicyDn = null;
+
+    private PasswordHashScheme $passwordHashScheme = PasswordHashScheme::Bcrypt;
 
     private ?LoggerInterface $logger = null;
 
@@ -586,6 +589,21 @@ final class ServerOptions
     {
         return $this->passwordPolicy !== null
             || $this->defaultPasswordPolicyDn !== null;
+    }
+
+    /**
+     * Output scheme used by the password hasher when writing a new password.
+     */
+    public function getPasswordHashScheme(): PasswordHashScheme
+    {
+        return $this->passwordHashScheme;
+    }
+
+    public function setPasswordHashScheme(PasswordHashScheme $scheme): self
+    {
+        $this->passwordHashScheme = $scheme;
+
+        return $this;
     }
 
     public function getLogger(): ?LoggerInterface
