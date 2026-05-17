@@ -16,7 +16,7 @@ namespace FreeDSx\Ldap\Server\Backend\Auth;
 use SensitiveParameter;
 
 /**
- * Verifies a plaintext password against a stored value that may be hashed ({SHA}, {SSHA}, {MD5}, {SMD5}).
+ * Verifies a plaintext password against a stored value that may be hashed ({SHA}, {SSHA}, {MD5}, {SMD5}, {BCRYPT}, {ARGON2}).
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -32,6 +32,8 @@ final class PasswordHashVerifier
             str_starts_with($stored, '{SSHA}') => $this->verifySsha($plain, substr($stored, 6)),
             str_starts_with($stored, '{MD5}') => $this->verifyMd5($plain, substr($stored, 5)),
             str_starts_with($stored, '{SMD5}') => $this->verifySmd5($plain, substr($stored, 6)),
+            str_starts_with($stored, '{BCRYPT}') => password_verify($plain, substr($stored, 8)),
+            str_starts_with($stored, '{ARGON2}') => password_verify($plain, substr($stored, 8)),
             default => $plain === $stored,
         };
     }

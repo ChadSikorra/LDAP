@@ -16,22 +16,36 @@ namespace FreeDSx\Ldap\Server\Backend\Auth;
 use SensitiveParameter;
 
 /**
- * Hashes plaintext passwords into the SSHA format understood by {@see PasswordHashVerifier}.
+ * Hashes plaintext passwords into the format understood by {@see PasswordHashVerifier}.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class PasswordHasher
+final readonly class PasswordHasher
 {
+    public function __construct(
+        private PasswordHashScheme $scheme = PasswordHashScheme::Bcrypt,
+    ) {}
+
     /**
-     * Hash a plaintext password using salted SHA-1 (SSHA), compatible with OpenLDAP defaults.
+     * Hash a plaintext password using the configured scheme.
      */
     public function hash(
         #[SensitiveParameter]
         string $plain,
     ): string {
-        $salt = random_bytes(8);
-
-        return '{SSHA}' . base64_encode(sha1($plain . $salt, true) . $salt);
+        return match ($this->scheme) {
+            PasswordHashScheme::Ssha => $this->hashSsha($plain),
+            PasswordHashScheme::Bcrypt => $this->hashWithPhpAlgo(
+                $plain,
+                PASSWORD_BCRYPT,
+                PasswordHashScheme::Bcrypt,
+            ),
+            PasswordHashScheme::Argon2 => $this->hashWithPhpAlgo(
+                $plain,
+                PASSWORD_ARGON2ID,
+                PasswordHashScheme::Argon2,
+            ),
+        };
     }
 
     /**
@@ -40,5 +54,29 @@ final class PasswordHasher
     public function generate(): string
     {
         return bin2hex(random_bytes(8));
+    }
+
+    private function hashSsha(
+        #[SensitiveParameter]
+        string $plain,
+    ): string {
+        $salt = random_bytes(8);
+
+        return PasswordHashScheme::Ssha->value
+            . base64_encode(sha1($plain . $salt, true) . $salt);
+    }
+
+    private function hashWithPhpAlgo(
+        #[SensitiveParameter]
+        string $plain,
+        string $algo,
+        PasswordHashScheme $scheme,
+    ): string {
+        $hash = password_hash(
+            $plain,
+            $algo,
+        );
+
+        return $scheme->value . $hash;
     }
 }

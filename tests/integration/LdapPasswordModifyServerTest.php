@@ -68,7 +68,7 @@ final class LdapPasswordModifyServerTest extends ServerTestCase
 
         $this->assertNotNull($entry);
         $this->assertStringStartsWith(
-            '{SSHA}',
+            '{BCRYPT}',
             (string) $entry->get('userPassword')?->firstValue(),
         );
     }
@@ -111,7 +111,7 @@ final class LdapPasswordModifyServerTest extends ServerTestCase
 
         $this->assertNotNull($entry);
         $this->assertStringStartsWith(
-            '{SSHA}',
+            '{BCRYPT}',
             (string) $entry->get('userPassword')?->firstValue(),
         );
     }
@@ -140,7 +140,7 @@ final class LdapPasswordModifyServerTest extends ServerTestCase
 
         $this->assertNotNull($entry);
         $this->assertStringStartsWith(
-            '{SSHA}',
+            '{BCRYPT}',
             (string) $entry->get('userPassword')?->firstValue(),
         );
     }
