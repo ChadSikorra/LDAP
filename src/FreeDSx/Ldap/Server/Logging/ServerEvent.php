@@ -25,28 +25,35 @@ use Psr\Log\LogLevel;
  */
 enum ServerEvent: string
 {
-    case BindSuccess              = 'bind.success';
-    case BindFailure              = 'bind.failure';
-    case BindAnonymous            = 'bind.anonymous';
-    case StartTlsSucceeded        = 'starttls.succeeded';
-    case StartTlsFailed           = 'starttls.failed';
-    case EntryAdded               = 'entry.added';
-    case EntryModified            = 'entry.modified';
-    case EntryDeleted             = 'entry.deleted';
-    case EntryRenamed             = 'entry.renamed';
-    case SearchAuthorized         = 'search.authorized';
-    case CompareCompleted         = 'compare.completed';
-    case PasswordModifySuccess    = 'password_modify.success';
-    case PasswordModifyFailed     = 'password_modify.failed';
-    case AuthorizationDeniedWrite = 'authz.denied.write';
-    case AuthorizationDeniedRead  = 'authz.denied.read';
-    case CriticalControlRejected  = 'control.critical.rejected';
-    case SchemaViolation          = 'schema.violation';
-    case NoticeOfDisconnectSent   = 'session.disconnect_notice';
+    case BindSuccess                    = 'bind.success';
+    case BindFailure                    = 'bind.failure';
+    case BindAnonymous                  = 'bind.anonymous';
+    case StartTlsSucceeded              = 'starttls.succeeded';
+    case StartTlsFailed                 = 'starttls.failed';
+    case EntryAdded                     = 'entry.added';
+    case EntryModified                  = 'entry.modified';
+    case EntryDeleted                   = 'entry.deleted';
+    case EntryRenamed                   = 'entry.renamed';
+    case SearchAuthorized               = 'search.authorized';
+    case CompareCompleted               = 'compare.completed';
+    case PasswordModifySuccess          = 'password_modify.success';
+    case PasswordModifyFailed           = 'password_modify.failed';
+    case AuthorizationDeniedWrite       = 'authz.denied.write';
+    case AuthorizationDeniedRead        = 'authz.denied.read';
+    case CriticalControlRejected        = 'control.critical.rejected';
+    case SchemaViolation                = 'schema.violation';
+    case NoticeOfDisconnectSent         = 'session.disconnect_notice';
+    case PasswordPolicyAccountLocked    = 'password_policy.account_locked';
+    case PasswordPolicyAccountUnlocked  = 'password_policy.account_unlocked';
+    case PasswordPolicyExpired          = 'password_policy.expired';
+    case PasswordPolicyMustChange       = 'password_policy.must_change';
+    case PasswordPolicyGraceLogin       = 'password_policy.grace_login';
+    case PasswordPolicyChangeRejected   = 'password_policy.change_rejected';
 
     public function level(): string
     {
         return match ($this) {
+            self::PasswordPolicyAccountLocked => LogLevel::WARNING,
             self::BindFailure,
             self::StartTlsFailed,
             self::PasswordModifyFailed,
@@ -54,7 +61,9 @@ enum ServerEvent: string
             self::AuthorizationDeniedRead,
             self::CriticalControlRejected,
             self::SchemaViolation,
-            self::NoticeOfDisconnectSent => LogLevel::NOTICE,
+            self::NoticeOfDisconnectSent,
+            self::PasswordPolicyExpired,
+            self::PasswordPolicyChangeRejected => LogLevel::NOTICE,
             default => LogLevel::INFO,
         };
     }

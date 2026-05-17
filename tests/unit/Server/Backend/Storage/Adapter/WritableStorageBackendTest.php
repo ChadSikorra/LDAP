@@ -990,6 +990,72 @@ final class WritableStorageBackendTest extends TestCase
         );
     }
 
+    public function test_system_update_bypasses_no_user_modification_check(): void
+    {
+        $valid = new Entry(
+            new Dn('cn=Alice,dc=example,dc=com'),
+            new Attribute('objectClass', 'top', 'person'),
+            new Attribute('cn', 'Alice'),
+            new Attribute('sn', 'Smith'),
+        );
+        $backend = new WritableStorageBackend(
+            storage: new InMemoryStorage([$this->base, $valid]),
+            validator: new SchemaValidator(
+                StandardSchemaProvider::buildCore(),
+                SchemaValidationMode::Strict,
+            ),
+        );
+
+        $backend->update(
+            new UpdateCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                [Change::replace(new Attribute('createTimestamp', '20240101000000Z'))],
+            ),
+            WriteContext::system(
+                new AnonToken(),
+                new ControlBag(),
+            ),
+        );
+
+        $stored = $backend->get(new Dn('cn=Alice,dc=example,dc=com'));
+
+        self::assertSame(
+            '20240101000000Z',
+            $stored?->get('createTimestamp')?->firstValue(),
+        );
+    }
+
+    public function test_system_update_still_enforces_single_valued_attribute(): void
+    {
+        $valid = new Entry(
+            new Dn('cn=Alice,dc=example,dc=com'),
+            new Attribute('objectClass', 'top', 'person'),
+            new Attribute('cn', 'Alice'),
+            new Attribute('sn', 'Smith'),
+        );
+        $backend = new WritableStorageBackend(
+            storage: new InMemoryStorage([$this->base, $valid]),
+            validator: new SchemaValidator(
+                StandardSchemaProvider::buildCore(),
+                SchemaValidationMode::Strict,
+            ),
+        );
+
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::CONSTRAINT_VIOLATION);
+
+        $backend->update(
+            new UpdateCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                [Change::replace(new Attribute('createTimestamp', '20240101000000Z', '20240202000000Z'))],
+            ),
+            WriteContext::system(
+                new AnonToken(),
+                new ControlBag(),
+            ),
+        );
+    }
+
     public function test_add_sets_operational_attributes_on_entry(): void
     {
         $entry = new Entry(

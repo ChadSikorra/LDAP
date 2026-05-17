@@ -26,7 +26,22 @@ final readonly class WriteContext
     public function __construct(
         private TokenInterface $token,
         private ControlBag $controls,
+        private bool $isSystem = false,
     ) {}
+
+    /**
+     * Build a context for a server-initiated write that bypasses {@see SchemaValidator}.
+     */
+    public static function system(
+        TokenInterface $token,
+        ControlBag $controls,
+    ): self {
+        return new self(
+            $token,
+            $controls,
+            isSystem: true,
+        );
+    }
 
     /**
      * Bound DN of the authenticated user, or null for anonymous.
@@ -39,6 +54,11 @@ final readonly class WriteContext
     public function isAnonymous(): bool
     {
         return $this->token->getUsername() === null;
+    }
+
+    public function isSystem(): bool
+    {
+        return $this->isSystem;
     }
 
     public function getLdapVersion(): int

@@ -32,6 +32,7 @@ use FreeDSx\Ldap\Operation\Response\ModifyDnResponse;
 use FreeDSx\Ldap\Operation\Response\ModifyResponse;
 use FreeDSx\Ldap\Operation\Response\SearchResultDone;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 
@@ -46,12 +47,14 @@ class ResponseFactory
      * Retrieve the expected response type for the request that was given.
      *
      * @param Dn|null $matchedDn Matched ancestor; emitted as matchedDN when non-null.
+     * @param Control ...$controls Response controls to attach to the resulting message.
      */
     public function getStandardResponse(
         LdapMessageRequest $message,
         int $resultCode = ResultCode::SUCCESS,
         string $diagnostic = '',
         ?Dn $matchedDn = null,
+        Control ...$controls,
     ): LdapMessageResponse {
         $request = $message->getRequest();
         $dn = $matchedDn?->toString() ?? '';
@@ -115,16 +118,20 @@ class ResponseFactory
         return new LdapMessageResponse(
             $message->getMessageId(),
             $response,
+            ...$controls,
         );
     }
 
     /**
      * Retrieve an extended error, which has a message ID of zero.
+     *
+     * @param Control ...$controls Response controls to attach to the resulting message.
      */
     public function getExtendedError(
         string $message,
         int $errorCode,
         ?string $responseName = null,
+        Control ...$controls,
     ): LdapMessageResponse {
         return new LdapMessageResponse(
             0,
@@ -136,6 +143,7 @@ class ResponseFactory
                 ),
                 $responseName,
             ),
+            ...$controls,
         );
     }
 }

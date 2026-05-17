@@ -34,6 +34,7 @@ use FreeDSx\Ldap\Operation\Response\ModifyDnResponse;
 use FreeDSx\Ldap\Operation\Response\ModifyResponse;
 use FreeDSx\Ldap\Operation\Response\ResponseInterface;
 use FreeDSx\Ldap\Operation\Response\SearchResultDone;
+use FreeDSx\Ldap\Control\PagingControl;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
@@ -276,6 +277,47 @@ final class ResponseFactoryTest extends TestCase
                 'foo',
                 ResultCode::PROTOCOL_ERROR,
             ),
+        );
+    }
+
+    public function test_standard_response_threads_through_response_controls(): void
+    {
+        $control = new PagingControl(
+            42,
+            'cookie',
+        );
+
+        $actual = $this->subject->getStandardResponse(
+            new LdapMessageRequest(1, new DeleteRequest('cn=foo,dc=example,dc=com')),
+            ResultCode::SUCCESS,
+            '',
+            null,
+            $control,
+        );
+
+        self::assertSame(
+            [$control],
+            $actual->controls()->toArray(),
+        );
+    }
+
+    public function test_extended_error_threads_through_response_controls(): void
+    {
+        $control = new PagingControl(
+            42,
+            'cookie',
+        );
+
+        $actual = $this->subject->getExtendedError(
+            'foo',
+            ResultCode::PROTOCOL_ERROR,
+            null,
+            $control,
+        );
+
+        self::assertSame(
+            [$control],
+            $actual->controls()->toArray(),
         );
     }
 }

@@ -199,4 +199,79 @@ final class SchemaValidatorTest extends TestCase
         $this->expectNotToPerformAssertions();
         $subject->validateAdd($entry);
     }
+
+    public function test_system_add_skips_no_user_modification_but_keeps_structure_checks(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=Alice,dc=example,dc=com'),
+            new Attribute('objectClass', 'top', 'person'),
+            new Attribute('cn', 'Alice'),
+            new Attribute('sn', 'Smith'),
+            new Attribute('createTimestamp', '20240101000000Z'),
+        );
+
+        $this->expectNotToPerformAssertions();
+
+        $this->subject->validateAdd(
+            $entry,
+            isSystem: true,
+        );
+    }
+
+    public function test_system_add_still_enforces_structural_class(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=Alice,dc=example,dc=com'),
+            new Attribute('objectClass', 'top'),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::OBJECT_CLASS_VIOLATION);
+
+        $this->subject->validateAdd(
+            $entry,
+            isSystem: true,
+        );
+    }
+
+    public function test_system_modify_skips_no_user_modification_check(): void
+    {
+        $command = new UpdateCommand(
+            new Dn('cn=Alice,dc=example,dc=com'),
+            [Change::replace(new Attribute('createTimestamp', '20240101000000Z'))],
+        );
+        $result = $this->personEntry();
+
+        $this->expectNotToPerformAssertions();
+
+        $this->subject->validateModify(
+            $command,
+            $result,
+            isSystem: true,
+        );
+    }
+
+    public function test_system_modify_still_enforces_single_valued_attribute(): void
+    {
+        $command = new UpdateCommand(
+            new Dn('cn=Alice,dc=example,dc=com'),
+            [Change::replace(new Attribute('createTimestamp', '20240101000000Z', '20240202000000Z'))],
+        );
+        $result = new Entry(
+            new Dn('cn=Alice,dc=example,dc=com'),
+            new Attribute('objectClass', 'top', 'person'),
+            new Attribute('cn', 'Alice'),
+            new Attribute('sn', 'Smith'),
+            new Attribute('createTimestamp', '20240101000000Z', '20240202000000Z'),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::CONSTRAINT_VIOLATION);
+
+        $this->subject->validateModify(
+            $command,
+            $result,
+            isSystem: true,
+        );
+    }
 }
