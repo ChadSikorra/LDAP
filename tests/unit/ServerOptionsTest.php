@@ -15,6 +15,9 @@ namespace Tests\Unit\FreeDSx\Ldap;
 
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
+use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
+use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
@@ -605,6 +608,57 @@ final class ServerOptionsTest extends TestCase
             ),
             $this->subject->makeSearchLimits(),
         );
+    }
+
+    public function test_password_policy_is_disabled_by_default(): void
+    {
+        self::assertFalse($this->subject->isPasswordPolicyEnabled());
+        self::assertNull($this->subject->getPasswordPolicy());
+        self::assertNull($this->subject->getDefaultPasswordPolicyDn());
+    }
+
+    public function test_setting_in_memory_policy_enables_the_feature(): void
+    {
+        $policy = new PasswordPolicy(quality: new PasswordQualityRules(minLength: 8));
+
+        $this->subject->setPasswordPolicy($policy);
+
+        self::assertTrue($this->subject->isPasswordPolicyEnabled());
+        self::assertSame(
+            $policy,
+            $this->subject->getPasswordPolicy(),
+        );
+    }
+
+    public function test_setting_default_policy_dn_enables_the_feature(): void
+    {
+        $dn = new Dn('cn=default,ou=policies,dc=example,dc=com');
+
+        $this->subject->setDefaultPasswordPolicyDn($dn);
+
+        self::assertTrue($this->subject->isPasswordPolicyEnabled());
+        self::assertSame(
+            $dn,
+            $this->subject->getDefaultPasswordPolicyDn(),
+        );
+    }
+
+    public function test_schema_omits_password_policy_attributes_when_feature_disabled(): void
+    {
+        $schema = $this->subject->getSchema();
+
+        self::assertNull($schema->getAttributeType(PasswordPolicyOid::NAME_PWD_MIN_LENGTH));
+        self::assertNull($schema->getObjectClass(PasswordPolicyOid::NAME_PWD_POLICY));
+    }
+
+    public function test_schema_includes_password_policy_attributes_when_feature_enabled(): void
+    {
+        $this->subject->setPasswordPolicy(new PasswordPolicy());
+
+        $schema = $this->subject->getSchema();
+
+        self::assertNotNull($schema->getAttributeType(PasswordPolicyOid::NAME_PWD_MIN_LENGTH));
+        self::assertNotNull($schema->getObjectClass(PasswordPolicyOid::NAME_PWD_POLICY));
     }
 
     public function test_it_accepts_all_defined_mechanism_constants(): void

@@ -15,9 +15,11 @@ namespace FreeDSx\Ldap;
 
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
+use FreeDSx\Ldap\Schema\PasswordPolicySchemaProvider;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\StandardSchemaProvider;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
@@ -152,6 +154,10 @@ final class ServerOptions
     private array $attributeRules = [];
 
     private Effect $defaultAccessRule = Effect::Deny;
+
+    private ?PasswordPolicy $passwordPolicy = null;
+
+    private ?Dn $defaultPasswordPolicyDn = null;
 
     private ?LoggerInterface $logger = null;
 
@@ -452,7 +458,16 @@ final class ServerOptions
 
     public function getSchema(): Schema
     {
-        return $this->schema ??= StandardSchemaProvider::buildCore();
+        if ($this->schema !== null) {
+            return $this->schema;
+        }
+
+        $base = StandardSchemaProvider::buildCore();
+        $this->schema = $this->isPasswordPolicyEnabled()
+            ? $base->merge(PasswordPolicySchemaProvider::build())
+            : $base;
+
+        return $this->schema;
     }
 
     public function setSchema(Schema $schema): self
@@ -532,6 +547,45 @@ final class ServerOptions
     public function getDefaultAccessRule(): Effect
     {
         return $this->defaultAccessRule;
+    }
+
+    /**
+     * In-memory fallback policy applied to users that do not resolve a pwdPolicy entry from the DIT.
+     */
+    public function getPasswordPolicy(): ?PasswordPolicy
+    {
+        return $this->passwordPolicy;
+    }
+
+    public function setPasswordPolicy(?PasswordPolicy $policy): self
+    {
+        $this->passwordPolicy = $policy;
+
+        return $this;
+    }
+
+    /**
+     * DN of the default pwdPolicy entry used when a user has no pwdPolicySubentry pointer.
+     */
+    public function getDefaultPasswordPolicyDn(): ?Dn
+    {
+        return $this->defaultPasswordPolicyDn;
+    }
+
+    public function setDefaultPasswordPolicyDn(?Dn $dn): self
+    {
+        $this->defaultPasswordPolicyDn = $dn;
+
+        return $this;
+    }
+
+    /**
+     * Whether any password-policy source is configured.
+     */
+    public function isPasswordPolicyEnabled(): bool
+    {
+        return $this->passwordPolicy !== null
+            || $this->defaultPasswordPolicyDn !== null;
     }
 
     public function getLogger(): ?LoggerInterface
