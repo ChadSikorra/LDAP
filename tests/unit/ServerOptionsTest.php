@@ -18,6 +18,8 @@ use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashScheme;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
+use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\DefaultPasswordQualityChecker;
+use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\PasswordQualityCheckerInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
@@ -677,6 +679,33 @@ final class ServerOptionsTest extends TestCase
         self::assertSame(
             PasswordHashScheme::Argon2,
             $this->subject->getPasswordHashScheme(),
+        );
+    }
+
+    public function test_password_quality_checker_defaults_to_the_built_in_checker(): void
+    {
+        self::assertInstanceOf(
+            DefaultPasswordQualityChecker::class,
+            $this->subject->getPasswordQualityChecker(),
+        );
+    }
+
+    public function test_setting_password_quality_checker_is_round_tripped(): void
+    {
+        $custom = new class implements PasswordQualityCheckerInterface {
+            public function check(
+                string $plain,
+                PasswordQualityRules $rules,
+            ): ?int {
+                return null;
+            }
+        };
+
+        $this->subject->setPasswordQualityChecker($custom);
+
+        self::assertSame(
+            $custom,
+            $this->subject->getPasswordQualityChecker(),
         );
     }
 
