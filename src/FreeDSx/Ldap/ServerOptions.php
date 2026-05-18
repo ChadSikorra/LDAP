@@ -23,6 +23,8 @@ use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashScheme;
+use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\DefaultPasswordQualityChecker;
+use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\PasswordQualityCheckerInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
@@ -161,6 +163,8 @@ final class ServerOptions
     private ?Dn $defaultPasswordPolicyDn = null;
 
     private PasswordHashScheme $passwordHashScheme = PasswordHashScheme::Bcrypt;
+
+    private ?PasswordQualityCheckerInterface $passwordQualityChecker = null;
 
     private ?LoggerInterface $logger = null;
 
@@ -602,6 +606,21 @@ final class ServerOptions
     public function setPasswordHashScheme(PasswordHashScheme $scheme): self
     {
         $this->passwordHashScheme = $scheme;
+
+        return $this;
+    }
+
+    /**
+     * Quality check applied to new passwords before they are hashed and stored.
+     */
+    public function getPasswordQualityChecker(): PasswordQualityCheckerInterface
+    {
+        return $this->passwordQualityChecker ??= new DefaultPasswordQualityChecker();
+    }
+
+    public function setPasswordQualityChecker(PasswordQualityCheckerInterface $checker): self
+    {
+        $this->passwordQualityChecker = $checker;
 
         return $this;
     }
