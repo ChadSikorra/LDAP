@@ -20,7 +20,16 @@ use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ClientQueueInstantiator;
 use FreeDSx\Ldap\Protocol\RootDseLoader;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
+use FreeDSx\Ldap\Server\Clock\SystemClock;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
+use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\AllowUserChangeConstraint;
+use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\HistoryConstraint;
+use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\MinAgeConstraint;
+use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
+use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\QualityConstraint;
+use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\SafeModifyConstraint;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
 use FreeDSx\Ldap\Server\RequestHandler\HandlerFactory;
 use FreeDSx\Ldap\Server\ServerProtocolFactory;
 use FreeDSx\Ldap\Server\ServerRunner\PcntlServerRunner;
@@ -155,6 +164,29 @@ class Container
         $this->registerFactory(
             className: ServerAuthorization::class,
             factory: $this->makeServerAuthorizer(...),
+        );
+        $this->registerFactory(
+            className: PasswordPolicyEngine::class,
+            factory: $this->makePasswordPolicyEngine(...),
+        );
+    }
+
+    private function makePasswordPolicyEngine(): PasswordPolicyEngine
+    {
+        $options = $this->get(ServerOptions::class);
+        $clock = new SystemClock();
+
+        $chain = new PasswordChangeConstraintChain([
+            new AllowUserChangeConstraint(),
+            new SafeModifyConstraint(),
+            new MinAgeConstraint($clock),
+            new QualityConstraint($options->getPasswordQualityChecker()),
+            new HistoryConstraint(new PasswordHashVerifier()),
+        ]);
+
+        return new PasswordPolicyEngine(
+            clock: $clock,
+            changeConstraints: $chain,
         );
     }
 

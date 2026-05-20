@@ -76,26 +76,29 @@ class PwdPolicyResponseControl extends Control
         $response = Asn1::sequence();
         $warning = null;
 
-        if ($this->graceAuthRemaining !== null && $this->timeBeforeExpiration !== null) {
+        $timeBefore = $this->timeBeforeExpiration;
+        $graceRemaining = $this->graceAuthRemaining;
+
+        if ($timeBefore !== null && $graceRemaining !== null) {
             throw new ProtocolException('The password policy response cannot have both a time expiration and a grace auth value.');
         }
-        if ($this->timeBeforeExpiration !== null) {
+        if ($timeBefore !== null) {
             $warning = Asn1::context(
                 tagNumber: 0,
                 type: Asn1::sequence(
                     Asn1::context(
                         tagNumber: 0,
-                        type: Asn1::integer($this->timeBeforeExpiration),
+                        type: Asn1::integer($timeBefore),
                     ),
                 ),
             );
         }
-        if ($this->graceAuthRemaining !== null) {
+        if ($graceRemaining !== null) {
             $warning = Asn1::context(
                 tagNumber: 0,
                 type: Asn1::sequence(Asn1::context(
                     tagNumber: 1,
-                    type: Asn1::integer($this->graceAuthRemaining),
+                    type: Asn1::integer($graceRemaining),
                 )),
             );
         }
