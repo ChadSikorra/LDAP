@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\PasswordPolicy;
 
 use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
 
 /**
  * Per-connection holder that bridges the engine and the protocol handler.

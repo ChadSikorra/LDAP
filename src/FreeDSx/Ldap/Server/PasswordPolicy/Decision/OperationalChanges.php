@@ -11,7 +11,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace FreeDSx\Ldap\Server\PasswordPolicy;
+namespace FreeDSx\Ldap\Server\PasswordPolicy\Decision;
 
 use FreeDSx\Ldap\Entry\Change;
 

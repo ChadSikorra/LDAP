@@ -15,7 +15,7 @@ namespace Tests\Unit\FreeDSx\Ldap\Server\PasswordPolicy;
 
 use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
 use PHPUnit\Framework\TestCase;
 
 final class PasswordPolicyContextTest extends TestCase

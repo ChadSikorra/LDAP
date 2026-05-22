@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Asn1\Exception\EncoderException;
+use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
@@ -39,6 +40,10 @@ use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
+use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordModifyAttempt;
+use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyChangeGuard;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
@@ -61,6 +66,8 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
         private PasswordHashVerifier $hashVerifier = new PasswordHashVerifier(),
         private PasswordHasher $hasher = new PasswordHasher(),
         private ResponseFactory $responseFactory = new ResponseFactory(),
+        private ?PasswordPolicyChangeGuard $changeGuard = null,
+        private ?PasswordPolicyContext $passwordPolicyContext = null,
     ) {}
 
     /**
@@ -72,6 +79,7 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
         LdapMessageRequest $message,
         TokenInterface $token,
     ): void {
+        $this->passwordPolicyContext?->clear();
         $targetDn = null;
 
         try {
@@ -81,10 +89,13 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
                 $token,
             );
         } catch (OperationException $e) {
+            $control = $this->passwordPolicyControl();
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(
                 $message,
                 $e->getCode(),
                 $e->getMessage(),
+                null,
+                ...($control === null ? [] : [$control]),
             ));
             $this->recordFailure(
                 $e,
@@ -147,22 +158,49 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
             $newPassword = $generated;
         }
 
+        $hashed = $this->hasher->hash($newPassword);
+        $deltas = $this->changeGuard?->enforce(new PasswordModifyAttempt(
+            target: $entry,
+            newPassword: $newPassword,
+            hashedNewPassword: $hashed,
+            oldPassword: $request->getOldPassword(),
+            isSelf: $this->isSelf($token, $targetDn),
+        )) ?? OperationalChanges::none();
+
         $this->applyPasswordChange(
             $targetDn,
-            $this->hasher->hash($newPassword),
+            $hashed,
+            $deltas,
             $token,
             $message,
         );
 
+        $control = $this->passwordPolicyControl();
         $this->queue->sendMessage(new LdapMessageResponse(
             $message->getMessageId(),
             new PasswordModifyResponse(
                 new LdapResult(ResultCode::SUCCESS),
                 $generated,
             ),
+            ...($control === null ? [] : [$control]),
         ));
 
         return $targetDn;
+    }
+
+    private function isSelf(
+        AuthenticatedTokenInterface $token,
+        Dn $targetDn,
+    ): bool {
+        return $token->getResolvedDn()->normalize()->toString() === $targetDn->normalize()->toString();
+    }
+
+    private function passwordPolicyControl(): ?Control
+    {
+        $control = $this->passwordPolicyContext?->buildResponseControl();
+        $this->passwordPolicyContext?->clear();
+
+        return $control;
     }
 
     private function recordFailure(
@@ -267,23 +305,39 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
     }
 
     /**
+     * Persists the new password plus any policy bookkeeping deltas in one command. When deltas are present the
+     * command is system-flagged so the NO-USER-MODIFICATION operational attributes are accepted; ACL was already
+     * checked in authorizeRequest().
+     *
      * @throws OperationException
      */
     private function applyPasswordChange(
         Dn $targetDn,
         string $hashed,
+        OperationalChanges $deltas,
         TokenInterface $token,
         LdapMessageRequest $message,
     ): void {
+        $changes = [
+            Change::replace('userPassword', $hashed),
+            ...$deltas->changes,
+        ];
+        $context = $deltas->isEmpty()
+            ? new WriteContext(
+                $token,
+                $message->controls(),
+            )
+            : WriteContext::system(
+                $token,
+                $message->controls(),
+            );
+
         $this->writeDispatcher->dispatch(
             new UpdateCommand(
                 $targetDn,
-                [Change::replace('userPassword', $hashed)],
+                $changes,
             ),
-            new WriteContext(
-                $token,
-                $message->controls(),
-            ),
+            $context,
         );
     }
 }

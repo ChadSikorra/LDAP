@@ -15,7 +15,7 @@ namespace Tests\Unit\FreeDSx\Ldap\Server\PasswordPolicy;
 
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Change;
-use FreeDSx\Ldap\Server\PasswordPolicy\OperationalChanges;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 use PHPUnit\Framework\TestCase;
 
 final class OperationalChangesTest extends TestCase

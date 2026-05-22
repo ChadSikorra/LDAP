@@ -13,7 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\PasswordPolicy\Constraint;
 
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
 
 /**
  * One gate in the password-change pipeline; returns a deny outcome on violation or null when satisfied.

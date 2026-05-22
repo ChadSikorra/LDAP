@@ -13,9 +13,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Server\PasswordPolicy;
 
-use FreeDSx\Ldap\Server\PasswordPolicy\OperationalChanges;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyOutcome;
-use FreeDSx\Ldap\Server\PasswordPolicy\RecordedOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\RecordedOutcome;
 use PHPUnit\Framework\TestCase;
 
 final class RecordedOutcomeTest extends TestCase

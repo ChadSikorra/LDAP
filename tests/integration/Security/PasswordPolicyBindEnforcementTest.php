@@ -11,7 +11,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Tests\Integration\FreeDSx\Ldap;
+namespace Tests\Integration\FreeDSx\Ldap\Security;
 
 use DateInterval;
 use FreeDSx\Ldap\Control\PwdPolicyError;
@@ -33,7 +33,7 @@ use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyBindGuard;
+use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;

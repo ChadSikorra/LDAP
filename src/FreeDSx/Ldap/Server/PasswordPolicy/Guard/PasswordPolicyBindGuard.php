@@ -11,7 +11,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace FreeDSx\Ldap\Server\PasswordPolicy;
+namespace FreeDSx\Ldap\Server\PasswordPolicy\Guard;
 
 use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -19,6 +19,10 @@ use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
+use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordBindAttempt;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
 
 /**
  * Applies the engine's bind-time decisions.

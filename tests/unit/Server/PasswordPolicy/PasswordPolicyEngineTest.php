@@ -26,7 +26,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\HistoryEntry;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordExpirationRules;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordLockoutRules;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;

@@ -15,7 +15,7 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Constraint;
 
 use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
 
 /**
  * Denies a self-service change when pwdAllowUserChange is explicitly false.

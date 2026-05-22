@@ -33,7 +33,7 @@ use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyBindGuard;
+use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
@@ -114,6 +114,8 @@ class ServerProtocolFactory
                 requestHistory: new RequestHistory(),
                 queue: $serverQueue,
                 eventLogger: $eventLogger,
+                passwordPolicyEngine: $this->passwordPolicyEngine,
+                passwordPolicyContext: $policyContext,
             ),
             authorizer: $this->serverAuthorization,
             authenticator: new Authenticator($authenticators),
