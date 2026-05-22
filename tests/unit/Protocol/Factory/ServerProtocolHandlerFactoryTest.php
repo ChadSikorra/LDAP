@@ -16,6 +16,7 @@ namespace Tests\Unit\FreeDSx\Ldap\Protocol\Factory;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Control\PagingControl;
 use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
@@ -32,10 +33,16 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerUnsupportedExtendedHandler
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerWhoAmIHandler;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
+use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
+use FreeDSx\Ldap\Server\Clock\SystemClock;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
+use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\ServerOptions;
@@ -76,6 +83,33 @@ final class ServerProtocolHandlerFactoryTest extends TestCase
             new ServerOptions(),
             new RequestHistory(),
             $this->mockQueue,
+        );
+    }
+
+    public function test_it_throws_when_password_policy_is_enabled_but_the_backend_is_not_writable(): void
+    {
+        $handlerFactory = $this->createMock(HandlerFactoryInterface::class);
+        $handlerFactory
+            ->method('makeBackend')
+            ->willReturn($this->createMock(LdapBackendInterface::class));
+
+        $factory = new ServerProtocolHandlerFactory(
+            $handlerFactory,
+            (new ServerOptions())->setPasswordPolicy(new PasswordPolicy()),
+            new RequestHistory(),
+            $this->mockQueue,
+            passwordPolicyEngine: new PasswordPolicyEngine(
+                new SystemClock(),
+                new PasswordChangeConstraintChain([]),
+            ),
+            passwordPolicyContext: new PasswordPolicyContext(),
+        );
+
+        $this->expectException(RuntimeException::class);
+
+        $factory->get(
+            Operations::delete('cn=foo,dc=bar'),
+            new ControlBag(),
         );
     }
 
