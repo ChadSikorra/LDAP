@@ -16,7 +16,7 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Constraint;
 use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\Clock\ClockInterface;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
 
 /**
  * Denies a change attempted within pwdMinAge seconds of the last password change.

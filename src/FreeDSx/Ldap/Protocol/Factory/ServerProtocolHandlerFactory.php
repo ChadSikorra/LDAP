@@ -26,6 +26,10 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerProtocolHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHasher;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyChangeGuard;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\ServerOptions;
 
@@ -42,6 +46,8 @@ class ServerProtocolHandlerFactory
         private readonly RequestHistory $requestHistory,
         private readonly ServerQueue $queue,
         private readonly EventLogger $eventLogger = new EventLogger(null),
+        private readonly ?PasswordPolicyEngine $passwordPolicyEngine = null,
+        private readonly ?PasswordPolicyContext $passwordPolicyContext = null,
     ) {}
 
     public function get(
@@ -63,6 +69,8 @@ class ServerProtocolHandlerFactory
                 identityResolver: $this->handlerFactory->makeIdentityResolverChain(),
                 eventLogger: $this->eventLogger,
                 hasher: new PasswordHasher($this->options->getPasswordHashScheme()),
+                changeGuard: $this->makePasswordPolicyChangeGuard(),
+                passwordPolicyContext: $this->passwordPolicyContext,
             );
         } elseif ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_START_TLS) {
             return new ServerProtocolHandler\ServerStartTlsHandler(
@@ -102,6 +110,35 @@ class ServerProtocolHandlerFactory
                 eventRecorder: new ServerProtocolHandler\DispatchEventRecorder($this->eventLogger),
             );
         }
+    }
+
+    private function makePasswordPolicyChangeGuard(): ?PasswordPolicyChangeGuard
+    {
+        if (!$this->isPasswordPolicyActive()) {
+            return null;
+        }
+
+        return new PasswordPolicyChangeGuard(
+            $this->passwordPolicyEngine,
+            new PasswordPolicyResolver(
+                $this->handlerFactory->makeBackend(),
+                $this->options->getDefaultPasswordPolicyDn(),
+                $this->options->getPasswordPolicy(),
+            ),
+            $this->passwordPolicyContext,
+            $this->eventLogger,
+        );
+    }
+
+    /**
+     * @phpstan-assert-if-true !null $this->passwordPolicyEngine
+     * @phpstan-assert-if-true !null $this->passwordPolicyContext
+     */
+    private function isPasswordPolicyActive(): bool
+    {
+        return $this->passwordPolicyEngine !== null
+            && $this->passwordPolicyContext !== null
+            && $this->options->isPasswordPolicyEnabled();
     }
 
     private function isSubschemaSearch(RequestInterface $request): bool

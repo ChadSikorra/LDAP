@@ -11,11 +11,12 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Tests\Integration\FreeDSx\Ldap;
+namespace Tests\Integration\FreeDSx\Ldap\Security;
 
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
+use Tests\Integration\FreeDSx\Ldap\ServerTestCase;
 
 final class LdapPasswordPolicyServerTest extends ServerTestCase
 {

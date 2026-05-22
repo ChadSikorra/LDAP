@@ -11,7 +11,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Tests\Unit\FreeDSx\Ldap\Server\PasswordPolicy;
+namespace Tests\Unit\FreeDSx\Ldap\Server\PasswordPolicy\Guard;
 
 use DateInterval;
 use DateTimeImmutable;
@@ -27,9 +27,9 @@ use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordBindAttempt;
+use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
+use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordBindAttempt;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyBindGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordExpirationRules;

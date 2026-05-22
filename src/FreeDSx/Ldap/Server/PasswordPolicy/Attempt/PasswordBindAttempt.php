@@ -11,9 +11,11 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace FreeDSx\Ldap\Server\PasswordPolicy;
+namespace FreeDSx\Ldap\Server\PasswordPolicy\Attempt;
 
 use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
+use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
 
 /**
  * Inputs for a single bind being evaluated against the password policy.

@@ -16,7 +16,7 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Constraint;
 use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
 
 /**
  * Denies a change whose new value matches any retained pwdHistory entry.

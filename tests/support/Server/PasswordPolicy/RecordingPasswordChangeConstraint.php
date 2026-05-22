@@ -15,7 +15,7 @@ namespace Tests\Support\FreeDSx\Ldap\Server\PasswordPolicy;
 
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeAttempt;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraint;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
 
 /**
  * Test double that records each invocation and returns a configurable outcome.
