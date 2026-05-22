@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\MessageWrapper\SaslMessageWrapper;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Backend\Auth\SaslBindPolicyEnforcer;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
@@ -55,6 +56,7 @@ class SaslBind implements BindInterface
         private readonly array $mechanisms = [],
         private readonly ResponseFactory $responseFactory = new ResponseFactory(),
         private readonly EventLogger $eventLogger = new EventLogger(null),
+        private readonly ?SaslBindPolicyEnforcer $policyEnforcer = null,
     ) {}
 
     /**
@@ -176,6 +178,9 @@ class SaslBind implements BindInterface
         $message = $result->getLastMessage();
 
         if (!$context->isAuthenticated()) {
+            $this->policyEnforcer?->recordFailure($result->getUsername());
+            $control = $this->policyEnforcer?->responseControl();
+
             // Send the failure response directly using the current $message, which reflects
             // the latest message consumed from the queue (correct ID for multi-round exchanges).
             // Without this, the outer OperationException handler would use the stale first
@@ -184,6 +189,8 @@ class SaslBind implements BindInterface
                 $message,
                 ResultCode::INVALID_CREDENTIALS,
                 'Invalid credentials.',
+                null,
+                ...($control === null ? [] : [$control]),
             ));
 
             throw new OperationException(
@@ -210,18 +217,33 @@ class SaslBind implements BindInterface
                     ResultCode::INVALID_CREDENTIALS,
                 );
             }
+
+            $this->policyEnforcer?->enforceSuccess(
+                $username,
+                $resolvedDn,
+            );
         } catch (OperationException $e) {
+            $control = $this->policyEnforcer?->responseControl();
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(
                 $message,
                 $e->getCode(),
                 $e->getMessage(),
+                null,
+                ...($control === null ? [] : [$control]),
             ));
 
             throw $e;
         }
 
         // The success response must be sent before activating the security layer.
-        $this->queue->sendMessage($this->responseFactory->getStandardResponse($message));
+        $control = $this->policyEnforcer?->responseControl();
+        $this->queue->sendMessage($this->responseFactory->getStandardResponse(
+            $message,
+            ResultCode::SUCCESS,
+            '',
+            null,
+            ...($control === null ? [] : [$control]),
+        ));
 
         if ($context->hasSecurityLayer()) {
             $mech = $this->sasl->get($mechName);

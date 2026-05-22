@@ -48,7 +48,8 @@ final class LdapPasswordPolicyCommand extends Command
     ): int {
         $transport = $this->getStringOption($input, 'transport');
         $port = (int) $this->getStringOption($input, 'port');
-        $passwordHash = '{SHA}' . base64_encode(sha1('12345', true));
+        // Plaintext so both simple bind and SASL PLAIN can verify against the stored value.
+        $password = '12345';
 
         $entries = [
             new Entry(
@@ -59,16 +60,18 @@ final class LdapPasswordPolicyCommand extends Command
             new Entry(
                 new Dn('cn=user,dc=foo,dc=bar'),
                 new Attribute('cn', 'user'),
+                new Attribute('uid', 'user'),
                 new Attribute('sn', 'User'),
                 new Attribute('objectClass', 'inetOrgPerson'),
-                new Attribute('userPassword', $passwordHash),
+                new Attribute('userPassword', $password),
             ),
             new Entry(
                 new Dn('cn=reset-user,dc=foo,dc=bar'),
                 new Attribute('cn', 'reset-user'),
+                new Attribute('uid', 'reset-user'),
                 new Attribute('sn', 'Reset'),
                 new Attribute('objectClass', 'inetOrgPerson'),
-                new Attribute('userPassword', $passwordHash),
+                new Attribute('userPassword', $password),
                 new Attribute(PasswordPolicyOid::NAME_PWD_RESET, 'TRUE'),
             ),
         ];
@@ -79,6 +82,7 @@ final class LdapPasswordPolicyCommand extends Command
                 ->setTransport($transport)
                 ->setSocketAcceptTimeout(0.1)
                 ->setPasswordPolicy(new PasswordPolicy())
+                ->setSaslMechanisms(ServerOptions::SASL_PLAIN)
                 ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL)),
         );
         $server->useStorage(new InMemoryStorage($entries));
