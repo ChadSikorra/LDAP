@@ -16,6 +16,8 @@ namespace Tests\Unit\FreeDSx\Ldap\Protocol;
 use FreeDSx\Asn1\Asn1;
 use FreeDSx\Asn1\Type\IncompleteType;
 use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Control\PwdPolicyError;
+use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
 use FreeDSx\Ldap\Operation\Response\DeleteResponse;
 use FreeDSx\Ldap\Operation\Response\SearchResponse;
 use FreeDSx\Ldap\Operation\Response\SearchResultDone;
@@ -90,5 +92,32 @@ class LdapMessageResponseTest extends TestCase
             $this->subject->getResponse(),
         );
         self::assertTrue($this->subject->controls()->has('foo'));
+    }
+
+    public function test_it_decodes_the_pwd_policy_control_as_its_typed_class(): void
+    {
+        $encoder = new LdapEncoder();
+        $control = new PwdPolicyResponseControl(error: PwdPolicyError::CHANGE_AFTER_RESET);
+
+        $message = LdapMessageResponse::fromAsn1(Asn1::sequence(
+            Asn1::integer(4),
+            Asn1::application(11, Asn1::sequence(
+                Asn1::enumerated(0),
+                Asn1::octetString('dc=foo,dc=bar'),
+                Asn1::octetString(''),
+            )),
+            Asn1::context(0, (new IncompleteType($encoder->encode($control->toAsn1())))->setIsConstructed(true)),
+        ));
+
+        $decoded = $message->controls()->getByClass(PwdPolicyResponseControl::class);
+
+        self::assertInstanceOf(
+            PwdPolicyResponseControl::class,
+            $decoded,
+        );
+        self::assertSame(
+            PwdPolicyError::CHANGE_AFTER_RESET,
+            $decoded->getError(),
+        );
     }
 }

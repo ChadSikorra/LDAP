@@ -27,8 +27,16 @@ use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordPolicyAwareAuthenticator;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyBindGuard;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\Socket;
 
@@ -38,6 +46,7 @@ class ServerProtocolFactory
         private readonly HandlerFactoryInterface $handlerFactory,
         private readonly ServerOptions $options,
         private readonly ServerAuthorization $serverAuthorization,
+        private readonly PasswordPolicyEngine $passwordPolicyEngine,
     ) {}
 
     public function make(
@@ -54,11 +63,23 @@ class ServerProtocolFactory
         $backend = $this->handlerFactory->makeBackend();
         $passwordAuthenticator = $this->handlerFactory->makePasswordAuthenticator();
 
+        $policyContext = null;
+        if ($this->options->isPasswordPolicyEnabled()) {
+            $policyContext = new PasswordPolicyContext();
+            $passwordAuthenticator = $this->decoratePasswordAuthenticator(
+                $passwordAuthenticator,
+                $backend,
+                $policyContext,
+                $eventLogger,
+            );
+        }
+
         $authenticators = [
             new SimpleBind(
                 queue: $serverQueue,
                 authenticator: $passwordAuthenticator,
                 eventLogger: $eventLogger,
+                passwordPolicyContext: $policyContext,
             ),
             new AnonymousBind(
                 $serverQueue,
@@ -97,6 +118,31 @@ class ServerProtocolFactory
             authorizer: $this->serverAuthorization,
             authenticator: new Authenticator($authenticators),
             eventLogger: $eventLogger,
+            passwordPolicyContext: $policyContext,
+        );
+    }
+
+    private function decoratePasswordAuthenticator(
+        PasswordAuthenticatableInterface $inner,
+        LdapBackendInterface $backend,
+        PasswordPolicyContext $policyContext,
+        EventLogger $eventLogger,
+    ): PasswordPolicyAwareAuthenticator {
+        return new PasswordPolicyAwareAuthenticator(
+            $inner,
+            $this->handlerFactory->makeIdentityResolverChain(),
+            $backend,
+            new PasswordPolicyResolver(
+                $backend,
+                $this->options->getDefaultPasswordPolicyDn(),
+                $this->options->getPasswordPolicy(),
+            ),
+            new PasswordPolicyBindGuard(
+                $this->passwordPolicyEngine,
+                new SystemChangeWriter($this->handlerFactory->makeWriteDispatcher()),
+                $policyContext,
+                $eventLogger,
+            ),
         );
     }
 

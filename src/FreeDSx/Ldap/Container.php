@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ClientQueueInstantiator;
 use FreeDSx\Ldap\Protocol\RootDseLoader;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
+use FreeDSx\Ldap\Server\Clock\ClockInterface;
 use FreeDSx\Ldap\Server\Clock\SystemClock;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\AllowUserChangeConstraint;
@@ -166,6 +167,10 @@ class Container
             factory: $this->makeServerAuthorizer(...),
         );
         $this->registerFactory(
+            className: ClockInterface::class,
+            factory: static fn(): ClockInterface => new SystemClock(),
+        );
+        $this->registerFactory(
             className: PasswordPolicyEngine::class,
             factory: $this->makePasswordPolicyEngine(...),
         );
@@ -174,7 +179,7 @@ class Container
     private function makePasswordPolicyEngine(): PasswordPolicyEngine
     {
         $options = $this->get(ServerOptions::class);
-        $clock = new SystemClock();
+        $clock = $this->get(ClockInterface::class);
 
         $chain = new PasswordChangeConstraintChain([
             new AllowUserChangeConstraint(),
@@ -244,6 +249,7 @@ class Container
             handlerFactory: $this->get(HandlerFactoryInterface::class),
             options: $this->get(ServerOptions::class),
             serverAuthorization: $this->get(ServerAuthorization::class),
+            passwordPolicyEngine: $this->get(PasswordPolicyEngine::class),
         );
     }
 

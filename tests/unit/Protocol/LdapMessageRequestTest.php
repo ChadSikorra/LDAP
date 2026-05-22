@@ -14,8 +14,11 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Protocol;
 
 use FreeDSx\Asn1\Asn1;
+use FreeDSx\Asn1\Type\IncompleteType;
 use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
 use FreeDSx\Ldap\Operation\Request\DeleteRequest;
+use FreeDSx\Ldap\Protocol\LdapEncoder;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use PHPUnit\Framework\TestCase;
 
@@ -63,5 +66,19 @@ final class LdapMessageRequestTest extends TestCase
             ),
             $this->subject->toAsn1(),
         );
+    }
+
+    public function test_it_leaves_the_shared_pwd_policy_oid_generic_on_the_request_path(): void
+    {
+        $encoder = new LdapEncoder();
+
+        $message = LdapMessageRequest::fromAsn1(Asn1::sequence(
+            Asn1::integer(2),
+            Asn1::application(10, Asn1::octetString('dc=foo,dc=bar')),
+            Asn1::context(0, (new IncompleteType($encoder->encode((new Control(Control::OID_PWD_POLICY))->toAsn1())))->setIsConstructed(true)),
+        ));
+
+        self::assertTrue($message->controls()->has(Control::OID_PWD_POLICY));
+        self::assertNull($message->controls()->getByClass(PwdPolicyResponseControl::class));
     }
 }
