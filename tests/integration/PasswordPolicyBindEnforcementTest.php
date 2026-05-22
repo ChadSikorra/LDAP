@@ -1,0 +1,356 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * This file is part of the FreeDSx LDAP package.
+ *
+ * (c) Chad Sikorra <Chad.Sikorra@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Tests\Integration\FreeDSx\Ldap;
+
+use DateInterval;
+use FreeDSx\Ldap\Control\PwdPolicyError;
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Schema\Definition\GeneralizedTime;
+use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
+use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticator;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordPolicyAwareAuthenticator;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
+use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
+use FreeDSx\Ldap\Server\Logging\ServerEvent;
+use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyBindGuard;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
+use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordExpirationRules;
+use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordLockoutRules;
+use PHPUnit\Framework\TestCase;
+use Tests\Support\FreeDSx\Ldap\Clock\FrozenClock;
+use Tests\Support\FreeDSx\Ldap\Logging\RecordingLogger;
+
+/**
+ * In-process integration of the real bind-enforcement stack against a writable backend.
+ */
+final class PasswordPolicyBindEnforcementTest extends TestCase
+{
+    private const NOW = '2026-05-20T12:00:00Z';
+    private const USER_DN = 'cn=user,dc=foo,dc=bar';
+    private const PASSWORD = '12345';
+
+    private FrozenClock $clock;
+    private WritableStorageBackend $backend;
+    private PasswordPolicyContext $context;
+    private RecordingLogger $logger;
+
+    protected function setUp(): void
+    {
+        $this->clock = FrozenClock::fromString(self::NOW);
+        $this->context = new PasswordPolicyContext();
+        $this->logger = new RecordingLogger();
+    }
+
+    public function test_repeated_failures_lock_the_account(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user(),
+            new PasswordPolicy(
+                lockout: new PasswordLockoutRules(
+                    enabled: true,
+                    maxFailure: 2,
+                ),
+            ),
+        );
+
+        $this->attemptBind(
+            $authenticator,
+            'wrong',
+        );
+        $this->attemptBind(
+            $authenticator,
+            'wrong',
+        );
+
+        self::assertNotNull(
+            $this->storedValue(PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME),
+            'Account should be locked after reaching pwdMaxFailure.',
+        );
+
+        try {
+            $authenticator->authenticate(
+                self::USER_DN,
+                self::PASSWORD,
+            );
+            self::fail('A locked account must reject even a correct password.');
+        } catch (OperationException $e) {
+            self::assertSame(
+                ResultCode::INVALID_CREDENTIALS,
+                $e->getCode(),
+            );
+        }
+
+        self::assertSame(
+            PwdPolicyError::ACCOUNT_LOCKED,
+            $this->context->getOutcome()?->errorCode,
+        );
+        $this->assertEventRecorded(ServerEvent::PasswordPolicyAccountLocked);
+    }
+
+    public function test_elapsed_lockout_unlocks_on_success(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user([
+                PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME => $this->minutesAgo(120),
+            ]),
+            new PasswordPolicy(
+                lockout: new PasswordLockoutRules(
+                    enabled: true,
+                    duration: 3600,
+                ),
+            ),
+        );
+
+        $authenticator->authenticate(
+            self::USER_DN,
+            self::PASSWORD,
+        );
+
+        self::assertNull(
+            $this->storedValue(PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME),
+            'A successful bind past the lockout duration should clear the lock.',
+        );
+        $this->assertEventRecorded(ServerEvent::PasswordPolicyAccountUnlocked);
+    }
+
+    public function test_bind_within_expiry_warning_returns_seconds_remaining(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user([
+                PasswordPolicyOid::NAME_PWD_CHANGED_TIME => $this->minutesAgo(50),
+            ]),
+            new PasswordPolicy(
+                expiration: new PasswordExpirationRules(
+                    maxAge: 3600,
+                    expireWarning: 1200,
+                ),
+            ),
+        );
+
+        $authenticator->authenticate(
+            self::USER_DN,
+            self::PASSWORD,
+        );
+
+        self::assertSame(
+            600,
+            $this->context->getOutcome()?->timeBeforeExpiration,
+        );
+    }
+
+    public function test_expired_password_within_grace_warns_and_records_use(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user([
+                PasswordPolicyOid::NAME_PWD_CHANGED_TIME => $this->minutesAgo(120),
+            ]),
+            new PasswordPolicy(
+                expiration: new PasswordExpirationRules(
+                    maxAge: 3600,
+                    graceAuthnLimit: 3,
+                ),
+            ),
+        );
+
+        $authenticator->authenticate(
+            self::USER_DN,
+            self::PASSWORD,
+        );
+
+        self::assertSame(
+            2,
+            $this->context->getOutcome()?->graceRemaining,
+        );
+        self::assertNotNull($this->storedValue(PasswordPolicyOid::NAME_PWD_GRACE_USE_TIME));
+        $this->assertEventRecorded(ServerEvent::PasswordPolicyGraceLogin);
+    }
+
+    public function test_expired_password_beyond_grace_is_denied(): void
+    {
+        $exhausted = [
+            $this->minutesAgo(30),
+            $this->minutesAgo(20),
+            $this->minutesAgo(10),
+        ];
+        $authenticator = $this->authenticatorFor(
+            $this->user([
+                PasswordPolicyOid::NAME_PWD_CHANGED_TIME => $this->minutesAgo(120),
+                PasswordPolicyOid::NAME_PWD_GRACE_USE_TIME => $exhausted,
+            ]),
+            new PasswordPolicy(
+                expiration: new PasswordExpirationRules(
+                    maxAge: 3600,
+                    graceAuthnLimit: 3,
+                ),
+            ),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
+
+        try {
+            $authenticator->authenticate(
+                self::USER_DN,
+                self::PASSWORD,
+            );
+        } finally {
+            self::assertSame(
+                PwdPolicyError::PASSWORD_EXPIRED,
+                $this->context->getOutcome()?->errorCode,
+            );
+        }
+    }
+
+    public function test_pwd_reset_surfaces_change_after_reset(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user([
+                PasswordPolicyOid::NAME_PWD_RESET => 'TRUE',
+            ]),
+            new PasswordPolicy(),
+        );
+
+        $authenticator->authenticate(
+            self::USER_DN,
+            self::PASSWORD,
+        );
+
+        self::assertSame(
+            PwdPolicyError::CHANGE_AFTER_RESET,
+            $this->context->getOutcome()?->errorCode,
+        );
+        $this->assertEventRecorded(ServerEvent::PasswordPolicyMustChange);
+    }
+
+    /**
+     * @param array<string, string|list<string>> $extra
+     */
+    private function user(array $extra = []): Entry
+    {
+        return Entry::fromArray(
+            self::USER_DN,
+            [
+                'objectClass' => ['inetOrgPerson'],
+                'cn' => ['user'],
+                'sn' => ['User'],
+                'userPassword' => [self::PASSWORD],
+            ] + $extra,
+        );
+    }
+
+    private function authenticatorFor(
+        Entry $user,
+        PasswordPolicy $policy,
+    ): PasswordPolicyAwareAuthenticator {
+        $this->backend = new WritableStorageBackend(new InMemoryStorage([
+            Entry::fromArray(
+                'dc=foo,dc=bar',
+                [
+                    'objectClass' => ['domain'],
+                    'dc' => ['foo'],
+                ],
+            ),
+            $user,
+        ]));
+
+        $nameResolver = new DnBindNameResolver();
+        $engine = new PasswordPolicyEngine(
+            clock: $this->clock,
+            changeConstraints: new PasswordChangeConstraintChain([]),
+        );
+        $guard = new PasswordPolicyBindGuard(
+            $engine,
+            new SystemChangeWriter(new WriteOperationDispatcher($this->backend)),
+            $this->context,
+            new EventLogger(
+                $this->logger,
+                EventLogPolicy::all(),
+            ),
+        );
+
+        return new PasswordPolicyAwareAuthenticator(
+            new PasswordAuthenticator(
+                $nameResolver,
+                $this->backend,
+            ),
+            $nameResolver,
+            $this->backend,
+            new PasswordPolicyResolver(
+                $this->backend,
+                null,
+                $policy,
+            ),
+            $guard,
+        );
+    }
+
+    private function attemptBind(
+        PasswordPolicyAwareAuthenticator $authenticator,
+        string $password,
+    ): void {
+        try {
+            $authenticator->authenticate(
+                self::USER_DN,
+                $password,
+            );
+        } catch (OperationException) {
+            // Expected for the failure-path scenarios under test.
+        }
+    }
+
+    private function minutesAgo(int $minutes): string
+    {
+        return GeneralizedTime::format(
+            $this->clock
+                ->now()
+                ->sub(new DateInterval(sprintf('PT%dM', $minutes))),
+        );
+    }
+
+    private function storedValue(string $attribute): ?string
+    {
+        return $this->backend
+            ->get(new Dn(self::USER_DN))
+            ?->get($attribute)
+            ?->firstValue();
+    }
+
+    private function assertEventRecorded(ServerEvent $event): void
+    {
+        $events = [];
+        foreach ($this->logger->records as $record) {
+            $recorded = $record['context']['event'] ?? null;
+            if (is_string($recorded)) {
+                $events[] = $recorded;
+            }
+        }
+
+        self::assertContains(
+            $event->value,
+            $events,
+        );
+    }
+}

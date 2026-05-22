@@ -14,9 +14,16 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Server;
 
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
+use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
+use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
+use FreeDSx\Ldap\Server\Clock\SystemClock;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
+use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\ServerProtocolFactory;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\ServerOptions;
@@ -49,6 +56,15 @@ final class ServerProtocolFactoryTest extends TestCase
             $this->mockHandlerFactory,
             new ServerOptions(),
             $this->mockServerAuthorization,
+            $this->passwordPolicyEngine(),
+        );
+    }
+
+    private function passwordPolicyEngine(): PasswordPolicyEngine
+    {
+        return new PasswordPolicyEngine(
+            new SystemClock(),
+            new PasswordChangeConstraintChain([]),
         );
     }
 
@@ -74,6 +90,33 @@ final class ServerProtocolFactoryTest extends TestCase
             $this->mockHandlerFactory,
             (new ServerOptions())->setSaslMechanisms(ServerOptions::SASL_PLAIN),
             $this->mockServerAuthorization,
+            $this->passwordPolicyEngine(),
+        );
+
+        $subject->make($mockSocket);
+    }
+
+    public function test_it_wraps_the_authenticator_when_password_policy_is_enabled(): void
+    {
+        $this->expectNotToPerformAssertions();
+
+        $mockSocket = $this->createMock(Socket::class);
+
+        $this->mockHandlerFactory
+            ->method('makePasswordAuthenticator')
+            ->willReturn($this->createMock(PasswordAuthenticatableInterface::class));
+        $this->mockHandlerFactory
+            ->method('makeIdentityResolverChain')
+            ->willReturn($this->createMock(BindNameResolverInterface::class));
+        $this->mockHandlerFactory
+            ->method('makeWriteDispatcher')
+            ->willReturn(new WriteOperationDispatcher());
+
+        $subject = new ServerProtocolFactory(
+            $this->mockHandlerFactory,
+            (new ServerOptions())->setPasswordPolicy(new PasswordPolicy()),
+            $this->mockServerAuthorization,
+            $this->passwordPolicyEngine(),
         );
 
         $subject->make($mockSocket);

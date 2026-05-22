@@ -158,17 +158,7 @@ abstract class LdapMessage implements ProtocolElementInterface, PduInterface
                         if (!($control instanceof SequenceType && $control->getChild(0) !== null && $control->getChild(0) instanceof OctetStringType)) {
                             throw new ProtocolException('The control either is not a sequence or has no OID value attached.');
                         }
-                        $controls[] = match ($control->getChild(0)->getValue()) {
-                            Control\Control::OID_PAGING => Control\PagingControl::fromAsn1($control),
-                            Control\Control::OID_SORTING => Control\Sorting\SortingControl::fromAsn1($control),
-                            Control\Control::OID_SORTING_RESPONSE => Control\Sorting\SortingResponseControl::fromAsn1($control),
-                            Control\Control::OID_VLV_RESPONSE => Control\Vlv\VlvResponseControl::fromAsn1($control),
-                            Control\Control::OID_DIR_SYNC => Control\Ad\DirSyncResponseControl::fromAsn1($control),
-                            Control\Control::OID_SYNC_STATE => Control\Sync\SyncStateControl::fromAsn1($control),
-                            Control\Control::OID_SYNC_REQUEST => Control\Sync\SyncRequestControl::fromAsn1($control),
-                            Control\Control::OID_SYNC_DONE => Control\Sync\SyncDoneControl::fromAsn1($control),
-                            default => Control\Control::fromAsn1($control),
-                        };
+                        $controls[] = static::controlFromAsn1($control);
                     }
                 }
             }
@@ -217,6 +207,24 @@ abstract class LdapMessage implements ProtocolElementInterface, PduInterface
             $operation,
             ...$controls,
         );
+    }
+
+    /**
+     * Subclasses override to honor direction-specific OIDs, e.g. controls whose request and response forms differ.
+     */
+    protected static function controlFromAsn1(SequenceType $control): Control\Control
+    {
+        return match ($control->getChild(0)?->getValue()) {
+            Control\Control::OID_PAGING => Control\PagingControl::fromAsn1($control),
+            Control\Control::OID_SORTING => Control\Sorting\SortingControl::fromAsn1($control),
+            Control\Control::OID_SORTING_RESPONSE => Control\Sorting\SortingResponseControl::fromAsn1($control),
+            Control\Control::OID_VLV_RESPONSE => Control\Vlv\VlvResponseControl::fromAsn1($control),
+            Control\Control::OID_DIR_SYNC => Control\Ad\DirSyncResponseControl::fromAsn1($control),
+            Control\Control::OID_SYNC_STATE => Control\Sync\SyncStateControl::fromAsn1($control),
+            Control\Control::OID_SYNC_REQUEST => Control\Sync\SyncRequestControl::fromAsn1($control),
+            Control\Control::OID_SYNC_DONE => Control\Sync\SyncDoneControl::fromAsn1($control),
+            default => Control\Control::fromAsn1($control),
+        };
     }
 
     /**

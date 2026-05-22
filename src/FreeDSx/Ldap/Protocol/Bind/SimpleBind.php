@@ -13,10 +13,12 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\Bind;
 
+use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Operation\Request\BindRequest;
 use FreeDSx\Ldap\Operation\Request\SimpleBindRequest;
+use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
@@ -24,6 +26,7 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -40,6 +43,7 @@ class SimpleBind implements BindInterface
         private readonly PasswordAuthenticatableInterface $authenticator,
         private readonly EventLogger $eventLogger = new EventLogger(null),
         private readonly ResponseFactory $responseFactory = new ResponseFactory(),
+        private readonly ?PasswordPolicyContext $passwordPolicyContext = null,
     ) {}
 
     /**
@@ -75,7 +79,14 @@ class SimpleBind implements BindInterface
             throw $e;
         }
 
-        $this->queue->sendMessage($this->responseFactory->getStandardResponse($message));
+        $control = $this->passwordPolicyControl();
+        $this->queue->sendMessage($this->responseFactory->getStandardResponse(
+            $message,
+            ResultCode::SUCCESS,
+            '',
+            null,
+            ...($control === null ? [] : [$control]),
+        ));
         $this->eventLogger->record(
             ServerEvent::BindSuccess,
             [
@@ -95,6 +106,14 @@ class SimpleBind implements BindInterface
             $request->getUsername(),
             $request->getPassword(),
         );
+    }
+
+    private function passwordPolicyControl(): ?Control
+    {
+        $control = $this->passwordPolicyContext?->buildResponseControl();
+        $this->passwordPolicyContext?->clear();
+
+        return $control;
     }
 
     /**

@@ -14,7 +14,9 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol;
 
 use FreeDSx\Asn1\Type\AbstractType;
+use FreeDSx\Asn1\Type\SequenceType;
 use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Response\ResponseInterface;
 
@@ -48,5 +50,13 @@ class LdapMessageResponse extends LdapMessage
     protected function getOperationAsn1(): AbstractType
     {
         return $this->response->toAsn1();
+    }
+
+    protected static function controlFromAsn1(SequenceType $control): Control
+    {
+        return match ($control->getChild(0)?->getValue()) {
+            Control::OID_PWD_POLICY => PwdPolicyResponseControl::fromAsn1($control),
+            default => parent::controlFromAsn1($control),
+        };
     }
 }
