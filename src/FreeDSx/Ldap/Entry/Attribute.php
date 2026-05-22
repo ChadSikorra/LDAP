@@ -146,6 +146,7 @@ class Attribute implements IteratorAggregate, Countable, Stringable
                 }
             }
         }
+        $this->values = array_values($this->values);
 
         return $this;
     }

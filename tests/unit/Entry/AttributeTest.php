@@ -146,6 +146,20 @@ class AttributeTest extends TestCase
         );
     }
 
+    public function test_removing_the_first_value_reindexes_the_list(): void
+    {
+        $this->subject->remove('foo');
+
+        self::assertSame(
+            ['bar'],
+            $this->subject->getValues(),
+        );
+        self::assertSame(
+            'bar',
+            $this->subject->firstValue(),
+        );
+    }
+
     public function test_it_should_set_values(): void
     {
         $this->subject->set('foo');

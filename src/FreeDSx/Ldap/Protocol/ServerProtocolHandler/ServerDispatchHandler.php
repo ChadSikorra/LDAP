@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Asn1\Exception\EncoderException;
+use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request;
@@ -29,6 +30,7 @@ use FreeDSx\Ldap\Server\Backend\Write\WriteCommandFactory;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -49,6 +51,7 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         private DispatchEventRecorder $eventRecorder = new DispatchEventRecorder(new EventLogger(null)),
         private WriteCommandFactory $commandFactory = new WriteCommandFactory(),
         private ResponseFactory $responseFactory = new ResponseFactory(),
+        private ?PasswordPolicyContext $passwordPolicyContext = null,
     ) {}
 
     /**
@@ -60,6 +63,8 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         LdapMessageRequest $message,
         TokenInterface $token,
     ): void {
+        $this->passwordPolicyContext?->clear();
+
         try {
             $this->assertNoCriticalUnsupportedControls($message->controls());
             $request = $message->getRequest();
@@ -102,12 +107,20 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                 ),
             );
 
-            $this->queue->sendMessage($this->responseFactory->getStandardResponse($message));
+            $successControl = $this->passwordPolicyControl();
+            $this->queue->sendMessage($this->responseFactory->getStandardResponse(
+                $message,
+                ResultCode::SUCCESS,
+                '',
+                null,
+                ...($successControl === null ? [] : [$successControl]),
+            ));
             $this->eventRecorder->recordWriteSuccess(
                 $message,
                 $token,
             );
         } catch (OperationException $e) {
+            $errorControl = $this->passwordPolicyControl();
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(
                 $message,
                 $e->getCode(),
@@ -118,6 +131,7 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                     $this->backend,
                     $this->accessControl,
                 ),
+                ...($errorControl === null ? [] : [$errorControl]),
             ));
             $this->eventRecorder->recordFailure(
                 $message,
@@ -125,6 +139,14 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                 $token,
             );
         }
+    }
+
+    private function passwordPolicyControl(): ?Control
+    {
+        $control = $this->passwordPolicyContext?->buildResponseControl();
+        $this->passwordPolicyContext?->clear();
+
+        return $control;
     }
 
     private function dnFor(RequestInterface $request): ?Dn

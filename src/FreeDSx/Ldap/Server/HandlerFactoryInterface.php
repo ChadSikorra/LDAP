@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Server;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
@@ -45,11 +46,9 @@ interface HandlerFactoryInterface
     /**
      * Build the write operation dispatcher.
      *
-     * Explicit write handlers (registered via LdapServer::useWriteHandler()) are
-     * added first (higher priority). The backend is appended as a fallback if it
-     * implements WriteHandlerInterface.
+     * Any $prepend handlers run first, then explicit write handlers.
      */
-    public function makeWriteDispatcher(): WriteOperationDispatcher;
+    public function makeWriteDispatcher(WriteHandlerInterface ...$prepend): WriteOperationDispatcher;
 
     /**
      * Return a PasswordAuthenticatableInterface for simple-bind and SASL PLAIN.

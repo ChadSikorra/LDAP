@@ -109,7 +109,7 @@ class HandlerFactory implements HandlerFactoryInterface
     /**
      * @inheritDoc
      */
-    public function makeWriteDispatcher(): WriteOperationDispatcher
+    public function makeWriteDispatcher(WriteHandlerInterface ...$prepend): WriteOperationDispatcher
     {
         $handlers = $this->options->getWriteHandlers();
 
@@ -118,6 +118,9 @@ class HandlerFactory implements HandlerFactoryInterface
             $handlers[] = $backend;
         }
 
-        return new WriteOperationDispatcher(...$handlers);
+        return new WriteOperationDispatcher(
+            ...$prepend,
+            ...$handlers,
+        );
     }
 }

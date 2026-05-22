@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Protocol\Factory;
 
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ControlBag;
+use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Operation\Request\AbandonRequest;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
@@ -24,6 +25,9 @@ use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerProtocolHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHasher;
+use FreeDSx\Ldap\Server\Backend\Write\PasswordPolicyWriteHandler;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
+use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyChangeGuard;
@@ -102,14 +106,40 @@ class ServerProtocolHandlerFactory
         } elseif ($request instanceof UnbindRequest) {
             return new ServerProtocolHandler\ServerUnbindHandler($this->queue);
         } else {
+            $policyWriteHandler = $this->makePasswordPolicyWriteHandler();
+
             return new ServerProtocolHandler\ServerDispatchHandler(
                 queue: $this->queue,
                 backend: $this->handlerFactory->makeBackend(),
-                writeDispatcher: $this->handlerFactory->makeWriteDispatcher(),
+                writeDispatcher: $policyWriteHandler !== null
+                    ? $this->handlerFactory->makeWriteDispatcher($policyWriteHandler)
+                    : $this->handlerFactory->makeWriteDispatcher(),
                 accessControl: $this->options->getAccessControl(),
                 eventRecorder: new ServerProtocolHandler\DispatchEventRecorder($this->eventLogger),
+                passwordPolicyContext: $this->passwordPolicyContext,
             );
         }
+    }
+
+    private function makePasswordPolicyWriteHandler(): ?PasswordPolicyWriteHandler
+    {
+        $guard = $this->makePasswordPolicyChangeGuard();
+        if ($guard === null) {
+            return null;
+        }
+
+        $backend = $this->handlerFactory->makeBackend();
+        if (!$backend instanceof WriteHandlerInterface) {
+            throw new RuntimeException(
+                'A backend implementing WriteHandlerInterface is required to enforce policy on userPassword modifications.',
+            );
+        }
+
+        return new PasswordPolicyWriteHandler(
+            $backend,
+            $guard,
+            new SystemChangeWriter($this->handlerFactory->makeWriteDispatcher()),
+        );
     }
 
     private function makePasswordPolicyChangeGuard(): ?PasswordPolicyChangeGuard
