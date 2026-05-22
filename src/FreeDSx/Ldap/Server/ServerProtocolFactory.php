@@ -29,6 +29,7 @@ use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordPolicyAwareAuthenticator;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\SaslBindPolicyEnforcer;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
@@ -103,6 +104,9 @@ class ServerProtocolFactory
                 mechanisms: $saslMechanisms,
                 responseFactory: $responseFactory,
                 eventLogger: $eventLogger,
+                policyEnforcer: $policyContext !== null
+                    ? $this->makeSaslPolicyEnforcer($backend, $policyContext, $eventLogger)
+                    : null,
             );
         }
 
@@ -134,17 +138,43 @@ class ServerProtocolFactory
             $inner,
             $this->handlerFactory->makeIdentityResolverChain(),
             $backend,
-            new PasswordPolicyResolver(
-                $backend,
-                $this->options->getDefaultPasswordPolicyDn(),
-                $this->options->getPasswordPolicy(),
-            ),
-            new PasswordPolicyBindGuard(
-                $this->passwordPolicyEngine,
-                new SystemChangeWriter($this->handlerFactory->makeWriteDispatcher()),
-                $policyContext,
-                $eventLogger,
-            ),
+            $this->makePasswordPolicyResolver($backend),
+            $this->makeBindGuard($policyContext, $eventLogger),
+        );
+    }
+
+    private function makeSaslPolicyEnforcer(
+        LdapBackendInterface $backend,
+        PasswordPolicyContext $policyContext,
+        EventLogger $eventLogger,
+    ): SaslBindPolicyEnforcer {
+        return new SaslBindPolicyEnforcer(
+            $this->handlerFactory->makeIdentityResolverChain(),
+            $backend,
+            $this->makePasswordPolicyResolver($backend),
+            $this->makeBindGuard($policyContext, $eventLogger),
+            $policyContext,
+        );
+    }
+
+    private function makePasswordPolicyResolver(LdapBackendInterface $backend): PasswordPolicyResolver
+    {
+        return new PasswordPolicyResolver(
+            $backend,
+            $this->options->getDefaultPasswordPolicyDn(),
+            $this->options->getPasswordPolicy(),
+        );
+    }
+
+    private function makeBindGuard(
+        PasswordPolicyContext $policyContext,
+        EventLogger $eventLogger,
+    ): PasswordPolicyBindGuard {
+        return new PasswordPolicyBindGuard(
+            $this->passwordPolicyEngine,
+            new SystemChangeWriter($this->handlerFactory->makeWriteDispatcher()),
+            $policyContext,
+            $eventLogger,
         );
     }
 
