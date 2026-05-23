@@ -29,6 +29,7 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\DispatchEventRecorder;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
+use FreeDSx\Ldap\Server\Backend\Write\RelaxedSchemaViolations;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
@@ -350,6 +351,94 @@ final class DispatchEventRecorderTest extends TestCase
                 'Exists',
                 ResultCode::ENTRY_ALREADY_EXISTS,
             ),
+            $this->token,
+        );
+
+        self::assertSame(
+            [],
+            $this->recordingLogger->records,
+        );
+    }
+
+    public function test_record_relaxed_schema_violations_emits_schema_violation_with_lenient_mode(): void
+    {
+        $violations = new RelaxedSchemaViolations();
+        $violations->record(new OperationException(
+            'Required attribute "sn" is missing.',
+            ResultCode::OBJECT_CLASS_VIOLATION,
+        ));
+
+        $this->subject->recordRelaxedSchemaViolations(
+            $violations,
+            self::wrap(new AddRequest(new Entry(
+                new Dn(self::TARGET_DN),
+                new Attribute('cn', 'Bob'),
+            ))),
+            $this->token,
+        );
+
+        $record = $this->onlyRecord();
+        self::assertSame(
+            'schema.violation',
+            $record['message'],
+        );
+        self::assertSame(
+            'lenient',
+            $record['context'][EventContext::VALIDATION_MODE],
+        );
+        self::assertSame(
+            'add',
+            $record['context'][EventContext::OPERATION],
+        );
+        self::assertSame(
+            ResultCode::OBJECT_CLASS_VIOLATION,
+            $record['context'][EventContext::RESULT_CODE],
+        );
+        self::assertSame(
+            'Required attribute "sn" is missing.',
+            $record['context'][EventContext::REASON],
+        );
+        self::assertSame(
+            [EventContext::DN => self::TARGET_DN],
+            $record['context'][EventContext::TARGET],
+        );
+    }
+
+    public function test_record_relaxed_schema_violations_emits_one_event_per_violation(): void
+    {
+        $violations = new RelaxedSchemaViolations();
+        $violations->record(new OperationException(
+            'first',
+            ResultCode::OBJECT_CLASS_VIOLATION,
+        ));
+        $violations->record(new OperationException(
+            'second',
+            ResultCode::CONSTRAINT_VIOLATION,
+        ));
+
+        $this->subject->recordRelaxedSchemaViolations(
+            $violations,
+            self::wrap(new AddRequest(new Entry(
+                new Dn(self::TARGET_DN),
+                new Attribute('cn', 'Bob'),
+            ))),
+            $this->token,
+        );
+
+        self::assertCount(
+            2,
+            $this->recordingLogger->records,
+        );
+    }
+
+    public function test_record_relaxed_schema_violations_is_silent_when_empty(): void
+    {
+        $this->subject->recordRelaxedSchemaViolations(
+            new RelaxedSchemaViolations(),
+            self::wrap(new AddRequest(new Entry(
+                new Dn(self::TARGET_DN),
+                new Attribute('cn', 'Bob'),
+            ))),
             $this->token,
         );
 

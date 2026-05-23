@@ -38,6 +38,11 @@ final class SchemaValidator
         private readonly SchemaValidationMode $mode,
     ) {}
 
+    public function mode(): SchemaValidationMode
+    {
+        return $this->mode;
+    }
+
     /**
      * Validates an entry before it is added to storage.
      *

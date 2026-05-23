@@ -26,6 +26,7 @@ use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\RelaxedSchemaViolations;
 use FreeDSx\Ldap\Server\Backend\Write\WriteCommandFactory;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
@@ -99,12 +100,19 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                 return;
             }
 
+            $relaxedViolations = new RelaxedSchemaViolations();
             $this->writeDispatcher->dispatch(
                 $this->commandFactory->fromRequest($request),
                 new WriteContext(
                     $token,
                     $message->controls(),
+                    relaxedViolations: $relaxedViolations,
                 ),
+            );
+            $this->eventRecorder->recordRelaxedSchemaViolations(
+                $relaxedViolations,
+                $message,
+                $token,
             );
 
             $successControl = $this->passwordPolicyControl();

@@ -15,6 +15,18 @@ namespace FreeDSx\Ldap\Schema;
 
 enum SchemaValidationMode
 {
+    /**
+     * Reject writes that violate the schema.
+     */
     case Strict;
+
+    /**
+     * Log schema violations but allow the write to proceed.
+     */
+    case Lenient;
+
+    /**
+     * Skip schema validation entirely.
+     */
     case Off;
 }

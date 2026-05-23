@@ -20,6 +20,9 @@ LDAP Server Configuration
     * [ServerOptions:setRootDseHandler](#setrootdsehandler)
     * [ServerOptions:setPasswordAuthenticator](#setpasswordauthenticator)
     * [ServerOptions:setIdentityResolver](#setidentityresolver)
+* [Schema](#schema)
+    * [ServerOptions:setSchemaValidationMode](#setschemavalidationmode)
+    * [ServerOptions:setSchema](#setschema)
 * [RootDSE Options](#rootdse-options)
     * [ServerOptions:setDseNamingContexts](#setdsenamingcontexts)
     * [ServerOptions:setDseAltServer](#setdsealtserver)
@@ -386,6 +389,32 @@ operations is your responsibility and this option has no effect on bind authenti
 Password Modify requests.
 
 **Default**: `null` (`DnBindNameResolver` is tried first; falls back to `AttributeSearchBindNameResolver`)
+
+## Schema
+
+These configure schema validation for `useStorage()` writes. For full documentation, see
+[Schema Validation](Schema.md).
+
+------------------
+#### setSchemaValidationMode
+
+How `add`/`modify` writes are validated:
+
+* `Strict` rejects violations
+* `Lenient` logs them but allows the write
+* `Off` skips validation
+
+See [Validation Mode](Schema.md#validation-mode).
+
+**Default**: `SchemaValidationMode::Strict`
+
+------------------
+#### setSchema
+
+Replaces the active schema used for validation and operational attributes. See
+[Custom Schema](Schema.md#custom-schema).
+
+**Default**: `StandardSchemaProvider::buildCore()`
 
 ## RootDSE Options
 

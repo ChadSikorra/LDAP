@@ -13,6 +13,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\MysqlStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
+use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\ServerOptions;
 use PDO;
 use Symfony\Component\Console\Command\Command;
@@ -64,6 +65,13 @@ final class LdapBackendStorageCommand extends Command
                 InputOption::VALUE_REQUIRED,
                 'Number of additional seed entries to generate',
                 '0',
+            )
+            ->addOption(
+                'validation-mode',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Schema validation mode (strict, lenient, off)',
+                'strict',
             );
     }
 
@@ -93,6 +101,19 @@ final class LdapBackendStorageCommand extends Command
 
         if ($seedEntries < 0) {
             $io->error("Invalid --seed-entries value: {$seedEntries}. Must be zero or greater.");
+
+            return Command::FAILURE;
+        }
+
+        $validationMode = match ($this->getStringOption($input, 'validation-mode')) {
+            'strict' => SchemaValidationMode::Strict,
+            'lenient' => SchemaValidationMode::Lenient,
+            'off' => SchemaValidationMode::Off,
+            default => null,
+        };
+
+        if ($validationMode === null) {
+            $io->error('Invalid --validation-mode value. Expected one of: strict, lenient, off.');
 
             return Command::FAILURE;
         }
@@ -143,6 +164,7 @@ final class LdapBackendStorageCommand extends Command
                 ->setPort($port)
                 ->setTransport($transport)
                 ->setSocketAcceptTimeout(0.1)
+                ->setSchemaValidationMode($validationMode)
                 ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL)),
         );
 

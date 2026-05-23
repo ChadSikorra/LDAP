@@ -31,6 +31,7 @@ use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\DnTooLongException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\InvalidAttributeException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
+use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Write\WritableBackendTrait;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
@@ -197,9 +198,9 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 $this->throwEntryAlreadyExists($command->entry->getDn());
             }
 
-            $this->validator?->validateAdd(
-                $command->entry,
-                $context->isSystem(),
+            $this->validateForAdd(
+                $command,
+                $context,
             );
             $this->operationalAttrs->applyForAdd(
                 $command->entry,
@@ -247,10 +248,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             $dn = $command->dn->normalize();
             $entry = $this->findOrFail($storage, $dn);
             $updated = $this->entryHandler->apply($entry, $command);
-            $this->validator?->validateModify(
+            $this->validateForModify(
                 $command,
                 $updated,
-                $context->isSystem(),
+                $context,
             );
             $this->operationalAttrs->applyForModify(
                 $updated,
@@ -258,6 +259,72 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             );
             $storage->store($updated);
         });
+    }
+
+    /**
+     * @throws OperationException
+     */
+    private function validateForAdd(
+        AddCommand $command,
+        WriteContext $context,
+    ): void {
+        if ($this->validator === null) {
+            return;
+        }
+
+        try {
+            $this->validator->validateAdd(
+                $command->entry,
+                $context->isSystem(),
+            );
+        } catch (OperationException $e) {
+            $this->relaxOrThrow(
+                $e,
+                $context,
+            );
+        }
+    }
+
+    /**
+     * @throws OperationException
+     */
+    private function validateForModify(
+        UpdateCommand $command,
+        Entry $updated,
+        WriteContext $context,
+    ): void {
+        if ($this->validator === null) {
+            return;
+        }
+
+        try {
+            $this->validator->validateModify(
+                $command,
+                $updated,
+                $context->isSystem(),
+            );
+        } catch (OperationException $e) {
+            $this->relaxOrThrow(
+                $e,
+                $context,
+            );
+        }
+    }
+
+    /**
+     * Rejects the violation in Strict mode; records it for logging and allows the write in Lenient mode.
+     *
+     * @throws OperationException
+     */
+    private function relaxOrThrow(
+        OperationException $violation,
+        WriteContext $context,
+    ): void {
+        if ($this->validator?->mode() !== SchemaValidationMode::Lenient) {
+            throw $violation;
+        }
+
+        $context->relaxedViolations()->record($violation);
     }
 
     /**
