@@ -77,10 +77,15 @@ $entry = Entry::fromArray(
 
 **Default**: `SchemaValidationMode::Strict`
 
-| Mode | Behaviour |
-|------|-----------|
-| `Strict` | Violations are rejected with an LDAP error. |
-| `Off` | All writes pass through without checks. |
+| Mode      | Behaviour                                                     |
+|-----------|---------------------------------------------------------------|
+| `Strict`  | Violations are rejected with an LDAP error.                   |
+| `Lenient` | Violations are logged, but the write is allowed.              |
+| `Off`     | All writes pass through without checks (and without logging). |
+
+`Lenient` logs each relaxed violation as a `schema.violation` event with `validation_mode: lenient` (see
+[Server Logging](Logging.md)). Useful for migrations or editing legacy entries a changed schema would
+otherwise make unmodifiable.
 
 ```php
 use FreeDSx\Ldap\LdapServer;
@@ -89,7 +94,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\ServerOptions;
 
 $server = new LdapServer(
-    (new ServerOptions())->setSchemaValidationMode(SchemaValidationMode::Off)
+    (new ServerOptions())->setSchemaValidationMode(SchemaValidationMode::Lenient)
 );
 $server->useStorage(new InMemoryStorage());
 ```

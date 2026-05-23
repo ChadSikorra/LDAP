@@ -27,6 +27,7 @@ final readonly class WriteContext
         private TokenInterface $token,
         private ControlBag $controls,
         private bool $isSystem = false,
+        private RelaxedSchemaViolations $relaxedViolations = new RelaxedSchemaViolations(),
     ) {}
 
     /**
@@ -69,5 +70,10 @@ final readonly class WriteContext
     public function getControls(): ControlBag
     {
         return $this->controls;
+    }
+
+    public function relaxedViolations(): RelaxedSchemaViolations
+    {
+        return $this->relaxedViolations;
     }
 }

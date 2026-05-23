@@ -47,6 +47,21 @@ final class SchemaValidatorTest extends TestCase
         );
     }
 
+    public function test_mode_returns_configured_mode(): void
+    {
+        self::assertSame(
+            SchemaValidationMode::Strict,
+            $this->subject->mode(),
+        );
+        self::assertSame(
+            SchemaValidationMode::Lenient,
+            (new SchemaValidator(
+                StandardSchemaProvider::buildCore(),
+                SchemaValidationMode::Lenient,
+            ))->mode(),
+        );
+    }
+
     public function test_valid_add_passes(): void
     {
         $this->expectNotToPerformAssertions();

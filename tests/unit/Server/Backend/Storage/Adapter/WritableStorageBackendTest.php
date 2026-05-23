@@ -43,6 +43,7 @@ use FreeDSx\Ldap\Server\Backend\Write\Command\AddCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\MoveCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
+use FreeDSx\Ldap\Server\Backend\Write\RelaxedSchemaViolations;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteRequestInterface;
 use FreeDSx\Ldap\Server\Token\AnonToken;
@@ -987,6 +988,86 @@ final class WritableStorageBackendTest extends TestCase
                 [Change::replace(new Attribute('createTimestamp', '20240101000000Z'))],
             ),
             $this->context(),
+        );
+    }
+
+    public function test_add_with_lenient_validator_allows_invalid_entry_and_records_violation(): void
+    {
+        $backend = new WritableStorageBackend(
+            storage: new InMemoryStorage([$this->base]),
+            validator: new SchemaValidator(
+                StandardSchemaProvider::buildCore(),
+                SchemaValidationMode::Lenient,
+            ),
+        );
+        $violations = new RelaxedSchemaViolations();
+
+        $backend->add(
+            new AddCommand(new Entry(
+                new Dn('cn=Invalid,dc=example,dc=com'),
+                new Attribute('cn', 'Invalid'),
+            )),
+            new WriteContext(
+                new AnonToken(),
+                new ControlBag(),
+                relaxedViolations: $violations,
+            ),
+        );
+
+        self::assertNotNull(
+            $backend->get(new Dn('cn=Invalid,dc=example,dc=com')),
+        );
+        self::assertCount(
+            1,
+            $violations->all(),
+        );
+        self::assertSame(
+            ResultCode::OBJECT_CLASS_VIOLATION,
+            $violations->all()[0]->getCode(),
+        );
+    }
+
+    public function test_update_with_lenient_validator_allows_invalid_modification_and_records_violation(): void
+    {
+        $valid = new Entry(
+            new Dn('cn=Alice,dc=example,dc=com'),
+            new Attribute('objectClass', 'top', 'person'),
+            new Attribute('cn', 'Alice'),
+            new Attribute('sn', 'Smith'),
+        );
+        $backend = new WritableStorageBackend(
+            storage: new InMemoryStorage([$this->base, $valid]),
+            validator: new SchemaValidator(
+                StandardSchemaProvider::buildCore(),
+                SchemaValidationMode::Lenient,
+            ),
+        );
+        $violations = new RelaxedSchemaViolations();
+
+        $backend->update(
+            new UpdateCommand(
+                new Dn('cn=Alice,dc=example,dc=com'),
+                [Change::replace(new Attribute('createTimestamp', '20240101000000Z'))],
+            ),
+            new WriteContext(
+                new AnonToken(),
+                new ControlBag(),
+                relaxedViolations: $violations,
+            ),
+        );
+
+        $stored = $backend->get(new Dn('cn=Alice,dc=example,dc=com'));
+        self::assertSame(
+            '20240101000000Z',
+            $stored?->get('createTimestamp')?->firstValue(),
+        );
+        self::assertCount(
+            1,
+            $violations->all(),
+        );
+        self::assertSame(
+            ResultCode::CONSTRAINT_VIOLATION,
+            $violations->all()[0]->getCode(),
         );
     }
 

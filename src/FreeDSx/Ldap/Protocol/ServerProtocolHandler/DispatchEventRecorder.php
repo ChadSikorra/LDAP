@@ -22,7 +22,9 @@ use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
+use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
+use FreeDSx\Ldap\Server\Backend\Write\RelaxedSchemaViolations;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
@@ -104,7 +106,76 @@ final readonly class DispatchEventRecorder
             return;
         }
 
-        $request = $message->getRequest();
+        if ($event === ServerEvent::SchemaViolation) {
+            $this->recordSchemaViolation(
+                $exception,
+                $message,
+                $token,
+            );
+
+            return;
+        }
+
+        $this->eventLogger->recordFailure(
+            $event,
+            $exception,
+            $this->writeEventContext($message->getRequest()),
+            subject: $token,
+            message: $message,
+        );
+    }
+
+    /**
+     * Records each schema violation that was allowed under Lenient validation.
+     */
+    public function recordRelaxedSchemaViolations(
+        RelaxedSchemaViolations $violations,
+        LdapMessageRequest $message,
+        TokenInterface $token,
+    ): void {
+        foreach ($violations->all() as $violation) {
+            $this->recordSchemaViolation(
+                $violation,
+                $message,
+                $token,
+                relaxed: true,
+            );
+        }
+    }
+
+    /**
+     * Emits a single SchemaViolation event; $relaxed marks one allowed under Lenient validation.
+     */
+    private function recordSchemaViolation(
+        OperationException $violation,
+        LdapMessageRequest $message,
+        TokenInterface $token,
+        bool $relaxed = false,
+    ): void {
+        $extra = $relaxed
+            ? [EventContext::VALIDATION_MODE => strtolower(SchemaValidationMode::Lenient->name)]
+            : [];
+
+        $this->eventLogger->recordFailure(
+            ServerEvent::SchemaViolation,
+            $violation,
+            $this->writeEventContext(
+                $message->getRequest(),
+                $extra,
+            ),
+            subject: $token,
+            message: $message,
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $extra
+     * @return array<string, mixed>
+     */
+    private function writeEventContext(
+        RequestInterface $request,
+        array $extra = [],
+    ): array {
         $context = [EventContext::TARGET => $this->writeTargetFor($request)];
         $operationType = OperationType::fromRequest($request);
 
@@ -112,12 +183,9 @@ final readonly class DispatchEventRecorder
             $context[EventContext::OPERATION] = $operationType->value;
         }
 
-        $this->eventLogger->recordFailure(
-            $event,
-            $exception,
+        return array_merge(
             $context,
-            subject: $token,
-            message: $message,
+            $extra,
         );
     }
 

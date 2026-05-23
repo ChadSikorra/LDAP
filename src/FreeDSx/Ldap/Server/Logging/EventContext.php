@@ -40,6 +40,7 @@ final class EventContext
     public const OPERATION = 'operation';
     public const RESULT_CODE = 'result_code';
     public const REASON = 'reason';
+    public const VALIDATION_MODE = 'validation_mode';
     public const REASON_CODE = 'reason_code';
     public const REASON_MESSAGE = 'reason_message';
     public const MECHANISM = 'mechanism';
