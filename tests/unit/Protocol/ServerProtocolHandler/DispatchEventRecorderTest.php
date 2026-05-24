@@ -29,7 +29,8 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\DispatchEventRecorder;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
-use FreeDSx\Ldap\Server\Backend\Write\RelaxedSchemaViolations;
+use FreeDSx\Ldap\Server\Backend\Write\SchemaViolationDisposition;
+use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
@@ -296,8 +297,8 @@ final class DispatchEventRecorderTest extends TestCase
         );
     }
 
-    #[DataProvider('provideSchemaViolationCodes')]
-    public function test_record_failure_discriminates_schema_violations(int $resultCode): void
+    #[DataProvider('provideSchemaCodes')]
+    public function test_record_failure_does_not_emit_schema_violation_for_schema_codes(int $resultCode): void
     {
         $this->subject->recordFailure(
             self::wrap(new AddRequest(new Entry(
@@ -312,15 +313,15 @@ final class DispatchEventRecorderTest extends TestCase
         );
 
         self::assertSame(
-            'schema.violation',
-            $this->onlyRecord()['message'],
+            [],
+            $this->recordingLogger->records,
         );
     }
 
     /**
      * @return array<string, array{int}>
      */
-    public static function provideSchemaViolationCodes(): array
+    public static function provideSchemaCodes(): array
     {
         return [
             'object class violation' => [ResultCode::OBJECT_CLASS_VIOLATION],
@@ -360,15 +361,21 @@ final class DispatchEventRecorderTest extends TestCase
         );
     }
 
-    public function test_record_relaxed_schema_violations_emits_schema_violation_with_lenient_mode(): void
-    {
-        $violations = new RelaxedSchemaViolations();
-        $violations->record(new OperationException(
-            'Required attribute "sn" is missing.',
-            ResultCode::OBJECT_CLASS_VIOLATION,
-        ));
+    #[DataProvider('provideDispositions')]
+    public function test_record_schema_violations_tags_validation_mode(
+        SchemaViolationDisposition $disposition,
+        string $expectedMode,
+    ): void {
+        $violations = new SchemaViolations();
+        $violations->record(
+            new OperationException(
+                'Required attribute "sn" is missing.',
+                ResultCode::OBJECT_CLASS_VIOLATION,
+            ),
+            $disposition,
+        );
 
-        $this->subject->recordRelaxedSchemaViolations(
+        $this->subject->recordSchemaViolations(
             $violations,
             self::wrap(new AddRequest(new Entry(
                 new Dn(self::TARGET_DN),
@@ -383,7 +390,7 @@ final class DispatchEventRecorderTest extends TestCase
             $record['message'],
         );
         self::assertSame(
-            'lenient',
+            $expectedMode,
             $record['context'][EventContext::VALIDATION_MODE],
         );
         self::assertSame(
@@ -404,19 +411,37 @@ final class DispatchEventRecorderTest extends TestCase
         );
     }
 
-    public function test_record_relaxed_schema_violations_emits_one_event_per_violation(): void
+    /**
+     * @return array<string, array{SchemaViolationDisposition, string}>
+     */
+    public static function provideDispositions(): array
     {
-        $violations = new RelaxedSchemaViolations();
-        $violations->record(new OperationException(
-            'first',
-            ResultCode::OBJECT_CLASS_VIOLATION,
-        ));
-        $violations->record(new OperationException(
-            'second',
-            ResultCode::CONSTRAINT_VIOLATION,
-        ));
+        return [
+            'rejected' => [SchemaViolationDisposition::Rejected, 'strict'],
+            'relaxed by policy' => [SchemaViolationDisposition::RelaxedByPolicy, 'lenient'],
+            'relaxed by control' => [SchemaViolationDisposition::RelaxedByControl, 'relaxed'],
+        ];
+    }
 
-        $this->subject->recordRelaxedSchemaViolations(
+    public function test_record_schema_violations_emits_one_event_per_violation(): void
+    {
+        $violations = new SchemaViolations();
+        $violations->record(
+            new OperationException(
+                'first',
+                ResultCode::OBJECT_CLASS_VIOLATION,
+            ),
+            SchemaViolationDisposition::RelaxedByPolicy,
+        );
+        $violations->record(
+            new OperationException(
+                'second',
+                ResultCode::CONSTRAINT_VIOLATION,
+            ),
+            SchemaViolationDisposition::RelaxedByPolicy,
+        );
+
+        $this->subject->recordSchemaViolations(
             $violations,
             self::wrap(new AddRequest(new Entry(
                 new Dn(self::TARGET_DN),
@@ -431,10 +456,10 @@ final class DispatchEventRecorderTest extends TestCase
         );
     }
 
-    public function test_record_relaxed_schema_violations_is_silent_when_empty(): void
+    public function test_record_schema_violations_is_silent_when_empty(): void
     {
-        $this->subject->recordRelaxedSchemaViolations(
-            new RelaxedSchemaViolations(),
+        $this->subject->recordSchemaViolations(
+            new SchemaViolations(),
             self::wrap(new AddRequest(new Entry(
                 new Dn(self::TARGET_DN),
                 new Attribute('cn', 'Bob'),

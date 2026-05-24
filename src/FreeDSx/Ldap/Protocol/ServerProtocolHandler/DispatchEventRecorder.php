@@ -22,9 +22,8 @@ use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
-use FreeDSx\Ldap\Server\Backend\Write\RelaxedSchemaViolations;
+use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
@@ -106,16 +105,6 @@ final readonly class DispatchEventRecorder
             return;
         }
 
-        if ($event === ServerEvent::SchemaViolation) {
-            $this->recordSchemaViolation(
-                $exception,
-                $message,
-                $token,
-            );
-
-            return;
-        }
-
         $this->eventLogger->recordFailure(
             $event,
             $exception,
@@ -126,46 +115,25 @@ final readonly class DispatchEventRecorder
     }
 
     /**
-     * Records each schema violation that was allowed under Lenient validation.
+     * Emits a schema.violation event for each validator violation recorded during the write.
      */
-    public function recordRelaxedSchemaViolations(
-        RelaxedSchemaViolations $violations,
+    public function recordSchemaViolations(
+        SchemaViolations $violations,
         LdapMessageRequest $message,
         TokenInterface $token,
     ): void {
         foreach ($violations->all() as $violation) {
-            $this->recordSchemaViolation(
-                $violation,
-                $message,
-                $token,
-                relaxed: true,
+            $this->eventLogger->recordFailure(
+                ServerEvent::SchemaViolation,
+                $violation->exception,
+                $this->writeEventContext(
+                    $message->getRequest(),
+                    [EventContext::VALIDATION_MODE => $violation->disposition->value],
+                ),
+                subject: $token,
+                message: $message,
             );
         }
-    }
-
-    /**
-     * Emits a single SchemaViolation event; $relaxed marks one allowed under Lenient validation.
-     */
-    private function recordSchemaViolation(
-        OperationException $violation,
-        LdapMessageRequest $message,
-        TokenInterface $token,
-        bool $relaxed = false,
-    ): void {
-        $extra = $relaxed
-            ? [EventContext::VALIDATION_MODE => strtolower(SchemaValidationMode::Lenient->name)]
-            : [];
-
-        $this->eventLogger->recordFailure(
-            ServerEvent::SchemaViolation,
-            $violation,
-            $this->writeEventContext(
-                $message->getRequest(),
-                $extra,
-            ),
-            subject: $token,
-            message: $message,
-        );
     }
 
     /**

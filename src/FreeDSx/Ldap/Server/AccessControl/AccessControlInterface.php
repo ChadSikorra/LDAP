@@ -48,6 +48,17 @@ interface AccessControlInterface
     ): void;
 
     /**
+     * Assert that the token may use the request control identified by the OID against the given DN.
+     *
+     * @throws OperationException with ResultCode::INSUFFICIENT_ACCESS_RIGHTS on denial
+     */
+    public function authorizeControl(
+        TokenInterface $token,
+        Dn $dn,
+        string $controlOid,
+    ): void;
+
+    /**
      * Return $entry with unreadable attributes removed, or null to suppress the entry entirely.
      */
     public function filterEntry(

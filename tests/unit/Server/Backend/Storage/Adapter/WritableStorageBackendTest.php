@@ -39,11 +39,13 @@ use Generator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use FreeDSx\Ldap\Control\ControlBag;
+use FreeDSx\Ldap\Controls;
 use FreeDSx\Ldap\Server\Backend\Write\Command\AddCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\MoveCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
-use FreeDSx\Ldap\Server\Backend\Write\RelaxedSchemaViolations;
+use FreeDSx\Ldap\Server\Backend\Write\SchemaViolationDisposition;
+use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteRequestInterface;
 use FreeDSx\Ldap\Server\Token\AnonToken;
@@ -1000,7 +1002,7 @@ final class WritableStorageBackendTest extends TestCase
                 SchemaValidationMode::Lenient,
             ),
         );
-        $violations = new RelaxedSchemaViolations();
+        $violations = new SchemaViolations();
 
         $backend->add(
             new AddCommand(new Entry(
@@ -1010,7 +1012,7 @@ final class WritableStorageBackendTest extends TestCase
             new WriteContext(
                 new AnonToken(),
                 new ControlBag(),
-                relaxedViolations: $violations,
+                schemaViolations: $violations,
             ),
         );
 
@@ -1023,7 +1025,11 @@ final class WritableStorageBackendTest extends TestCase
         );
         self::assertSame(
             ResultCode::OBJECT_CLASS_VIOLATION,
-            $violations->all()[0]->getCode(),
+            $violations->all()[0]->exception->getCode(),
+        );
+        self::assertSame(
+            SchemaViolationDisposition::RelaxedByPolicy,
+            $violations->all()[0]->disposition,
         );
     }
 
@@ -1042,7 +1048,7 @@ final class WritableStorageBackendTest extends TestCase
                 SchemaValidationMode::Lenient,
             ),
         );
-        $violations = new RelaxedSchemaViolations();
+        $violations = new SchemaViolations();
 
         $backend->update(
             new UpdateCommand(
@@ -1052,7 +1058,7 @@ final class WritableStorageBackendTest extends TestCase
             new WriteContext(
                 new AnonToken(),
                 new ControlBag(),
-                relaxedViolations: $violations,
+                schemaViolations: $violations,
             ),
         );
 
@@ -1067,7 +1073,43 @@ final class WritableStorageBackendTest extends TestCase
         );
         self::assertSame(
             ResultCode::CONSTRAINT_VIOLATION,
-            $violations->all()[0]->getCode(),
+            $violations->all()[0]->exception->getCode(),
+        );
+        self::assertSame(
+            SchemaViolationDisposition::RelaxedByPolicy,
+            $violations->all()[0]->disposition,
+        );
+    }
+
+    public function test_relax_control_allows_invalid_add_under_strict_validator(): void
+    {
+        $backend = new WritableStorageBackend(
+            storage: new InMemoryStorage([$this->base]),
+            validator: new SchemaValidator(
+                StandardSchemaProvider::buildCore(),
+                SchemaValidationMode::Strict,
+            ),
+        );
+        $violations = new SchemaViolations();
+
+        $backend->add(
+            new AddCommand(new Entry(
+                new Dn('cn=Invalid,dc=example,dc=com'),
+                new Attribute('cn', 'Invalid'),
+            )),
+            new WriteContext(
+                new AnonToken(),
+                new ControlBag(Controls::relaxRules()),
+                schemaViolations: $violations,
+            ),
+        );
+
+        self::assertNotNull(
+            $backend->get(new Dn('cn=Invalid,dc=example,dc=com')),
+        );
+        self::assertSame(
+            SchemaViolationDisposition::RelaxedByControl,
+            $violations->all()[0]->disposition,
         );
     }
 

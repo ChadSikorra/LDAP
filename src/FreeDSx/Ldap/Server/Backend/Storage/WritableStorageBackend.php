@@ -33,6 +33,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Exception\InvalidAttributeException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
+use FreeDSx\Ldap\Server\Backend\Write\SchemaViolationDisposition;
 use FreeDSx\Ldap\Server\Backend\Write\WritableBackendTrait;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
@@ -278,7 +279,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 $context->isSystem(),
             );
         } catch (OperationException $e) {
-            $this->relaxOrThrow(
+            $this->recordOrReject(
                 $e,
                 $context,
             );
@@ -304,7 +305,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 $context->isSystem(),
             );
         } catch (OperationException $e) {
-            $this->relaxOrThrow(
+            $this->recordOrReject(
                 $e,
                 $context,
             );
@@ -312,19 +313,34 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     }
 
     /**
-     * Rejects the violation in Strict mode; records it for logging and allows the write in Lenient mode.
+     * Records the violation for audit and rejects it, unless policy or the Relax control allows the write.
      *
      * @throws OperationException
      */
-    private function relaxOrThrow(
+    private function recordOrReject(
         OperationException $violation,
         WriteContext $context,
     ): void {
-        if ($this->validator?->mode() !== SchemaValidationMode::Lenient) {
+        $disposition = $this->dispositionFor($context);
+        $context->schemaViolations()->record(
+            $violation,
+            $disposition,
+        );
+
+        if ($disposition === SchemaViolationDisposition::Rejected) {
             throw $violation;
         }
+    }
 
-        $context->relaxedViolations()->record($violation);
+    private function dispositionFor(WriteContext $context): SchemaViolationDisposition
+    {
+        if ($context->getControls()->has(Control::OID_RELAX_RULES)) {
+            return SchemaViolationDisposition::RelaxedByControl;
+        }
+
+        return $this->validator?->mode() === SchemaValidationMode::Lenient
+            ? SchemaViolationDisposition::RelaxedByPolicy
+            : SchemaViolationDisposition::Rejected;
     }
 
     /**

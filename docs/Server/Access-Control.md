@@ -9,19 +9,23 @@ Access Control
 * [Subject Reference](#subject-reference)
 * [Target Reference](#target-reference)
 * [Attribute Rules](#attribute-rules)
+* [Control Rules](#control-rules)
 * [Custom Access Control](#custom-access-control)
 
 ## Overview
 
-Access control operates at two levels:
+Access control operates at three levels:
 
 - **Operation level**: Checked before each operation executes. Denial sends `INSUFFICIENT_ACCESS_RIGHTS` to the
   client. Covers the following operations: Search, Add, Modify, Delete, ModifyDn, Compare, and PasswordModify.
 - **Attribute level**: Checked for each attribute involved in Compare, Add, and Modify operations. Also applied to
   each Search result entry: disallowed attributes are stripped before the entry is sent; if the entry itself is
   denied at operation level, it is suppressed entirely from results (not sent to the client).
+- **Control level**: Checked for *privileged* request controls (currently the Relax Rules control). The control is
+  inert unless an explicit grant permits the bound identity to use it. See [Control Rules](#control-rules).
 
-Configure via `ServerOptions::setOperationRules()` / `ServerOptions::setAttributeRules()`. See [Configuration](Configuration.md).
+Rules are bundled in an `AclRules` object configured via `ServerOptions::setAclRules()`. See
+[Configuration](Configuration.md).
 
 Bind, WhoAmI, and StartTLS are handled before access control and are always permitted.
 
@@ -32,12 +36,14 @@ and allowed for authenticated clients. No attribute filtering is applied.
 
 ## Rule-Based Access Control
 
-Configure operation and attribute rules on `ServerOptions`. Rules are evaluated in definition order (first match wins).
-If no rule matches, a configurable default effect applies (deny by default).
+Bundle operation, attribute, and control rules in an `AclRules` object and set it on `ServerOptions`. Rules are
+evaluated in definition order (first match wins). If no rule matches, a configurable default effect applies (deny by
+default). `AclRules` is immutable; the `with*` methods are variadic and return a new instance.
 
 ```php
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\ServerOptions;
+use FreeDSx\Ldap\Server\AccessControl\AclRules;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeRule;
 use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
@@ -46,41 +52,44 @@ use FreeDSx\Ldap\Server\AccessControl\Target\Target;
 
 $server = new LdapServer(
     (new ServerOptions())
-        ->setOperationRules([
-            // Admin group can do anything.
-            OperationRule::allow(
-                Subject::group('cn=admins,dc=example,dc=com'),
-            ),
-            // Authenticated users can search and compare.
-            OperationRule::allow(
-                Subject::authenticated(),
-                Target::any(),
-                OperationType::Search,
-                OperationType::Compare,
-            ),
-            // Users can modify their own entry.
-            OperationRule::allow(
-                Subject::self(),
-                Target::any(),
-                OperationType::Modify,
-            ),
-            // Deny everything else.
-            OperationRule::deny(Subject::anyone()),
-        ])
-        ->setAttributeRules([
-            // Users can see their own userPassword.
-            AttributeRule::allow(
-                Subject::self(),
-                Target::any(),
-                'userPassword',
-            ),
-            // Hide userPassword from everyone else.
-            AttributeRule::deny(
-                Subject::anyone(),
-                Target::any(),
-                'userPassword',
-            ),
-        ])
+        ->setAclRules(
+            (new AclRules())
+                ->withOperationRules(
+                    // Admin group can do anything.
+                    OperationRule::allow(
+                        Subject::group('cn=admins,dc=example,dc=com'),
+                    ),
+                    // Authenticated users can search and compare.
+                    OperationRule::allow(
+                        Subject::authenticated(),
+                        Target::any(),
+                        OperationType::Search,
+                        OperationType::Compare,
+                    ),
+                    // Users can modify their own entry.
+                    OperationRule::allow(
+                        Subject::self(),
+                        Target::any(),
+                        OperationType::Modify,
+                    ),
+                    // Deny everything else.
+                    OperationRule::deny(Subject::anyone()),
+                )
+                ->withAttributeRules(
+                    // Users can see their own userPassword.
+                    AttributeRule::allow(
+                        Subject::self(),
+                        Target::any(),
+                        'userPassword',
+                    ),
+                    // Hide userPassword from everyone else.
+                    AttributeRule::deny(
+                        Subject::anyone(),
+                        Target::any(),
+                        'userPassword',
+                    ),
+                ),
+        )
 );
 
 $server->useBackend(new MyDirectoryBackend());
@@ -103,13 +112,17 @@ For attribute rules the same logic applies per attribute. Any attribute that mat
 
 ### Default Effect
 
-When no operation rule matches, `setDefaultAccessRule()` determines the outcome (default: `Effect::Deny`).
+When no operation rule matches, `AclRules::$defaultOperationEffect` determines the outcome (default: `Effect::Deny`).
+Control rules have their own `$defaultControlEffect`, also `Effect::Deny`. Privileged controls are off unless granted.
 
 ```php
+use FreeDSx\Ldap\Server\AccessControl\AclRules;
 use FreeDSx\Ldap\Server\AccessControl\Rule\Effect;
 
 // Allow everything not explicitly matched (open policy).
-(new ServerOptions())->setDefaultAccessRule(Effect::Allow);
+(new ServerOptions())->setAclRules(
+    new AclRules(defaultOperationEffect: Effect::Allow),
+);
 ```
 
 ## Subject Reference
@@ -166,7 +179,7 @@ Attribute rules are enforced in three places:
 - **Add / Modify**: the request is rejected if the bound user is denied access to any attribute being written.
 
 ```php
-->setAttributeRules([
+(new AclRules())->withAttributeRules(
     // Only admins can see or write userPassword.
     AttributeRule::allow(
         Subject::group('cn=admins,dc=example,dc=com'),
@@ -183,8 +196,34 @@ Attribute rules are enforced in three places:
         Subject::authenticated(),
         Target::subtree('ou=internal,dc=example,dc=com'),
     ),
-])
+)
 ```
+
+## Control Rules
+
+Privileged request controls are gated per identity with `ControlRule`s (same subject/target/first-match-wins structure,
+keyed on control OID; empty OID list matches all). They are **denied by default**. A control does nothing unless a
+rule grants it. `SimpleAccessControl` denies all controls, so this requires `RuleBasedAccessControl`.
+
+The gated controls are:
+
+* Relax Rules control** (`Control::OID_RELAX_RULES`). With it, an authorized client (see [Schema Validation](Schema.md#validation-mode)).
+
+```php
+use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
+
+// Only the admin group may relax schema constraints, and only under ou=migrate.
+(new AclRules())->withControlRules(
+    ControlRule::allow(
+        Subject::group('cn=admins,dc=example,dc=com'),
+        Target::subtree('ou=migrate,dc=example,dc=com'),
+        Control::OID_RELAX_RULES,
+    ),
+);
+```
+
+A client attaches the control with `Controls::relaxRules()`, e.g. `$client->create($entry, Controls::relaxRules())`.
 
 ## Custom Access Control
 
@@ -221,6 +260,14 @@ class MyAccessControl implements AccessControlInterface
         string $attribute,
     ): void {
         // Throw OperationException to deny access to the attribute.
+    }
+
+    public function authorizeControl(
+        TokenInterface $token,
+        Dn $dn,
+        string $controlOid,
+    ): void {
+        // Throw OperationException to deny use of a privileged control.
     }
 
     /**

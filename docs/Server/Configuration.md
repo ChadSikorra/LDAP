@@ -13,6 +13,7 @@ LDAP Server Configuration
     * [ServerOptions:setAllowAnonymous](#setallowanonymous)
     * [ServerOptions:setSocketAcceptTimeout](#setsocketaccepttimeout)
 * [Access Control](#access-control)
+    * [ServerOptions:setAclRules](#setaclrules)
     * [ServerOptions:setAccessControl](#setaccesscontrol)
 * [Backend](#backend)
     * [ServerOptions:setBackend](#setbackend)
@@ -172,37 +173,41 @@ in the accept loop.
 ## Access Control
 
 ------------------
-#### setAccessControl
+#### setAclRules
 
-This should be an object instance that implements `FreeDSx\Ldap\Server\AccessControl\AccessControlInterface`. It
-controls which operations clients are permitted to perform and which attributes are accessible in searches,
-compares, and write operations.
+Configure the built-in rule engine with an `AclRules` bundle (operation, attribute, and control rules plus their
+default effects). The server builds a `RuleBasedAccessControl` from it automatically.
 
 ```php
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\ServerOptions;
-use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
+use FreeDSx\Ldap\Server\AccessControl\AclRules;
 use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
 use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
 
 $server = new LdapServer(
     (new ServerOptions())
-        ->setAccessControl(new RuleBasedAccessControl(
-            operationRules: [
+        ->setAclRules(
+            (new AclRules())->withOperationRules(
                 OperationRule::allow(Subject::authenticated()),
                 OperationRule::deny(Subject::anyone()),
-            ],
-        ))
+            ),
+        )
 );
 ```
 
-See [Access Control](Access-Control.md) for more information, including:
+See [Access Control](Access-Control.md) for rule evaluation, subject/target matchers, attribute rules, and the
+control-rule grants for privileged controls (e.g. Relax Rules).
 
-* Rule-based access control
-* Subject and target matchers
-* Attribute filtering
+**Default**: no rules — `SimpleAccessControl` denies anonymous operations and allows authenticated ones.
 
-**Default**: `SimpleAccessControl` Denies all operations for anonymous clients, allows all for authenticated clients.
+------------------
+#### setAccessControl
+
+Provide a fully custom `FreeDSx\Ldap\Server\AccessControl\AccessControlInterface` implementation, used instead of the
+rule engine. Prefer `setAclRules()` unless the built-in rules are insufficient.
+
+**Default**: `SimpleAccessControl`.
 
 ## Backend
 

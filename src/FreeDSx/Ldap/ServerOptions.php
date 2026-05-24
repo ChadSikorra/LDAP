@@ -28,9 +28,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\PasswordQualityCheckerInterf
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
-use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeRule;
-use FreeDSx\Ldap\Server\AccessControl\Rule\Effect;
-use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
+use FreeDSx\Ldap\Server\AccessControl\AclRules;
 use FreeDSx\Ldap\Server\AccessControl\SimpleAccessControl;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
@@ -146,17 +144,7 @@ final class ServerOptions
 
     private ?AccessControlInterface $accessControl = null;
 
-    /**
-     * @var OperationRule[]
-     */
-    private array $operationRules = [];
-
-    /**
-     * @var AttributeRule[]
-     */
-    private array $attributeRules = [];
-
-    private Effect $defaultAccessRule = Effect::Deny;
+    private ?AclRules $aclRules = null;
 
     private ?PasswordPolicy $passwordPolicy = null;
 
@@ -508,52 +496,16 @@ final class ServerOptions
         return $this;
     }
 
-    /**
-     * @param OperationRule[] $rules
-     */
-    public function setOperationRules(array $rules): self
+    public function setAclRules(AclRules $aclRules): self
     {
-        $this->operationRules = $rules;
+        $this->aclRules = $aclRules;
 
         return $this;
     }
 
-    /**
-     * @return OperationRule[]
-     */
-    public function getOperationRules(): array
+    public function getAclRules(): AclRules
     {
-        return $this->operationRules;
-    }
-
-    /**
-     * @param AttributeRule[] $rules
-     */
-    public function setAttributeRules(array $rules): self
-    {
-        $this->attributeRules = $rules;
-
-        return $this;
-    }
-
-    /**
-     * @return AttributeRule[]
-     */
-    public function getAttributeRules(): array
-    {
-        return $this->attributeRules;
-    }
-
-    public function setDefaultAccessRule(Effect $effect): self
-    {
-        $this->defaultAccessRule = $effect;
-
-        return $this;
-    }
-
-    public function getDefaultAccessRule(): Effect
-    {
-        return $this->defaultAccessRule;
+        return $this->aclRules ??= new AclRules();
     }
 
     /**

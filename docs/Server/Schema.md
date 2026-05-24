@@ -99,6 +99,9 @@ $server = new LdapServer(
 $server->useStorage(new InMemoryStorage());
 ```
 
+Beyond the server-wide mode, an authorized client can relax validation for a *single* Add/Modify with the Relax Rules
+control (logged with `validation_mode: relaxed`). It is ACL-gated — see [Control Rules](Access-Control.md#control-rules).
+
 ## Custom Schema
 
 ------------------

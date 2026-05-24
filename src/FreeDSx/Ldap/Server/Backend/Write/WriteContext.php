@@ -27,7 +27,7 @@ final readonly class WriteContext
         private TokenInterface $token,
         private ControlBag $controls,
         private bool $isSystem = false,
-        private RelaxedSchemaViolations $relaxedViolations = new RelaxedSchemaViolations(),
+        private SchemaViolations $schemaViolations = new SchemaViolations(),
     ) {}
 
     /**
@@ -72,8 +72,8 @@ final readonly class WriteContext
         return $this->controls;
     }
 
-    public function relaxedViolations(): RelaxedSchemaViolations
+    public function schemaViolations(): SchemaViolations
     {
-        return $this->relaxedViolations;
+        return $this->schemaViolations;
     }
 }

@@ -127,41 +127,9 @@ final class ServerEventTest extends TestCase
                 ResultCode::UNAVAILABLE_CRITICAL_EXTENSION,
                 ServerEvent::CriticalControlRejected,
             ],
-            'object class violation' => [
+            'schema code falls through to fallback' => [
                 ResultCode::OBJECT_CLASS_VIOLATION,
-                ServerEvent::SchemaViolation,
-            ],
-            'invalid attribute syntax' => [
-                ResultCode::INVALID_ATTRIBUTE_SYNTAX,
-                ServerEvent::SchemaViolation,
-            ],
-            'not allowed on RDN' => [
-                ResultCode::NOT_ALLOWED_ON_RDN,
-                ServerEvent::SchemaViolation,
-            ],
-            'naming violation' => [
-                ResultCode::NAMING_VIOLATION,
-                ServerEvent::SchemaViolation,
-            ],
-            'object class mods prohibited' => [
-                ResultCode::OBJECT_CLASS_MODS_PROHIBITED,
-                ServerEvent::SchemaViolation,
-            ],
-            'constraint violation' => [
-                ResultCode::CONSTRAINT_VIOLATION,
-                ServerEvent::SchemaViolation,
-            ],
-            'no such attribute' => [
-                ResultCode::NO_SUCH_ATTRIBUTE,
-                ServerEvent::SchemaViolation,
-            ],
-            'undefined attribute type' => [
-                ResultCode::UNDEFINED_ATTRIBUTE_TYPE,
-                ServerEvent::SchemaViolation,
-            ],
-            'attribute or value exists' => [
-                ResultCode::ATTRIBUTE_OR_VALUE_EXISTS,
-                ServerEvent::SchemaViolation,
+                ServerEvent::PasswordModifyFailed,
             ],
             'other code = fallback' => [
                 ResultCode::OTHER,
