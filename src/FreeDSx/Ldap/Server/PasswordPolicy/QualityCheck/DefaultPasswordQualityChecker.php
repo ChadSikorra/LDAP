@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck;
 
 use FreeDSx\Ldap\Control\PwdPolicyError;
+use FreeDSx\Ldap\Schema\Text;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;
 use SensitiveParameter;
 
@@ -32,7 +33,7 @@ final class DefaultPasswordQualityChecker implements PasswordQualityCheckerInter
             return null;
         }
 
-        $length = mb_strlen($plain);
+        $length = Text::lengthOf($plain);
 
         if ($rules->minLength !== null && $length < $rules->minLength) {
             return PwdPolicyError::PASSWORD_TOO_SHORT;

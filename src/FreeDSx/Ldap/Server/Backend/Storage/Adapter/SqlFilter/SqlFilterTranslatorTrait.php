@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter;
 
+use FreeDSx\Ldap\Schema\Text;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\InvalidAttributeException;
 use FreeDSx\Ldap\Search\Filter\AndFilter;
 use FreeDSx\Ldap\Search\Filter\ApproximateFilter;
@@ -179,9 +180,9 @@ trait SqlFilterTranslatorTrait
 
     private function isExactEquality(string $value): bool
     {
-        return SqlFilterUtility::isAscii($value)
-            && mb_check_encoding($value, 'UTF-8')
-            && mb_strlen($value, 'UTF-8') <= SqlFilterUtility::MAX_INDEXED_VALUE_CHARS;
+        return Text::isAscii($value)
+            && Text::isUtf8($value)
+            && Text::lengthOf($value) <= SqlFilterUtility::MAX_INDEXED_VALUE_CHARS;
     }
 
     /**
@@ -189,10 +190,10 @@ trait SqlFilterTranslatorTrait
      */
     private function isExactOrdered(string $value): bool
     {
-        return SqlFilterUtility::isAscii($value)
+        return Text::isAscii($value)
             && !ctype_digit($value)
-            && mb_check_encoding($value, 'UTF-8')
-            && mb_strlen($value, 'UTF-8') <= SqlFilterUtility::MAX_INDEXED_VALUE_CHARS;
+            && Text::isUtf8($value)
+            && Text::lengthOf($value) <= SqlFilterUtility::MAX_INDEXED_VALUE_CHARS;
     }
 
     /**
@@ -211,9 +212,9 @@ trait SqlFilterTranslatorTrait
             return false;
         }
 
-        return SqlFilterUtility::isAscii($startsWith)
-            && mb_check_encoding($startsWith, 'UTF-8')
-            && mb_strlen($startsWith, 'UTF-8') <= SqlFilterUtility::MAX_INDEXED_VALUE_CHARS;
+        return Text::isAscii($startsWith)
+            && Text::isUtf8($startsWith)
+            && Text::lengthOf($startsWith) <= SqlFilterUtility::MAX_INDEXED_VALUE_CHARS;
     }
 
     /**
@@ -221,7 +222,7 @@ trait SqlFilterTranslatorTrait
      */
     private function prepareMatchValue(string $value): string
     {
-        if (!mb_check_encoding($value, 'UTF-8')) {
+        if (!Text::isUtf8($value)) {
             return '';
         }
 

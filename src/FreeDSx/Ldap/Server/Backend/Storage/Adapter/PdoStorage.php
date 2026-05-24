@@ -16,6 +16,8 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter;
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Exception\RuntimeException;
+use FreeDSx\Ldap\Schema\Text;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConnectionProviderInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoListQueryBuilder;
@@ -57,6 +59,12 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
         private readonly FilterTranslatorInterface $translator,
         private readonly PdoDialectInterface $dialect,
     ) {
+        if (!extension_loaded('mbstring')) {
+            throw new RuntimeException(
+                'The PDO storage backend requires the "mbstring" extension.',
+            );
+        }
+
         $this->queryBuilder = new PdoListQueryBuilder($dialect);
     }
 
@@ -249,7 +257,7 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
 
     private function buildSidecarValueLower(string $value): string
     {
-        if (!mb_check_encoding($value, 'UTF-8')) {
+        if (!Text::isUtf8($value)) {
             return '';
         }
 

@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter;
 
+use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\MysqlDialect;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactoryInterface;
@@ -76,6 +77,12 @@ final class MysqlStorage implements PdoStorageFactoryInterface
 
     protected function openConnection(PdoDialectInterface $dialect): PDO
     {
+        if (!extension_loaded('pdo_mysql')) {
+            throw new RuntimeException(
+                'The "pdo_mysql" extension is required for the MySQL storage backend.',
+            );
+        }
+
         $pdo = new PDO(
             $this->dsn,
             $this->username,

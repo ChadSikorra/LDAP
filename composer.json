@@ -37,8 +37,11 @@
   "prefer-stable": true,
   "suggest": {
     "ext-openssl": "For SSL/TLS support and some SASL mechanisms.",
-    "ext-pcntl": "For LDAP server functionality.",
-    "ext-swoole": "For the SwooleServerRunner, enabling coroutine-based connection handling with shared in-memory storage."
+    "ext-pcntl": "For the LDAP server PcntlServerRunner functionality. Process forking based connection handling.",
+    "ext-swoole": "For the LDAP server SwooleServerRunner fucntionality. Coroutine-based connection handling.",
+    "ext-mbstring": "For the PDO based storage backends.",
+    "ext-pdo_sqlite": "For the SQLite storage backend.",
+    "ext-pdo_mysql": "For the MySQL storage backend."
   },
   "autoload": {
     "psr-4": {"FreeDSx\\Ldap\\": "src/FreeDSx/Ldap"}
