@@ -223,6 +223,7 @@ abstract class LdapMessage implements ProtocolElementInterface, PduInterface
             Control\Control::OID_SYNC_STATE => Control\Sync\SyncStateControl::fromAsn1($control),
             Control\Control::OID_SYNC_REQUEST => Control\Sync\SyncRequestControl::fromAsn1($control),
             Control\Control::OID_SYNC_DONE => Control\Sync\SyncDoneControl::fromAsn1($control),
+            Control\Control::OID_PROXY_AUTHORIZATION => Control\ProxyAuthorizationControl::fromAsn1($control),
             default => Control\Control::fromAsn1($control),
         };
     }

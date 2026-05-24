@@ -148,7 +148,10 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
      */
     private function supportedControls(): array
     {
-        return [Control::OID_SORTING];
+        return [
+            Control::OID_SORTING,
+            Control::OID_PROXY_AUTHORIZATION,
+        ];
     }
 
     /**

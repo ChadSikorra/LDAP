@@ -81,6 +81,7 @@ final class ServerRootDseHandlerTest extends TestCase
                         Control::OID_PAGING,
                         Control::OID_SORTING,
                         Control::OID_RELAX_RULES,
+                        Control::OID_PROXY_AUTHORIZATION,
                     ],
                     'supportedExtension' => [
                         ExtendedRequest::OID_WHOAMI,
@@ -155,6 +156,7 @@ final class ServerRootDseHandlerTest extends TestCase
                 Control::OID_PAGING,
                 Control::OID_SORTING,
                 Control::OID_RELAX_RULES,
+                Control::OID_PROXY_AUTHORIZATION,
             ],
             'supportedExtension' => [
                 ExtendedRequest::OID_WHOAMI,

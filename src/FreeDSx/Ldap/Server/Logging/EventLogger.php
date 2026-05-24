@@ -254,6 +254,10 @@ final readonly class EventLogger
             $base[EventContext::SUBJECT] = $subjectArray;
         }
 
+        if ($subject instanceof TokenInterface && $subject->getAuthorizingDn() !== null) {
+            $base[EventContext::AUTHORIZED_BY] = [EventContext::DN => $subject->getAuthorizingDn()->toString()];
+        }
+
         return array_merge(
             $base,
             $context,

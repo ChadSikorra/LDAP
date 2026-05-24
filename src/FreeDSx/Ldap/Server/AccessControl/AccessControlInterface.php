@@ -59,6 +59,16 @@ interface AccessControlInterface
     ): void;
 
     /**
+     * Coarse, target-independent gate: whether $token could use the control against a target in general.
+     *
+     * Note: Only authenticated identities are considered.
+     */
+    public function mayUseControl(
+        TokenInterface $token,
+        string $controlOid,
+    ): bool;
+
+    /**
      * Return $entry with unreadable attributes removed, or null to suppress the entry entirely.
      */
     public function filterEntry(

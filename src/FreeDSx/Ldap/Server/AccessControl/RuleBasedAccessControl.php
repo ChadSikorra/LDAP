@@ -21,6 +21,7 @@ use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
 use FreeDSx\Ldap\Server\AccessControl\Rule\Effect;
 use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -90,6 +91,31 @@ final readonly class RuleBasedAccessControl implements AccessControlInterface, B
         if (!$this->isControlAllowed($controlOid, $token, $dn)) {
             $this->deny();
         }
+    }
+
+    public function mayUseControl(
+        TokenInterface $token,
+        string $controlOid,
+    ): bool {
+        if (!$token instanceof AuthenticatedTokenInterface) {
+            return false;
+        }
+
+        foreach ($this->rules->controls as $rule) {
+            if ($rule->effect !== Effect::Allow) {
+                continue;
+            }
+
+            if (!$this->controlMatches($rule, $controlOid)) {
+                continue;
+            }
+
+            if ($rule->subject->matches($token, $token->getResolvedDn())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function filterEntry(

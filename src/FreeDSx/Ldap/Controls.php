@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Control\Ad\SdFlagsControl;
 use FreeDSx\Ldap\Control\Ad\SetOwnerControl;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\PagingControl;
+use FreeDSx\Ldap\Control\ProxyAuthorizationControl;
 use FreeDSx\Ldap\Control\Sorting\SortingControl;
 use FreeDSx\Ldap\Control\Sorting\SortKey;
 use FreeDSx\Ldap\Control\SubentriesControl;
@@ -144,6 +145,14 @@ class Controls
             controlType: Control::OID_RELAX_RULES,
             criticality: $criticality,
         );
+    }
+
+    /**
+     * Create a Proxied Authorization control to run the operation as the given authzId ("dn:..." / "u:...", or empty for anonymous).
+     */
+    public static function proxyAuthorization(string $authzId = ''): ProxyAuthorizationControl
+    {
+        return new ProxyAuthorizationControl($authzId);
     }
 
     /**

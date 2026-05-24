@@ -14,6 +14,8 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server;
 
 use FreeDSx\Ldap\Protocol\Authenticator;
+use FreeDSx\Ldap\Protocol\Authorization\DispatchAuthorizer;
+use FreeDSx\Ldap\Protocol\Authorization\ProxiedAuthorizationResolver;
 use FreeDSx\Ldap\Protocol\Bind\AnonymousBind;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\MechanismOptionsBuilderFactory;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\SaslExchange;
@@ -38,6 +40,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordResetGate;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\Socket;
 
@@ -110,6 +113,17 @@ class ServerProtocolFactory
             );
         }
 
+        $dispatchAuthorizer = new DispatchAuthorizer(
+            $this->serverAuthorization,
+            new PasswordResetGate(),
+            new ProxiedAuthorizationResolver(
+                $this->options->getAccessControl(),
+                $backend,
+                $this->handlerFactory->makeIdentityResolverChain(),
+                $eventLogger,
+            ),
+        );
+
         return new ServerProtocolHandler(
             queue: $serverQueue,
             protocolHandlerFactory: new ServerProtocolHandlerFactory(
@@ -123,6 +137,7 @@ class ServerProtocolFactory
             ),
             authorizer: $this->serverAuthorization,
             authenticator: new Authenticator($authenticators),
+            dispatchAuthorizer: $dispatchAuthorizer,
             eventLogger: $eventLogger,
             passwordPolicyContext: $policyContext,
         );

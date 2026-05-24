@@ -40,6 +40,7 @@ enum ServerEvent: string
     case PasswordModifyFailed           = 'password_modify.failed';
     case AuthorizationDeniedWrite       = 'authz.denied.write';
     case AuthorizationDeniedRead        = 'authz.denied.read';
+    case ProxyAuthorizationDenied       = 'authz.denied.proxy';
     case CriticalControlRejected        = 'control.critical.rejected';
     case SchemaViolation                = 'schema.violation';
     case NoticeOfDisconnectSent         = 'session.disconnect_notice';
@@ -59,6 +60,7 @@ enum ServerEvent: string
             self::PasswordModifyFailed,
             self::AuthorizationDeniedWrite,
             self::AuthorizationDeniedRead,
+            self::ProxyAuthorizationDenied,
             self::CriticalControlRejected,
             self::SchemaViolation,
             self::NoticeOfDisconnectSent,

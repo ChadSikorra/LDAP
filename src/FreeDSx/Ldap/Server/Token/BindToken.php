@@ -36,18 +36,22 @@ class BindToken implements AuthenticatedTokenInterface
 
     private bool $mustChangePassword = false;
 
+    private readonly ?Dn $authorizingDn;
+
     public function __construct(
         string $username,
         #[SensitiveParameter]
         string $password,
         Dn $resolvedDn,
         int $version = 3,
+        ?Dn $authorizingDn = null,
     ) {
         $this->id = Uuid::v4();
         $this->username = $username;
         $this->resolvedDn = $resolvedDn;
         $this->password = $password;
         $this->version = $version;
+        $this->authorizingDn = $authorizingDn;
     }
 
     public static function fromDn(
@@ -55,12 +59,14 @@ class BindToken implements AuthenticatedTokenInterface
         #[SensitiveParameter]
         string $password,
         int $version = 3,
+        ?Dn $authorizingDn = null,
     ): self {
         return new self(
             $dn,
             $password,
             new Dn($dn),
             $version,
+            $authorizingDn,
         );
     }
 
@@ -71,12 +77,14 @@ class BindToken implements AuthenticatedTokenInterface
         string $username,
         Dn $resolvedDn,
         int $version = 3,
+        ?Dn $authorizingDn = null,
     ): self {
         return new self(
             $username,
             '',
             $resolvedDn,
             $version,
+            $authorizingDn,
         );
     }
 
@@ -98,6 +106,11 @@ class BindToken implements AuthenticatedTokenInterface
     public function getResolvedDn(): Dn
     {
         return $this->resolvedDn;
+    }
+
+    public function getAuthorizingDn(): ?Dn
+    {
+        return $this->authorizingDn;
     }
 
     /**

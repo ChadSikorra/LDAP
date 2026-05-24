@@ -13,9 +13,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Server\Logging;
 
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
+use FreeDSx\Ldap\Server\Token\BindToken;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -85,6 +88,77 @@ final class EventLoggerTest extends TestCase
         $subject->record(
             ServerEvent::BindSuccess,
             ['username' => 'alice'],
+        );
+    }
+
+    public function test_record_includes_authorized_by_for_a_proxied_subject(): void
+    {
+        $token = new BindToken(
+            'cn=alice,dc=example,dc=com',
+            '',
+            new Dn('cn=alice,dc=example,dc=com'),
+            3,
+            new Dn('cn=admin,dc=example,dc=com'),
+        );
+
+        $this->mockLogger
+            ->expects(self::once())
+            ->method('log')
+            ->with(
+                self::anything(),
+                self::anything(),
+                self::callback(
+                    static fn(array $context): bool => $context[EventContext::SUBJECT] === [
+                        EventContext::USERNAME => 'cn=alice,dc=example,dc=com',
+                        EventContext::DN => 'cn=alice,dc=example,dc=com',
+                    ]
+                        && $context[EventContext::AUTHORIZED_BY] === [
+                            EventContext::DN => 'cn=admin,dc=example,dc=com',
+                        ],
+                ),
+            );
+
+        $subject = new EventLogger(
+            $this->mockLogger,
+            EventLogPolicy::all(),
+        );
+
+        $subject->record(
+            ServerEvent::SearchAuthorized,
+            subject: $token,
+        );
+    }
+
+    public function test_record_omits_authorized_by_for_a_non_proxied_subject(): void
+    {
+        $token = new BindToken(
+            'cn=alice,dc=example,dc=com',
+            'secret',
+            new Dn('cn=alice,dc=example,dc=com'),
+        );
+
+        $this->mockLogger
+            ->expects(self::once())
+            ->method('log')
+            ->with(
+                self::anything(),
+                self::anything(),
+                self::callback(
+                    static fn(array $context): bool => !array_key_exists(
+                        EventContext::AUTHORIZED_BY,
+                        $context,
+                    ),
+                ),
+            );
+
+        $subject = new EventLogger(
+            $this->mockLogger,
+            EventLogPolicy::all(),
+        );
+
+        $subject->record(
+            ServerEvent::SearchAuthorized,
+            subject: $token,
         );
     }
 

@@ -21,9 +21,9 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Exception\ResponseAlreadySentException;
 use FreeDSx\Ldap\Exception\RuntimeException;
-use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Protocol\Authorization\DispatchAuthorizer;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
@@ -31,8 +31,6 @@ use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordResetGate;
-use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
 use Throwable;
@@ -56,10 +54,10 @@ class ServerProtocolHandler
         private readonly ServerProtocolHandlerFactory $protocolHandlerFactory,
         private readonly ServerAuthorization $authorizer,
         private readonly Authenticator $authenticator,
+        private readonly DispatchAuthorizer $dispatchAuthorizer,
         private readonly EventLogger $eventLogger = new EventLogger(null),
         private readonly ResponseFactory $responseFactory = new ResponseFactory(),
         private readonly ?PasswordPolicyContext $passwordPolicyContext = null,
-        private readonly PasswordResetGate $passwordResetGate = new PasswordResetGate(),
     ) {}
 
     /**
@@ -156,44 +154,33 @@ class ServerProtocolHandler
 
             return;
         }
-        $request = $message->getRequest();
-        $handler = $this->protocolHandlerFactory->get(
-            $request,
-            $message->controls(),
-        );
 
-        # They are authenticated or authentication is not required, so pass the request along...
-        if ($this->authorizer->isAuthenticated() || !$this->authorizer->isAuthenticationRequired($request)) {
-            if ($this->requiresPasswordChangeFirst($request)) {
-                $this->rejectUntilPasswordChanged($message);
+        $authorization = $this->dispatchAuthorizer->authorize($message);
 
-                return;
-            }
-
-            $handler->handleRequest(
-                $message,
-                $this->authorizer->getToken(),
-            );
-            # Authentication is required, but they have not authenticated...
-        } else {
+        if ($authorization->requiresAuthentication()) {
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(
                 $message,
                 ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
                 'Authentication required.',
             ));
+
+            return;
         }
-    }
 
-    /**
-     * A bound identity flagged with pwdReset may only change its password or end the session (draft-behera-10 §8.1.2).
-     */
-    private function requiresPasswordChangeFirst(RequestInterface $request): bool
-    {
-        $token = $this->authorizer->getToken();
+        if ($authorization->requiresPasswordChange()) {
+            $this->rejectUntilPasswordChanged($message);
 
-        return $token instanceof AuthenticatedTokenInterface
-            && $token->mustChangePassword()
-            && !$this->passwordResetGate->isPermitted($request, $token);
+            return;
+        }
+
+        $handler = $this->protocolHandlerFactory->get(
+            $message->getRequest(),
+            $message->controls(),
+        );
+        $handler->handleRequest(
+            $message,
+            $authorization->token(),
+        );
     }
 
     /**
