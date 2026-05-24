@@ -17,12 +17,12 @@ use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Schema\Definition\AttributeTypeOid;
-use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordModifyAttempt;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyChangeGuard;
-use FreeDSx\Ldap\Server\Token\BindToken;
+use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 
 /**
  * Enforces password policy on a plain ldapmodify of userPassword, delegating the write to a decorated handler.
@@ -41,6 +41,7 @@ final readonly class PasswordPolicyWriteHandler implements WriteHandlerInterface
         private LdapBackendInterface&WriteHandlerInterface $backend,
         private PasswordPolicyChangeGuard $changeGuard,
         private SystemChangeWriter $systemChangeWriter,
+        private PasswordHashService $hashService = new PasswordHashService(),
     ) {}
 
     public function supports(WriteRequestInterface $request): bool
@@ -91,7 +92,7 @@ final readonly class PasswordPolicyWriteHandler implements WriteHandlerInterface
                 hashedNewPassword: $newPassword,
                 oldPassword: $oldPassword,
                 isSelf: $isSelf,
-                passwordIsCleartext: !PasswordHashVerifier::isHashed($newPassword),
+                passwordIsCleartext: !$this->hashService->isHashed($newPassword),
             ),
             $newPasswords,
         );
@@ -108,7 +109,7 @@ final readonly class PasswordPolicyWriteHandler implements WriteHandlerInterface
 
         // A successful self-change satisfies any pwdReset requirement. no re-bind needed.
         $token = $context->getToken();
-        if ($isSelf && $token instanceof BindToken) {
+        if ($isSelf && $token instanceof AuthenticatedTokenInterface) {
             $token->clearMustChangePassword();
         }
     }

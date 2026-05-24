@@ -28,4 +28,14 @@ interface AuthenticatedTokenInterface extends TokenInterface
      * Whether the bound identity must change its password before any other operation is permitted (pwdReset).
      */
     public function mustChangePassword(): bool;
+
+    /**
+     * Flags that the bound identity must change its password before any other operation is permitted.
+     */
+    public function markMustChangePassword(): void;
+
+    /**
+     * Lifts the restriction once the bound identity has changed its password within the session.
+     */
+    public function clearMustChangePassword(): void;
 }

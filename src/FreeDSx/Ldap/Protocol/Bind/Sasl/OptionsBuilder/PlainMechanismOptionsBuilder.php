@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
-use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\Options\ChallengeOptionsInterface;
 use FreeDSx\Sasl\Options\PlainOptions;
@@ -30,7 +30,7 @@ class PlainMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
 
     public function __construct(
         private readonly PasswordAuthenticatableInterface $authenticator,
-        private readonly PasswordHashVerifier $hashVerifier = new PasswordHashVerifier(),
+        private readonly PasswordHashService $hashService = new PasswordHashService(),
     ) {}
 
     /**
@@ -47,7 +47,7 @@ class PlainMechanismOptionsBuilder implements MechanismOptionsBuilderInterface
                     MechanismName::PLAIN,
                 );
 
-                if ($identity === null || !$this->hashVerifier->verify($password, $identity->password)) {
+                if ($identity === null || !$this->hashService->verify($password, $identity->password)) {
                     return false;
                 }
 

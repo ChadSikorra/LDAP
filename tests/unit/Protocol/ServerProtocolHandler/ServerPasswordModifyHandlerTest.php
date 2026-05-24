@@ -16,7 +16,6 @@ namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
-use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\PasswordModifyRequest;
 use FreeDSx\Ldap\Operation\Response\PasswordModifyResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
@@ -29,22 +28,22 @@ use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
+use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyService;
+use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
 use FreeDSx\Ldap\Server\Token\AnonToken;
 use FreeDSx\Ldap\Server\Token\BindToken;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * Covers the transport seam: decoding, response encoding, and error mapping. The use case itself is exercised by
+ * {@see \Tests\Unit\FreeDSx\Ldap\Server\PasswordModify\PasswordModifyServiceTest}.
+ */
 final class ServerPasswordModifyHandlerTest extends TestCase
 {
     private ServerQueue&MockObject $mockQueue;
 
     private LdapBackendInterface&MockObject $mockBackend;
-
-    private AccessControlInterface&MockObject $mockAcl;
-
-    private BindNameResolverInterface&MockObject $mockResolver;
-
-    private WriteHandlerInterface&MockObject $mockWriteHandler;
 
     private ServerPasswordModifyHandler $subject;
 
@@ -56,18 +55,15 @@ final class ServerPasswordModifyHandlerTest extends TestCase
     {
         $this->mockQueue = $this->createMock(ServerQueue::class);
         $this->mockBackend = $this->createMock(LdapBackendInterface::class);
-        $this->mockAcl = $this->createMock(AccessControlInterface::class);
-        $this->mockResolver = $this->createMock(BindNameResolverInterface::class);
-        $this->mockWriteHandler = $this->createMock(WriteHandlerInterface::class);
+        $mockWriteHandler = $this->createMock(WriteHandlerInterface::class);
 
         $this->mockQueue->method('sendMessage')->willReturnSelf();
-        $this->mockWriteHandler->method('supports')->willReturn(true);
+        $mockWriteHandler->method('supports')->willReturn(true);
 
         $this->userEntry = new Entry(
             new Dn('cn=user,dc=foo,dc=bar'),
             new Attribute('userPassword', '12345'),
         );
-
         $this->userToken = BindToken::fromDn(
             'cn=user,dc=foo,dc=bar',
             '12345',
@@ -75,10 +71,14 @@ final class ServerPasswordModifyHandlerTest extends TestCase
 
         $this->subject = new ServerPasswordModifyHandler(
             queue: $this->mockQueue,
-            backend: $this->mockBackend,
-            writeDispatcher: new WriteOperationDispatcher($this->mockWriteHandler),
-            accessControl: $this->mockAcl,
-            identityResolver: $this->mockResolver,
+            service: new PasswordModifyService(
+                targetResolver: new PasswordModifyTargetResolver(
+                    $this->mockBackend,
+                    $this->createMock(BindNameResolverInterface::class),
+                ),
+                accessControl: $this->createMock(AccessControlInterface::class),
+                writeDispatcher: new WriteOperationDispatcher($mockWriteHandler),
+            ),
         );
     }
 
@@ -103,90 +103,6 @@ final class ServerPasswordModifyHandlerTest extends TestCase
                 new PasswordModifyRequest(null, '12345', 'newpass'),
             ),
             $this->userToken,
-        );
-    }
-
-    public function test_admin_reset_uses_identity_resolver(): void
-    {
-        $this->mockResolver
-            ->expects(self::once())
-            ->method('resolve')
-            ->with('cn=user,dc=foo,dc=bar', $this->mockBackend)
-            ->willReturn($this->userEntry);
-
-        $this->subject->handleRequest(
-            new LdapMessageRequest(
-                1,
-                new PasswordModifyRequest('cn=user,dc=foo,dc=bar', null, 'reset123'),
-            ),
-            BindToken::fromDn(
-                'cn=admin,dc=foo,dc=bar',
-                'adminpass',
-            ),
-        );
-    }
-
-    public function test_must_change_identity_cannot_modify_another_entry(): void
-    {
-        $this->mockResolver
-            ->method('resolve')
-            ->willReturn($this->userEntry);
-
-        $mustChangeToken = BindToken::fromDn(
-            'cn=other,dc=foo,dc=bar',
-            'secret',
-        );
-        $mustChangeToken->markMustChangePassword();
-
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(
-                fn(LdapMessageResponse $r)
-                => method_exists($r->getResponse(), 'getResultCode')
-                && $r->getResponse()->getResultCode() === ResultCode::UNWILLING_TO_PERFORM,
-            ));
-
-        $this->subject->handleRequest(
-            new LdapMessageRequest(
-                1,
-                new PasswordModifyRequest('cn=user,dc=foo,dc=bar', null, 'newpass'),
-            ),
-            $mustChangeToken,
-        );
-    }
-
-    public function test_must_change_identity_can_still_change_its_own_password(): void
-    {
-        $this->mockBackend
-            ->method('get')
-            ->willReturn($this->userEntry);
-
-        $mustChangeToken = BindToken::fromDn(
-            'cn=user,dc=foo,dc=bar',
-            '12345',
-        );
-        $mustChangeToken->markMustChangePassword();
-
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(
-                fn(LdapMessageResponse $r)
-                => $r->getResponse() instanceof PasswordModifyResponse,
-            ));
-
-        $this->subject->handleRequest(
-            new LdapMessageRequest(
-                1,
-                new PasswordModifyRequest(null, '12345', 'newpass'),
-            ),
-            $mustChangeToken,
-        );
-
-        self::assertFalse(
-            $mustChangeToken->mustChangePassword(),
-            'A successful self-change must lift the session must-change restriction.',
         );
     }
 
@@ -231,58 +147,7 @@ final class ServerPasswordModifyHandlerTest extends TestCase
         );
     }
 
-    public function test_non_existent_target_returns_no_such_object(): void
-    {
-        $this->mockBackend
-            ->method('get')
-            ->willReturn(null);
-
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(
-                fn(LdapMessageResponse $r)
-                => method_exists($r->getResponse(), 'getResultCode')
-                && $r->getResponse()->getResultCode() === ResultCode::NO_SUCH_OBJECT,
-            ));
-
-        $this->subject->handleRequest(
-            new LdapMessageRequest(
-                1,
-                new PasswordModifyRequest(null, null, 'newpass'),
-            ),
-            $this->userToken,
-        );
-    }
-
-    public function test_old_password_matches_any_stored_value(): void
-    {
-        $this->mockBackend
-            ->method('get')
-            ->willReturn(new Entry(
-                new Dn('cn=user,dc=foo,dc=bar'),
-                new Attribute('userPassword', 'first', '12345'),
-            ));
-
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(
-                fn(LdapMessageResponse $r)
-                => $r->getResponse() instanceof PasswordModifyResponse
-                && $r->getResponse()->getGeneratedPassword() === null,
-            ));
-
-        $this->subject->handleRequest(
-            new LdapMessageRequest(
-                1,
-                new PasswordModifyRequest(null, '12345', 'newpass'),
-            ),
-            $this->userToken,
-        );
-    }
-
-    public function test_wrong_old_password_returns_invalid_credentials(): void
+    public function test_an_operation_error_is_sent_as_a_standard_response(): void
     {
         $this->mockBackend
             ->method('get')
@@ -301,61 +166,6 @@ final class ServerPasswordModifyHandlerTest extends TestCase
             new LdapMessageRequest(
                 1,
                 new PasswordModifyRequest(null, 'wrongpass', 'newpass'),
-            ),
-            $this->userToken,
-        );
-    }
-
-    public function test_acl_denial_returns_insufficient_access_rights(): void
-    {
-        $this->mockBackend
-            ->method('get')
-            ->willReturn($this->userEntry);
-
-        $this->mockAcl
-            ->method('authorizeOperation')
-            ->willThrowException(new OperationException(
-                'Access denied.',
-                ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
-            ));
-
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(
-                fn(LdapMessageResponse $r)
-                => method_exists($r->getResponse(), 'getResultCode')
-                && $r->getResponse()->getResultCode() === ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
-            ));
-
-        $this->subject->handleRequest(
-            new LdapMessageRequest(
-                1,
-                new PasswordModifyRequest(null, null, 'newpass'),
-            ),
-            $this->userToken,
-        );
-    }
-
-    public function test_resolver_returning_null_returns_no_such_object(): void
-    {
-        $this->mockResolver
-            ->method('resolve')
-            ->willReturn(null);
-
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(
-                fn(LdapMessageResponse $r)
-                => method_exists($r->getResponse(), 'getResultCode')
-                && $r->getResponse()->getResultCode() === ResultCode::NO_SUCH_OBJECT,
-            ));
-
-        $this->subject->handleRequest(
-            new LdapMessageRequest(
-                1,
-                new PasswordModifyRequest('cn=ghost,dc=foo,dc=bar', null, 'newpass'),
             ),
             $this->userToken,
         );

@@ -24,12 +24,14 @@ use FreeDSx\Ldap\Operation\Request\UnbindRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerProtocolHandlerInterface;
-use FreeDSx\Ldap\Server\Backend\Auth\PasswordHasher;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\Write\PasswordPolicyWriteHandler;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyService;
+use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyChangeGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
@@ -67,13 +69,18 @@ class ServerProtocolHandlerFactory
         } elseif ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_PWD_MODIFY) {
             return new ServerProtocolHandler\ServerPasswordModifyHandler(
                 queue: $this->queue,
-                backend: $this->handlerFactory->makeBackend(),
-                writeDispatcher: $this->handlerFactory->makeWriteDispatcher(),
-                accessControl: $this->options->getAccessControl(),
-                identityResolver: $this->handlerFactory->makeIdentityResolverChain(),
+                service: new PasswordModifyService(
+                    targetResolver: new PasswordModifyTargetResolver(
+                        $this->handlerFactory->makeBackend(),
+                        $this->handlerFactory->makeIdentityResolverChain(),
+                    ),
+                    accessControl: $this->options->getAccessControl(),
+                    writeDispatcher: $this->handlerFactory->makeWriteDispatcher(),
+                    hashService: new PasswordHashService($this->options->getPasswordHashScheme()),
+                    changeGuard: $this->makePasswordPolicyChangeGuard(),
+                    passwordPolicyContext: $this->passwordPolicyContext,
+                ),
                 eventLogger: $this->eventLogger,
-                hasher: new PasswordHasher($this->options->getPasswordHashScheme()),
-                changeGuard: $this->makePasswordPolicyChangeGuard(),
                 passwordPolicyContext: $this->passwordPolicyContext,
             );
         } elseif ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_START_TLS) {
