@@ -351,6 +351,26 @@ final class PasswordPolicyBindEnforcementTest extends TestCase
         }
     }
 
+    public function test_recent_password_change_recovers_an_idle_locked_account(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user([
+                PasswordPolicyOid::NAME_PWD_LAST_SUCCESS => $this->minutesAgo(120),
+                PasswordPolicyOid::NAME_PWD_CHANGED_TIME => $this->minutesAgo(1),
+            ]),
+            new PasswordPolicy(
+                expiration: new PasswordExpirationRules(maxIdle: 3600),
+            ),
+        );
+
+        $authenticator->authenticate(
+            self::USER_DN,
+            self::PASSWORD,
+        );
+
+        self::assertNull($this->context->getOutcome()?->errorCode);
+    }
+
     public function test_successful_bind_records_last_success(): void
     {
         $authenticator = $this->authenticatorFor(

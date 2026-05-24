@@ -108,6 +108,14 @@ class BindToken implements AuthenticatedTokenInterface
         $this->mustChangePassword = true;
     }
 
+    /**
+     * Lifts the restriction once the bound identity has changed its password within the session.
+     */
+    public function clearMustChangePassword(): void
+    {
+        $this->mustChangePassword = false;
+    }
+
     public function mustChangePassword(): bool
     {
         return $this->mustChangePassword;

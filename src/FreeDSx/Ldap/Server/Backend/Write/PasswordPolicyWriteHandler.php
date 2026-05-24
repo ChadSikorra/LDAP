@@ -23,6 +23,7 @@ use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordModifyAttempt;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyChangeGuard;
+use FreeDSx\Ldap\Server\Token\BindToken;
 
 /**
  * Enforces password policy on a plain ldapmodify of userPassword, delegating the write to a decorated handler.
@@ -103,6 +104,12 @@ final readonly class PasswordPolicyWriteHandler implements WriteHandlerInterface
             $request->dn,
             $deltas,
         );
+
+        // A successful self-change satisfies any pwdReset requirement. no re-bind needed.
+        $token = $context->getToken();
+        if ($isSelf && $token instanceof BindToken) {
+            $token->clearMustChangePassword();
+        }
     }
 
     /**

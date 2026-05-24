@@ -130,6 +130,40 @@ final class PasswordPolicyEngineTest extends TestCase
         self::assertFalse($outcome->denied);
     }
 
+    public function test_evaluatePreBind_idle_account_is_locked(): void
+    {
+        $outcome = $this->subject->evaluatePreBind(
+            new UserPasswordState(
+                changedAt: $this->minutesAgo(120),
+                lastSuccess: $this->minutesAgo(120),
+            ),
+            new PasswordPolicy(
+                expiration: new PasswordExpirationRules(maxIdle: 3600),
+            ),
+        );
+
+        self::assertTrue($outcome->denied);
+        self::assertSame(
+            PwdPolicyError::ACCOUNT_LOCKED,
+            $outcome->errorCode,
+        );
+    }
+
+    public function test_evaluatePreBind_idle_baseline_uses_most_recent_activity(): void
+    {
+        $outcome = $this->subject->evaluatePreBind(
+            new UserPasswordState(
+                changedAt: $this->minutesAgo(1),
+                lastSuccess: $this->minutesAgo(120),
+            ),
+            new PasswordPolicy(
+                expiration: new PasswordExpirationRules(maxIdle: 3600),
+            ),
+        );
+
+        self::assertFalse($outcome->denied);
+    }
+
     public function test_recordBindFailure_appends_failure_time(): void
     {
         $result = $this->subject->recordBindFailure(

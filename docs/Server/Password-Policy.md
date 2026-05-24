@@ -226,9 +226,10 @@ bind), falling back to `pwdChangedTime` when no successful bind has been recorde
 ### Change After Reset
 
 When `pwdMustChange` is `TRUE` and an administrator changes another user's password, the server sets `pwdReset`. At the
-user's next bind the response control reports `changeAfterReset`, and the session is restricted to bind, unbind, and the
-RFC 3062 Password Modify. Any other operation is rejected `UNWILLING_TO_PERFORM` with `changeAfterReset` until the
-password is changed. A successful self-change clears `pwdReset`.
+user's next bind the response control reports `changeAfterReset`, and the session is restricted to bind, unbind, the
+RFC 3062 Password Modify, and a modify of the user's own password. Any other operation is rejected
+`UNWILLING_TO_PERFORM` with `changeAfterReset` until the password is changed. A successful self-change clears
+`pwdReset` and lifts the restriction without a rebind.
 
 ### Validity Window
 

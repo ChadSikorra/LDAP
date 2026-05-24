@@ -45,6 +45,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyChangeGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
+use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -158,13 +159,17 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
             $newPassword = $generated;
         }
 
+        $isSelf = $this->isSelf(
+            $token,
+            $targetDn,
+        );
         $hashed = $this->hasher->hash($newPassword);
         $deltas = $this->changeGuard?->enforce(new PasswordModifyAttempt(
             target: $entry,
             newPassword: $newPassword,
             hashedNewPassword: $hashed,
             oldPassword: $request->getOldPassword(),
-            isSelf: $this->isSelf($token, $targetDn),
+            isSelf: $isSelf,
             passwordIsCleartext: true,
         )) ?? OperationalChanges::none();
 
@@ -175,6 +180,11 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
             $token,
             $message,
         );
+
+        // A successful self-change satisfies any pwdReset requirement, so lift the session restriction immediately.
+        if ($isSelf && $token instanceof BindToken) {
+            $token->clearMustChangePassword();
+        }
 
         $control = $this->passwordPolicyControl();
         $this->queue->sendMessage(new LdapMessageResponse(

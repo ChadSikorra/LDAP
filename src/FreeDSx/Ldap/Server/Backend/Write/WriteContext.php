@@ -44,6 +44,11 @@ final readonly class WriteContext
         );
     }
 
+    public function getToken(): TokenInterface
+    {
+        return $this->token;
+    }
+
     /**
      * Bound DN of the authenticated user, or null for anonymous.
      */
