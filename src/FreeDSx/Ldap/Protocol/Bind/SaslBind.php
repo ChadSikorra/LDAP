@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Protocol\Bind;
 
 use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Exception\ResponseAlreadySentException;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\SaslExchange;
@@ -193,7 +194,8 @@ class SaslBind implements BindInterface
                 ...($control === null ? [] : [$control]),
             ));
 
-            throw new OperationException(
+            // The response was sent here, so signal the dispatcher not to send a second one.
+            throw new ResponseAlreadySentException(
                 'Invalid credentials.',
                 ResultCode::INVALID_CREDENTIALS,
             );

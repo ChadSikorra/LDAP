@@ -18,13 +18,15 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
 
 /**
- * Requires the client to supply the existing password when pwdSafeModify is enabled.
+ * Requires the user to supply the existing password when pwdSafeModify is enabled.
+ *
+ * Safe-modify is a self-service requirement; administrative resets cannot supply the user's old password.
  */
 final readonly class SafeModifyConstraint implements PasswordChangeConstraint
 {
     public function check(PasswordChangeAttempt $attempt): ?PasswordPolicyOutcome
     {
-        if ($attempt->policy->change->safeModify !== true || ($attempt->oldPassword ?? '') !== '') {
+        if (!$attempt->isSelf || $attempt->policy->change->safeModify !== true || ($attempt->oldPassword ?? '') !== '') {
             return null;
         }
 

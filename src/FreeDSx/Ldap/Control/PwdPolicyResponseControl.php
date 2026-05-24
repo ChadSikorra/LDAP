@@ -23,7 +23,7 @@ use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Protocol\LdapEncoder;
 
 /**
- * Represents a password policy response. draft-behera-ldap-password-policy-09
+ * Represents a password policy response. draft-behera-ldap-password-policy-10
  *
  * PasswordPolicyResponseValue ::= SEQUENCE {
  *     warning [0] CHOICE {

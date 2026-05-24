@@ -90,6 +90,19 @@ final class MinAgeConstraintTest extends TestCase
         );
     }
 
+    public function test_non_self_change_skips_min_age(): void
+    {
+        self::assertNull(
+            $this->subject->check(
+                $this->attempt(
+                    minAge: 3600,
+                    changedAt: $this->utc('2026-05-20T11:30:00Z'),
+                    isSelf: false,
+                ),
+            ),
+        );
+    }
+
     public function test_age_exactly_at_boundary_passes(): void
     {
         self::assertNull(
@@ -120,6 +133,7 @@ final class MinAgeConstraintTest extends TestCase
     private function attempt(
         ?int $minAge,
         ?DateTimeImmutable $changedAt,
+        bool $isSelf = true,
     ): PasswordChangeAttempt {
         return new PasswordChangeAttempt(
             newPassword: 'newpw',
@@ -128,7 +142,7 @@ final class MinAgeConstraintTest extends TestCase
             policy: new PasswordPolicy(
                 change: new PasswordChangeRules(minAge: $minAge),
             ),
-            isSelf: true,
+            isSelf: $isSelf,
         );
     }
 

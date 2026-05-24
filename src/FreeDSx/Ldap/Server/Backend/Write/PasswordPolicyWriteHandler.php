@@ -21,7 +21,6 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordModifyAttempt;
-use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyChangeGuard;
 use FreeDSx\Ldap\Server\Token\BindToken;
 
@@ -83,18 +82,20 @@ final readonly class PasswordPolicyWriteHandler implements WriteHandlerInterface
             $request->dn,
         );
 
-        // Every value being set must satisfy policy; otherwise a weak value could ride along behind a valid one.
-        $deltas = OperationalChanges::none();
-        foreach ($newPasswords as $newPassword) {
-            $deltas = $this->changeGuard->enforce(new PasswordModifyAttempt(
+        // Every value being set must satisfy policy; otherwise a weak value could ride along behind a valid one
+        // each value is recorded in history so none can be reused after a multi-valued set.
+        $attempts = array_map(
+            fn(string $newPassword): PasswordModifyAttempt => new PasswordModifyAttempt(
                 target: $entry,
                 newPassword: $newPassword,
                 hashedNewPassword: $newPassword,
                 oldPassword: $oldPassword,
                 isSelf: $isSelf,
                 passwordIsCleartext: !PasswordHashVerifier::isHashed($newPassword),
-            ));
-        }
+            ),
+            $newPasswords,
+        );
+        $deltas = $this->changeGuard->enforceAll($attempts);
 
         $this->backend->handle(
             $request,

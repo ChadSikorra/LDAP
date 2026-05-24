@@ -162,6 +162,28 @@ final class PasswordPolicyChangeGuardTest extends TestCase
         );
     }
 
+    public function test_admin_reset_is_exempt_from_safe_modify_and_min_age(): void
+    {
+        $changes = $this->guard(new PasswordPolicy(
+            change: new PasswordChangeRules(
+                minAge: 3600,
+                safeModify: true,
+            ),
+        ))->enforce($this->attempt(
+            $this->entry([
+                PasswordPolicyOid::NAME_PWD_CHANGED_TIME => $this->minutesAgo(30),
+            ]),
+            'admin-set-password',
+            isSelf: false,
+        ));
+
+        self::assertNull($this->context->getOutcome());
+        self::assertContains(
+            PasswordPolicyOid::NAME_PWD_CHANGED_TIME,
+            $this->changedAttributes($changes->changes),
+        );
+    }
+
     private function assertRejectedWith(
         int $expectedError,
         int $expectedResultCode,

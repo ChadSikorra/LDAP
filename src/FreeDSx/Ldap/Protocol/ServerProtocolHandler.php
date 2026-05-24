@@ -19,6 +19,7 @@ use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\ProtocolException;
+use FreeDSx\Ldap\Exception\ResponseAlreadySentException;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
@@ -78,6 +79,13 @@ class ServerProtocolHandler
                     break;
                 }
             }
+        } catch (ResponseAlreadySentException $e) {
+            # The handler already sent the response (e.g. SASL, which needs the correct multi-round message ID), so
+            # only the audit log below applies here.
+            $this->logCriticalControlRejection(
+                $e,
+                $message,
+            );
         } catch (OperationException $e) {
             # OperationExceptions may be thrown by any handler and will be sent back to the client as the response
             # specific error code and message associated with the exception.
@@ -90,17 +98,10 @@ class ServerProtocolHandler
                 ...($control === null ? [] : [$control]),
             ));
 
-            # Handlers without their own catch (StartTLS, WhoAmI, RootDse, etc.) only reach the audit log via this catch.
-            # Critical-control rejection is the realistic case; other codes are direction-dependent or already covered.
-            if ($e->getCode() === ResultCode::UNAVAILABLE_CRITICAL_EXTENSION) {
-                $this->eventLogger->recordFailure(
-                    ServerEvent::CriticalControlRejected,
-                    $e,
-                    [],
-                    subject: $this->authorizer->getToken(),
-                    message: $message,
-                );
-            }
+            $this->logCriticalControlRejection(
+                $e,
+                $message,
+            );
         } catch (ConnectionException) {
             # Connection closure is recorded by the runner's lifecycle logging; no audit event for normal client disconnects.
         } catch (EncoderException|ProtocolException) {
@@ -275,6 +276,27 @@ class ServerProtocolHandler
         return $this->passwordPolicyContext !== null
             && $message !== null
             && $this->authorizer->isAuthenticationRequest($message->getRequest());
+    }
+
+    /**
+     * Handlers without their own catch (StartTLS, WhoAmI, RootDse, etc.) only reach the audit log via this path.
+     *
+     * Critical-control rejection is the realistic case; other codes are direction-dependent or already covered.
+     */
+    private function logCriticalControlRejection(
+        OperationException $exception,
+        ?LdapMessageRequest $message,
+    ): void {
+        if ($exception->getCode() !== ResultCode::UNAVAILABLE_CRITICAL_EXTENSION) {
+            return;
+        }
+
+        $this->eventLogger->recordFailure(
+            ServerEvent::CriticalControlRejected,
+            $exception,
+            subject: $this->authorizer->getToken(),
+            message: $message,
+        );
     }
 
     /**

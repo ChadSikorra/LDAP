@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
@@ -43,6 +44,7 @@ use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordModifyAttempt;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyChangeGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\BindToken;
@@ -163,6 +165,10 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
             $token,
             $targetDn,
         );
+        $this->assertSelfChangeWhenMustChange(
+            $token,
+            $isSelf,
+        );
         $hashed = $this->hasher->hash($newPassword);
         $deltas = $this->changeGuard?->enforce(new PasswordModifyAttempt(
             target: $entry,
@@ -204,6 +210,34 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
         Dn $targetDn,
     ): bool {
         return $token->getResolvedDn()->normalize()->toString() === $targetDn->normalize()->toString();
+    }
+
+    /**
+     * A pwdReset identity may only change its own password.
+     *
+     * An exop targeting another entry is refused (draft-behera-10 §8.1.2).
+     *
+     * @throws OperationException
+     */
+    private function assertSelfChangeWhenMustChange(
+        AuthenticatedTokenInterface $token,
+        bool $isSelf,
+    ): void {
+        if ($isSelf || !$token->mustChangePassword()) {
+            return;
+        }
+
+        $outcome = PasswordPolicyOutcome::deny(
+            PwdPolicyError::CHANGE_AFTER_RESET,
+            ResultCode::UNWILLING_TO_PERFORM,
+            'The password must be changed before any other operation is permitted.',
+        );
+        $this->passwordPolicyContext?->setOutcome($outcome);
+
+        throw new OperationException(
+            $outcome->diagnostic,
+            $outcome->ldapResultCode,
+        );
     }
 
     private function passwordPolicyControl(): ?Control

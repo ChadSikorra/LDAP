@@ -420,9 +420,11 @@ final readonly class PasswordPolicyEngine
     /**
      * Stamp pwdChangedTime, rotate pwdHistory, set/clear pwdReset, and clear pwdFailureTime / pwdAccountLockedTime /
      * pwdGraceUseTime.
+     *
+     * @param non-empty-list<string> $hashedNewPasswords stored values being set (newest first - one per password value)
      */
     public function recordPasswordChange(
-        string $hashedNew,
+        array $hashedNewPasswords,
         UserPasswordState $state,
         PasswordPolicy $policy,
         bool $isSelf = true,
@@ -434,7 +436,7 @@ final readonly class PasswordPolicyEngine
         )];
 
         $historyChange = $this->buildHistoryChange(
-            $hashedNew,
+            $hashedNewPasswords,
             $state,
             $policy,
             $now,
@@ -485,8 +487,11 @@ final readonly class PasswordPolicyEngine
         return null;
     }
 
+    /**
+     * @param non-empty-list<string> $hashedNewPasswords
+     */
     private function buildHistoryChange(
-        string $hashedNew,
+        array $hashedNewPasswords,
         UserPasswordState $state,
         PasswordPolicy $policy,
         DateTimeImmutable $now,
@@ -496,12 +501,15 @@ final readonly class PasswordPolicyEngine
             return null;
         }
 
-        $newest = HistoryEntry::forStoredPassword(
-            $now,
-            $hashedNew,
+        $newest = array_map(
+            static fn(string $hash): HistoryEntry => HistoryEntry::forStoredPassword(
+                $now,
+                $hash,
+            ),
+            $hashedNewPasswords,
         );
         $retained = array_slice(
-            [$newest, ...$state->history],
+            [...$newest, ...$state->history],
             0,
             $depth,
         );
