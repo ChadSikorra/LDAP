@@ -23,4 +23,9 @@ use FreeDSx\Ldap\Entry\Dn;
 interface AuthenticatedTokenInterface extends TokenInterface
 {
     public function getResolvedDn(): Dn;
+
+    /**
+     * Whether the bound identity must change its password before any other operation is permitted (pwdReset).
+     */
+    public function mustChangePassword(): bool;
 }

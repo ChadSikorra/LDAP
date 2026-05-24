@@ -165,6 +165,7 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
             hashedNewPassword: $hashed,
             oldPassword: $request->getOldPassword(),
             isSelf: $this->isSelf($token, $targetDn),
+            passwordIsCleartext: true,
         )) ?? OperationalChanges::none();
 
         $this->applyPasswordChange(

@@ -48,6 +48,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
 use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\DefaultPasswordQualityChecker;
+use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordChangeRules;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;
 use FreeDSx\Ldap\Server\Token\BindToken;
 use PHPUnit\Framework\TestCase;
@@ -142,6 +143,92 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
         );
     }
 
+    public function test_prehashed_value_rejected_when_check_quality_is_strict(): void
+    {
+        $handler = $this->dispatchHandler(
+            new PasswordPolicy(quality: new PasswordQualityRules(
+                minLength: 8,
+                checkQuality: 2,
+            )),
+        );
+
+        $handler->handleRequest(
+            $this->modify('{SSHA}' . base64_encode('cannot-introspect-this')),
+            $this->token(),
+        );
+
+        $response = $this->response?->getResponse();
+        self::assertInstanceOf(
+            LdapResult::class,
+            $response,
+        );
+        self::assertSame(
+            ResultCode::CONSTRAINT_VIOLATION,
+            $response->getResultCode(),
+        );
+
+        $control = $this->response?->controls()->getByClass(PwdPolicyResponseControl::class);
+        self::assertInstanceOf(
+            PwdPolicyResponseControl::class,
+            $control,
+        );
+        self::assertSame(
+            PwdPolicyError::INSUFFICIENT_PASSWORD_QUALITY,
+            $control->getError(),
+        );
+    }
+
+    public function test_safe_modify_with_wrong_old_password_is_rejected(): void
+    {
+        $handler = $this->dispatchHandler(
+            new PasswordPolicy(change: new PasswordChangeRules(safeModify: true)),
+        );
+
+        $handler->handleRequest(
+            $this->modifyWithOld('wrong-old', 'a-fresh-password'),
+            $this->token(),
+        );
+
+        $response = $this->response?->getResponse();
+        self::assertInstanceOf(
+            LdapResult::class,
+            $response,
+        );
+        self::assertSame(
+            ResultCode::INVALID_CREDENTIALS,
+            $response->getResultCode(),
+        );
+
+        $entry = $this->backend->get(new Dn(self::USER_DN));
+        self::assertSame(
+            'original-pass',
+            $entry?->get('userPassword')?->firstValue(),
+            'A rejected safe-modify must not alter the stored password.',
+        );
+    }
+
+    public function test_safe_modify_with_correct_old_password_succeeds(): void
+    {
+        $handler = $this->dispatchHandler(
+            new PasswordPolicy(change: new PasswordChangeRules(safeModify: true)),
+        );
+
+        $handler->handleRequest(
+            $this->modifyWithOld('original-pass', 'a-fresh-password'),
+            $this->token(),
+        );
+
+        $response = $this->response?->getResponse();
+        self::assertInstanceOf(
+            LdapResult::class,
+            $response,
+        );
+        self::assertSame(
+            ResultCode::SUCCESS,
+            $response->getResultCode(),
+        );
+    }
+
     /**
      * @param array<string, string> $userAttrs
      */
@@ -227,6 +314,20 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
             new ModifyRequest(
                 self::USER_DN,
                 Change::replace('userPassword', $newPassword),
+            ),
+        );
+    }
+
+    private function modifyWithOld(
+        string $oldPassword,
+        string $newPassword,
+    ): LdapMessageRequest {
+        return new LdapMessageRequest(
+            1,
+            new ModifyRequest(
+                self::USER_DN,
+                Change::delete('userPassword', $oldPassword),
+                Change::add('userPassword', $newPassword),
             ),
         );
     }

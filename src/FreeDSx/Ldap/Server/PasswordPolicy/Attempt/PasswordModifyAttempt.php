@@ -29,5 +29,6 @@ final readonly class PasswordModifyAttempt
         #[SensitiveParameter]
         public ?string $oldPassword,
         public bool $isSelf,
+        public bool $passwordIsCleartext = true,
     ) {}
 }

@@ -73,14 +73,79 @@ final class QualityConstraintTest extends TestCase
         );
     }
 
-    private function attempt(): PasswordChangeAttempt
+    public function test_prehashed_value_is_not_passed_to_the_checker(): void
     {
+        $checker = $this->createMock(PasswordQualityCheckerInterface::class);
+        $checker
+            ->expects(self::never())
+            ->method('check');
+
+        $constraint = new QualityConstraint($checker);
+
+        self::assertNull($constraint->check($this->attempt(
+            checkQuality: 1,
+            passwordIsCleartext: false,
+        )));
+    }
+
+    public function test_prehashed_value_denied_when_check_quality_is_strict(): void
+    {
+        $checker = $this->createMock(PasswordQualityCheckerInterface::class);
+        $checker
+            ->expects(self::never())
+            ->method('check');
+
+        $constraint = new QualityConstraint($checker);
+
+        $outcome = $constraint->check($this->attempt(
+            checkQuality: 2,
+            passwordIsCleartext: false,
+        ));
+
+        self::assertNotNull($outcome);
+        self::assertTrue($outcome->denied);
+        self::assertSame(
+            PwdPolicyError::INSUFFICIENT_PASSWORD_QUALITY,
+            $outcome->errorCode,
+        );
+    }
+
+    public function test_cleartext_value_is_still_checked(): void
+    {
+        $checker = $this->createMock(PasswordQualityCheckerInterface::class);
+        $checker
+            ->expects(self::once())
+            ->method('check')
+            ->willReturn(PwdPolicyError::PASSWORD_TOO_SHORT);
+
+        $constraint = new QualityConstraint($checker);
+
+        $outcome = $constraint->check($this->attempt(
+            checkQuality: 2,
+            passwordIsCleartext: true,
+        ));
+
+        self::assertNotNull($outcome);
+        self::assertSame(
+            PwdPolicyError::PASSWORD_TOO_SHORT,
+            $outcome->errorCode,
+        );
+    }
+
+    /**
+     * @param int<0, max>|null $checkQuality
+     */
+    private function attempt(
+        ?int $checkQuality = null,
+        bool $passwordIsCleartext = true,
+    ): PasswordChangeAttempt {
         return new PasswordChangeAttempt(
             newPassword: 'newpw',
             oldPassword: null,
             state: new UserPasswordState(),
-            policy: new PasswordPolicy(quality: new PasswordQualityRules()),
+            policy: new PasswordPolicy(quality: new PasswordQualityRules(checkQuality: $checkQuality)),
             isSelf: true,
+            passwordIsCleartext: $passwordIsCleartext,
         );
     }
 }

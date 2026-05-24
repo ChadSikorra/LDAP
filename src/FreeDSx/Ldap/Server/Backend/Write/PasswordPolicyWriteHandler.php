@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Schema\Definition\AttributeTypeOid;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordModifyAttempt;
@@ -90,6 +91,7 @@ final readonly class PasswordPolicyWriteHandler implements WriteHandlerInterface
                 hashedNewPassword: $newPassword,
                 oldPassword: $oldPassword,
                 isSelf: $isSelf,
+                passwordIsCleartext: !PasswordHashVerifier::isHashed($newPassword),
             ));
         }
 

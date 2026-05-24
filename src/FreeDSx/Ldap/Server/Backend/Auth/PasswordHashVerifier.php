@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Auth;
 
+use FreeDSx\Ldap\Exception\RuntimeException;
 use SensitiveParameter;
 
 /**
@@ -22,19 +23,81 @@ use SensitiveParameter;
  */
 final class PasswordHashVerifier
 {
+    /**
+     * Read-only legacy prefixes recognized in addition to the writable {@see PasswordHashScheme} set.
+     *
+     * @var list<string>
+     */
+    private const LEGACY_READ_PREFIXES = [
+        '{SHA}',
+        '{MD5}',
+        '{SMD5}',
+    ];
+
+    /**
+     * Whether a value begins with a recognized hash scheme, and so is not cleartext we can inspect.
+     */
+    public static function isHashed(string $value): bool
+    {
+        foreach (self::recognizedPrefixes() as $prefix) {
+            if (str_starts_with($value, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function verify(
         #[SensitiveParameter]
         string $plain,
         string $stored,
     ): bool {
-        return match (true) {
-            str_starts_with($stored, '{SHA}') => $this->verifySha($plain, substr($stored, 5)),
-            str_starts_with($stored, '{SSHA}') => $this->verifySsha($plain, substr($stored, 6)),
-            str_starts_with($stored, '{MD5}') => $this->verifyMd5($plain, substr($stored, 5)),
-            str_starts_with($stored, '{SMD5}') => $this->verifySmd5($plain, substr($stored, 6)),
-            str_starts_with($stored, '{BCRYPT}') => password_verify($plain, substr($stored, 8)),
-            str_starts_with($stored, '{ARGON2}') => password_verify($plain, substr($stored, 8)),
-            default => $plain === $stored,
+        foreach (self::recognizedPrefixes() as $prefix) {
+            if (str_starts_with($stored, $prefix)) {
+                return $this->verifyScheme(
+                    $prefix,
+                    $plain,
+                    substr($stored, strlen($prefix)),
+                );
+            }
+        }
+
+        return $plain === $stored;
+    }
+
+    /**
+     * Prefixes the verifier recognizes: every writable scheme plus the legacy read-only ones.
+     *
+     * @return list<string>
+     */
+    private static function recognizedPrefixes(): array
+    {
+        return [
+            ...array_map(
+                static fn(PasswordHashScheme $scheme): string => $scheme->value,
+                PasswordHashScheme::cases(),
+            ),
+            ...self::LEGACY_READ_PREFIXES,
+        ];
+    }
+
+    private function verifyScheme(
+        string $prefix,
+        #[SensitiveParameter]
+        string $plain,
+        string $encoded,
+    ): bool {
+        return match ($prefix) {
+            PasswordHashScheme::Ssha->value => $this->verifySsha($plain, $encoded),
+            PasswordHashScheme::Bcrypt->value, PasswordHashScheme::Argon2->value => password_verify($plain, $encoded),
+            '{SHA}' => $this->verifySha($plain, $encoded),
+            '{MD5}' => $this->verifyMd5($plain, $encoded),
+            '{SMD5}' => $this->verifySmd5($plain, $encoded),
+            default => throw new RuntimeException(sprintf(
+                'No verification is implemented for the recognized hash scheme "%s".',
+                $prefix,
+            )),
         };
     }
 

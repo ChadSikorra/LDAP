@@ -235,6 +235,9 @@ class SaslBind implements BindInterface
             throw $e;
         }
 
+        // Captured before responseControl() clears the policy context.
+        $mustChangePassword = $this->policyEnforcer?->mustChangePassword() ?? false;
+
         // The success response must be sent before activating the security layer.
         $control = $this->policyEnforcer?->responseControl();
         $this->queue->sendMessage($this->responseFactory->getStandardResponse(
@@ -250,9 +253,14 @@ class SaslBind implements BindInterface
             $this->queue->setMessageWrapper(new SaslMessageWrapper($mech->securityLayer(), $context));
         }
 
-        return BindToken::fromSasl(
+        $token = BindToken::fromSasl(
             $username,
             $resolvedDn,
         );
+        if ($mustChangePassword) {
+            $token->markMustChangePassword();
+        }
+
+        return $token;
     }
 }

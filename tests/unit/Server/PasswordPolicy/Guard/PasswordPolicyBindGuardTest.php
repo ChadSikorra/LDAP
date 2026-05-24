@@ -143,15 +143,12 @@ final class PasswordPolicyBindGuardTest extends TestCase
         $this->assertEventRecorded(ServerEvent::PasswordPolicyAccountLocked);
     }
 
-    public function test_recordSuccess_clean_state_stashes_allow_without_writes(): void
+    public function test_recordSuccess_clean_state_stamps_last_success(): void
     {
         $this->subject->recordSuccess($this->attempt(new UserPasswordState()));
 
         self::assertFalse($this->context->getOutcome()?->denied);
-        self::assertSame(
-            [],
-            $this->writeHandler->dispatched,
-        );
+        $this->assertWroteAttribute(PasswordPolicyOid::NAME_PWD_LAST_SUCCESS);
     }
 
     public function test_recordSuccess_expired_without_grace_denies(): void
