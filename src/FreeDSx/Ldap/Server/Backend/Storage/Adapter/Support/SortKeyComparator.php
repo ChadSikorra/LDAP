@@ -74,15 +74,27 @@ final class SortKeyComparator
         Entry $b,
         SortKey $sortKey,
     ): int {
-        $aValue = $this->minValue(
-            $a,
-            $sortKey->getAttribute(),
-        );
-        $bValue = $this->minValue(
-            $b,
-            $sortKey->getAttribute(),
+        $cmp = $this->rawCompare(
+            $this->minValue(
+                $a,
+                $sortKey->getAttribute(),
+            ),
+            $this->minValue(
+                $b,
+                $sortKey->getAttribute(),
+            ),
         );
 
+        return $sortKey->getUseReverseOrder() ? -$cmp : $cmp;
+    }
+
+    /**
+     * Compares two values treating NULL (a missing attribute) as the largest value, per RFC 2891 §2.2.
+     */
+    private function rawCompare(
+        ?string $aValue,
+        ?string $bValue,
+    ): int {
         if ($aValue === null && $bValue === null) {
             return 0;
         }
@@ -95,12 +107,10 @@ final class SortKeyComparator
             return -1;
         }
 
-        $cmp = strcasecmp(
+        return strcasecmp(
             $aValue,
             $bValue,
         );
-
-        return $sortKey->getUseReverseOrder() ? -$cmp : $cmp;
     }
 
     /**

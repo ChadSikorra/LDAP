@@ -120,13 +120,24 @@ trait PdoDialectTrait
         return 'INSERT INTO entry_attribute_values (entry_lc_dn, attr_name_lower, value_lower, value_original) VALUES ';
     }
 
-    public function sortKeyClause(string $direction): string
-    {
-        return <<<SQL
+    public function sortKeyClause(
+        string $attributeLower,
+        string $direction,
+    ): SortClause {
+        $expr = <<<SQL
             (SELECT MIN(eav.value_lower)
              FROM entry_attribute_values eav
              WHERE eav.entry_lc_dn = LOWER(dn)
-               AND eav.attr_name_lower = ?) $direction
-        SQL;
+               AND eav.attr_name_lower = ?)
+            SQL;
+
+        // MySQL/MariaDB lack NULLS FIRST/LAST...emulate via an "IS NULL" ordering prefix.
+        return new SortClause(
+            $expr . ' IS NULL ' . $direction . ', ' . $expr . ' ' . $direction,
+            [
+                $attributeLower,
+                $attributeLower,
+            ],
+        );
     }
 }

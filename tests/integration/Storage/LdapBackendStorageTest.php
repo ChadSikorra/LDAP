@@ -116,8 +116,10 @@ class LdapBackendStorageTest extends ServerTestCase
                 ->useSingleLevelScope(),
         );
 
-        // cn=user and ou=people are direct children; cn=alice is not
-        self::assertCount(2, $entries);
+        self::assertCount(
+            3,
+            $entries,
+        );
     }
 
     public function testSearchSubtreeWithFilterReturnsMatchingEntry(): void
@@ -321,8 +323,10 @@ class LdapBackendStorageTest extends ServerTestCase
             }
         }
 
-        // Seed has 4 entries: dc=foo,dc=bar + cn=user + ou=people + cn=alice
-        self::assertCount(4, $allEntries);
+        self::assertCount(
+            5,
+            $allEntries,
+        );
     }
 
     public function testPagingCanBeAbandoned(): void
@@ -489,6 +493,44 @@ class LdapBackendStorageTest extends ServerTestCase
         self::assertSame(
             ['Smith', 'Admin'],
             $sns,
+        );
+    }
+
+    public function testSortControlPlacesMissingAttributeLastWhenAscending(): void
+    {
+        $this->authenticateUser();
+
+        $entries = $this->ldapClient()->search(
+            Operations::search(Filters::present('cn'))
+                ->base('dc=foo,dc=bar')
+                ->useSubtreeScope(),
+            new SortingControl(SortKey::ascending('sn')),
+        )->toArray();
+
+        $last = $entries[count($entries) - 1];
+        self::assertNull($last->get('sn'));
+        self::assertSame(
+            'nosn',
+            $last->get('cn')?->getValues()[0],
+        );
+    }
+
+    public function testSortControlPlacesMissingAttributeFirstWhenDescending(): void
+    {
+        $this->authenticateUser();
+
+        $entries = $this->ldapClient()->search(
+            Operations::search(Filters::present('cn'))
+                ->base('dc=foo,dc=bar')
+                ->useSubtreeScope(),
+            new SortingControl(SortKey::descending('sn')),
+        )->toArray();
+
+        $first = $entries[0];
+        self::assertNull($first->get('sn'));
+        self::assertSame(
+            'nosn',
+            $first->get('cn')?->getValues()[0],
         );
     }
 }

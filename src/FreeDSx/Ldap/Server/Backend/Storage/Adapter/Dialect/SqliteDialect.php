@@ -97,13 +97,23 @@ final class SqliteDialect implements PdoDialectInterface
         return null;
     }
 
-    public function sortKeyClause(string $direction): string
-    {
-        return <<<SQL
-            (SELECT MIN(eav.value_lower)
-             FROM entry_attribute_values eav
-             WHERE eav.entry_lc_dn = LOWER(dn)
-               AND eav.attr_name_lower = ?) $direction NULLS LAST
-        SQL;
+    public function sortKeyClause(
+        string $attributeLower,
+        string $direction,
+    ): SortClause {
+        // RFC 2891 §2.2: NULL is the largest value, so missing entries sort last (ASC) or first (DESC).
+        $nulls = $direction === 'ASC'
+            ? 'NULLS LAST'
+            : 'NULLS FIRST';
+
+        return new SortClause(
+            <<<SQL
+                (SELECT MIN(eav.value_lower)
+                 FROM entry_attribute_values eav
+                 WHERE eav.entry_lc_dn = LOWER(dn)
+                   AND eav.attr_name_lower = ?) $direction $nulls
+            SQL,
+            [$attributeLower],
+        );
     }
 }

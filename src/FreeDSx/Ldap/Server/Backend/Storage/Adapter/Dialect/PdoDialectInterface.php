@@ -124,7 +124,10 @@ interface PdoDialectInterface
     public function maxDnLength(): ?int;
 
     /**
-     * Returns a single ORDER BY term for one sort key; caller provides $direction ("ASC" or "DESC") and appends "?" for the attribute name param.
+     * Returns the ORDER BY term and bound params for one sort key, with NULL/missing values ordered per RFC 2891 §2.2.
      */
-    public function sortKeyClause(string $direction): string;
+    public function sortKeyClause(
+        string $attributeLower,
+        string $direction,
+    ): SortClause;
 }

@@ -29,11 +29,20 @@ final class MysqlLdapBackendStorageTest extends LdapBackendStorageTest
 {
     public static function setUpBeforeClass(): void
     {
-        if (!self::isMysqlAvailable()) {
+        if (!extension_loaded('pcntl') || !self::isMysqlAvailable()) {
             return;
         }
 
-        parent::setUpBeforeClass();
+        static::initSharedServer(
+            'ldap-backend-storage',
+            'tcp',
+            ['--storage=mysql'],
+        );
+    }
+
+    public static function tearDownAfterClass(): void
+    {
+        static::tearDownSharedServer();
     }
 
     public function setUp(): void
@@ -50,11 +59,6 @@ final class MysqlLdapBackendStorageTest extends LdapBackendStorageTest
         $this->stopServer();
 
         parent::tearDown();
-    }
-
-    protected static function storageHandlerArg(): string
-    {
-        return '--storage=mysql';
     }
 
     private static function isMysqlAvailable(): bool

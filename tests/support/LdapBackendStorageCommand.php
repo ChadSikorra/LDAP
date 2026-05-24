@@ -158,6 +158,12 @@ final class LdapBackendStorageCommand extends Command
                 new Attribute('mail', 'alice@foo.bar'),
                 new Attribute('uidNumber', '99'),
             ),
+            new Entry(
+                new Dn('cn=nosn,dc=foo,dc=bar'),
+                new Attribute('cn', 'nosn'),
+                new Attribute('objectClass', 'groupOfNames'),
+                new Attribute('member', 'cn=user,dc=foo,dc=bar'),
+            ),
         ];
 
         for ($i = 1; $i <= $seedEntries; $i++) {
