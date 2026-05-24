@@ -141,21 +141,39 @@ final class SortKeyComparatorTest extends TestCase
         self::assertNull($sorted[1]->get('cn'));
     }
 
-    public function test_entries_missing_attribute_sort_last_for_descending(): void
+    public function test_entries_missing_attribute_sort_first_for_descending(): void
     {
         $alice = $this->entry('cn=Alice,dc=example,dc=com', 'Alice');
         $noAttr = new Entry(new Dn('cn=NoAttr,dc=example,dc=com'));
 
         $sorted = $this->subject->sort(
-            [$noAttr, $alice],
+            [$alice, $noAttr],
             [SortKey::descending('cn')],
         );
 
+        self::assertNull($sorted[0]->get('cn'));
         self::assertSame(
             'Alice',
-            $sorted[0]->get('cn')?->getValues()[0],
+            $sorted[1]->get('cn')?->getValues()[0],
         );
-        self::assertNull($sorted[1]->get('cn'));
+    }
+
+    public function test_present_and_missing_entries_respect_reverse_order(): void
+    {
+        $alice = $this->entry('cn=Alice,dc=example,dc=com', 'Alice');
+        $charlie = $this->entry('cn=Charlie,dc=example,dc=com', 'Charlie');
+        $noAttr = new Entry(new Dn('cn=NoAttr,dc=example,dc=com'));
+
+        $sorted = $this->subject->sort(
+            [$alice, $noAttr, $charlie],
+            [SortKey::descending('cn')],
+        );
+
+        self::assertNull($sorted[0]->get('cn'));
+        self::assertSame(
+            ['', 'Charlie', 'Alice'],
+            $this->cnValues($sorted),
+        );
     }
 
     public function test_sort_cascades_through_multiple_keys(): void

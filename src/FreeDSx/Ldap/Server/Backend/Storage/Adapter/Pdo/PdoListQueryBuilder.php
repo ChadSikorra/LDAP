@@ -142,9 +142,15 @@ final readonly class PdoListQueryBuilder
         $params = [];
 
         foreach ($sortKeys as $sortKey) {
-            $direction = $sortKey->getUseReverseOrder() ? 'DESC' : 'ASC';
-            $clauses[] = $this->dialect->sortKeyClause($direction);
-            $params[] = strtolower($sortKey->getAttribute());
+            $clause = $this->dialect->sortKeyClause(
+                strtolower($sortKey->getAttribute()),
+                $sortKey->getUseReverseOrder() ? 'DESC' : 'ASC',
+            );
+            $clauses[] = $clause->sql;
+            $params = array_merge(
+                $params,
+                $clause->params,
+            );
         }
 
         return $query->appending(
