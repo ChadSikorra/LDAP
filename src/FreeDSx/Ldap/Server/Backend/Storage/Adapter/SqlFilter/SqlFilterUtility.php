@@ -36,15 +36,4 @@ final class SqlFilterUtility
             $value,
         );
     }
-
-    /**
-     * True when $value is 7-bit ASCII.
-     */
-    public static function isAscii(string $value): bool
-    {
-        return preg_match(
-            '/[\x80-\xff]/',
-            $value,
-        ) !== 1;
-    }
 }

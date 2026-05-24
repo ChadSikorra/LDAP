@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter;
 
 use Closure;
+use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\SqliteDialect;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactoryInterface;
@@ -77,6 +78,12 @@ final class SqliteStorage implements PdoStorageFactoryInterface
 
     protected function openConnection(PdoDialectInterface $dialect): PDO
     {
+        if (!extension_loaded('pdo_sqlite')) {
+            throw new RuntimeException(
+                'The "pdo_sqlite" extension is required for the SQLite storage backend.',
+            );
+        }
+
         $pdo = new PDO(
             self::DB_CONNECTION_PREFIX . $this->dbPath,
             null,

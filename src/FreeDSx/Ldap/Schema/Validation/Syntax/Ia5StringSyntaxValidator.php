@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Schema\Validation\Syntax;
 
+use FreeDSx\Ldap\Schema\Text;
+
 /**
  * Validates the IA5 String syntax (RFC 4517 §3.3.15): characters from the ASCII (IA5) range only.
  *
@@ -22,9 +24,6 @@ final class Ia5StringSyntaxValidator implements SyntaxValidatorInterface
 {
     public function isValid(string $value): bool
     {
-        return mb_check_encoding(
-            $value,
-            'ASCII',
-        );
+        return Text::isAscii($value);
     }
 }
