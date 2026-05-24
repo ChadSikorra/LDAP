@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Support\FreeDSx\Ldap;
 
+use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\Server\AccessControl\AclRules;
+use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
+use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
+use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
+use FreeDSx\Ldap\Server\AccessControl\Target\Target;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\MysqlStorage;
@@ -72,6 +78,12 @@ final class LdapBackendStorageCommand extends Command
                 InputOption::VALUE_REQUIRED,
                 'Schema validation mode (strict, lenient, off)',
                 'strict',
+            )
+            ->addOption(
+                'allow-relax',
+                null,
+                InputOption::VALUE_NONE,
+                'Grant the Relax Rules control to authenticated identities',
             );
     }
 
@@ -159,14 +171,26 @@ final class LdapBackendStorageCommand extends Command
             );
         }
 
-        $server = new LdapServer(
-            (new ServerOptions())
-                ->setPort($port)
-                ->setTransport($transport)
-                ->setSocketAcceptTimeout(0.1)
-                ->setSchemaValidationMode($validationMode)
-                ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL)),
-        );
+        $serverOptions = (new ServerOptions())
+            ->setPort($port)
+            ->setTransport($transport)
+            ->setSocketAcceptTimeout(0.1)
+            ->setSchemaValidationMode($validationMode)
+            ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL));
+
+        if ($input->getOption('allow-relax')) {
+            $serverOptions->setAclRules(
+                (new AclRules())
+                    ->withOperationRules(OperationRule::allow(Subject::authenticated()))
+                    ->withControlRules(ControlRule::allow(
+                        Subject::authenticated(),
+                        Target::any(),
+                        Control::OID_RELAX_RULES,
+                    )),
+            );
+        }
+
+        $server = new LdapServer($serverOptions);
 
         if ($storage === 'memory') {
             $server->useStorage(new InMemoryStorage($entries));

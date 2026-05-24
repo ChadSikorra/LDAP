@@ -51,7 +51,7 @@ $options = (new ServerOptions())->setLogger($logger);
 | `authz.denied.write`        | on      | notice | ACL denies an Add / Modify / Delete / ModifyDn / Compare  |
 | `authz.denied.read`         | on      | notice | ACL denies a Search or Paging request                     |
 | `control.critical.rejected` | on      | notice | Client sent a critical control the server doesn't support |
-| `schema.violation`          | on      | notice | Add/Modify violates the schema (rejected, or allowed in Lenient mode) |
+| `schema.violation`          | on      | notice | Add/Modify violates the schema (rejected, or allowed under Lenient mode / the Relax control) |
 | `session.disconnect_notice` | on      | notice | Server sends an unsolicited Notice of Disconnect          |
 | `entry.added`               | off     | info   | Add succeeds (audit-trail)                                |
 | `entry.modified`            | off     | info   | Modify succeeds (audit-trail)                             |
@@ -77,7 +77,7 @@ Every event carries a structured `context` array with a stable shape:
 | `operation`                                                | write / compare events                                             | One of `add`, `modify`, `delete`, `modify_dn`, `compare`.                                          |
 | `result_code`                                              | failure events                                                     | LDAP result code from the caught `OperationException`.                                             |
 | `reason`                                                   | failure events                                                     | Human-readable diagnostic from the exception.                                                      |
-| `validation_mode`                                          | relaxed schema violations                                          | `lenient` when the write was allowed despite a schema violation.                                   |
+| `validation_mode`                                          | `schema.violation`                                                 | How it was handled: `strict` (rejected), `lenient` (allowed by policy), or `relaxed` (Relax control). |
 | `mechanism`, `version`                                     | bind events                                                        | SASL mechanism name (or `simple`) and LDAP protocol version.                                       |
 | `match`, `attribute`                                       | compare events                                                     | Match outcome + attribute compared.                                                                |
 | `entries_returned`                                         | search events                                                      | Count of entries delivered to the client.                                                          |

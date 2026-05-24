@@ -136,6 +136,17 @@ class Controls
     }
 
     /**
+     * Create a Relax Rules control requesting the server relax schema and data-model constraints for the operation.
+     */
+    public static function relaxRules(bool $criticality = true): Control
+    {
+        return new Control(
+            controlType: Control::OID_RELAX_RULES,
+            criticality: $criticality,
+        );
+    }
+
+    /**
      * Create an AD Set Owner control. Pass it a string SID and use when adding objects to set the owner.
      */
     public static function setOwner(string $sid): SetOwnerControl

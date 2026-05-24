@@ -16,24 +16,29 @@ namespace FreeDSx\Ldap\Server\Backend\Write;
 use FreeDSx\Ldap\Exception\OperationException;
 
 /**
- * Request-scoped record of schema violations allowed under Lenient validation.
+ * Request-scoped record of schema violations detected during a write.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class RelaxedSchemaViolations
+final class SchemaViolations
 {
     /**
-     * @var OperationException[]
+     * @var SchemaViolation[]
      */
     private array $violations = [];
 
-    public function record(OperationException $violation): void
-    {
-        $this->violations[] = $violation;
+    public function record(
+        OperationException $exception,
+        SchemaViolationDisposition $disposition,
+    ): void {
+        $this->violations[] = new SchemaViolation(
+            $exception,
+            $disposition,
+        );
     }
 
     /**
-     * @return OperationException[]
+     * @return SchemaViolation[]
      */
     public function all(): array
     {

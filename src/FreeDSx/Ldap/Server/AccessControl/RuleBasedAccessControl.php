@@ -17,42 +17,30 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeRule;
+use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
 use FreeDSx\Ldap\Server\AccessControl\Rule\Effect;
 use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
- * Evaluates an ordered list of rules; first match wins.
- *
- * When no operation rule matches, $defaultEffect is applied (default: Deny).
- * When no attribute rule matches an attribute, the attribute is kept (default allow).
+ * Evaluates the configured {@see AclRules}; first matching rule wins, otherwise the rule set's default applies.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class RuleBasedAccessControl implements AccessControlInterface, BackendAwareInterface
+final readonly class RuleBasedAccessControl implements AccessControlInterface, BackendAwareInterface
 {
-    /**
-     * @param OperationRule[] $operationRules Evaluated in order; first match wins.
-     * @param AttributeRule[] $attributeRules Evaluated per attribute in order; first match wins.
-     * @param Effect          $defaultEffect  Applied when no operation rule matches.
-     */
-    public function __construct(
-        private readonly array $operationRules = [],
-        private readonly array $attributeRules = [],
-        private readonly Effect $defaultEffect = Effect::Deny,
-    ) {}
+    public function __construct(private AclRules $rules = new AclRules()) {}
 
     public function setBackend(LdapBackendInterface $backend): void
     {
-        foreach ($this->operationRules as $rule) {
-            if ($rule->subject instanceof BackendAwareInterface) {
-                $rule->subject->setBackend($backend);
-            }
-        }
+        $allRules = [
+            ...$this->rules->operations,
+            ...$this->rules->attributes,
+            ...$this->rules->controls,
+        ];
 
-        foreach ($this->attributeRules as $rule) {
+        foreach ($allRules as $rule) {
             if ($rule->subject instanceof BackendAwareInterface) {
                 $rule->subject->setBackend($backend);
             }
@@ -91,6 +79,19 @@ final class RuleBasedAccessControl implements AccessControlInterface, BackendAwa
         }
     }
 
+    /**
+     * @throws OperationException
+     */
+    public function authorizeControl(
+        TokenInterface $token,
+        Dn $dn,
+        string $controlOid,
+    ): void {
+        if (!$this->isControlAllowed($controlOid, $token, $dn)) {
+            $this->deny();
+        }
+    }
+
     public function filterEntry(
         TokenInterface $token,
         Entry $entry,
@@ -101,7 +102,7 @@ final class RuleBasedAccessControl implements AccessControlInterface, BackendAwa
             return null;
         }
 
-        if ($this->attributeRules === []) {
+        if ($this->rules->attributes === []) {
             return $entry;
         }
 
@@ -135,8 +136,66 @@ final class RuleBasedAccessControl implements AccessControlInterface, BackendAwa
         TokenInterface $token,
         Dn $dn,
     ): bool {
-        foreach ($this->operationRules as $rule) {
-            if (!$this->operationMatches($rule, $operation)) {
+        return $this->resolveEffect(
+            $this->rules->operations,
+            $this->operationMatches(...),
+            $operation,
+            $token,
+            $dn,
+            $this->rules->defaultOperationEffect,
+        ) === Effect::Allow;
+    }
+
+    private function operationMatches(
+        OperationRule $rule,
+        OperationType $operation,
+    ): bool {
+        return $rule->operations === []
+            || in_array($operation, $rule->operations, true);
+    }
+
+    private function isControlAllowed(
+        string $controlOid,
+        TokenInterface $token,
+        Dn $dn,
+    ): bool {
+        return $this->resolveEffect(
+            $this->rules->controls,
+            $this->controlMatches(...),
+            $controlOid,
+            $token,
+            $dn,
+            $this->rules->defaultControlEffect,
+        ) === Effect::Allow;
+    }
+
+    private function controlMatches(
+        ControlRule $rule,
+        string $controlOid,
+    ): bool {
+        return $rule->controlOids === []
+            || in_array($controlOid, $rule->controlOids, true);
+    }
+
+    /**
+     * Returns the effect of the first rule whose selector, target, and subject all match; otherwise $default.
+     *
+     * @template TRule of OperationRule|ControlRule
+     * @template TValue
+     * @param TRule[] $rules
+     * @param callable(TRule, TValue): bool $selectorMatches
+     * @param TValue $selectorValue
+     */
+    private function resolveEffect(
+        array $rules,
+        callable $selectorMatches,
+        mixed $selectorValue,
+        TokenInterface $token,
+        Dn $dn,
+        Effect $default,
+    ): Effect {
+        foreach ($rules as $rule) {
+            if (!$selectorMatches($rule, $selectorValue)) {
                 continue;
             }
 
@@ -148,18 +207,10 @@ final class RuleBasedAccessControl implements AccessControlInterface, BackendAwa
                 continue;
             }
 
-            return $rule->effect === Effect::Allow;
+            return $rule->effect;
         }
 
-        return $this->defaultEffect === Effect::Allow;
-    }
-
-    private function operationMatches(
-        OperationRule $rule,
-        OperationType $operation,
-    ): bool {
-        return $rule->operations === []
-            || in_array($operation, $rule->operations, true);
+        return $default;
     }
 
     private function resolveAttributeEffect(
@@ -167,7 +218,7 @@ final class RuleBasedAccessControl implements AccessControlInterface, BackendAwa
         Dn $dn,
         string $attrName,
     ): ?Effect {
-        foreach ($this->attributeRules as $rule) {
+        foreach ($this->rules->attributes as $rule) {
             if (!$rule->target->matches($dn)) {
                 continue;
             }

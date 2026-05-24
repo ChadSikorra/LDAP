@@ -80,6 +80,7 @@ final class ServerRootDseHandlerTest extends TestCase
                     'supportedControl' => [
                         Control::OID_PAGING,
                         Control::OID_SORTING,
+                        Control::OID_RELAX_RULES,
                     ],
                     'supportedExtension' => [
                         ExtendedRequest::OID_WHOAMI,
@@ -153,6 +154,7 @@ final class ServerRootDseHandlerTest extends TestCase
             'supportedControl' => [
                 Control::OID_PAGING,
                 Control::OID_SORTING,
+                Control::OID_RELAX_RULES,
             ],
             'supportedExtension' => [
                 ExtendedRequest::OID_WHOAMI,

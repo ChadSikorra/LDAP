@@ -17,8 +17,6 @@ use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\BackendAwareInterface;
-use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeRule;
-use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
 use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\OperationalAttributeGenerator;
@@ -89,27 +87,13 @@ class LdapServer
             return $this->injectBackendIfNeeded($this->accessControl);
         }
 
-        $operationRules = $this->options->getOperationRules();
-        $attributeRules = $this->options->getAttributeRules();
+        $aclRules = $this->options->getAclRules();
 
-        if ($operationRules === [] && $attributeRules === []) {
+        if ($aclRules->isEmpty()) {
             return $this->options->getAccessControl();
         }
 
-        $backend = $this->options->getBackend();
-        if ($backend !== null) {
-            $this->propagateBackend(
-                $backend,
-                $operationRules,
-                $attributeRules,
-            );
-        }
-
-        return new RuleBasedAccessControl(
-            $operationRules,
-            $attributeRules,
-            $this->options->getDefaultAccessRule(),
-        );
+        return $this->injectBackendIfNeeded(new RuleBasedAccessControl($aclRules));
     }
 
     private function injectBackendIfNeeded(AccessControlInterface $acl): AccessControlInterface
@@ -121,28 +105,6 @@ class LdapServer
         }
 
         return $acl;
-    }
-
-    /**
-     * @param OperationRule[] $operationRules
-     * @param AttributeRule[] $attributeRules
-     */
-    private function propagateBackend(
-        LdapBackendInterface $backend,
-        array $operationRules,
-        array $attributeRules,
-    ): void {
-        foreach ($operationRules as $rule) {
-            if ($rule->subject instanceof BackendAwareInterface) {
-                $rule->subject->setBackend($backend);
-            }
-        }
-
-        foreach ($attributeRules as $rule) {
-            if ($rule->subject instanceof BackendAwareInterface) {
-                $rule->subject->setBackend($backend);
-            }
-        }
     }
 
     /**

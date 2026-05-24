@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request;
@@ -26,7 +27,7 @@ use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Write\RelaxedSchemaViolations;
+use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
 use FreeDSx\Ldap\Server\Backend\Write\WriteCommandFactory;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
@@ -43,6 +44,11 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
 {
     use ServerCriticalControlTrait;
     use MatchedDnAccessFilterTrait;
+
+    /**
+     * Controls that require an explicit ControlRule grant before they may be used.
+     */
+    private const PRIVILEGED_CONTROLS = [Control::OID_RELAX_RULES];
 
     public function __construct(
         private ServerQueue $queue,
@@ -65,6 +71,7 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         TokenInterface $token,
     ): void {
         $this->passwordPolicyContext?->clear();
+        $schemaViolations = new SchemaViolations();
 
         try {
             $this->assertNoCriticalUnsupportedControls($message->controls());
@@ -100,17 +107,22 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                 return;
             }
 
-            $relaxedViolations = new RelaxedSchemaViolations();
+            $this->authorizeControls(
+                $request,
+                $message->controls(),
+                $token,
+            );
+
             $this->writeDispatcher->dispatch(
                 $this->commandFactory->fromRequest($request),
                 new WriteContext(
                     $token,
                     $message->controls(),
-                    relaxedViolations: $relaxedViolations,
+                    schemaViolations: $schemaViolations,
                 ),
             );
-            $this->eventRecorder->recordRelaxedSchemaViolations(
-                $relaxedViolations,
+            $this->eventRecorder->recordSchemaViolations(
+                $schemaViolations,
                 $message,
                 $token,
             );
@@ -141,6 +153,11 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                 ),
                 ...($errorControl === null ? [] : [$errorControl]),
             ));
+            $this->eventRecorder->recordSchemaViolations(
+                $schemaViolations,
+                $message,
+                $token,
+            );
             $this->eventRecorder->recordFailure(
                 $message,
                 $e,
@@ -155,6 +172,45 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         $this->passwordPolicyContext?->clear();
 
         return $control;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @return string[]
+     */
+    private function supportedControls(): array
+    {
+        return self::PRIVILEGED_CONTROLS;
+    }
+
+    /**
+     * Authorizes any privileged control attached to a write before it is dispatched.
+     *
+     * @throws OperationException
+     */
+    private function authorizeControls(
+        RequestInterface $request,
+        ControlBag $controls,
+        TokenInterface $token,
+    ): void {
+        $dn = $this->dnFor($request);
+
+        if ($dn === null) {
+            return;
+        }
+
+        foreach (self::PRIVILEGED_CONTROLS as $oid) {
+            if (!$controls->has($oid)) {
+                continue;
+            }
+
+            $this->accessControl->authorizeControl(
+                $token,
+                $dn,
+                $oid,
+            );
+        }
     }
 
     private function dnFor(RequestInterface $request): ?Dn

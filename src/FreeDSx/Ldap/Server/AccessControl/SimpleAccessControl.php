@@ -49,6 +49,22 @@ final class SimpleAccessControl implements AccessControlInterface
         string $attribute,
     ): void {}
 
+    /**
+     * Privileged controls require an explicit grant the simple policy cannot express, so deny.
+     *
+     * @throws OperationException
+     */
+    public function authorizeControl(
+        TokenInterface $token,
+        Dn $dn,
+        string $controlOid,
+    ): void {
+        throw new OperationException(
+            'Access denied.',
+            ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+        );
+    }
+
     public function filterEntry(
         TokenInterface $token,
         Entry $entry,

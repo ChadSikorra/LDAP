@@ -99,15 +99,6 @@ enum ServerEvent: string
         return match ($e->getCode()) {
             ResultCode::INSUFFICIENT_ACCESS_RIGHTS => $denialEvent,
             ResultCode::UNAVAILABLE_CRITICAL_EXTENSION => self::CriticalControlRejected,
-            ResultCode::OBJECT_CLASS_VIOLATION,
-            ResultCode::INVALID_ATTRIBUTE_SYNTAX,
-            ResultCode::NOT_ALLOWED_ON_RDN,
-            ResultCode::NAMING_VIOLATION,
-            ResultCode::OBJECT_CLASS_MODS_PROHIBITED,
-            ResultCode::CONSTRAINT_VIOLATION,
-            ResultCode::NO_SUCH_ATTRIBUTE,
-            ResultCode::UNDEFINED_ATTRIBUTE_TYPE,
-            ResultCode::ATTRIBUTE_OR_VALUE_EXISTS => self::SchemaViolation,
             default => $fallback,
         };
     }
