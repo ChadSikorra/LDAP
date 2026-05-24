@@ -47,38 +47,55 @@ final readonly class PasswordPolicyChangeGuard
      */
     public function enforce(PasswordModifyAttempt $attempt): OperationalChanges
     {
-        $policy = $this->resolver->resolveFor($attempt->target);
+        return $this->enforceAll([$attempt]);
+    }
+
+    /**
+     * Validate every new value of a multi-valued password set against the same target and return the combined deltas.
+     *
+     * @param non-empty-list<PasswordModifyAttempt> $attempts one per new password value being set
+     * @throws OperationException|PasswordPolicyException when any new value violates the governing policy.
+     */
+    public function enforceAll(array $attempts): OperationalChanges
+    {
+        $primary = $attempts[0];
+        $policy = $this->resolver->resolveFor($primary->target);
         if ($policy === null) {
             return OperationalChanges::none();
         }
 
-        $state = UserPasswordState::fromEntry($attempt->target);
-        $outcome = $this->engine->evaluatePasswordChange(
-            $attempt->newPassword,
-            $attempt->oldPassword,
-            $state,
-            $policy,
-            $attempt->isSelf,
-            $attempt->passwordIsCleartext,
-        );
+        $state = UserPasswordState::fromEntry($primary->target);
 
-        if ($outcome->denied) {
-            $this->reject(
-                $outcome,
-                $attempt,
+        foreach ($attempts as $attempt) {
+            $outcome = $this->engine->evaluatePasswordChange(
+                $attempt->newPassword,
+                $attempt->oldPassword,
+                $state,
+                $policy,
+                $attempt->isSelf,
+                $attempt->passwordIsCleartext,
             );
+            if ($outcome->denied) {
+                $this->reject(
+                    $outcome,
+                    $attempt,
+                );
+            }
         }
 
         $this->assertSafeModifyCredential(
             $policy,
-            $attempt,
+            $primary,
         );
 
         return $this->engine->recordPasswordChange(
-            $attempt->hashedNewPassword,
+            array_map(
+                static fn(PasswordModifyAttempt $attempt): string => $attempt->hashedNewPassword,
+                $attempts,
+            ),
             $state,
             $policy,
-            $attempt->isSelf,
+            $primary->isSelf,
         );
     }
 
@@ -92,7 +109,7 @@ final readonly class PasswordPolicyChangeGuard
         PasswordModifyAttempt $attempt,
     ): void {
         $oldPassword = $attempt->oldPassword;
-        if ($policy->change->safeModify !== true || $oldPassword === null || $oldPassword === '') {
+        if (!$attempt->isSelf || $policy->change->safeModify !== true || $oldPassword === null || $oldPassword === '') {
             return;
         }
 

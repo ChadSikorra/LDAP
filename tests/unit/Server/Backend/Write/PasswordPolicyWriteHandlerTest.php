@@ -184,6 +184,37 @@ final class PasswordPolicyWriteHandlerTest extends TestCase
         );
     }
 
+    public function test_multi_value_set_records_each_new_value_in_history(): void
+    {
+        $handler = $this->handler(new PasswordPolicy(
+            quality: new PasswordQualityRules(inHistory: 5),
+        ));
+
+        $handler->handle(
+            new UpdateCommand(
+                new Dn(self::USER_DN),
+                [Change::replace('userPassword', 'first-new-pass', 'second-new-pass')],
+            ),
+            $this->writeContext(),
+        );
+
+        $entry = $this->backend->get(new Dn(self::USER_DN));
+        self::assertNotNull($entry);
+        $stored = array_map(
+            static fn(string $value): string => HistoryEntry::decode($value)->data,
+            $entry->get(PasswordPolicyOid::NAME_PWD_HISTORY)?->getValues() ?? [],
+        );
+        // Both new values must be retained so neither can be reused after a multi-valued set.
+        self::assertContains(
+            'first-new-pass',
+            $stored,
+        );
+        self::assertContains(
+            'second-new-pass',
+            $stored,
+        );
+    }
+
     public function test_safe_modify_is_satisfied_by_delete_old_add_new(): void
     {
         $handler = $this->handler(new PasswordPolicy(

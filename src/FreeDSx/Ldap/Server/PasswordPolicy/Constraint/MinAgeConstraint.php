@@ -19,7 +19,9 @@ use FreeDSx\Ldap\Server\Clock\ClockInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
 
 /**
- * Denies a change attempted within pwdMinAge seconds of the last password change.
+ * Denies a self-service change attempted within pwdMinAge seconds of the last password change.
+ *
+ * pwdMinAge restricts the user, not administrative resets, so non-self changes are exempt (draft-behera-10 §7.2).
  */
 final readonly class MinAgeConstraint implements PasswordChangeConstraint
 {
@@ -29,7 +31,7 @@ final readonly class MinAgeConstraint implements PasswordChangeConstraint
     {
         $minAge = $attempt->policy->change->minAge;
         $changedAt = $attempt->state->changedAt;
-        if ($minAge === null || $minAge === 0 || $changedAt === null) {
+        if (!$attempt->isSelf || $minAge === null || $minAge === 0 || $changedAt === null) {
             return null;
         }
 

@@ -96,9 +96,23 @@ final class SafeModifyConstraintTest extends TestCase
         self::assertTrue($outcome->denied);
     }
 
+    public function test_non_self_change_skips_safe_modify(): void
+    {
+        self::assertNull(
+            $this->subject->check(
+                $this->attempt(
+                    safeModify: true,
+                    oldPassword: null,
+                    isSelf: false,
+                ),
+            ),
+        );
+    }
+
     private function attempt(
         ?bool $safeModify,
         ?string $oldPassword,
+        bool $isSelf = true,
     ): PasswordChangeAttempt {
         return new PasswordChangeAttempt(
             newPassword: 'newpw',
@@ -107,7 +121,7 @@ final class SafeModifyConstraintTest extends TestCase
             policy: new PasswordPolicy(
                 change: new PasswordChangeRules(safeModify: $safeModify),
             ),
-            isSelf: true,
+            isSelf: $isSelf,
         );
     }
 }

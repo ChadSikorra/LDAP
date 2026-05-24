@@ -15,6 +15,7 @@ namespace Tests\Unit\FreeDSx\Ldap\Protocol\Bind;
 
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Exception\ResponseAlreadySentException;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Operation\Request\AnonBindRequest;
 use FreeDSx\Ldap\Operation\Request\SaslBindRequest;
@@ -150,11 +151,12 @@ final class SaslBindTest extends TestCase
             ->with('cn=user,dc=foo,dc=bar', MechanismName::PLAIN)
             ->willReturn(null);
 
+        // The failure response is sent here, so the dispatcher must be told not to send a second one.
         $this->mockQueue
             ->expects(self::once())
             ->method('sendMessage');
 
-        self::expectException(OperationException::class);
+        self::expectException(ResponseAlreadySentException::class);
         self::expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
 
         $this->subject->bind(new LdapMessageRequest(
@@ -202,7 +204,7 @@ final class SaslBindTest extends TestCase
                 ),
             ));
 
-        self::expectException(OperationException::class);
+        self::expectException(ResponseAlreadySentException::class);
         self::expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
 
         $subject->bind(new LdapMessageRequest(

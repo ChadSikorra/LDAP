@@ -19,6 +19,7 @@ use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
 use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\ProtocolException;
+use FreeDSx\Ldap\Exception\ResponseAlreadySentException;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Request\AnonBindRequest;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
@@ -309,6 +310,35 @@ final class ServerProtocolHandlerTest extends TestCase
         $this->mockProtocolHandler
             ->expects($this->never())
             ->method('handleRequest');
+
+        $this->subject->handle();
+    }
+
+    public function test_it_does_not_resend_when_a_handler_already_sent_the_response(): void
+    {
+        $messages = [
+            new LdapMessageRequest(1, new SimpleBindRequest('foo@bar', 'bar')),
+        ];
+        $this->mockQueue
+            ->method('getMessage')
+            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
+                if ($messages === []) {
+                    throw new ConnectionException();
+                }
+
+                return array_shift($messages);
+            });
+
+        $this->mockAuthenticator
+            ->method('bind')
+            ->willThrowException(new ResponseAlreadySentException(
+                'Invalid credentials.',
+                ResultCode::INVALID_CREDENTIALS,
+            ));
+
+        $this->mockQueue
+            ->expects(self::never())
+            ->method('sendMessage');
 
         $this->subject->handle();
     }

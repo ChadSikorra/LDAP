@@ -126,6 +126,70 @@ final class ServerPasswordModifyHandlerTest extends TestCase
         );
     }
 
+    public function test_must_change_identity_cannot_modify_another_entry(): void
+    {
+        $this->mockResolver
+            ->method('resolve')
+            ->willReturn($this->userEntry);
+
+        $mustChangeToken = BindToken::fromDn(
+            'cn=other,dc=foo,dc=bar',
+            'secret',
+        );
+        $mustChangeToken->markMustChangePassword();
+
+        $this->mockQueue
+            ->expects(self::once())
+            ->method('sendMessage')
+            ->with(self::callback(
+                fn(LdapMessageResponse $r)
+                => method_exists($r->getResponse(), 'getResultCode')
+                && $r->getResponse()->getResultCode() === ResultCode::UNWILLING_TO_PERFORM,
+            ));
+
+        $this->subject->handleRequest(
+            new LdapMessageRequest(
+                1,
+                new PasswordModifyRequest('cn=user,dc=foo,dc=bar', null, 'newpass'),
+            ),
+            $mustChangeToken,
+        );
+    }
+
+    public function test_must_change_identity_can_still_change_its_own_password(): void
+    {
+        $this->mockBackend
+            ->method('get')
+            ->willReturn($this->userEntry);
+
+        $mustChangeToken = BindToken::fromDn(
+            'cn=user,dc=foo,dc=bar',
+            '12345',
+        );
+        $mustChangeToken->markMustChangePassword();
+
+        $this->mockQueue
+            ->expects(self::once())
+            ->method('sendMessage')
+            ->with(self::callback(
+                fn(LdapMessageResponse $r)
+                => $r->getResponse() instanceof PasswordModifyResponse,
+            ));
+
+        $this->subject->handleRequest(
+            new LdapMessageRequest(
+                1,
+                new PasswordModifyRequest(null, '12345', 'newpass'),
+            ),
+            $mustChangeToken,
+        );
+
+        self::assertFalse(
+            $mustChangeToken->mustChangePassword(),
+            'A successful self-change must lift the session must-change restriction.',
+        );
+    }
+
     public function test_server_generated_password_is_returned_in_response(): void
     {
         $this->mockBackend

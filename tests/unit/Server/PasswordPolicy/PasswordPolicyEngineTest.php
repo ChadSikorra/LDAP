@@ -541,7 +541,7 @@ final class PasswordPolicyEngineTest extends TestCase
     public function test_recordPasswordChange_stamps_changed_time(): void
     {
         $changes = $this->subject->recordPasswordChange(
-            '{BCRYPT}hashed',
+            ['{BCRYPT}hashed'],
             new UserPasswordState(),
             new PasswordPolicy(),
         );
@@ -559,7 +559,7 @@ final class PasswordPolicyEngineTest extends TestCase
     public function test_recordPasswordChange_zero_history_emits_no_history_change(): void
     {
         $changes = $this->subject->recordPasswordChange(
-            '{BCRYPT}hashed',
+            ['{BCRYPT}hashed'],
             new UserPasswordState(),
             new PasswordPolicy(
                 quality: new PasswordQualityRules(inHistory: 0),
@@ -584,7 +584,7 @@ final class PasswordPolicyEngineTest extends TestCase
         );
 
         $changes = $this->subject->recordPasswordChange(
-            '{BCRYPT}brand-new',
+            ['{BCRYPT}brand-new'],
             new UserPasswordState(history: [
                 $newer,
                 $oldest,
@@ -616,7 +616,7 @@ final class PasswordPolicyEngineTest extends TestCase
     public function test_recordPasswordChange_clears_must_change_failure_and_lock(): void
     {
         $changes = $this->subject->recordPasswordChange(
-            '{BCRYPT}hashed',
+            ['{BCRYPT}hashed'],
             new UserPasswordState(
                 accountLockedAt: $this->minutesAgo(5),
                 failureTimes: [$this->minutesAgo(2)],
@@ -647,7 +647,7 @@ final class PasswordPolicyEngineTest extends TestCase
     public function test_recordPasswordChange_clean_state_emits_only_changed_time(): void
     {
         $changes = $this->subject->recordPasswordChange(
-            '{BCRYPT}hashed',
+            ['{BCRYPT}hashed'],
             new UserPasswordState(),
             new PasswordPolicy(
                 quality: new PasswordQualityRules(inHistory: 0),
