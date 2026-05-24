@@ -21,7 +21,7 @@ use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
-use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
@@ -321,7 +321,7 @@ final class PasswordPolicyWriteHandlerTest extends TestCase
                     new SafeModifyConstraint(),
                     new MinAgeConstraint($this->clock),
                     new QualityConstraint(new DefaultPasswordQualityChecker()),
-                    new HistoryConstraint(new PasswordHashVerifier()),
+                    new HistoryConstraint(new PasswordHashService()),
                 ]),
             ),
             new PasswordPolicyResolver(

@@ -16,7 +16,7 @@ namespace Tests\Unit\FreeDSx\Ldap\Server\PasswordPolicy\Constraint;
 use DateTimeImmutable;
 use DateTimeZone;
 use FreeDSx\Ldap\Control\PwdPolicyError;
-use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\HistoryConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeAttempt;
 use FreeDSx\Ldap\Server\PasswordPolicy\HistoryEntry;
@@ -31,7 +31,7 @@ final class HistoryConstraintTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->subject = new HistoryConstraint(new PasswordHashVerifier());
+        $this->subject = new HistoryConstraint(new PasswordHashService());
     }
 
     public function test_zero_depth_skips(): void

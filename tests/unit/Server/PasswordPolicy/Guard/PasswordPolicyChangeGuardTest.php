@@ -20,7 +20,7 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Schema\Definition\GeneralizedTime;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
-use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\AllowUserChangeConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\HistoryConstraint;
@@ -234,7 +234,7 @@ final class PasswordPolicyChangeGuardTest extends TestCase
                 new SafeModifyConstraint(),
                 new MinAgeConstraint($this->clock),
                 new QualityConstraint(new DefaultPasswordQualityChecker()),
-                new HistoryConstraint(new PasswordHashVerifier()),
+                new HistoryConstraint(new PasswordHashService()),
             ]),
         );
 

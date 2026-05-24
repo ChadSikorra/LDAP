@@ -29,12 +29,14 @@ use FreeDSx\Ldap\Schema\Definition\GeneralizedTime;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
-use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
+use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyService;
+use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\AllowUserChangeConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\HistoryConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\MinAgeConstraint;
@@ -157,7 +159,7 @@ final class PasswordPolicyChangeEnforcementTest extends TestCase
         $entry = $this->backend->get(new Dn(self::USER_DN));
         self::assertNotNull($entry);
         self::assertTrue(
-            (new PasswordHashVerifier())->verify(
+            (new PasswordHashService())->verify(
                 'a-fresh-password',
                 (string) $entry->get('userPassword')?->firstValue(),
             ),
@@ -277,19 +279,24 @@ final class PasswordPolicyChangeEnforcementTest extends TestCase
 
         return new ServerPasswordModifyHandler(
             queue: $this->capturingQueue(),
-            backend: $this->backend,
-            writeDispatcher: new WriteOperationDispatcher($this->backend),
-            accessControl: $this->createMock(AccessControlInterface::class),
-            identityResolver: new DnBindNameResolver(),
-            changeGuard: new PasswordPolicyChangeGuard(
-                $this->engine(),
-                new PasswordPolicyResolver(
+            service: new PasswordModifyService(
+                targetResolver: new PasswordModifyTargetResolver(
                     $this->backend,
-                    null,
-                    $policy,
+                    new DnBindNameResolver(),
                 ),
-                $this->context,
-                new EventLogger(null, EventLogPolicy::all()),
+                accessControl: $this->createMock(AccessControlInterface::class),
+                writeDispatcher: new WriteOperationDispatcher($this->backend),
+                changeGuard: new PasswordPolicyChangeGuard(
+                    $this->engine(),
+                    new PasswordPolicyResolver(
+                        $this->backend,
+                        null,
+                        $policy,
+                    ),
+                    $this->context,
+                    new EventLogger(null, EventLogPolicy::all()),
+                ),
+                passwordPolicyContext: $this->context,
             ),
             passwordPolicyContext: $this->context,
         );
@@ -304,7 +311,7 @@ final class PasswordPolicyChangeEnforcementTest extends TestCase
                 new SafeModifyConstraint(),
                 new MinAgeConstraint($this->clock),
                 new QualityConstraint(new DefaultPasswordQualityChecker()),
-                new HistoryConstraint(new PasswordHashVerifier()),
+                new HistoryConstraint(new PasswordHashService()),
             ]),
         );
     }

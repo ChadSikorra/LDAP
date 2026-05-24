@@ -30,7 +30,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\QualityConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\SafeModifyConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
-use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\RequestHandler\HandlerFactory;
 use FreeDSx\Ldap\Server\ServerProtocolFactory;
 use FreeDSx\Ldap\Server\ServerRunner\PcntlServerRunner;
@@ -186,7 +186,7 @@ class Container
             new SafeModifyConstraint(),
             new MinAgeConstraint($clock),
             new QualityConstraint($options->getPasswordQualityChecker()),
-            new HistoryConstraint(new PasswordHashVerifier()),
+            new HistoryConstraint(new PasswordHashService()),
         ]);
 
         return new PasswordPolicyEngine(

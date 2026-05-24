@@ -17,11 +17,11 @@ use FreeDSx\Ldap\Exception\RuntimeException;
 use SensitiveParameter;
 
 /**
- * Verifies a plaintext password against a stored value that may be hashed ({SHA}, {SSHA}, {MD5}, {SMD5}, {BCRYPT}, {ARGON2}).
+ * Hashes, generates, and verifies userPassword values; writes the configured scheme and reads legacy {SHA}/{MD5}/{SMD5}.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class PasswordHashVerifier
+final readonly class PasswordHashService
 {
     /**
      * Read-only legacy prefixes recognized in addition to the writable {@see PasswordHashScheme} set.
@@ -34,12 +34,16 @@ final class PasswordHashVerifier
         '{SMD5}',
     ];
 
+    public function __construct(
+        private PasswordHashScheme $scheme = PasswordHashScheme::Bcrypt,
+    ) {}
+
     /**
      * Whether a value begins with a recognized hash scheme, and so is not cleartext we can inspect.
      */
-    public static function isHashed(string $value): bool
+    public function isHashed(string $value): bool
     {
-        foreach (self::recognizedPrefixes() as $prefix) {
+        foreach ($this->recognizedPrefixes() as $prefix) {
             if (str_starts_with($value, $prefix)) {
                 return true;
             }
@@ -48,12 +52,42 @@ final class PasswordHashVerifier
         return false;
     }
 
+    /**
+     * Hash a plaintext password using the configured scheme.
+     */
+    public function hash(
+        #[SensitiveParameter]
+        string $plain,
+    ): string {
+        return match ($this->scheme) {
+            PasswordHashScheme::Ssha => $this->hashSsha($plain),
+            PasswordHashScheme::Bcrypt => $this->hashWithPhpAlgo(
+                $plain,
+                PASSWORD_BCRYPT,
+                PasswordHashScheme::Bcrypt,
+            ),
+            PasswordHashScheme::Argon2 => $this->hashWithPhpAlgo(
+                $plain,
+                PASSWORD_ARGON2ID,
+                PasswordHashScheme::Argon2,
+            ),
+        };
+    }
+
+    /**
+     * Generate a cryptographically random 16-character password.
+     */
+    public function generate(): string
+    {
+        return bin2hex(random_bytes(8));
+    }
+
     public function verify(
         #[SensitiveParameter]
         string $plain,
         string $stored,
     ): bool {
-        foreach (self::recognizedPrefixes() as $prefix) {
+        foreach ($this->recognizedPrefixes() as $prefix) {
             if (str_starts_with($stored, $prefix)) {
                 return $this->verifyScheme(
                     $prefix,
@@ -67,11 +101,11 @@ final class PasswordHashVerifier
     }
 
     /**
-     * Prefixes the verifier recognizes: every writable scheme plus the legacy read-only ones.
+     * Prefixes recognized for verification.
      *
      * @return list<string>
      */
-    private static function recognizedPrefixes(): array
+    private function recognizedPrefixes(): array
     {
         return [
             ...array_map(
@@ -99,6 +133,30 @@ final class PasswordHashVerifier
                 $prefix,
             )),
         };
+    }
+
+    private function hashSsha(
+        #[SensitiveParameter]
+        string $plain,
+    ): string {
+        $salt = random_bytes(8);
+
+        return PasswordHashScheme::Ssha->value
+            . base64_encode(sha1($plain . $salt, true) . $salt);
+    }
+
+    private function hashWithPhpAlgo(
+        #[SensitiveParameter]
+        string $plain,
+        string $algo,
+        PasswordHashScheme $scheme,
+    ): string {
+        $hash = password_hash(
+            $plain,
+            $algo,
+        );
+
+        return $scheme->value . $hash;
     }
 
     private function verifySha(

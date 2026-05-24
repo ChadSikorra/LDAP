@@ -16,7 +16,7 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Guard;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\PasswordPolicyException;
 use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
@@ -39,7 +39,7 @@ final readonly class PasswordPolicyChangeGuard
         private PasswordPolicyResolver $resolver,
         private PasswordPolicyContext $context,
         private EventLogger $eventLogger,
-        private PasswordHashVerifier $hashVerifier = new PasswordHashVerifier(),
+        private PasswordHashService $hashService = new PasswordHashService(),
     ) {}
 
     /**
@@ -114,7 +114,7 @@ final readonly class PasswordPolicyChangeGuard
         }
 
         foreach ($attempt->target->get($policy->pwdAttribute)?->getValues() ?? [] as $stored) {
-            if ($this->hashVerifier->verify($oldPassword, $stored)) {
+            if ($this->hashService->verify($oldPassword, $stored)) {
                 return;
             }
         }

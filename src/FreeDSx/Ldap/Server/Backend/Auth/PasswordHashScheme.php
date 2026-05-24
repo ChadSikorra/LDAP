@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Backend\Auth;
 
 /**
- * Output scheme used by {@see PasswordHasher} when hashing a new password.
+ * Output scheme used by {@see PasswordHashService} when hashing a new password.
  */
 enum PasswordHashScheme: string
 {

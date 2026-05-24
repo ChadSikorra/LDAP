@@ -32,7 +32,7 @@ final class PasswordAuthenticator implements PasswordAuthenticatableInterface
     public function __construct(
         private readonly BindNameResolverInterface $resolver,
         private readonly LdapBackendInterface $backend,
-        private readonly PasswordHashVerifier $hashVerifier = new PasswordHashVerifier(),
+        private readonly PasswordHashService $hashService = new PasswordHashService(),
     ) {}
 
     public function authenticate(
@@ -56,7 +56,7 @@ final class PasswordAuthenticator implements PasswordAuthenticatableInterface
         }
 
         foreach ($attr->getValues() as $stored) {
-            if ($this->hashVerifier->verify($password, $stored)) {
+            if ($this->hashService->verify($password, $stored)) {
                 return new BindToken(
                     $name,
                     $password,

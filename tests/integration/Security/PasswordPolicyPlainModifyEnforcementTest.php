@@ -26,7 +26,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
-use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\PasswordPolicyWriteHandler;
@@ -131,7 +131,7 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
         $entry = $this->backend->get(new Dn(self::USER_DN));
         self::assertNotNull($entry);
         self::assertTrue(
-            (new PasswordHashVerifier())->verify(
+            (new PasswordHashService())->verify(
                 'a-fresh-password',
                 (string) $entry->get('userPassword')?->firstValue(),
             ),
@@ -293,7 +293,7 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
                     new SafeModifyConstraint(),
                     new MinAgeConstraint($this->clock),
                     new QualityConstraint(new DefaultPasswordQualityChecker()),
-                    new HistoryConstraint(new PasswordHashVerifier()),
+                    new HistoryConstraint(new PasswordHashService()),
                 ]),
             ),
             new PasswordPolicyResolver(
