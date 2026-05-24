@@ -16,6 +16,7 @@ namespace Tests\Unit\FreeDSx\Ldap\Protocol;
 use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
+use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Operation\LdapResult;
@@ -503,7 +504,10 @@ final class ServerProtocolHandlerTest extends TestCase
             $token,
             [
                 new LdapMessageRequest(1, new SimpleBindRequest('cn=user,dc=foo,dc=bar', 'secret')),
-                new LdapMessageRequest(2, new ModifyRequest('cn=user,dc=foo,dc=bar')),
+                new LdapMessageRequest(2, new ModifyRequest(
+                    'cn=user,dc=foo,dc=bar',
+                    Change::replace('description', 'nope'),
+                )),
             ],
         );
 
@@ -549,6 +553,30 @@ final class ServerProtocolHandlerTest extends TestCase
             [
                 new LdapMessageRequest(1, new SimpleBindRequest('cn=user,dc=foo,dc=bar', 'secret')),
                 new LdapMessageRequest(2, new ExtendedRequest(ExtendedRequest::OID_PWD_MODIFY)),
+            ],
+        );
+    }
+
+    public function test_a_must_change_token_allows_a_self_password_modify(): void
+    {
+        $token = BindToken::fromDn(
+            'cn=user,dc=foo,dc=bar',
+            'secret',
+        );
+        $token->markMustChangePassword();
+
+        $this->mockProtocolHandler
+            ->expects(self::once())
+            ->method('handleRequest');
+
+        $this->runWithToken(
+            $token,
+            [
+                new LdapMessageRequest(1, new SimpleBindRequest('cn=user,dc=foo,dc=bar', 'secret')),
+                new LdapMessageRequest(2, new ModifyRequest(
+                    'cn=user,dc=foo,dc=bar',
+                    Change::replace('userPassword', 'a-fresh-password'),
+                )),
             ],
         );
     }

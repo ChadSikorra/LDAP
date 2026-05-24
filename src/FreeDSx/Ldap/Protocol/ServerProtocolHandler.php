@@ -20,10 +20,7 @@ use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Exception\RuntimeException;
-use FreeDSx\Ldap\Operation\Request\AbandonRequest;
-use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
-use FreeDSx\Ldap\Operation\Request\UnbindRequest;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
@@ -33,6 +30,7 @@ use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordResetGate;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
@@ -60,6 +58,7 @@ class ServerProtocolHandler
         private readonly EventLogger $eventLogger = new EventLogger(null),
         private readonly ResponseFactory $responseFactory = new ResponseFactory(),
         private readonly ?PasswordPolicyContext $passwordPolicyContext = null,
+        private readonly PasswordResetGate $passwordResetGate = new PasswordResetGate(),
     ) {}
 
     /**
@@ -193,17 +192,7 @@ class ServerProtocolHandler
 
         return $token instanceof AuthenticatedTokenInterface
             && $token->mustChangePassword()
-            && !$this->isPermittedDuringPasswordChange($request);
-    }
-
-    private function isPermittedDuringPasswordChange(RequestInterface $request): bool
-    {
-        if ($request instanceof UnbindRequest || $request instanceof AbandonRequest) {
-            return true;
-        }
-
-        return $request instanceof ExtendedRequest
-            && $request->getName() === ExtendedRequest::OID_PWD_MODIFY;
+            && !$this->passwordResetGate->isPermitted($request, $token);
     }
 
     /**

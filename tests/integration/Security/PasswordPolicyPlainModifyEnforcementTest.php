@@ -229,6 +229,36 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
         );
     }
 
+    public function test_self_password_modify_lifts_the_session_must_change_restriction(): void
+    {
+        $handler = $this->dispatchHandler(
+            new PasswordPolicy(),
+            [PasswordPolicyOid::NAME_PWD_RESET => 'TRUE'],
+        );
+
+        $token = $this->token();
+        $token->markMustChangePassword();
+
+        $handler->handleRequest(
+            $this->modify('a-fresh-password'),
+            $token,
+        );
+
+        $response = $this->response?->getResponse();
+        self::assertInstanceOf(
+            LdapResult::class,
+            $response,
+        );
+        self::assertSame(
+            ResultCode::SUCCESS,
+            $response->getResultCode(),
+        );
+        self::assertFalse(
+            $token->mustChangePassword(),
+            'A successful self password modify must lift the session restriction without a rebind.',
+        );
+    }
+
     /**
      * @param array<string, string> $userAttrs
      */

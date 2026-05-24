@@ -59,7 +59,11 @@ final readonly class PasswordPolicyEngine
         PasswordPolicy $policy,
     ): ?PasswordPolicyOutcome {
         $maxIdle = $policy->expiration->maxIdle;
-        $since = $state->lastSuccess ?? $state->changedAt;
+        // Use the most recent activity, which is one of these.
+        $since = $this->latestOf(
+            $state->lastSuccess,
+            $state->changedAt,
+        );
         if ($maxIdle === null || $maxIdle === 0 || $since === null) {
             return null;
         }
@@ -508,6 +512,20 @@ final readonly class PasswordPolicyEngine
                 static fn(HistoryEntry $entry): string => $entry->encode(),
                 $retained,
             ),
+        );
+    }
+
+    private function latestOf(
+        ?DateTimeImmutable $a,
+        ?DateTimeImmutable $b,
+    ): ?DateTimeImmutable {
+        if ($a === null || $b === null) {
+            return $a ?? $b;
+        }
+
+        return max(
+            $a,
+            $b,
         );
     }
 
