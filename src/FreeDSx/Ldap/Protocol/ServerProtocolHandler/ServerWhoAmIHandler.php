@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use Exception;
 use FreeDSx\Asn1\Exception\EncoderException;
+use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
@@ -61,5 +62,13 @@ class ServerWhoAmIHandler implements ServerProtocolHandlerInterface
             $message->getMessageId(),
             new ExtendedResponse(new LdapResult(ResultCode::SUCCESS), null, $userId),
         ));
+    }
+
+    /**
+     * @return string[]
+     */
+    private function supportedControls(): array
+    {
+        return [Control::OID_PROXY_AUTHORIZATION];
     }
 }

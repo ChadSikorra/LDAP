@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Token;
 
+use FreeDSx\Ldap\Entry\Dn;
+
 /**
  * Represents a generic authentication token.
  *
@@ -27,4 +29,9 @@ interface TokenInterface
     public function getPassword(): ?string;
 
     public function getVersion(): int;
+
+    /**
+     * The bound identity that proxied this one (RFC 4370), for audit; null when the operation is not proxied.
+     */
+    public function getAuthorizingDn(): ?Dn;
 }

@@ -32,6 +32,7 @@ use FreeDSx\Ldap\Operation\Response\ModifyDnResponse;
 use FreeDSx\Ldap\Operation\Response\ModifyResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Authenticator;
+use FreeDSx\Ldap\Protocol\Authorization\DispatchAuthorizer;
 use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
@@ -82,11 +83,13 @@ final class ServerProtocolHandlerTest extends TestCase
             ->method('get')
             ->willReturn($this->mockProtocolHandler);
 
+        $authorizer = new ServerAuthorization(new ServerOptions());
         $this->subject = new ServerProtocolHandler(
             $this->mockQueue,
             $this->mockProtocolHandlerFactory,
-            new ServerAuthorization(new ServerOptions()),
+            $authorizer,
             $this->mockAuthenticator,
+            new DispatchAuthorizer($authorizer),
         );
     }
 
@@ -645,11 +648,13 @@ final class ServerProtocolHandlerTest extends TestCase
             ->method('bind')
             ->willReturn($token);
 
+        $authorizer = new ServerAuthorization(new ServerOptions());
         $subject = new ServerProtocolHandler(
             $queue,
             $this->mockProtocolHandlerFactory,
-            new ServerAuthorization(new ServerOptions()),
+            $authorizer,
             $this->mockAuthenticator,
+            new DispatchAuthorizer($authorizer),
         );
         $subject->handle();
 
@@ -658,11 +663,14 @@ final class ServerProtocolHandlerTest extends TestCase
 
     private function makeSubjectWithEventLogger(EventLogger $eventLogger): ServerProtocolHandler
     {
+        $authorizer = new ServerAuthorization(new ServerOptions());
+
         return new ServerProtocolHandler(
             $this->mockQueue,
             $this->mockProtocolHandlerFactory,
-            new ServerAuthorization(new ServerOptions()),
+            $authorizer,
             $this->mockAuthenticator,
+            new DispatchAuthorizer($authorizer),
             $eventLogger,
         );
     }

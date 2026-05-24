@@ -84,6 +84,12 @@ final class LdapBackendStorageCommand extends Command
                 null,
                 InputOption::VALUE_NONE,
                 'Grant the Relax Rules control to authenticated identities',
+            )
+            ->addOption(
+                'allow-proxy',
+                null,
+                InputOption::VALUE_NONE,
+                'Grant cn=user the Proxied Authorization control for identities under ou=people',
             );
     }
 
@@ -192,6 +198,18 @@ final class LdapBackendStorageCommand extends Command
                         Subject::authenticated(),
                         Target::any(),
                         Control::OID_RELAX_RULES,
+                    )),
+            );
+        }
+
+        if ($input->getOption('allow-proxy')) {
+            $serverOptions->setAclRules(
+                (new AclRules())
+                    ->withOperationRules(OperationRule::allow(Subject::authenticated()))
+                    ->withControlRules(ControlRule::allow(
+                        Subject::dn('cn=user,dc=foo,dc=bar'),
+                        Target::subtree('ou=people,dc=foo,dc=bar'),
+                        Control::OID_PROXY_AUTHORIZATION,
                     )),
             );
         }

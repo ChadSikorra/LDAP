@@ -51,6 +51,8 @@ class Control implements ProtocolElementInterface, Stringable
 
     public const OID_POLICY_HINTS = '1.2.840.113556.1.4.2239';
 
+    public const OID_PROXY_AUTHORIZATION = '2.16.840.1.113730.3.4.18';
+
     public const OID_PWD_POLICY = '1.3.6.1.4.1.42.2.27.8.5.1';
 
     public const OID_RELAX_RULES = '1.3.6.1.4.1.4203.666.5.12';

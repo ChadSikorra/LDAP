@@ -181,7 +181,10 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
      */
     private function supportedControls(): array
     {
-        return self::PRIVILEGED_CONTROLS;
+        return [
+            ...self::PRIVILEGED_CONTROLS,
+            Control::OID_PROXY_AUTHORIZATION,
+        ];
     }
 
     /**

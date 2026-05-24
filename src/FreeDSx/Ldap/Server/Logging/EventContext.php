@@ -31,6 +31,7 @@ final class EventContext
     // Nested sub-array keys
     public const SUBJECT = 'subject';
     public const TARGET = 'target';
+    public const AUTHORIZED_BY = 'authorized_by';
 
     // Used within `subject` (who acted) or `target` (what was acted on)
     public const USERNAME = 'username';
@@ -48,6 +49,7 @@ final class EventContext
     public const ATTRIBUTE = 'attribute';
     public const MATCH = 'match';
     public const CONTROL_OIDS = 'control_oids';
+    public const AUTHZ_ID = 'authz_id';
     public const BASE_DN = 'base_dn';
     public const SCOPE = 'scope';
     public const ENTRIES_RETURNED = 'entries_returned';

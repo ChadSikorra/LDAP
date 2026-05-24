@@ -65,6 +65,16 @@ final class SimpleAccessControl implements AccessControlInterface
         );
     }
 
+    /**
+     * The simple policy cannot grant any control, so none is ever usable.
+     */
+    public function mayUseControl(
+        TokenInterface $token,
+        string $controlOid,
+    ): bool {
+        return false;
+    }
+
     public function filterEntry(
         TokenInterface $token,
         Entry $entry,

@@ -54,6 +54,7 @@ final readonly class EventLogPolicy
             ServerEvent::PasswordModifyFailed,
             ServerEvent::AuthorizationDeniedWrite,
             ServerEvent::AuthorizationDeniedRead,
+            ServerEvent::ProxyAuthorizationDenied,
             ServerEvent::CriticalControlRejected,
             ServerEvent::SchemaViolation,
             ServerEvent::NoticeOfDisconnectSent,

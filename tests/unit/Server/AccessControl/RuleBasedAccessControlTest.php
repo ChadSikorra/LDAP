@@ -30,6 +30,7 @@ use FreeDSx\Ldap\Server\AccessControl\Subject\AnySubjectMatcher;
 use FreeDSx\Ldap\Server\AccessControl\Subject\SubjectMatcherInterface;
 use FreeDSx\Ldap\Server\AccessControl\Target\AnyTargetMatcher;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Token\AnonToken;
 use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -190,6 +191,60 @@ final class RuleBasedAccessControlTest extends TestCase
             $this->bindToken,
             $this->dn,
         );
+    }
+
+    public function test_may_use_control_is_true_when_an_allow_rule_matches_the_subject(): void
+    {
+        $subject = new RuleBasedAccessControl(new AclRules(
+            controls: [
+                ControlRule::allow(
+                    new AnySubjectMatcher(),
+                    new AnyTargetMatcher(),
+                    Control::OID_PROXY_AUTHORIZATION,
+                ),
+            ],
+        ));
+
+        self::assertTrue($subject->mayUseControl(
+            $this->bindToken,
+            Control::OID_PROXY_AUTHORIZATION,
+        ));
+    }
+
+    public function test_may_use_control_is_false_when_no_rule_grants_the_control(): void
+    {
+        $subject = new RuleBasedAccessControl(new AclRules(
+            controls: [
+                ControlRule::allow(
+                    new AnySubjectMatcher(),
+                    new AnyTargetMatcher(),
+                    Control::OID_RELAX_RULES,
+                ),
+            ],
+        ));
+
+        self::assertFalse($subject->mayUseControl(
+            $this->bindToken,
+            Control::OID_PROXY_AUTHORIZATION,
+        ));
+    }
+
+    public function test_may_use_control_is_false_for_an_unauthenticated_token(): void
+    {
+        $subject = new RuleBasedAccessControl(new AclRules(
+            controls: [
+                ControlRule::allow(
+                    new AnySubjectMatcher(),
+                    new AnyTargetMatcher(),
+                    Control::OID_PROXY_AUTHORIZATION,
+                ),
+            ],
+        ));
+
+        self::assertFalse($subject->mayUseControl(
+            new AnonToken(),
+            Control::OID_PROXY_AUTHORIZATION,
+        ));
     }
 
     public function test_filter_entry_returns_same_instance_when_no_attribute_rules(): void

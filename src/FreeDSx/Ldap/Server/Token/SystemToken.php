@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Token;
 
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Server\Utility\Uuid;
 
 /**
@@ -47,5 +48,10 @@ final readonly class SystemToken implements TokenInterface
     public function getVersion(): int
     {
         return $this->version;
+    }
+
+    public function getAuthorizingDn(): ?Dn
+    {
+        return null;
     }
 }

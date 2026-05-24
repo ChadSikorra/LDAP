@@ -175,6 +175,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         return [
             Control::OID_PAGING,
             Control::OID_SORTING,
+            Control::OID_PROXY_AUTHORIZATION,
         ];
     }
 
