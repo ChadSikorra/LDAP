@@ -1113,6 +1113,94 @@ final class WritableStorageBackendTest extends TestCase
         );
     }
 
+    public function test_relax_control_does_not_relax_invalid_attribute_syntax(): void
+    {
+        $backend = new WritableStorageBackend(
+            storage: new InMemoryStorage([$this->base]),
+            validator: new SchemaValidator(
+                StandardSchemaProvider::buildCore(),
+                SchemaValidationMode::Strict,
+            ),
+        );
+        $violations = new SchemaViolations();
+
+        $code = null;
+        try {
+            $backend->add(
+                new AddCommand(new Entry(
+                    new Dn('cn=Alice,dc=example,dc=com'),
+                    new Attribute('objectClass', 'top', 'person'),
+                    new Attribute('cn', 'Alice'),
+                    new Attribute('sn', 'Smith'),
+                    new Attribute('seeAlso', 'not a dn'),
+                )),
+                new WriteContext(
+                    new AnonToken(),
+                    new ControlBag(Controls::relaxRules()),
+                    schemaViolations: $violations,
+                ),
+            );
+        } catch (OperationException $e) {
+            $code = $e->getCode();
+        }
+
+        self::assertSame(
+            ResultCode::INVALID_ATTRIBUTE_SYNTAX,
+            $code,
+        );
+        self::assertNull(
+            $backend->get(new Dn('cn=Alice,dc=example,dc=com')),
+        );
+        self::assertSame(
+            SchemaViolationDisposition::Rejected,
+            $violations->all()[0]->disposition,
+        );
+    }
+
+    public function test_lenient_validator_does_not_relax_invalid_attribute_syntax(): void
+    {
+        $backend = new WritableStorageBackend(
+            storage: new InMemoryStorage([$this->base]),
+            validator: new SchemaValidator(
+                StandardSchemaProvider::buildCore(),
+                SchemaValidationMode::Lenient,
+            ),
+        );
+        $violations = new SchemaViolations();
+
+        $code = null;
+        try {
+            $backend->add(
+                new AddCommand(new Entry(
+                    new Dn('cn=Alice,dc=example,dc=com'),
+                    new Attribute('objectClass', 'top', 'person'),
+                    new Attribute('cn', 'Alice'),
+                    new Attribute('sn', 'Smith'),
+                    new Attribute('seeAlso', 'not a dn'),
+                )),
+                new WriteContext(
+                    new AnonToken(),
+                    new ControlBag(),
+                    schemaViolations: $violations,
+                ),
+            );
+        } catch (OperationException $e) {
+            $code = $e->getCode();
+        }
+
+        self::assertSame(
+            ResultCode::INVALID_ATTRIBUTE_SYNTAX,
+            $code,
+        );
+        self::assertNull(
+            $backend->get(new Dn('cn=Alice,dc=example,dc=com')),
+        );
+        self::assertSame(
+            SchemaViolationDisposition::Rejected,
+            $violations->all()[0]->disposition,
+        );
+    }
+
     public function test_system_update_bypasses_no_user_modification_check(): void
     {
         $valid = new Entry(

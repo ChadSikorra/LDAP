@@ -147,19 +147,92 @@ final class SchemaValidator
         Entry $entry,
         array $objectClasses,
     ): void {
-        foreach ($objectClasses as $oc) {
-            if ($oc->type === ObjectClassType::StructuralClass) {
-                return;
-            }
+        $structural = array_values(array_filter(
+            $objectClasses,
+            fn(ObjectClass $oc) => $oc->type === ObjectClassType::StructuralClass,
+        ));
+
+        if ($structural === []) {
+            $this->fail(
+                sprintf(
+                    'Entry "%s" must have at least one structural object class.',
+                    $entry->getDn()->toString(),
+                ),
+                ResultCode::OBJECT_CLASS_VIOLATION,
+            );
+        }
+
+        if ($this->hasSingleStructuralChain($structural)) {
+            return;
         }
 
         $this->fail(
             sprintf(
-                'Entry "%s" must have at least one structural object class.',
+                'Entry "%s" must not combine unrelated structural object classes.',
                 $entry->getDn()->toString(),
             ),
             ResultCode::OBJECT_CLASS_VIOLATION,
         );
+    }
+
+    /**
+     * Whether one structural class is the head of a single chain covering all the others.
+     *
+     * @param list<ObjectClass> $structural
+     */
+    private function hasSingleStructuralChain(array $structural): bool
+    {
+        foreach ($structural as $candidate) {
+            if ($this->coversAllStructural($candidate, $structural)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param list<ObjectClass> $structural
+     */
+    private function coversAllStructural(
+        ObjectClass $head,
+        array $structural,
+    ): bool {
+        $closure = $this->superclassClosure($head);
+
+        foreach ($structural as $oc) {
+            if (!isset($closure[$oc->oid])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array<string, true> OIDs of the class and its transitive superclasses
+     */
+    private function superclassClosure(ObjectClass $oc): array
+    {
+        $closure = [];
+        $queue = [$oc];
+
+        while ($queue !== []) {
+            $current = array_shift($queue);
+            if (isset($closure[$current->oid])) {
+                continue;
+            }
+
+            $closure[$current->oid] = true;
+            foreach ($current->superClassOids as $superOid) {
+                $super = $this->schema->getObjectClass($superOid);
+                if ($super !== null) {
+                    $queue[] = $super;
+                }
+            }
+        }
+
+        return $closure;
     }
 
     /**
@@ -204,8 +277,6 @@ final class SchemaValidator
                     sprintf('Undefined attribute type: "%s".', $attr->getName()),
                     ResultCode::UNDEFINED_ATTRIBUTE_TYPE,
                 );
-
-                continue;
             }
 
             if ($attrType->usage !== AttributeUsage::UserApplications) {
@@ -377,7 +448,7 @@ final class SchemaValidator
     private function fail(
         string $message,
         int $code,
-    ): void {
+    ): never {
         throw new OperationException(
             $message,
             $code,
