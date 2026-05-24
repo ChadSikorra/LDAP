@@ -281,7 +281,7 @@ final class PasswordPolicyEngineTest extends TestCase
         ));
     }
 
-    public function test_recordBindSuccess_no_state_emits_no_changes(): void
+    public function test_recordBindSuccess_stamps_last_success(): void
     {
         $result = $this->subject->recordBindSuccess(
             new UserPasswordState(),
@@ -289,7 +289,13 @@ final class PasswordPolicyEngineTest extends TestCase
         );
 
         self::assertFalse($result->outcome->denied);
-        self::assertTrue($result->changes->isEmpty());
+        self::assertSame(
+            GeneralizedTime::format($this->clock->now()),
+            $this->findChange(
+                $result->changes->changes,
+                PasswordPolicyOid::NAME_PWD_LAST_SUCCESS,
+            )->getAttribute()->firstValue(),
+        );
     }
 
     public function test_recordBindSuccess_clears_prior_failures_and_lock(): void

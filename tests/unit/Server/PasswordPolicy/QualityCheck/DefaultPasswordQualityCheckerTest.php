@@ -102,6 +102,34 @@ final class DefaultPasswordQualityCheckerTest extends TestCase
         );
     }
 
+    public function test_check_quality_zero_disables_all_checks(): void
+    {
+        self::assertNull(
+            $this->subject->check(
+                'short',
+                new PasswordQualityRules(
+                    minLength: 8,
+                    checkQuality: 0,
+                ),
+            ),
+            'pwdCheckQuality=0 must disable length enforcement entirely.',
+        );
+    }
+
+    public function test_check_quality_enabled_still_enforces_length(): void
+    {
+        self::assertSame(
+            PwdPolicyError::PASSWORD_TOO_SHORT,
+            $this->subject->check(
+                'short',
+                new PasswordQualityRules(
+                    minLength: 8,
+                    checkQuality: 1,
+                ),
+            ),
+        );
+    }
+
     public function test_check_uses_multibyte_length_not_byte_length(): void
     {
         // 4 multi-byte chars; 12 bytes in UTF-8.

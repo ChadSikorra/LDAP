@@ -34,6 +34,8 @@ class BindToken implements AuthenticatedTokenInterface
 
     private int $version;
 
+    private bool $mustChangePassword = false;
+
     public function __construct(
         string $username,
         #[SensitiveParameter]
@@ -96,6 +98,19 @@ class BindToken implements AuthenticatedTokenInterface
     public function getResolvedDn(): Dn
     {
         return $this->resolvedDn;
+    }
+
+    /**
+     * Flags that the bound identity must change its password before any other operation is permitted.
+     */
+    public function markMustChangePassword(): void
+    {
+        $this->mustChangePassword = true;
+    }
+
+    public function mustChangePassword(): bool
+    {
+        return $this->mustChangePassword;
     }
 
     public function getVersion(): int

@@ -14,6 +14,8 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Protocol;
 
 use FreeDSx\Asn1\Exception\EncoderException;
+use FreeDSx\Ldap\Control\PwdPolicyError;
+use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Operation\LdapResult;
@@ -483,6 +485,117 @@ final class ServerProtocolHandlerTest extends TestCase
             ResultCode::UNAVAILABLE_CRITICAL_EXTENSION,
             $record['context']['result_code'],
         );
+    }
+
+    public function test_a_must_change_token_blocks_other_operations(): void
+    {
+        $token = BindToken::fromDn(
+            'cn=user,dc=foo,dc=bar',
+            'secret',
+        );
+        $token->markMustChangePassword();
+
+        $this->mockProtocolHandler
+            ->expects(self::never())
+            ->method('handleRequest');
+
+        $captured = $this->runWithToken(
+            $token,
+            [
+                new LdapMessageRequest(1, new SimpleBindRequest('cn=user,dc=foo,dc=bar', 'secret')),
+                new LdapMessageRequest(2, new ModifyRequest('cn=user,dc=foo,dc=bar')),
+            ],
+        );
+
+        self::assertCount(
+            1,
+            $captured,
+        );
+        $response = $captured[0]->getResponse();
+        self::assertInstanceOf(
+            LdapResult::class,
+            $response,
+        );
+        self::assertSame(
+            ResultCode::UNWILLING_TO_PERFORM,
+            $response->getResultCode(),
+        );
+
+        $control = $captured[0]->controls()->getByClass(PwdPolicyResponseControl::class);
+        self::assertInstanceOf(
+            PwdPolicyResponseControl::class,
+            $control,
+        );
+        self::assertSame(
+            PwdPolicyError::CHANGE_AFTER_RESET,
+            $control->getError(),
+        );
+    }
+
+    public function test_a_must_change_token_allows_the_password_modify_operation(): void
+    {
+        $token = BindToken::fromDn(
+            'cn=user,dc=foo,dc=bar',
+            'secret',
+        );
+        $token->markMustChangePassword();
+
+        $this->mockProtocolHandler
+            ->expects(self::once())
+            ->method('handleRequest');
+
+        $this->runWithToken(
+            $token,
+            [
+                new LdapMessageRequest(1, new SimpleBindRequest('cn=user,dc=foo,dc=bar', 'secret')),
+                new LdapMessageRequest(2, new ExtendedRequest(ExtendedRequest::OID_PWD_MODIFY)),
+            ],
+        );
+    }
+
+    /**
+     * @param list<LdapMessageRequest> $messages
+     * @return list<LdapMessageResponse>
+     */
+    private function runWithToken(
+        BindToken $token,
+        array $messages,
+    ): array {
+        $captured = [];
+        $queue = $this->createMock(ServerQueue::class);
+        $queue
+            ->method('isConnected')
+            ->willReturn(true);
+        $queue
+            ->method('getMessage')
+            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
+                if ($messages === []) {
+                    throw new ConnectionException();
+                }
+
+                return array_shift($messages);
+            });
+        $queue
+            ->method('sendMessage')
+            ->willReturnCallback(function (LdapMessageResponse $response) use (&$captured, $queue): ServerQueue {
+                $captured[] = $response;
+
+                return $queue;
+            });
+
+        $this->mockAuthenticator
+            ->method('bind')
+            ->willReturn($token);
+
+        $subject = new ServerProtocolHandler(
+            $queue,
+            $this->mockProtocolHandlerFactory,
+            new ServerAuthorization(new ServerOptions()),
+            $this->mockAuthenticator,
+        );
+        $subject->handle();
+
+        return $captured;
     }
 
     private function makeSubjectWithEventLogger(EventLogger $eventLogger): ServerProtocolHandler

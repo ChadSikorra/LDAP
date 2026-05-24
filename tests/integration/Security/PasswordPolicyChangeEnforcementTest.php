@@ -171,6 +171,56 @@ final class PasswordPolicyChangeEnforcementTest extends TestCase
         );
     }
 
+    public function test_admin_reset_sets_pwd_reset_when_policy_requires_change(): void
+    {
+        $handler = $this->handlerFor(
+            new PasswordPolicy(change: new PasswordChangeRules(mustChange: true)),
+        );
+
+        $handler->handleRequest(
+            $this->request(
+                null,
+                'admin-set-password',
+                self::USER_DN,
+            ),
+            $this->adminToken(),
+        );
+
+        self::assertInstanceOf(
+            PasswordModifyResponse::class,
+            $this->response?->getResponse(),
+        );
+
+        $entry = $this->backend->get(new Dn(self::USER_DN));
+        self::assertSame(
+            'TRUE',
+            $entry?->get(PasswordPolicyOid::NAME_PWD_RESET)?->firstValue(),
+            'An administrative reset under pwdMustChange must force a password change.',
+        );
+    }
+
+    public function test_self_change_clears_pwd_reset_even_under_must_change_policy(): void
+    {
+        $handler = $this->handlerFor(
+            new PasswordPolicy(change: new PasswordChangeRules(mustChange: true)),
+            [PasswordPolicyOid::NAME_PWD_RESET => 'TRUE'],
+        );
+
+        $handler->handleRequest(
+            $this->request(
+                self::OLD_PASSWORD,
+                'a-fresh-password',
+            ),
+            $this->selfToken(),
+        );
+
+        $entry = $this->backend->get(new Dn(self::USER_DN));
+        self::assertNull(
+            $entry?->get(PasswordPolicyOid::NAME_PWD_RESET),
+            'A self-change satisfies the reset requirement and must clear pwdReset.',
+        );
+    }
+
     /**
      * @param array<string, string> $extra
      */
@@ -248,11 +298,12 @@ final class PasswordPolicyChangeEnforcementTest extends TestCase
     private function request(
         ?string $oldPassword,
         string $newPassword,
+        ?string $userIdentity = null,
     ): LdapMessageRequest {
         return new LdapMessageRequest(
             1,
             new PasswordModifyRequest(
-                null,
+                $userIdentity,
                 $oldPassword,
                 $newPassword,
             ),
@@ -264,6 +315,14 @@ final class PasswordPolicyChangeEnforcementTest extends TestCase
         return BindToken::fromDn(
             self::USER_DN,
             self::OLD_PASSWORD,
+        );
+    }
+
+    private function adminToken(): BindToken
+    {
+        return BindToken::fromDn(
+            'cn=admin,dc=foo,dc=bar',
+            'admin-pass',
         );
     }
 

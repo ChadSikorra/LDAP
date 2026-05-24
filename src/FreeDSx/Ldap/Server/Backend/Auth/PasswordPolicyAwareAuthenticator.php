@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
 use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
+use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use SensitiveParameter;
 
@@ -84,6 +85,10 @@ final readonly class PasswordPolicyAwareAuthenticator implements PasswordAuthent
         }
 
         $this->guard->recordSuccess($attempt);
+
+        if ($attempt->state->mustChange && $token instanceof BindToken) {
+            $token->markMustChangePassword();
+        }
 
         return $token;
     }

@@ -110,6 +110,46 @@ final class PasswordPolicyBindEnforcementTest extends TestCase
         $this->assertEventRecorded(ServerEvent::PasswordPolicyAccountLocked);
     }
 
+    public function test_lockout_retriggers_after_duration_elapses(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user([
+                PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME => $this->minutesAgo(120),
+                PasswordPolicyOid::NAME_PWD_FAILURE_TIME => [
+                    $this->minutesAgo(121),
+                    $this->minutesAgo(120),
+                ],
+            ]),
+            new PasswordPolicy(
+                lockout: new PasswordLockoutRules(
+                    enabled: true,
+                    duration: 3600,
+                    maxFailure: 2,
+                ),
+            ),
+        );
+
+        // The duration has elapsed, so a failed bind is attempted and the stale lock is cleared rather than persisting.
+        $this->attemptBind(
+            $authenticator,
+            'wrong',
+        );
+        self::assertNull(
+            $this->storedValue(PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME),
+            'An elapsed lock must be cleared on the next failed bind, not left stale.',
+        );
+
+        // Fresh failures must be able to lock the account again.
+        $this->attemptBind(
+            $authenticator,
+            'wrong',
+        );
+        self::assertNotNull(
+            $this->storedValue(PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME),
+            'Reaching pwdMaxFailure again after an elapsed lock must re-lock the account.',
+        );
+    }
+
     public function test_elapsed_lockout_unlocks_on_success(): void
     {
         $authenticator = $this->authenticatorFor(
@@ -224,6 +264,154 @@ final class PasswordPolicyBindEnforcementTest extends TestCase
         }
     }
 
+    public function test_grace_login_within_grace_expiry_window_is_allowed(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user([
+                // Expired ten minutes ago (maxAge 60m), still inside the 30m grace-expiry window.
+                PasswordPolicyOid::NAME_PWD_CHANGED_TIME => $this->minutesAgo(70),
+            ]),
+            new PasswordPolicy(
+                expiration: new PasswordExpirationRules(
+                    maxAge: 3600,
+                    graceAuthnLimit: 3,
+                    graceExpiry: 1800,
+                ),
+            ),
+        );
+
+        $authenticator->authenticate(
+            self::USER_DN,
+            self::PASSWORD,
+        );
+
+        self::assertSame(
+            2,
+            $this->context->getOutcome()?->graceRemaining,
+        );
+        self::assertNotNull($this->storedValue(PasswordPolicyOid::NAME_PWD_GRACE_USE_TIME));
+    }
+
+    public function test_grace_login_past_grace_expiry_window_is_denied(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user([
+                // Expired sixty minutes ago, beyond the 30m grace-expiry window, despite grace remaining by count.
+                PasswordPolicyOid::NAME_PWD_CHANGED_TIME => $this->minutesAgo(120),
+            ]),
+            new PasswordPolicy(
+                expiration: new PasswordExpirationRules(
+                    maxAge: 3600,
+                    graceAuthnLimit: 3,
+                    graceExpiry: 1800,
+                ),
+            ),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
+
+        try {
+            $authenticator->authenticate(
+                self::USER_DN,
+                self::PASSWORD,
+            );
+        } finally {
+            self::assertSame(
+                PwdPolicyError::PASSWORD_EXPIRED,
+                $this->context->getOutcome()?->errorCode,
+            );
+        }
+    }
+
+    public function test_idle_account_beyond_pwd_max_idle_is_locked(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user([
+                PasswordPolicyOid::NAME_PWD_LAST_SUCCESS => $this->minutesAgo(120),
+            ]),
+            new PasswordPolicy(
+                expiration: new PasswordExpirationRules(maxIdle: 3600),
+            ),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
+
+        try {
+            $authenticator->authenticate(
+                self::USER_DN,
+                self::PASSWORD,
+            );
+        } finally {
+            self::assertSame(
+                PwdPolicyError::ACCOUNT_LOCKED,
+                $this->context->getOutcome()?->errorCode,
+            );
+        }
+    }
+
+    public function test_successful_bind_records_last_success(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user(),
+            new PasswordPolicy(),
+        );
+
+        $authenticator->authenticate(
+            self::USER_DN,
+            self::PASSWORD,
+        );
+
+        self::assertSame(
+            GeneralizedTime::format($this->clock->now()),
+            $this->storedValue(PasswordPolicyOid::NAME_PWD_LAST_SUCCESS),
+        );
+    }
+
+    public function test_bind_rejected_before_password_start_time(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user([
+                PasswordPolicyOid::NAME_PWD_START_TIME => $this->minutesFromNow(10),
+            ]),
+            new PasswordPolicy(),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
+
+        $authenticator->authenticate(
+            self::USER_DN,
+            self::PASSWORD,
+        );
+    }
+
+    public function test_bind_rejected_after_password_end_time(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user([
+                PasswordPolicyOid::NAME_PWD_END_TIME => $this->minutesAgo(10),
+            ]),
+            new PasswordPolicy(),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::INVALID_CREDENTIALS);
+
+        try {
+            $authenticator->authenticate(
+                self::USER_DN,
+                self::PASSWORD,
+            );
+        } finally {
+            self::assertSame(
+                PwdPolicyError::PASSWORD_EXPIRED,
+                $this->context->getOutcome()?->errorCode,
+            );
+        }
+    }
+
     public function test_pwd_reset_surfaces_change_after_reset(): void
     {
         $authenticator = $this->authenticatorFor(
@@ -243,6 +431,38 @@ final class PasswordPolicyBindEnforcementTest extends TestCase
             $this->context->getOutcome()?->errorCode,
         );
         $this->assertEventRecorded(ServerEvent::PasswordPolicyMustChange);
+    }
+
+    public function test_pwd_reset_marks_token_for_required_change(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user([
+                PasswordPolicyOid::NAME_PWD_RESET => 'TRUE',
+            ]),
+            new PasswordPolicy(),
+        );
+
+        $token = $authenticator->authenticate(
+            self::USER_DN,
+            self::PASSWORD,
+        );
+
+        self::assertTrue($token->mustChangePassword());
+    }
+
+    public function test_normal_bind_does_not_mark_token_for_required_change(): void
+    {
+        $authenticator = $this->authenticatorFor(
+            $this->user(),
+            new PasswordPolicy(),
+        );
+
+        $token = $authenticator->authenticate(
+            self::USER_DN,
+            self::PASSWORD,
+        );
+
+        self::assertFalse($token->mustChangePassword());
     }
 
     /**
@@ -327,6 +547,15 @@ final class PasswordPolicyBindEnforcementTest extends TestCase
             $this->clock
                 ->now()
                 ->sub(new DateInterval(sprintf('PT%dM', $minutes))),
+        );
+    }
+
+    private function minutesFromNow(int $minutes): string
+    {
+        return GeneralizedTime::format(
+            $this->clock
+                ->now()
+                ->add(new DateInterval(sprintf('PT%dM', $minutes))),
         );
     }
 

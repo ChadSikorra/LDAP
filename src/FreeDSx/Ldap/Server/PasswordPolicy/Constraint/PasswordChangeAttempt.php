@@ -30,5 +30,6 @@ final readonly class PasswordChangeAttempt
         public UserPasswordState $state,
         public PasswordPolicy $policy,
         public bool $isSelf,
+        public bool $passwordIsCleartext = true,
     ) {}
 }

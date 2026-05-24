@@ -15,9 +15,15 @@ namespace FreeDSx\Ldap\Protocol;
 
 use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Control\PwdPolicyError;
+use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Exception\RuntimeException;
+use FreeDSx\Ldap\Operation\Request\AbandonRequest;
+use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
+use FreeDSx\Ldap\Operation\Request\RequestInterface;
+use FreeDSx\Ldap\Operation\Request\UnbindRequest;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
@@ -27,6 +33,7 @@ use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
+use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
 use Throwable;
@@ -157,6 +164,12 @@ class ServerProtocolHandler
 
         # They are authenticated or authentication is not required, so pass the request along...
         if ($this->authorizer->isAuthenticated() || !$this->authorizer->isAuthenticationRequired($request)) {
+            if ($this->requiresPasswordChangeFirst($request)) {
+                $this->rejectUntilPasswordChanged($message);
+
+                return;
+            }
+
             $handler->handleRequest(
                 $message,
                 $this->authorizer->getToken(),
@@ -169,6 +182,42 @@ class ServerProtocolHandler
                 'Authentication required.',
             ));
         }
+    }
+
+    /**
+     * A bound identity flagged with pwdReset may only change its password or end the session (draft-behera-10 §8.1.2).
+     */
+    private function requiresPasswordChangeFirst(RequestInterface $request): bool
+    {
+        $token = $this->authorizer->getToken();
+
+        return $token instanceof AuthenticatedTokenInterface
+            && $token->mustChangePassword()
+            && !$this->isPermittedDuringPasswordChange($request);
+    }
+
+    private function isPermittedDuringPasswordChange(RequestInterface $request): bool
+    {
+        if ($request instanceof UnbindRequest || $request instanceof AbandonRequest) {
+            return true;
+        }
+
+        return $request instanceof ExtendedRequest
+            && $request->getName() === ExtendedRequest::OID_PWD_MODIFY;
+    }
+
+    /**
+     * @throws EncoderException
+     */
+    private function rejectUntilPasswordChanged(LdapMessageRequest $message): void
+    {
+        $this->queue->sendMessage($this->responseFactory->getStandardResponse(
+            $message,
+            ResultCode::UNWILLING_TO_PERFORM,
+            'The password must be changed before any other operation is permitted.',
+            null,
+            new PwdPolicyResponseControl(error: PwdPolicyError::CHANGE_AFTER_RESET),
+        ));
     }
 
     /**

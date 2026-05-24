@@ -41,6 +41,9 @@ final readonly class UserPasswordState
         public array $graceUseTimes = [],
         public bool $mustChange = false,
         public ?Dn $policySubentry = null,
+        public ?DateTimeImmutable $startTime = null,
+        public ?DateTimeImmutable $endTime = null,
+        public ?DateTimeImmutable $lastSuccess = null,
     ) {}
 
     /**
@@ -71,6 +74,18 @@ final readonly class UserPasswordState
             policySubentry: self::readDn(
                 $entry,
                 PasswordPolicyOid::NAME_PWD_POLICY_SUBENTRY,
+            ),
+            startTime: self::readGeneralizedTime(
+                $entry,
+                PasswordPolicyOid::NAME_PWD_START_TIME,
+            ),
+            endTime: self::readGeneralizedTime(
+                $entry,
+                PasswordPolicyOid::NAME_PWD_END_TIME,
+            ),
+            lastSuccess: self::readGeneralizedTime(
+                $entry,
+                PasswordPolicyOid::NAME_PWD_LAST_SUCCESS,
             ),
         );
     }

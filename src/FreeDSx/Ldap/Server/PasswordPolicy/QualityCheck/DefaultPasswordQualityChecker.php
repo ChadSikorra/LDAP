@@ -28,6 +28,10 @@ final class DefaultPasswordQualityChecker implements PasswordQualityCheckerInter
         string $plain,
         PasswordQualityRules $rules,
     ): ?int {
+        if ($rules->checkQuality === 0) {
+            return null;
+        }
+
         $length = mb_strlen($plain);
 
         if ($rules->minLength !== null && $length < $rules->minLength) {

@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\PasswordPolicy\Constraint;
 
+use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
 use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\PasswordQualityCheckerInterface;
@@ -26,6 +27,10 @@ final readonly class QualityConstraint implements PasswordChangeConstraint
 
     public function check(PasswordChangeAttempt $attempt): ?PasswordPolicyOutcome
     {
+        if (!$attempt->passwordIsCleartext) {
+            return $this->forUninspectablePassword($attempt->policy->quality->checkQuality);
+        }
+
         $errorCode = $this->checker->check(
             $attempt->newPassword,
             $attempt->policy->quality,
@@ -38,6 +43,22 @@ final readonly class QualityConstraint implements PasswordChangeConstraint
             $errorCode,
             ResultCode::CONSTRAINT_VIOLATION,
             'Password does not meet quality requirements.',
+        );
+    }
+
+    /**
+     * pwdCheckQuality = 2 forbids accepting a password whose quality cannot be checked (draft-behera-10 §5.2.5).
+     */
+    private function forUninspectablePassword(?int $checkQuality): ?PasswordPolicyOutcome
+    {
+        if ($checkQuality !== 2) {
+            return null;
+        }
+
+        return PasswordPolicyOutcome::deny(
+            PwdPolicyError::INSUFFICIENT_PASSWORD_QUALITY,
+            ResultCode::CONSTRAINT_VIOLATION,
+            'Password quality cannot be verified for a pre-hashed value.',
         );
     }
 }

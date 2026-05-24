@@ -15,11 +15,15 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Guard;
 
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\PasswordPolicyException;
+use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashVerifier;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordModifyAttempt;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
@@ -35,6 +39,7 @@ final readonly class PasswordPolicyChangeGuard
         private PasswordPolicyResolver $resolver,
         private PasswordPolicyContext $context,
         private EventLogger $eventLogger,
+        private PasswordHashVerifier $hashVerifier = new PasswordHashVerifier(),
     ) {}
 
     /**
@@ -54,25 +59,75 @@ final readonly class PasswordPolicyChangeGuard
             $state,
             $policy,
             $attempt->isSelf,
+            $attempt->passwordIsCleartext,
         );
 
         if ($outcome->denied) {
-            $this->context->setOutcome($outcome);
-            $this->eventLogger->record(
-                ServerEvent::PasswordPolicyChangeRejected,
-                [EventContext::TARGET => [EventContext::DN => $attempt->target->getDn()->toString()]],
-            );
-
-            throw new OperationException(
-                $outcome->diagnostic,
-                $outcome->ldapResultCode,
+            $this->reject(
+                $outcome,
+                $attempt,
             );
         }
+
+        $this->assertSafeModifyCredential(
+            $policy,
+            $attempt,
+        );
 
         return $this->engine->recordPasswordChange(
             $attempt->hashedNewPassword,
             $state,
             $policy,
+            $attempt->isSelf,
+        );
+    }
+
+    /**
+     * Verifies the supplied existing password under pwdSafeModify; presence is already enforced by the constraint chain.
+     *
+     * @throws OperationException when an existing password is supplied but does not match the stored value.
+     */
+    private function assertSafeModifyCredential(
+        PasswordPolicy $policy,
+        PasswordModifyAttempt $attempt,
+    ): void {
+        $oldPassword = $attempt->oldPassword;
+        if ($policy->change->safeModify !== true || $oldPassword === null || $oldPassword === '') {
+            return;
+        }
+
+        foreach ($attempt->target->get($policy->pwdAttribute)?->getValues() ?? [] as $stored) {
+            if ($this->hashVerifier->verify($oldPassword, $stored)) {
+                return;
+            }
+        }
+
+        $this->reject(
+            new PasswordPolicyOutcome(
+                denied: true,
+                ldapResultCode: ResultCode::INVALID_CREDENTIALS,
+                diagnostic: 'The supplied existing password is incorrect.',
+            ),
+            $attempt,
+        );
+    }
+
+    /**
+     * @throws OperationException
+     */
+    private function reject(
+        PasswordPolicyOutcome $outcome,
+        PasswordModifyAttempt $attempt,
+    ): never {
+        $this->context->setOutcome($outcome);
+        $this->eventLogger->record(
+            ServerEvent::PasswordPolicyChangeRejected,
+            [EventContext::TARGET => [EventContext::DN => $attempt->target->getDn()->toString()]],
+        );
+
+        throw new OperationException(
+            $outcome->diagnostic,
+            $outcome->ldapResultCode,
         );
     }
 }
