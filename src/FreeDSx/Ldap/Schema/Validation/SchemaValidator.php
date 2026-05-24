@@ -13,15 +13,19 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Schema\Validation;
 
+use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Schema\Definition\AttributeType;
 use FreeDSx\Ldap\Schema\Definition\AttributeUsage;
 use FreeDSx\Ldap\Schema\Definition\ObjectClass;
 use FreeDSx\Ldap\Schema\Definition\ObjectClassType;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
+use FreeDSx\Ldap\Schema\Validation\Syntax\SyntaxValidatorInterface;
+use FreeDSx\Ldap\Schema\Validation\Syntax\SyntaxValidatorRegistry;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
 
 /**
@@ -33,10 +37,15 @@ final class SchemaValidator
 {
     private const EXTENSIBLE_OBJECT = 'extensibleObject';
 
+    private readonly SyntaxValidatorRegistry $syntaxValidators;
+
     public function __construct(
         private readonly Schema $schema,
         private readonly SchemaValidationMode $mode,
-    ) {}
+        ?SyntaxValidatorRegistry $syntaxValidators = null,
+    ) {
+        $this->syntaxValidators = $syntaxValidators ?? SyntaxValidatorRegistry::default();
+    }
 
     public function mode(): SchemaValidationMode
     {
@@ -89,6 +98,8 @@ final class SchemaValidator
      */
     private function validateStructure(Entry $entry): void
     {
+        $this->checkAttributeSyntaxes($entry);
+
         if ($this->hasExtensibleObject($entry)) {
             $this->checkSingleValuedAttributes($entry);
 
@@ -236,6 +247,76 @@ final class SchemaValidator
                 ResultCode::CONSTRAINT_VIOLATION,
             );
         }
+    }
+
+    /**
+     * @throws OperationException
+     */
+    private function checkAttributeSyntaxes(Entry $entry): void
+    {
+        foreach ($entry->getAttributes() as $attr) {
+            $attrType = $this->schema->getAttributeType($attr->getName());
+            if ($attrType === null) {
+                continue;
+            }
+
+            $syntaxOid = $this->resolveSyntaxOid($attrType);
+            $validator = $syntaxOid === null
+                ? null
+                : $this->syntaxValidators->get($syntaxOid);
+            if ($validator === null) {
+                continue;
+            }
+
+            $this->checkValuesConform(
+                $attr,
+                $validator,
+            );
+        }
+    }
+
+    /**
+     * @throws OperationException
+     */
+    private function checkValuesConform(
+        Attribute $attr,
+        SyntaxValidatorInterface $validator,
+    ): void {
+        foreach ($attr->getValues() as $value) {
+            if ($validator->isValid($value)) {
+                continue;
+            }
+
+            $this->fail(
+                sprintf(
+                    'A value for attribute "%s" does not conform to its syntax.',
+                    $attr->getName(),
+                ),
+                ResultCode::INVALID_ATTRIBUTE_SYNTAX,
+            );
+        }
+    }
+
+    /**
+     * Resolves the effective syntax OID, walking the SUP chain when not set directly.
+     */
+    private function resolveSyntaxOid(AttributeType $type): ?string
+    {
+        $visited = [];
+        $current = $type;
+
+        while ($current !== null && !isset($visited[$current->oid])) {
+            if ($current->syntaxOid !== null) {
+                return $current->syntaxOid;
+            }
+
+            $visited[$current->oid] = true;
+            $current = $current->superTypeOid !== null
+                ? $this->schema->getAttributeType($current->superTypeOid)
+                : null;
+        }
+
+        return null;
     }
 
     /**

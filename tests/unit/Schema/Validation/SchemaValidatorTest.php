@@ -19,6 +19,11 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Schema\Definition\AttributeType;
+use FreeDSx\Ldap\Schema\Definition\ObjectClass;
+use FreeDSx\Ldap\Schema\Definition\ObjectClassType;
+use FreeDSx\Ldap\Schema\Definition\SyntaxOid;
+use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\StandardSchemaProvider;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
@@ -44,6 +49,48 @@ final class SchemaValidatorTest extends TestCase
             new Attribute('objectClass', 'top', 'person'),
             new Attribute('cn', 'Alice'),
             new Attribute('sn', 'Smith'),
+        );
+    }
+
+    private function syntaxValidator(): SchemaValidator
+    {
+        $schema = (new Schema())
+            ->addAttributeType(new AttributeType(
+                '1.5',
+                ['objectClass'],
+                syntaxOid: SyntaxOid::OID_OID,
+            ))
+            ->addAttributeType(new AttributeType(
+                '1.10',
+                ['widgetCount'],
+                syntaxOid: SyntaxOid::OID_INTEGER,
+            ))
+            ->addAttributeType(new AttributeType(
+                '1.11',
+                ['widgetOwner'],
+                syntaxOid: SyntaxOid::OID_DISTINGUISHED_NAME,
+            ))
+            ->addAttributeType(new AttributeType(
+                '1.12',
+                ['widgetSeenAt'],
+                syntaxOid: SyntaxOid::OID_GENERALIZED_TIME,
+            ))
+            ->addAttributeType(new AttributeType(
+                '1.13',
+                ['widgetActive'],
+                syntaxOid: SyntaxOid::OID_BOOLEAN,
+            ))
+            ->addObjectClass(new ObjectClass(
+                '2.10',
+                ['widget'],
+                ObjectClassType::StructuralClass,
+                must: ['objectClass'],
+                may: ['widgetCount', 'widgetOwner', 'widgetSeenAt', 'widgetActive'],
+            ));
+
+        return new SchemaValidator(
+            $schema,
+            SchemaValidationMode::Strict,
         );
     }
 
@@ -286,6 +333,101 @@ final class SchemaValidatorTest extends TestCase
         $this->subject->validateModify(
             $command,
             $result,
+            isSystem: true,
+        );
+    }
+
+    public function test_add_invalid_integer_value_throws_invalid_attribute_syntax(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=Widget,dc=example,dc=com'),
+            new Attribute('objectClass', 'widget'),
+            new Attribute('widgetCount', 'not-a-number'),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::INVALID_ATTRIBUTE_SYNTAX);
+
+        $this->syntaxValidator()->validateAdd($entry);
+    }
+
+    public function test_add_invalid_distinguished_name_value_throws_invalid_attribute_syntax(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=Widget,dc=example,dc=com'),
+            new Attribute('objectClass', 'widget'),
+            new Attribute('widgetOwner', 'not a dn'),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::INVALID_ATTRIBUTE_SYNTAX);
+
+        $this->syntaxValidator()->validateAdd($entry);
+    }
+
+    public function test_add_with_conforming_values_passes(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=Widget,dc=example,dc=com'),
+            new Attribute('objectClass', 'widget'),
+            new Attribute('widgetCount', '42'),
+            new Attribute('widgetOwner', 'cn=Owner,dc=example,dc=com'),
+            new Attribute('widgetSeenAt', '20240101000000Z'),
+            new Attribute('widgetActive', 'TRUE'),
+        );
+
+        $this->expectNotToPerformAssertions();
+        $this->syntaxValidator()->validateAdd($entry);
+    }
+
+    public function test_modify_invalid_generalized_time_throws_invalid_attribute_syntax(): void
+    {
+        $command = new UpdateCommand(
+            new Dn('cn=Widget,dc=example,dc=com'),
+            [Change::replace(new Attribute('widgetSeenAt', 'not-a-time'))],
+        );
+        $result = new Entry(
+            new Dn('cn=Widget,dc=example,dc=com'),
+            new Attribute('objectClass', 'widget'),
+            new Attribute('widgetSeenAt', 'not-a-time'),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::INVALID_ATTRIBUTE_SYNTAX);
+
+        $this->syntaxValidator()->validateModify(
+            $command,
+            $result,
+        );
+    }
+
+    public function test_extensible_object_still_validates_value_syntax(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=Widget,dc=example,dc=com'),
+            new Attribute('objectClass', 'extensibleObject'),
+            new Attribute('widgetCount', 'not-a-number'),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::INVALID_ATTRIBUTE_SYNTAX);
+
+        $this->syntaxValidator()->validateAdd($entry);
+    }
+
+    public function test_system_add_still_validates_value_syntax(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=Widget,dc=example,dc=com'),
+            new Attribute('objectClass', 'widget'),
+            new Attribute('widgetCount', 'not-a-number'),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::INVALID_ATTRIBUTE_SYNTAX);
+
+        $this->syntaxValidator()->validateAdd(
+            $entry,
             isSystem: true,
         );
     }
