@@ -321,7 +321,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         OperationException $violation,
         WriteContext $context,
     ): void {
-        $disposition = $this->dispositionFor($context);
+        $disposition = $this->dispositionFor(
+            $violation,
+            $context,
+        );
         $context->schemaViolations()->record(
             $violation,
             $disposition,
@@ -332,8 +335,14 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         }
     }
 
-    private function dispositionFor(WriteContext $context): SchemaViolationDisposition
-    {
+    private function dispositionFor(
+        OperationException $violation,
+        WriteContext $context,
+    ): SchemaViolationDisposition {
+        if ($violation->getCode() === ResultCode::INVALID_ATTRIBUTE_SYNTAX) {
+            return SchemaViolationDisposition::Rejected;
+        }
+
         if ($context->getControls()->has(Control::OID_RELAX_RULES)) {
             return SchemaViolationDisposition::RelaxedByControl;
         }

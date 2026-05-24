@@ -431,4 +431,66 @@ final class SchemaValidatorTest extends TestCase
             isSystem: true,
         );
     }
+
+    private function structuralChainValidator(): SchemaValidator
+    {
+        $schema = (new Schema())
+            ->addAttributeType(new AttributeType(
+                '1.5',
+                ['objectClass'],
+            ))
+            ->addObjectClass(new ObjectClass(
+                '2.0',
+                ['top'],
+                ObjectClassType::AbstractClass,
+                must: ['objectClass'],
+            ))
+            ->addObjectClass(new ObjectClass(
+                '2.1',
+                ['alpha'],
+                ObjectClassType::StructuralClass,
+                superClassOids: ['2.0'],
+            ))
+            ->addObjectClass(new ObjectClass(
+                '2.2',
+                ['alphaChild'],
+                ObjectClassType::StructuralClass,
+                superClassOids: ['2.1'],
+            ))
+            ->addObjectClass(new ObjectClass(
+                '2.3',
+                ['beta'],
+                ObjectClassType::StructuralClass,
+                superClassOids: ['2.0'],
+            ));
+
+        return new SchemaValidator(
+            $schema,
+            SchemaValidationMode::Strict,
+        );
+    }
+
+    public function test_add_structural_chain_passes(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=Thing,dc=example,dc=com'),
+            new Attribute('objectClass', 'top', 'alpha', 'alphaChild'),
+        );
+
+        $this->expectNotToPerformAssertions();
+        $this->structuralChainValidator()->validateAdd($entry);
+    }
+
+    public function test_add_two_unrelated_structural_classes_throws_object_class_violation(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=Thing,dc=example,dc=com'),
+            new Attribute('objectClass', 'top', 'alpha', 'beta'),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::OBJECT_CLASS_VIOLATION);
+
+        $this->structuralChainValidator()->validateAdd($entry);
+    }
 }

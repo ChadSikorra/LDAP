@@ -11,7 +11,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Tests\Integration\FreeDSx\Ldap\Storage;
+namespace Tests\Integration\FreeDSx\Ldap\Schema;
 
 use FreeDSx\Ldap\Controls;
 use FreeDSx\Ldap\Entry\Entry;
@@ -102,5 +102,26 @@ final class LdapRelaxControlTest extends ServerTestCase
                 'mail' => 'relax-rejected@foo.bar',
             ],
         ));
+    }
+
+    public function test_relax_control_does_not_bypass_invalid_attribute_syntax(): void
+    {
+        $this->ldapClient()->bind('cn=user,dc=foo,dc=bar', '12345');
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::INVALID_ATTRIBUTE_SYNTAX);
+
+        $this->ldapClient()->create(
+            Entry::fromArray(
+                'cn=relax-bad-syntax,dc=foo,dc=bar',
+                [
+                    'cn' => 'relax-bad-syntax',
+                    'sn' => 'Drift',
+                    'objectClass' => 'person',
+                    'seeAlso' => 'not a dn',
+                ],
+            ),
+            Controls::relaxRules(),
+        );
     }
 }
