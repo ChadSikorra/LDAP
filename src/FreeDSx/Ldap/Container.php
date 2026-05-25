@@ -29,8 +29,11 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\MinAgeConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\QualityConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\SafeModifyConstraint;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyComponentFactory;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
+use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
+use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
 use FreeDSx\Ldap\Server\RequestHandler\HandlerFactory;
 use FreeDSx\Ldap\Server\ServerProtocolFactory;
 use FreeDSx\Ldap\Server\ServerRunner\PcntlServerRunner;
@@ -55,7 +58,6 @@ class Container
     private const FACTORY_ONLY = [
         HandlerFactoryInterface::class,
         ServerAuthorization::class,
-        ServerProtocolHandlerFactory::class,
     ];
 
     /**
@@ -174,6 +176,26 @@ class Container
             className: PasswordPolicyEngine::class,
             factory: $this->makePasswordPolicyEngine(...),
         );
+        $this->registerFactory(
+            className: ServerProtocolHandlerFactory::class,
+            factory: $this->makeServerProtocolHandlerFactory(...),
+        );
+        $this->registerFactory(
+            className: PasswordModifyTargetResolver::class,
+            factory: $this->makePasswordModifyTargetResolver(...),
+        );
+        $this->registerFactory(
+            className: PasswordHashService::class,
+            factory: $this->makePasswordHashService(...),
+        );
+        $this->registerFactory(
+            className: WriteOperationDispatcher::class,
+            factory: $this->makeWriteOperationDispatcher(...),
+        );
+        $this->registerFactory(
+            className: PasswordPolicyComponentFactory::class,
+            factory: $this->makePasswordPolicyComponentFactory(...),
+        );
     }
 
     private function makePasswordPolicyEngine(): PasswordPolicyEngine
@@ -249,6 +271,46 @@ class Container
             handlerFactory: $this->get(HandlerFactoryInterface::class),
             options: $this->get(ServerOptions::class),
             serverAuthorization: $this->get(ServerAuthorization::class),
+            passwordPolicyEngine: $this->get(PasswordPolicyEngine::class),
+            routeResolver: $this->get(ServerProtocolHandlerFactory::class),
+            targetResolver: $this->get(PasswordModifyTargetResolver::class),
+            hashService: $this->get(PasswordHashService::class),
+            writeDispatcher: $this->get(WriteOperationDispatcher::class),
+            policyComponentFactory: $this->get(PasswordPolicyComponentFactory::class),
+        );
+    }
+
+    private function makeServerProtocolHandlerFactory(): ServerProtocolHandlerFactory
+    {
+        return new ServerProtocolHandlerFactory($this->get(ServerOptions::class));
+    }
+
+    private function makePasswordModifyTargetResolver(): PasswordModifyTargetResolver
+    {
+        $handlerFactory = $this->get(HandlerFactoryInterface::class);
+
+        return new PasswordModifyTargetResolver(
+            $handlerFactory->makeBackend(),
+            $handlerFactory->makeIdentityResolverChain(),
+        );
+    }
+
+    private function makePasswordHashService(): PasswordHashService
+    {
+        return new PasswordHashService($this->get(ServerOptions::class)->getPasswordHashScheme());
+    }
+
+    private function makeWriteOperationDispatcher(): WriteOperationDispatcher
+    {
+        return $this->get(HandlerFactoryInterface::class)->makeWriteDispatcher();
+    }
+
+    private function makePasswordPolicyComponentFactory(): PasswordPolicyComponentFactory
+    {
+        return new PasswordPolicyComponentFactory(
+            handlerFactory: $this->get(HandlerFactoryInterface::class),
+            options: $this->get(ServerOptions::class),
+            writeDispatcher: $this->get(WriteOperationDispatcher::class),
             passwordPolicyEngine: $this->get(PasswordPolicyEngine::class),
         );
     }

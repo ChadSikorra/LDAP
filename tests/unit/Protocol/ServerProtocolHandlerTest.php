@@ -33,7 +33,7 @@ use FreeDSx\Ldap\Operation\Response\ModifyResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Authenticator;
 use FreeDSx\Ldap\Protocol\Authorization\DispatchAuthorizer;
-use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
+use FreeDSx\Ldap\Protocol\Factory\ProtocolHandlerProviderInterface;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
@@ -58,7 +58,7 @@ final class ServerProtocolHandlerTest extends TestCase
 
     private ServerQueue&MockObject $mockQueue;
 
-    private ServerProtocolHandlerFactory&MockObject $mockProtocolHandlerFactory;
+    private ProtocolHandlerProviderInterface&MockObject $mockProtocolHandlerProvider;
 
     private MiddlewareHandlerInterface $requestPipeline;
 
@@ -69,7 +69,7 @@ final class ServerProtocolHandlerTest extends TestCase
     protected function setUp(): void
     {
         $this->mockQueue = $this->createMock(ServerQueue::class);
-        $this->mockProtocolHandlerFactory = $this->createMock(ServerProtocolHandlerFactory::class);
+        $this->mockProtocolHandlerProvider = $this->createMock(ProtocolHandlerProviderInterface::class);
         $this->mockAuthenticator = $this->createMock(Authenticator::class);
         $this->mockProtocolHandler = $this->createMock(ServerProtocolHandler\ServerProtocolHandlerInterface::class);
 
@@ -84,13 +84,13 @@ final class ServerProtocolHandlerTest extends TestCase
             ->method('sendMessage')
             ->willReturnSelf();
 
-        $this->mockProtocolHandlerFactory
+        $this->mockProtocolHandlerProvider
             ->method('get')
             ->willReturn($this->mockProtocolHandler);
 
         $this->requestPipeline = new MiddlewareChain(
             [],
-            new HandlerInvoker($this->mockProtocolHandlerFactory),
+            new HandlerInvoker($this->mockProtocolHandlerProvider),
         );
 
         $authorizer = new ServerAuthorization(new ServerOptions());
@@ -130,7 +130,7 @@ final class ServerProtocolHandlerTest extends TestCase
                 ),
             ));
 
-        $this->mockProtocolHandlerFactory
+        $this->mockProtocolHandlerProvider
             ->expects(self::never())
             ->method('get');
 
