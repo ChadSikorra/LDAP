@@ -13,8 +13,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Server;
 
+use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
+use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyComponentFactory;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
@@ -52,11 +57,27 @@ final class ServerProtocolFactoryTest extends TestCase
             ->method('makeFilterEvaluator')
             ->willReturn(new FilterEvaluator());
 
+        $options = new ServerOptions();
+        $writeDispatcher = new WriteOperationDispatcher();
+
         $this->subject = new ServerProtocolFactory(
             $this->mockHandlerFactory,
-            new ServerOptions(),
+            $options,
             $this->mockServerAuthorization,
             $this->passwordPolicyEngine(),
+            new ServerProtocolHandlerFactory($options),
+            new PasswordModifyTargetResolver(
+                $this->mockHandlerFactory->makeBackend(),
+                new DnBindNameResolver(),
+            ),
+            new PasswordHashService(),
+            $writeDispatcher,
+            new PasswordPolicyComponentFactory(
+                $this->mockHandlerFactory,
+                $options,
+                $writeDispatcher,
+                $this->passwordPolicyEngine(),
+            ),
         );
     }
 
@@ -86,11 +107,26 @@ final class ServerProtocolFactoryTest extends TestCase
 
         $mockSocket = $this->createMock(Socket::class);
 
+        $options = (new ServerOptions())->setSaslMechanisms(ServerOptions::SASL_PLAIN);
+        $writeDispatcher = new WriteOperationDispatcher();
         $subject = new ServerProtocolFactory(
             $this->mockHandlerFactory,
-            (new ServerOptions())->setSaslMechanisms(ServerOptions::SASL_PLAIN),
+            $options,
             $this->mockServerAuthorization,
             $this->passwordPolicyEngine(),
+            new ServerProtocolHandlerFactory($options),
+            new PasswordModifyTargetResolver(
+                $this->mockHandlerFactory->makeBackend(),
+                new DnBindNameResolver(),
+            ),
+            new PasswordHashService(),
+            $writeDispatcher,
+            new PasswordPolicyComponentFactory(
+                $this->mockHandlerFactory,
+                $options,
+                $writeDispatcher,
+                $this->passwordPolicyEngine(),
+            ),
         );
 
         $subject->make($mockSocket);
@@ -112,11 +148,26 @@ final class ServerProtocolFactoryTest extends TestCase
             ->method('makeWriteDispatcher')
             ->willReturn(new WriteOperationDispatcher());
 
+        $options = (new ServerOptions())->setPasswordPolicy(new PasswordPolicy());
+        $writeDispatcher = new WriteOperationDispatcher();
         $subject = new ServerProtocolFactory(
             $this->mockHandlerFactory,
-            (new ServerOptions())->setPasswordPolicy(new PasswordPolicy()),
+            $options,
             $this->mockServerAuthorization,
             $this->passwordPolicyEngine(),
+            new ServerProtocolHandlerFactory($options),
+            new PasswordModifyTargetResolver(
+                $this->mockHandlerFactory->makeBackend(),
+                new DnBindNameResolver(),
+            ),
+            new PasswordHashService(),
+            $writeDispatcher,
+            new PasswordPolicyComponentFactory(
+                $this->mockHandlerFactory,
+                $options,
+                $writeDispatcher,
+                $this->passwordPolicyEngine(),
+            ),
         );
 
         $subject->make($mockSocket);

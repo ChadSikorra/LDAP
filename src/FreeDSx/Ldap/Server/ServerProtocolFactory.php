@@ -25,8 +25,13 @@ use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\Options\SaslOptions;
 use FreeDSx\Sasl\Sasl;
+use FreeDSx\Ldap\Protocol\Factory\ProtocolHandlerProvider;
 use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
+use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
+use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyComponentFactory;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordPolicyAwareAuthenticator;
@@ -55,6 +60,11 @@ class ServerProtocolFactory
         private readonly ServerOptions $options,
         private readonly ServerAuthorization $serverAuthorization,
         private readonly PasswordPolicyEngine $passwordPolicyEngine,
+        private readonly ServerProtocolHandlerFactory $routeResolver,
+        private readonly PasswordModifyTargetResolver $targetResolver,
+        private readonly PasswordHashService $hashService,
+        private readonly WriteOperationDispatcher $writeDispatcher,
+        private readonly PasswordPolicyComponentFactory $policyComponentFactory,
     ) {}
 
     public function make(
@@ -128,13 +138,17 @@ class ServerProtocolFactory
             ),
         );
 
-        $protocolHandlerFactory = new ServerProtocolHandlerFactory(
+        $handlerProvider = new ProtocolHandlerProvider(
+            routeResolver: $this->routeResolver,
             handlerFactory: $this->handlerFactory,
             options: $this->options,
-            requestHistory: new RequestHistory(),
+            targetResolver: $this->targetResolver,
+            hashService: $this->hashService,
+            writeDispatcher: $this->writeDispatcher,
+            policyComponentFactory: $this->policyComponentFactory,
             queue: $serverQueue,
             eventLogger: $eventLogger,
-            passwordPolicyEngine: $this->passwordPolicyEngine,
+            requestHistory: new RequestHistory(),
             passwordPolicyContext: $policyContext,
         );
 
@@ -142,14 +156,14 @@ class ServerProtocolFactory
             queue: $serverQueue,
             requestPipeline: new MiddlewareChain(
                 [
-                    new CriticalControlMiddleware($protocolHandlerFactory),
+                    new CriticalControlMiddleware($this->routeResolver),
                     new OperationAuthorizationMiddleware(
-                        $protocolHandlerFactory,
+                        $this->routeResolver,
                         $this->options->getAccessControl(),
                         $eventLogger,
                     ),
                 ],
-                new HandlerInvoker($protocolHandlerFactory),
+                new HandlerInvoker($handlerProvider),
             ),
             authorizer: $this->serverAuthorization,
             authenticator: new Authenticator($authenticators),
