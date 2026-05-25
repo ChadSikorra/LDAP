@@ -26,7 +26,6 @@ use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
-use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Paging\PagingRequest;
 use FreeDSx\Ldap\Server\Paging\PagingRequestComparator;
@@ -74,12 +73,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         $response = null;
         $controls = [];
         try {
-            $baseDn = $this->assertBaseDnProvided($searchRequest);
-            $this->accessControl->authorizeOperation(
-                OperationType::Search,
-                $token,
-                $baseDn,
-            );
+            $this->assertBaseDnProvided($searchRequest);
             $response = $this->handlePaging(
                 $pagingRequest,
                 $message,
