@@ -15,7 +15,6 @@ namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use Exception;
 use FreeDSx\Asn1\Exception\EncoderException;
-use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
@@ -32,8 +31,6 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  */
 class ServerWhoAmIHandler implements ServerProtocolHandlerInterface
 {
-    use ServerCriticalControlTrait;
-
     public function __construct(private readonly ServerQueue $queue) {}
 
     /**
@@ -44,7 +41,6 @@ class ServerWhoAmIHandler implements ServerProtocolHandlerInterface
         LdapMessageRequest $message,
         TokenInterface $token,
     ): void {
-        $this->assertNoCriticalUnsupportedControls($message->controls());
         $userId = null;
 
         if ($token instanceof AuthenticatedTokenInterface) {
@@ -62,13 +58,5 @@ class ServerWhoAmIHandler implements ServerProtocolHandlerInterface
             $message->getMessageId(),
             new ExtendedResponse(new LdapResult(ResultCode::SUCCESS), null, $userId),
         ));
-    }
-
-    /**
-     * @return string[]
-     */
-    private function supportedControls(): array
-    {
-        return [Control::OID_PROXY_AUTHORIZATION];
     }
 }

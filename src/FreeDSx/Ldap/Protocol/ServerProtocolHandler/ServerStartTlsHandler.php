@@ -37,8 +37,6 @@ use function extension_loaded;
  */
 class ServerStartTlsHandler implements ServerProtocolHandlerInterface
 {
-    use ServerCriticalControlTrait;
-
     private static ?bool $hasOpenssl = null;
 
     public function __construct(
@@ -60,7 +58,6 @@ class ServerStartTlsHandler implements ServerProtocolHandlerInterface
         LdapMessageRequest $message,
         TokenInterface $token,
     ): void {
-        $this->assertNoCriticalUnsupportedControls($message->controls());
         # RFC 4511 §4.14.2: return unavailable (not protocolError) when the server cannot negotiate TLS.
         if ($this->options->getSslCert() === null || !self::$hasOpenssl) {
             $this->queue->sendMessage(new LdapMessageResponse($message->getMessageId(), new ExtendedResponse(

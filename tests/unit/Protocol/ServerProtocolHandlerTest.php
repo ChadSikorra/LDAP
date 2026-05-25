@@ -41,6 +41,9 @@ use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
+use FreeDSx\Ldap\Server\Middleware\Pipeline\HandlerInvoker;
+use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareChain;
+use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\Exception\ConnectionException;
@@ -56,6 +59,8 @@ final class ServerProtocolHandlerTest extends TestCase
     private ServerQueue&MockObject $mockQueue;
 
     private ServerProtocolHandlerFactory&MockObject $mockProtocolHandlerFactory;
+
+    private MiddlewareHandlerInterface $requestPipeline;
 
     private Authenticator&MockObject $mockAuthenticator;
 
@@ -83,10 +88,15 @@ final class ServerProtocolHandlerTest extends TestCase
             ->method('get')
             ->willReturn($this->mockProtocolHandler);
 
+        $this->requestPipeline = new MiddlewareChain(
+            [],
+            new HandlerInvoker($this->mockProtocolHandlerFactory),
+        );
+
         $authorizer = new ServerAuthorization(new ServerOptions());
         $this->subject = new ServerProtocolHandler(
             $this->mockQueue,
-            $this->mockProtocolHandlerFactory,
+            $this->requestPipeline,
             $authorizer,
             $this->mockAuthenticator,
             new DispatchAuthorizer($authorizer),
@@ -651,7 +661,7 @@ final class ServerProtocolHandlerTest extends TestCase
         $authorizer = new ServerAuthorization(new ServerOptions());
         $subject = new ServerProtocolHandler(
             $queue,
-            $this->mockProtocolHandlerFactory,
+            $this->requestPipeline,
             $authorizer,
             $this->mockAuthenticator,
             new DispatchAuthorizer($authorizer),
@@ -667,7 +677,7 @@ final class ServerProtocolHandlerTest extends TestCase
 
         return new ServerProtocolHandler(
             $this->mockQueue,
-            $this->mockProtocolHandlerFactory,
+            $this->requestPipeline,
             $authorizer,
             $this->mockAuthenticator,
             new DispatchAuthorizer($authorizer),

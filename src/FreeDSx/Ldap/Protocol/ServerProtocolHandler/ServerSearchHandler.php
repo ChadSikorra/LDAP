@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
-use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\Sorting\SortingResponseControl;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -42,7 +41,6 @@ use Generator;
 class ServerSearchHandler implements ServerProtocolHandlerInterface
 {
     use ServerSearchTrait;
-    use ServerCriticalControlTrait;
     use MatchedDnAccessFilterTrait;
 
 
@@ -70,7 +68,6 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         $isSuccessful = true;
 
         try {
-            $this->assertNoCriticalUnsupportedControls($message->controls());
             $baseDn = $this->assertBaseDnProvided($request);
             $this->accessControl->authorizeOperation(
                 OperationType::Search,
@@ -141,17 +138,6 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                 $token,
             );
         }
-    }
-
-    /**
-     * @return string[]
-     */
-    private function supportedControls(): array
-    {
-        return [
-            Control::OID_SORTING,
-            Control::OID_PROXY_AUTHORIZATION,
-        ];
     }
 
     /**

@@ -42,8 +42,6 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  */
 readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInterface
 {
-    use ServerCriticalControlTrait;
-
     public function __construct(
         private ServerQueue $queue,
         private PasswordModifyService $service,
@@ -65,7 +63,6 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
         $targetDn = null;
 
         try {
-            $this->assertNoCriticalUnsupportedControls($message->controls());
             $result = $this->changePassword(
                 $message,
                 $token,

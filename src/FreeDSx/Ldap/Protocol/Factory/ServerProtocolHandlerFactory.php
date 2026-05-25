@@ -44,88 +44,122 @@ use FreeDSx\Ldap\ServerOptions;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class ServerProtocolHandlerFactory
+readonly class ServerProtocolHandlerFactory implements HandlerRouteResolverInterface
 {
     public function __construct(
-        private readonly HandlerFactoryInterface $handlerFactory,
-        private readonly ServerOptions $options,
-        private readonly RequestHistory $requestHistory,
-        private readonly ServerQueue $queue,
-        private readonly EventLogger $eventLogger = new EventLogger(null),
-        private readonly ?PasswordPolicyEngine $passwordPolicyEngine = null,
-        private readonly ?PasswordPolicyContext $passwordPolicyContext = null,
+        private HandlerFactoryInterface $handlerFactory,
+        private ServerOptions $options,
+        private RequestHistory $requestHistory,
+        private ServerQueue $queue,
+        private EventLogger $eventLogger = new EventLogger(null),
+        private ?PasswordPolicyEngine $passwordPolicyEngine = null,
+        private ?PasswordPolicyContext $passwordPolicyContext = null,
     ) {}
 
     public function get(
         RequestInterface $request,
         ControlBag $controls,
     ): ServerProtocolHandlerInterface {
-        if ($request instanceof AbandonRequest) {
-            return new ServerProtocolHandler\ServerAbandonHandler();
-        } elseif ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_CANCEL) {
-            return new ServerProtocolHandler\ServerCancelHandler($this->queue);
-        } elseif ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_WHOAMI) {
-            return new ServerProtocolHandler\ServerWhoAmIHandler($this->queue);
-        } elseif ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_PWD_MODIFY) {
-            return new ServerProtocolHandler\ServerPasswordModifyHandler(
-                queue: $this->queue,
-                service: new PasswordModifyService(
-                    targetResolver: new PasswordModifyTargetResolver(
-                        $this->handlerFactory->makeBackend(),
-                        $this->handlerFactory->makeIdentityResolverChain(),
-                    ),
-                    accessControl: $this->options->getAccessControl(),
-                    writeDispatcher: $this->handlerFactory->makeWriteDispatcher(),
-                    hashService: new PasswordHashService($this->options->getPasswordHashScheme()),
-                    changeGuard: $this->makePasswordPolicyChangeGuard(),
-                    passwordPolicyContext: $this->passwordPolicyContext,
-                ),
-                eventLogger: $this->eventLogger,
-                passwordPolicyContext: $this->passwordPolicyContext,
-            );
-        } elseif ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_START_TLS) {
-            return new ServerProtocolHandler\ServerStartTlsHandler(
-                options: $this->options,
-                queue: $this->queue,
-                eventLogger: $this->eventLogger,
-            );
-        } elseif ($request instanceof ExtendedRequest) {
-            return new ServerProtocolHandler\ServerUnsupportedExtendedHandler($this->queue);
-        } elseif ($this->isRootDseSearch($request)) {
-            return $this->getRootDseHandler();
-        } elseif ($this->isSubschemaSearch($request)) {
-            return new ServerProtocolHandler\ServerSubschemaHandler(
-                options: $this->options,
-                queue: $this->queue,
-            );
-        } elseif ($this->isPagingSearch($request, $controls)) {
-            return $this->getPagingHandler();
-        } elseif ($request instanceof SearchRequest) {
-            return new ServerProtocolHandler\ServerSearchHandler(
-                queue: $this->queue,
-                backend: $this->handlerFactory->makeBackend(),
-                filterEvaluator: $this->handlerFactory->makeFilterEvaluator(),
-                accessControl: $this->options->getAccessControl(),
-                schema: $this->options->getSchema(),
-                limits: $this->options->makeSearchLimits(),
-                eventLogger: $this->eventLogger,
-            );
-        } elseif ($request instanceof UnbindRequest) {
-            return new ServerProtocolHandler\ServerUnbindHandler($this->queue);
-        } else {
-            $policyWriteHandler = $this->makePasswordPolicyWriteHandler();
+        return match ($this->routeIdFor($request, $controls)) {
+            HandlerId::Abandon => new ServerProtocolHandler\ServerAbandonHandler(),
+            HandlerId::Cancel => new ServerProtocolHandler\ServerCancelHandler($this->queue),
+            HandlerId::WhoAmI => new ServerProtocolHandler\ServerWhoAmIHandler($this->queue),
+            HandlerId::PasswordModify => $this->getPasswordModifyHandler(),
+            HandlerId::StartTls => $this->getStartTlsHandler(),
+            HandlerId::UnsupportedExtended => new ServerProtocolHandler\ServerUnsupportedExtendedHandler($this->queue),
+            HandlerId::RootDse => $this->getRootDseHandler(),
+            HandlerId::Subschema => $this->getSubschemaHandler(),
+            HandlerId::Paging => $this->getPagingHandler(),
+            HandlerId::Search => $this->getSearchHandler(),
+            HandlerId::Unbind => new ServerProtocolHandler\ServerUnbindHandler($this->queue),
+            HandlerId::Dispatch => $this->getDispatchHandler(),
+        };
+    }
 
-            return new ServerProtocolHandler\ServerDispatchHandler(
-                queue: $this->queue,
-                backend: $this->handlerFactory->makeBackend(),
-                writeDispatcher: $policyWriteHandler !== null
-                    ? $this->handlerFactory->makeWriteDispatcher($policyWriteHandler)
-                    : $this->handlerFactory->makeWriteDispatcher(),
+    public function routeIdFor(
+        RequestInterface $request,
+        ControlBag $controls,
+    ): HandlerId {
+        return match (true) {
+            $request instanceof AbandonRequest => HandlerId::Abandon,
+            $request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_CANCEL => HandlerId::Cancel,
+            $request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_WHOAMI => HandlerId::WhoAmI,
+            $request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_PWD_MODIFY => HandlerId::PasswordModify,
+            $request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_START_TLS => HandlerId::StartTls,
+            $request instanceof ExtendedRequest => HandlerId::UnsupportedExtended,
+            $this->isRootDseSearch($request) => HandlerId::RootDse,
+            $this->isSubschemaSearch($request) => HandlerId::Subschema,
+            $this->isPagingSearch($request, $controls) => HandlerId::Paging,
+            $request instanceof SearchRequest => HandlerId::Search,
+            $request instanceof UnbindRequest => HandlerId::Unbind,
+            default => HandlerId::Dispatch,
+        };
+    }
+
+    private function getPasswordModifyHandler(): ServerProtocolHandler\ServerPasswordModifyHandler
+    {
+        return new ServerProtocolHandler\ServerPasswordModifyHandler(
+            queue: $this->queue,
+            service: new PasswordModifyService(
+                targetResolver: new PasswordModifyTargetResolver(
+                    $this->handlerFactory->makeBackend(),
+                    $this->handlerFactory->makeIdentityResolverChain(),
+                ),
                 accessControl: $this->options->getAccessControl(),
-                eventRecorder: new ServerProtocolHandler\DispatchEventRecorder($this->eventLogger),
+                writeDispatcher: $this->handlerFactory->makeWriteDispatcher(),
+                hashService: new PasswordHashService($this->options->getPasswordHashScheme()),
+                changeGuard: $this->makePasswordPolicyChangeGuard(),
                 passwordPolicyContext: $this->passwordPolicyContext,
-            );
-        }
+            ),
+            eventLogger: $this->eventLogger,
+            passwordPolicyContext: $this->passwordPolicyContext,
+        );
+    }
+
+    private function getStartTlsHandler(): ServerProtocolHandler\ServerStartTlsHandler
+    {
+        return new ServerProtocolHandler\ServerStartTlsHandler(
+            options: $this->options,
+            queue: $this->queue,
+            eventLogger: $this->eventLogger,
+        );
+    }
+
+    private function getSubschemaHandler(): ServerProtocolHandler\ServerSubschemaHandler
+    {
+        return new ServerProtocolHandler\ServerSubschemaHandler(
+            options: $this->options,
+            queue: $this->queue,
+        );
+    }
+
+    private function getSearchHandler(): ServerProtocolHandler\ServerSearchHandler
+    {
+        return new ServerProtocolHandler\ServerSearchHandler(
+            queue: $this->queue,
+            backend: $this->handlerFactory->makeBackend(),
+            filterEvaluator: $this->handlerFactory->makeFilterEvaluator(),
+            accessControl: $this->options->getAccessControl(),
+            schema: $this->options->getSchema(),
+            limits: $this->options->makeSearchLimits(),
+            eventLogger: $this->eventLogger,
+        );
+    }
+
+    private function getDispatchHandler(): ServerProtocolHandler\ServerDispatchHandler
+    {
+        $policyWriteHandler = $this->makePasswordPolicyWriteHandler();
+
+        return new ServerProtocolHandler\ServerDispatchHandler(
+            queue: $this->queue,
+            backend: $this->handlerFactory->makeBackend(),
+            writeDispatcher: $policyWriteHandler !== null
+                ? $this->handlerFactory->makeWriteDispatcher($policyWriteHandler)
+                : $this->handlerFactory->makeWriteDispatcher(),
+            accessControl: $this->options->getAccessControl(),
+            eventRecorder: new ServerProtocolHandler\DispatchEventRecorder($this->eventLogger),
+            passwordPolicyContext: $this->passwordPolicyContext,
+        );
     }
 
     private function makePasswordPolicyWriteHandler(): ?PasswordPolicyWriteHandler

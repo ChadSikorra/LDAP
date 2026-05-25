@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
-use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\PagingControl;
 use FreeDSx\Ldap\Control\Sorting\SortingResponseControl;
 use FreeDSx\Ldap\Entry\Entries;
@@ -47,7 +46,6 @@ use Throwable;
 class ServerPagingHandler implements ServerProtocolHandlerInterface
 {
     use ServerSearchTrait;
-    use ServerCriticalControlTrait;
     use MatchedDnAccessFilterTrait;
 
     public function __construct(
@@ -76,7 +74,6 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         $response = null;
         $controls = [];
         try {
-            $this->assertNoCriticalUnsupportedControls($message->controls());
             $baseDn = $this->assertBaseDnProvided($searchRequest);
             $this->accessControl->authorizeOperation(
                 OperationType::Search,
@@ -165,18 +162,6 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $this->queue,
             ...$controls,
         );
-    }
-
-    /**
-     * @return string[]
-     */
-    private function supportedControls(): array
-    {
-        return [
-            Control::OID_PAGING,
-            Control::OID_SORTING,
-            Control::OID_PROXY_AUTHORIZATION,
-        ];
     }
 
     /**

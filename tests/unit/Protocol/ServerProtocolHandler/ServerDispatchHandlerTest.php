@@ -411,29 +411,6 @@ final class ServerDispatchHandlerTest extends TestCase
         );
     }
 
-    public function test_critical_unsupported_control_returns_unavailable_critical_extension(): void
-    {
-        $request = new LdapMessageRequest(
-            1,
-            new DeleteRequest('cn=foo,dc=bar'),
-            new Control('1.2.3.4.5', criticality: true),
-        );
-
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(function (LdapMessageResponse $msg): bool {
-                return $msg->getResponse() instanceof LdapResult
-                    && $msg->getResponse()->getResultCode() === ResultCode::UNAVAILABLE_CRITICAL_EXTENSION;
-            }))
-            ->willReturnSelf();
-
-        $this->subject->handleRequest(
-            $request,
-            $this->mockToken,
-        );
-    }
-
     public function test_matched_dn_from_exception_is_used_in_write_response(): void
     {
         $matchedDn = new Dn('dc=bar');

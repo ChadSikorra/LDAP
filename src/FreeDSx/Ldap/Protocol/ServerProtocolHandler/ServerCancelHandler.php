@@ -29,8 +29,6 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  */
 readonly class ServerCancelHandler implements ServerProtocolHandlerInterface
 {
-    use ServerCriticalControlTrait;
-
     public function __construct(private ServerQueue $queue) {}
 
     /**
@@ -41,7 +39,6 @@ readonly class ServerCancelHandler implements ServerProtocolHandlerInterface
         LdapMessageRequest $message,
         TokenInterface $token,
     ): void {
-        $this->assertNoCriticalUnsupportedControls($message->controls());
         $this->queue->sendMessage(new LdapMessageResponse(
             $message->getMessageId(),
             new ExtendedResponse(new LdapResult(ResultCode::NO_SUCH_OPERATION)),

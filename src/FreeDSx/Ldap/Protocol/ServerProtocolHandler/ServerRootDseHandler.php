@@ -38,8 +38,6 @@ use function count;
  */
 class ServerRootDseHandler implements ServerProtocolHandlerInterface
 {
-    use ServerCriticalControlTrait;
-
     /**
      * RFC 3673 §3 — return all operational attributes via the "+" attribute description.
      */
@@ -64,7 +62,6 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
         LdapMessageRequest $message,
         TokenInterface $token,
     ): void {
-        $this->assertNoCriticalUnsupportedControls($message->controls());
         $entry = Entry::fromArray('', [
             'namingContexts' => $this->options->getDseNamingContexts(),
             'subschemaSubentry' => [$this->options->getSubschemaEntry()->toString()],
