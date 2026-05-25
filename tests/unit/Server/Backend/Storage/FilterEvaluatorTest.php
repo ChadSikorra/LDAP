@@ -905,6 +905,38 @@ final class FilterEvaluatorTest extends TestCase
         );
     }
 
+    public function test_schema_equality_collapses_whitespace_for_cn(): void
+    {
+        $subject = new FilterEvaluator(StandardSchemaProvider::buildCore());
+        $entry = new Entry(
+            new Dn('cn=Foo  Bar,dc=example,dc=com'),
+            new Attribute('cn', 'Foo  Bar'),
+        );
+
+        self::assertTrue(
+            $subject->evaluate($entry, Filters::equal('cn', 'foo bar')),
+        );
+        self::assertTrue(
+            $subject->evaluate($entry, Filters::equal('cn', 'foo   bar')),
+        );
+    }
+
+    public function test_schema_substring_matches_across_collapsed_spaces(): void
+    {
+        $subject = new FilterEvaluator(StandardSchemaProvider::buildCore());
+        $entry = new Entry(
+            new Dn('cn=Foo  Bar Baz,dc=example,dc=com'),
+            new Attribute('cn', 'Foo  Bar Baz'),
+        );
+
+        self::assertTrue(
+            $subject->evaluate(
+                $entry,
+                (new SubstringFilter('cn'))->setStartsWith('foo bar'),
+            ),
+        );
+    }
+
     public function test_schema_matching_rule_filter_resolves_non_hardcoded_oid(): void
     {
         $subject = new FilterEvaluator(StandardSchemaProvider::buildCore());

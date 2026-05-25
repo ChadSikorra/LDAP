@@ -13,17 +13,18 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Schema\Matching;
 
+use FreeDSx\Ldap\Schema\Matching\Prep\StringPrep;
+
 /**
- * Case-sensitive string comparator (caseExactMatch / caseExactSubstringsMatch / caseExactOrderingMatch).
- * Delegates to OctetStringComparator since both perform byte-exact comparison.
+ * Case-sensitive comparator (caseExactMatch / caseExactSubstringsMatch / caseExactOrderingMatch) using RFC 4518 prep without case folding.
  */
 final readonly class CaseExactComparator implements MatchingRuleComparatorInterface
 {
-    private OctetStringComparator $inner;
+    private PreparedStringComparator $inner;
 
     public function __construct()
     {
-        $this->inner = new OctetStringComparator();
+        $this->inner = new PreparedStringComparator(new StringPrep(foldCase: false));
     }
 
     public function equals(

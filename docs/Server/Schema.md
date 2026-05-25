@@ -10,6 +10,7 @@ Schema Validation
 * [Custom Schema](#custom-schema)
     * [ServerOptions:setSchema](#setschema)
 * [Operational Attributes](#operational-attributes)
+* [String Matching and Internationalization (RFC 4518)](#string-matching-and-internationalization-rfc-4518)
 
 Calling `LdapServer::useStorage()` automatically enables schema validation using the built-in RFC 4519
 schema in `Strict` mode.
@@ -163,3 +164,37 @@ attributes remain unchanged.
 **`hasSubordinates` (dynamic):** Never stored. Injected into search results when requested via the `+` shorthand
 or by name. Value is `TRUE` if the entry has at least one direct child, `FALSE` otherwise.
 ```
+
+## String Matching and Internationalization (RFC 4518)
+
+String matching rules (`caseIgnoreMatch`, `caseExactMatch`, `caseIgnoreIA5Match`, and their substring/ordering
+variants) apply a pragmatic profile of [RFC 4518](https://www.rfc-editor.org/rfc/rfc4518) string preparation before
+comparing values:
+
+- **Insignificant whitespace is ignored.** Leading/trailing spaces are trimmed and internal runs collapse to a single
+  space, so `cn=John  Smith` matches `cn=John Smith`.
+- **Ignorable code points are removed** — soft hyphen, zero-width spaces/joiners, BOM, and variation selectors.
+- **Unicode space variants are folded** to a normal space (NBSP, ideographic space, en/em spaces, etc.).
+
+### Optional Unicode normalization
+
+Two further steps run only when the supporting capability is available:
+
+| Step | Provided by | Without it |
+|---|---|---|
+| NFKC normalization (compatibility forms, composed/decomposed equivalence) | `ext-intl` **or** `symfony/polyfill-intl-normalizer` | Skipped |
+| Unicode-aware case folding (e.g. `É` ↔ `é`) | `ext-mbstring` **or** `symfony/polyfill-mbstring` | ASCII-only case folding |
+
+ASCII matching is always identical regardless of the above. For byte-identical matching of **non-ASCII** values across
+hosts with differing extensions, install the polyfills (or the extensions) so every host normalizes the same way:
+
+```bash
+composer require symfony/polyfill-intl-normalizer symfony/polyfill-mbstring
+```
+
+### Notes
+
+- `caseExactMatch` preserves case but still ignores insignificant whitespace and applies NFKC — it is no longer a raw
+  byte comparison. `octetStringMatch` (used by binary attributes such as `userPassword`) remains byte-exact.
+- Distinguished name matching is not affected by this profile.
+- The Prohibit and Bidirectional steps of RFC 4518 are not implemented.
