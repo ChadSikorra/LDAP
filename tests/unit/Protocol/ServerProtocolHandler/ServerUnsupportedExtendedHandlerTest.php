@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Ldap\Control\Control;
-use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
@@ -64,27 +63,6 @@ final class ServerUnsupportedExtendedHandlerTest extends TestCase
                     $oid,
                 ),
             )));
-
-        $this->subject->handleRequest(
-            $request,
-            $this->mockToken,
-        );
-    }
-
-    public function test_it_rejects_critical_unsupported_controls_before_replying(): void
-    {
-        $request = new LdapMessageRequest(
-            1,
-            new ExtendedRequest('1.2.3.4.5'),
-            new Control('1.2.3.4', true),
-        );
-
-        $this->mockQueue
-            ->expects(self::never())
-            ->method('sendMessage');
-
-        $this->expectException(OperationException::class);
-        $this->expectExceptionCode(ResultCode::UNAVAILABLE_CRITICAL_EXTENSION);
 
         $this->subject->handleRequest(
             $request,

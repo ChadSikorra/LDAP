@@ -25,11 +25,13 @@ use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Authorization\DispatchAuthorizer;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
-use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
+use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
+use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
@@ -51,13 +53,14 @@ class ServerProtocolHandler
 
     public function __construct(
         private readonly ServerQueue $queue,
-        private readonly ServerProtocolHandlerFactory $protocolHandlerFactory,
+        private readonly MiddlewareHandlerInterface $requestPipeline,
         private readonly ServerAuthorization $authorizer,
         private readonly Authenticator $authenticator,
         private readonly DispatchAuthorizer $dispatchAuthorizer,
         private readonly EventLogger $eventLogger = new EventLogger(null),
         private readonly ResponseFactory $responseFactory = new ResponseFactory(),
         private readonly ?PasswordPolicyContext $passwordPolicyContext = null,
+        private readonly ConnectionContext $connectionContext = new ConnectionContext(),
     ) {}
 
     /**
@@ -173,14 +176,11 @@ class ServerProtocolHandler
             return;
         }
 
-        $handler = $this->protocolHandlerFactory->get(
-            $message->getRequest(),
-            $message->controls(),
-        );
-        $handler->handleRequest(
+        $this->requestPipeline->handle(new ServerRequestContext(
             $message,
             $authorization->token(),
-        );
+            $this->connectionContext,
+        ));
     }
 
     /**

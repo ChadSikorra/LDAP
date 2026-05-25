@@ -42,7 +42,6 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  */
 readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
 {
-    use ServerCriticalControlTrait;
     use MatchedDnAccessFilterTrait;
 
     /**
@@ -74,7 +73,6 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         $schemaViolations = new SchemaViolations();
 
         try {
-            $this->assertNoCriticalUnsupportedControls($message->controls());
             $request = $message->getRequest();
             $this->authorizeRequest(
                 $request,
@@ -172,19 +170,6 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         $this->passwordPolicyContext?->clear();
 
         return $control;
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * @return string[]
-     */
-    private function supportedControls(): array
-    {
-        return [
-            ...self::PRIVILEGED_CONTROLS,
-            Control::OID_PROXY_AUTHORIZATION,
-        ];
     }
 
     /**

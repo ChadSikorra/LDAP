@@ -31,8 +31,6 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  */
 final readonly class ServerUnsupportedExtendedHandler implements ServerProtocolHandlerInterface
 {
-    use ServerCriticalControlTrait;
-
     public function __construct(private ServerQueue $queue) {}
 
     /**
@@ -44,7 +42,6 @@ final readonly class ServerUnsupportedExtendedHandler implements ServerProtocolH
         LdapMessageRequest $message,
         TokenInterface $token,
     ): void {
-        $this->assertNoCriticalUnsupportedControls($message->controls());
         $request = $message->getRequest();
 
         if (!$request instanceof ExtendedRequest) {

@@ -36,6 +36,9 @@ use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Middleware\CriticalControlMiddleware;
+use FreeDSx\Ldap\Server\Middleware\Pipeline\HandlerInvoker;
+use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
@@ -124,22 +127,30 @@ class ServerProtocolFactory
             ),
         );
 
+        $protocolHandlerFactory = new ServerProtocolHandlerFactory(
+            handlerFactory: $this->handlerFactory,
+            options: $this->options,
+            requestHistory: new RequestHistory(),
+            queue: $serverQueue,
+            eventLogger: $eventLogger,
+            passwordPolicyEngine: $this->passwordPolicyEngine,
+            passwordPolicyContext: $policyContext,
+        );
+
         return new ServerProtocolHandler(
             queue: $serverQueue,
-            protocolHandlerFactory: new ServerProtocolHandlerFactory(
-                handlerFactory: $this->handlerFactory,
-                options: $this->options,
-                requestHistory: new RequestHistory(),
-                queue: $serverQueue,
-                eventLogger: $eventLogger,
-                passwordPolicyEngine: $this->passwordPolicyEngine,
-                passwordPolicyContext: $policyContext,
+            requestPipeline: new MiddlewareChain(
+                [
+                    new CriticalControlMiddleware($protocolHandlerFactory),
+                ],
+                new HandlerInvoker($protocolHandlerFactory),
             ),
             authorizer: $this->serverAuthorization,
             authenticator: new Authenticator($authenticators),
             dispatchAuthorizer: $dispatchAuthorizer,
             eventLogger: $eventLogger,
             passwordPolicyContext: $policyContext,
+            connectionContext: $context,
         );
     }
 

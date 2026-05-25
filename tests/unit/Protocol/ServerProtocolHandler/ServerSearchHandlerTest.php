@@ -608,35 +608,6 @@ final class ServerSearchHandlerTest extends TestCase
         );
     }
 
-    public function test_critical_unsupported_control_returns_unavailable_critical_extension(): void
-    {
-        $search = new LdapMessageRequest(
-            2,
-            (new SearchRequest(Filters::present('cn')))->base('dc=foo,dc=bar'),
-            new Control('1.2.3.4.5', criticality: true),
-        );
-
-        $this->mockBackend
-            ->expects(self::never())
-            ->method('search');
-
-        $this->subject->handleRequest(
-            $search,
-            $this->mockToken,
-        );
-
-        $this->assertSentMessages([
-            new LdapMessageResponse(
-                2,
-                new SearchResultDone(
-                    ResultCode::UNAVAILABLE_CRITICAL_EXTENSION,
-                    '',
-                    'Critical control 1.2.3.4.5 is not supported.',
-                ),
-            ),
-        ]);
-    }
-
     public function test_non_critical_unsupported_control_does_not_cause_an_error(): void
     {
         $search = new LdapMessageRequest(
