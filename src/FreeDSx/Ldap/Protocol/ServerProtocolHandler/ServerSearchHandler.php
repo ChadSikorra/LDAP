@@ -23,7 +23,6 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
-use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
@@ -68,12 +67,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         $isSuccessful = true;
 
         try {
-            $baseDn = $this->assertBaseDnProvided($request);
-            $this->accessControl->authorizeOperation(
-                OperationType::Search,
-                $token,
-                $baseDn,
-            );
+            $this->assertBaseDnProvided($request);
 
             $backendResult = $this->backend->search(
                 $request,

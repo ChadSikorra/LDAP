@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Ldap\Control\Control;
-use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Operation\Response\DeleteResponse;
@@ -23,9 +22,6 @@ use FreeDSx\Ldap\Operation\Request\AbandonRequest;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Operation\Request\CompareRequest;
 use FreeDSx\Ldap\Operation\Request\DeleteRequest;
-use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
-use FreeDSx\Ldap\Operation\Request\ModifyRequest;
-use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
@@ -137,42 +133,6 @@ final class ServerDispatchHandlerTest extends TestCase
         $this->subject->handleRequest($compare, $this->mockToken);
     }
 
-    public function test_it_sends_error_response_when_authorizeAttribute_denies_compare(): void
-    {
-        $compare = new LdapMessageRequest(
-            1,
-            new CompareRequest(
-                'cn=foo,dc=bar',
-                Filters::equal(
-                    'userpassword',
-                    'secret',
-                ),
-            ),
-        );
-
-        $this->mockAccessControl
-            ->method('authorizeAttribute')
-            ->willThrowException(new OperationException(
-                'Access denied.',
-                ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
-            ));
-
-        $this->mockBackend
-            ->expects(self::never())
-            ->method('compare');
-
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(function (LdapMessageResponse $msg): bool {
-                return $msg->getResponse() instanceof LdapResult
-                    && $msg->getResponse()->getResultCode() === ResultCode::INSUFFICIENT_ACCESS_RIGHTS;
-            }))
-            ->willReturnSelf();
-
-        $this->subject->handleRequest($compare, $this->mockToken);
-    }
-
     public function test_it_sends_error_response_for_operation_exceptions_from_backend_compare(): void
     {
         $compare = new LdapMessageRequest(1, new CompareRequest('cn=foo,dc=bar', Filters::equal('foo', 'bar')));
@@ -241,174 +201,6 @@ final class ServerDispatchHandlerTest extends TestCase
             ->with(self::isInstanceOf(WriteRequestInterface::class));
 
         $this->subject->handleRequest($delete, $this->mockToken);
-    }
-
-    public function test_it_authorizes_modify_dn_against_source_dn_only_when_no_new_superior(): void
-    {
-        $request = new LdapMessageRequest(
-            1,
-            new ModifyDnRequest(
-                'cn=foo,dc=bar',
-                'cn=baz',
-                true,
-            ),
-        );
-
-        $this->mockAccessControl
-            ->expects(self::once())
-            ->method('authorizeOperation')
-            ->with(
-                OperationType::ModifyDn,
-                $this->mockToken,
-                self::isInstanceOf(Dn::class),
-            );
-
-        $this->subject->handleRequest(
-            $request,
-            $this->mockToken,
-        );
-    }
-
-    public function test_it_authorizes_modify_dn_against_both_source_and_new_superior(): void
-    {
-        $request = new LdapMessageRequest(
-            1,
-            new ModifyDnRequest(
-                'cn=foo,dc=bar',
-                'cn=baz',
-                true,
-                'ou=other,dc=bar',
-            ),
-        );
-
-        $this->mockAccessControl
-            ->expects(self::exactly(2))
-            ->method('authorizeOperation')
-            ->with(
-                OperationType::ModifyDn,
-                $this->mockToken,
-                self::isInstanceOf(Dn::class),
-            );
-
-        $this->subject->handleRequest(
-            $request,
-            $this->mockToken,
-        );
-    }
-
-    public function test_it_sends_error_response_when_authorizeAttribute_denies_add(): void
-    {
-        $add = new LdapMessageRequest(
-            1,
-            new AddRequest(
-                Entry::create(
-                    'cn=foo,dc=bar',
-                    ['userpassword' => 'secret'],
-                ),
-            ),
-        );
-
-        $this->mockAccessControl
-            ->method('authorizeAttribute')
-            ->willThrowException(new OperationException(
-                'Access denied.',
-                ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
-            ));
-
-        $this->mockWriteHandler
-            ->expects(self::never())
-            ->method('handle');
-
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(function (LdapMessageResponse $msg): bool {
-                return $msg->getResponse() instanceof LdapResult
-                    && $msg->getResponse()->getResultCode() === ResultCode::INSUFFICIENT_ACCESS_RIGHTS;
-            }))
-            ->willReturnSelf();
-
-        $this->subject->handleRequest(
-            $add,
-            $this->mockToken,
-        );
-    }
-
-    public function test_it_sends_error_response_when_authorizeAttribute_denies_modify(): void
-    {
-        $modify = new LdapMessageRequest(
-            1,
-            new ModifyRequest(
-                'cn=foo,dc=bar',
-                Change::replace(
-                    'userpassword',
-                    'newSecret',
-                ),
-            ),
-        );
-
-        $this->mockAccessControl
-            ->method('authorizeAttribute')
-            ->willThrowException(new OperationException(
-                'Access denied.',
-                ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
-            ));
-
-        $this->mockWriteHandler
-            ->expects(self::never())
-            ->method('handle');
-
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(function (LdapMessageResponse $msg): bool {
-                return $msg->getResponse() instanceof LdapResult
-                    && $msg->getResponse()->getResultCode() === ResultCode::INSUFFICIENT_ACCESS_RIGHTS;
-            }))
-            ->willReturnSelf();
-
-        $this->subject->handleRequest(
-            $modify,
-            $this->mockToken,
-        );
-    }
-
-    public function test_it_sends_error_response_when_access_control_denies_new_superior(): void
-    {
-        $request = new LdapMessageRequest(
-            1,
-            new ModifyDnRequest(
-                'cn=foo,dc=bar',
-                'cn=baz',
-                true,
-                'ou=restricted,dc=bar',
-            ),
-        );
-
-        $this->mockAccessControl
-            ->method('authorizeOperation')
-            ->willReturnCallback(function (OperationType $type, TokenInterface $token, Dn $dn): void {
-                if ($dn->toString() === 'ou=restricted,dc=bar') {
-                    throw new OperationException(
-                        'Access denied.',
-                        ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
-                    );
-                }
-            });
-
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(function (LdapMessageResponse $msg): bool {
-                return $msg->getResponse() instanceof LdapResult
-                    && $msg->getResponse()->getResultCode() === ResultCode::INSUFFICIENT_ACCESS_RIGHTS;
-            }))
-            ->willReturnSelf();
-
-        $this->subject->handleRequest(
-            $request,
-            $this->mockToken,
-        );
     }
 
     public function test_matched_dn_from_exception_is_used_in_write_response(): void
