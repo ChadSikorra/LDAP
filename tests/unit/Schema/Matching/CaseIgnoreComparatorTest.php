@@ -130,4 +130,84 @@ final class CaseIgnoreComparatorTest extends TestCase
 
         self::assertTrue($result);
     }
+
+    public function test_equals_collapses_double_space(): void
+    {
+        $result = $this->subject->equals(
+            'Foo  Bar',
+            'foo bar',
+        );
+
+        self::assertTrue($result);
+    }
+
+    public function test_equals_trims_whitespace(): void
+    {
+        $result = $this->subject->equals(
+            '  foo  ',
+            'foo',
+        );
+
+        self::assertTrue($result);
+    }
+
+    public function test_equals_strips_soft_hyphen(): void
+    {
+        $result = $this->subject->equals(
+            "foo\u{00AD}bar",
+            'foobar',
+        );
+
+        self::assertTrue($result);
+    }
+
+    public function test_equals_folds_unicode_space(): void
+    {
+        $result = $this->subject->equals(
+            "foo\u{00A0}bar",
+            'foo bar',
+        );
+
+        self::assertTrue($result);
+    }
+
+    public function test_substring_initial_with_extra_spaces_in_value(): void
+    {
+        $result = $this->subject->substringMatches(
+            'Foo   Bar Baz',
+            new SubstringAssertion(initial: 'foo bar'),
+        );
+
+        self::assertTrue($result);
+    }
+
+    public function test_substring_any_across_collapsed_spaces(): void
+    {
+        $result = $this->subject->substringMatches(
+            'a  b  c',
+            new SubstringAssertion(any: ['b c']),
+        );
+
+        self::assertTrue($result);
+    }
+
+    public function test_substring_final_with_trailing_space_in_value(): void
+    {
+        $result = $this->subject->substringMatches(
+            'foo bar  ',
+            new SubstringAssertion(final: 'bar'),
+        );
+
+        self::assertTrue($result);
+    }
+
+    public function test_compare_equal_after_space_collapse(): void
+    {
+        $result = $this->subject->compare(
+            'a  b',
+            'a b',
+        );
+
+        self::assertSame(0, $result);
+    }
 }

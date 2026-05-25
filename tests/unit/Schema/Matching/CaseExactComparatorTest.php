@@ -80,4 +80,28 @@ final class CaseExactComparatorTest extends TestCase
 
         self::assertFalse($result);
     }
+
+    public function test_equals_collapses_whitespace_but_keeps_case(): void
+    {
+        self::assertTrue($this->subject->equals(
+            'Foo  Bar',
+            'Foo Bar',
+        ));
+        self::assertFalse($this->subject->equals(
+            'Foo  Bar',
+            'foo bar',
+        ));
+    }
+
+    public function test_substring_case_sensitive_with_extra_spaces(): void
+    {
+        self::assertTrue($this->subject->substringMatches(
+            'Foo  Bar',
+            new SubstringAssertion(initial: 'Foo Bar'),
+        ));
+        self::assertFalse($this->subject->substringMatches(
+            'Foo  Bar',
+            new SubstringAssertion(initial: 'foo bar'),
+        ));
+    }
 }

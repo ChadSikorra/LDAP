@@ -13,23 +13,35 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Schema\Matching;
 
+use FreeDSx\Ldap\Schema\Matching\Prep\StringPrep;
+
 /**
  * Case-insensitive string comparator (caseIgnoreMatch / caseIgnoreSubstringsMatch / caseIgnoreOrderingMatch).
  */
-final class CaseIgnoreComparator implements MatchingRuleComparatorInterface
+final readonly class CaseIgnoreComparator implements MatchingRuleComparatorInterface
 {
+    private PreparedStringComparator $inner;
+
+    public function __construct()
+    {
+        $this->inner = new PreparedStringComparator(new StringPrep(foldCase: true));
+    }
+
     public function equals(
         string $a,
         string $b,
     ): bool {
-        return strtolower($a) === strtolower($b);
+        return $this->inner->equals(
+            $a,
+            $b,
+        );
     }
 
     public function compare(
         string $a,
         string $b,
     ): int {
-        return strcasecmp(
+        return $this->inner->compare(
             $a,
             $b,
         );
@@ -39,29 +51,9 @@ final class CaseIgnoreComparator implements MatchingRuleComparatorInterface
         string $value,
         SubstringAssertion $assertion,
     ): bool {
-        $lower = strtolower($value);
-
-        if ($assertion->initial !== null && !str_starts_with($lower, strtolower($assertion->initial))) {
-            return false;
-        }
-
-        $pos = $assertion->initial !== null ? strlen($assertion->initial) : 0;
-
-        foreach ($assertion->any as $substr) {
-            $found = stripos($lower, strtolower($substr), $pos);
-            if ($found === false) {
-                return false;
-            }
-            $pos = $found + strlen($substr);
-        }
-
-        if ($assertion->final === null) {
-            return true;
-        }
-
-        $finalLower = strtolower($assertion->final);
-        $finalStart = strlen($lower) - strlen($finalLower);
-
-        return $finalStart >= $pos && str_ends_with($lower, $finalLower);
+        return $this->inner->substringMatches(
+            $value,
+            $assertion,
+        );
     }
 }
