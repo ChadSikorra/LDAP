@@ -15,20 +15,18 @@ namespace FreeDSx\Ldap\Server\Logging;
 
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
-use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Operation\Request\CompareRequest;
-use FreeDSx\Ldap\Operation\Request\DeleteRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
-use FreeDSx\Ldap\Operation\Request\ModifyRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
+use FreeDSx\Ldap\Server\AccessControl\OperationTargetDn;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
- * Builds the per-operation event shape for dispatched operations and routes it through {@see EventLogger}.
+ * Builds the per-operation audit event shape and routes it through {@see EventLogger}.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -272,7 +270,7 @@ final readonly class OperationAuditor
             return $this->modifyDnTarget($request);
         }
 
-        return [EventContext::DN => $this->dnFor($request)?->toString() ?? ''];
+        return [EventContext::DN => OperationTargetDn::of($request)?->toString() ?? ''];
     }
 
     /**
@@ -291,17 +289,5 @@ final readonly class OperationAuditor
         }
 
         return $target;
-    }
-
-    private function dnFor(RequestInterface $request): ?Dn
-    {
-        return match (true) {
-            $request instanceof AddRequest => $request->getEntry()->getDn(),
-            $request instanceof ModifyRequest,
-            $request instanceof DeleteRequest,
-            $request instanceof ModifyDnRequest,
-            $request instanceof CompareRequest => $request->getDn(),
-            default => null,
-        };
     }
 }
