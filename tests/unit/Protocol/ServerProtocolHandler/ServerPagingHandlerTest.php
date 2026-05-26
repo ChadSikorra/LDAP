@@ -38,6 +38,8 @@ use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Paging\PagingRequest;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
+use FreeDSx\Ldap\Server\Operation\OperationOutcome;
+use FreeDSx\Ldap\Server\Operation\SearchOperationResult;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use Generator;
@@ -158,7 +160,7 @@ class ServerPagingHandlerTest extends TestCase
             ->with(self::isInstanceOf(SearchRequest::class))
             ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
 
-        $this->subject->handleRequest(
+        $result = $this->subject->handleRequest(
             $message,
             $this->mockToken,
         );
@@ -172,6 +174,11 @@ class ServerPagingHandlerTest extends TestCase
         );
         // Generator was exhausted with only 2 entries, so paging is complete (cookie='').
         self::assertSame('', $this->donePagingControl()->getCookie());
+        self::assertInstanceOf(SearchOperationResult::class, $result);
+        self::assertSame(
+            OperationOutcome::Succeeded,
+            $result->outcome(),
+        );
     }
 
     public function test_it_should_store_the_generator_and_return_a_cookie_when_more_entries_remain(): void
@@ -309,7 +316,7 @@ class ServerPagingHandlerTest extends TestCase
             ->expects(self::never())
             ->method('search');
 
-        $this->subject->handleRequest(
+        $result = $this->subject->handleRequest(
             $message,
             $this->mockToken,
         );
@@ -319,6 +326,11 @@ class ServerPagingHandlerTest extends TestCase
         self::assertInstanceOf(SearchResultDone::class, $done);
         self::assertSame(ResultCode::OPERATIONS_ERROR, $done->getResultCode());
         self::assertSame('', $this->donePagingControl()->getCookie());
+        self::assertInstanceOf(SearchOperationResult::class, $result);
+        self::assertSame(
+            OperationOutcome::Failed,
+            $result->outcome(),
+        );
     }
 
     public function test_it_throws_an_exception_if_the_paging_cookie_does_not_exist(): void

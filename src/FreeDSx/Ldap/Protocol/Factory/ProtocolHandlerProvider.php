@@ -117,7 +117,6 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
             accessControl: $this->options->getAccessControl(),
             schema: $this->options->getSchema(),
             limits: $this->options->makeSearchLimits(),
-            eventLogger: $this->eventLogger,
         );
     }
 
@@ -158,7 +157,6 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
             requestHistory: $this->requestHistory,
             schema: $this->options->getSchema(),
             limits: $this->options->makeSearchLimits(),
-            eventLogger: $this->eventLogger,
         );
     }
 }

@@ -38,6 +38,8 @@ use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
+use FreeDSx\Ldap\Server\Operation\OperationOutcome;
+use FreeDSx\Ldap\Server\Operation\SearchOperationResult;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use Generator;
@@ -138,7 +140,7 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('evaluate')
             ->willReturn(true);
 
-        $this->subject->handleRequest(
+        $result = $this->subject->handleRequest(
             $search,
             $this->mockToken,
         );
@@ -151,6 +153,11 @@ final class ServerSearchHandlerTest extends TestCase
                 new SearchResultDone(0, 'dc=foo,dc=bar'),
             ),
         ]);
+        self::assertInstanceOf(SearchOperationResult::class, $result);
+        self::assertSame(
+            OperationOutcome::Succeeded,
+            $result->outcome(),
+        );
     }
 
     public function test_entry_stripped_by_acl_is_excluded_when_it_no_longer_matches_filter(): void
@@ -214,7 +221,7 @@ final class ServerSearchHandlerTest extends TestCase
                 ),
             );
 
-        $this->subject->handleRequest(
+        $result = $this->subject->handleRequest(
             $search,
             $this->mockToken,
         );
@@ -229,6 +236,11 @@ final class ServerSearchHandlerTest extends TestCase
                 ),
             ),
         ]);
+        self::assertInstanceOf(SearchOperationResult::class, $result);
+        self::assertSame(
+            OperationOutcome::Failed,
+            $result->outcome(),
+        );
     }
 
     public function test_it_should_return_size_limit_exceeded_with_partial_results_when_limit_is_hit(): void

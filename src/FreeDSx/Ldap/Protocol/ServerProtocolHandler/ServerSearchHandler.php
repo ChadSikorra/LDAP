@@ -27,9 +27,8 @@ use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
-use FreeDSx\Ldap\Server\Logging\EventLogger;
-use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
+use FreeDSx\Ldap\Server\Operation\SearchOperationResult;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use Generator;
@@ -54,7 +53,6 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         private readonly AccessControlInterface $accessControl,
         private readonly Schema $schema,
         private readonly SearchLimits $limits = new SearchLimits(),
-        private readonly EventLogger $eventLogger = new EventLogger(null),
     ) {}
 
     /**
@@ -66,7 +64,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
     ): OperationResult {
         $request = $this->getSearchRequestFromMessage($message);
         $state = new SearchResultState();
-        $isSuccessful = true;
+        $failure = null;
 
         try {
             $this->assertBaseDnProvided($request);
@@ -94,7 +92,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                 $state,
             );
         } catch (OperationException $e) {
-            $isSuccessful = false;
+            $failure = $e;
             $matchedDn = $this->filterMatchedDn(
                 $e->getMatchedDn(),
                 $token,
@@ -107,11 +105,6 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                     ? $matchedDn->toString()
                     : '',
                 $e->getMessage(),
-            );
-            $this->eventLogger->recordSearchFailure(
-                $message,
-                $e,
-                $token,
             );
         }
 
@@ -127,17 +120,15 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
             ...$responseControls,
         );
 
-        if ($isSuccessful) {
-            $this->eventLogger->recordSearchSuccess(
+        return $failure !== null
+            ? SearchOperationResult::failure(
+                $message,
+                $failure,
+            )
+            : SearchOperationResult::success(
                 $message,
                 $state->entriesReturned,
-                $token,
             );
-        }
-
-        return $isSuccessful
-            ? OperationOutcomeResult::succeeded()
-            : OperationOutcomeResult::failed();
     }
 
     /**
