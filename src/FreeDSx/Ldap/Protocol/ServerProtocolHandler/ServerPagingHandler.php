@@ -25,15 +25,14 @@ use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
-use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Paging\PagingRequest;
 use FreeDSx\Ldap\Server\Paging\PagingRequestComparator;
 use FreeDSx\Ldap\Server\Paging\PagingResponse;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
-use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
+use FreeDSx\Ldap\Server\Operation\SearchOperationResult;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use Generator;
@@ -58,7 +57,6 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         private readonly Schema $schema,
         private readonly PagingRequestComparator $requestComparator = new PagingRequestComparator(),
         private readonly SearchLimits $limits = new SearchLimits(),
-        private readonly EventLogger $eventLogger = new EventLogger(null),
     ) {}
 
     /**
@@ -74,6 +72,8 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
 
         $response = null;
         $controls = [];
+        $entriesReturned = 0;
+        $failure = null;
         try {
             $this->assertBaseDnProvided($searchRequest);
             $response = $this->handlePaging(
@@ -99,7 +99,9 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
                         : $pagingRequest->getNextCookie(),
                 );
             }
+            $entriesReturned = $response->getEntries()->count();
         } catch (OperationException $e) {
+            $failure = $e;
             $matchedDn = $this->filterMatchedDn(
                 $e->getMatchedDn(),
                 $token,
@@ -114,19 +116,6 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
                 $e->getMessage(),
             );
             $controls[] = new PagingControl(0, '');
-            $this->eventLogger->recordSearchFailure(
-                $message,
-                $e,
-                $token,
-            );
-        }
-
-        if ($response !== null) {
-            $this->eventLogger->recordSearchSuccess(
-                $message,
-                $response->getEntries()->count(),
-                $token,
-            );
         }
 
         $sortControl = $this->sortingControl($message);
@@ -159,9 +148,15 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             ...$controls,
         );
 
-        return $response !== null
-            ? OperationOutcomeResult::succeeded()
-            : OperationOutcomeResult::failed();
+        return $failure !== null
+            ? SearchOperationResult::failure(
+                $message,
+                $failure,
+            )
+            : SearchOperationResult::success(
+                $message,
+                $entriesReturned,
+            );
     }
 
     /**

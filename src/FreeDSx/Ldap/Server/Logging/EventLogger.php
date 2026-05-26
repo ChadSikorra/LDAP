@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Logging;
 
 use FreeDSx\Ldap\Exception\OperationException;
-use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
@@ -148,68 +147,6 @@ final readonly class EventLogger
             $subject,
             $message,
         );
-    }
-
-    public function recordSearchSuccess(
-        LdapMessageRequest $message,
-        int $entriesReturned,
-        TokenInterface $token,
-    ): void {
-        $request = $message->getRequest();
-
-        if (!$request instanceof SearchRequest) {
-            return;
-        }
-
-        $this->record(
-            ServerEvent::SearchAuthorized,
-            [
-                EventContext::ENTRIES_RETURNED => $entriesReturned,
-                EventContext::TARGET => self::searchTarget($request),
-            ],
-            subject: $token,
-            message: $message,
-        );
-    }
-
-    public function recordSearchFailure(
-        LdapMessageRequest $message,
-        OperationException $exception,
-        TokenInterface $token,
-    ): void {
-        $event = ServerEvent::fromOperationException(
-            $exception,
-            ServerEvent::AuthorizationDeniedRead,
-        );
-
-        if ($event === null) {
-            return;
-        }
-
-        $request = $message->getRequest();
-
-        if (!$request instanceof SearchRequest) {
-            return;
-        }
-
-        $this->recordFailure(
-            $event,
-            $exception,
-            [EventContext::TARGET => self::searchTarget($request)],
-            subject: $token,
-            message: $message,
-        );
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private static function searchTarget(SearchRequest $request): array
-    {
-        return [
-            EventContext::BASE_DN => (string) $request->getBaseDn(),
-            EventContext::SCOPE => $request->getScope(),
-        ];
     }
 
     /**

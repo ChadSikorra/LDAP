@@ -50,14 +50,14 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
      */
     private const PRIVILEGED_CONTROLS = [Control::OID_RELAX_RULES];
 
-    private OperationAuditor $writeAuditRecorder;
+    private OperationAuditor $auditor;
 
     public function __construct(
         private HandlerRouteResolverInterface $routeResolver,
         private AccessControlInterface $accessControl,
-        private EventLogger $eventLogger = new EventLogger(null),
+        EventLogger $eventLogger = new EventLogger(null),
     ) {
-        $this->writeAuditRecorder = new OperationAuditor($eventLogger);
+        $this->auditor = new OperationAuditor($eventLogger);
     }
 
     /**
@@ -113,7 +113,7 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
                 $baseDn,
             );
         } catch (OperationException $e) {
-            $this->eventLogger->recordSearchFailure(
+            $this->auditor->recordSearchFailure(
                 $message,
                 $e,
                 $token,
@@ -158,7 +158,7 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
                 $token,
             );
         } catch (OperationException $e) {
-            $this->writeAuditRecorder->recordFailure(
+            $this->auditor->recordFailure(
                 $message,
                 $e,
                 $token,

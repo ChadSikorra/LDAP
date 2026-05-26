@@ -21,6 +21,7 @@ use FreeDSx\Ldap\Operation\Request\DeleteRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
+use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
@@ -83,6 +84,57 @@ final readonly class OperationAuditor
                     EventContext::ATTRIBUTE => $request->getFilter()->getAttribute(),
                 ],
             ],
+            subject: $token,
+            message: $message,
+        );
+    }
+
+    public function recordSearchSuccess(
+        LdapMessageRequest $message,
+        int $entriesReturned,
+        TokenInterface $token,
+    ): void {
+        $request = $message->getRequest();
+
+        if (!$request instanceof SearchRequest) {
+            return;
+        }
+
+        $this->eventLogger->record(
+            ServerEvent::SearchAuthorized,
+            [
+                EventContext::ENTRIES_RETURNED => $entriesReturned,
+                EventContext::TARGET => $this->searchTarget($request),
+            ],
+            subject: $token,
+            message: $message,
+        );
+    }
+
+    public function recordSearchFailure(
+        LdapMessageRequest $message,
+        OperationException $exception,
+        TokenInterface $token,
+    ): void {
+        $event = ServerEvent::fromOperationException(
+            $exception,
+            ServerEvent::AuthorizationDeniedRead,
+        );
+
+        if ($event === null) {
+            return;
+        }
+
+        $request = $message->getRequest();
+
+        if (!$request instanceof SearchRequest) {
+            return;
+        }
+
+        $this->eventLogger->recordFailure(
+            $event,
+            $exception,
+            [EventContext::TARGET => $this->searchTarget($request)],
             subject: $token,
             message: $message,
         );
@@ -152,6 +204,17 @@ final readonly class OperationAuditor
             $context,
             $extra,
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function searchTarget(SearchRequest $request): array
+    {
+        return [
+            EventContext::BASE_DN => (string) $request->getBaseDn(),
+            EventContext::SCOPE => $request->getScope(),
+        ];
     }
 
     /**

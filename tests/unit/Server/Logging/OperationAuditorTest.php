@@ -25,9 +25,11 @@ use FreeDSx\Ldap\Operation\Request\DeleteRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
+use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
+use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\Backend\Write\SchemaViolationDisposition;
 use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
 use FreeDSx\Ldap\Server\Logging\EventContext;
@@ -207,6 +209,58 @@ final class OperationAuditorTest extends TestCase
                 EventContext::ATTRIBUTE => 'cn',
             ],
             $record['context'][EventContext::TARGET],
+        );
+    }
+
+    public function test_record_search_success_carries_entries_and_target(): void
+    {
+        $request = (new SearchRequest(Filters::present('cn')))->base('dc=example,dc=com');
+
+        $this->subject->recordSearchSuccess(
+            self::wrap($request),
+            42,
+            $this->token,
+        );
+
+        $record = $this->onlyRecord();
+        self::assertSame(
+            'search.authorized',
+            $record['message'],
+        );
+        self::assertSame(
+            42,
+            $record['context'][EventContext::ENTRIES_RETURNED],
+        );
+        self::assertSame(
+            [
+                EventContext::BASE_DN => 'dc=example,dc=com',
+                EventContext::SCOPE => $request->getScope(),
+            ],
+            $record['context'][EventContext::TARGET],
+        );
+    }
+
+    public function test_record_search_failure_discriminates_a_read_denial(): void
+    {
+        $request = (new SearchRequest(Filters::present('cn')))->base('dc=example,dc=com');
+
+        $this->subject->recordSearchFailure(
+            self::wrap($request),
+            new OperationException(
+                'Denied',
+                ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+            ),
+            $this->token,
+        );
+
+        $record = $this->onlyRecord();
+        self::assertSame(
+            'authz.denied.read',
+            $record['message'],
+        );
+        self::assertSame(
+            ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+            $record['context'][EventContext::RESULT_CODE],
         );
     }
 
