@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Protocol\Factory\HandlerRouteResolverInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 
 use function in_array;
 use function sprintf;
@@ -43,7 +44,7 @@ final readonly class CriticalControlMiddleware implements MiddlewareInterface
     public function process(
         ServerRequestContext $context,
         MiddlewareHandlerInterface $next,
-    ): void {
+    ): OperationResult {
         $controls = $context->message->controls();
         $routeId = $this->routeResolver->routeIdFor(
             $context->message->getRequest(),
@@ -57,7 +58,7 @@ final readonly class CriticalControlMiddleware implements MiddlewareInterface
             );
         }
 
-        $next->handle($context);
+        return $next->handle($context);
     }
 
     /**

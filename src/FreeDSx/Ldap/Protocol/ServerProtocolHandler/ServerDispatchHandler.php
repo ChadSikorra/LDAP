@@ -27,7 +27,9 @@ use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
 use FreeDSx\Ldap\Server\Backend\Write\WriteCommandFactory;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
-use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Operation\CompareOperationResult;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
+use FreeDSx\Ldap\Server\Operation\WriteOperationResult;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
@@ -45,7 +47,6 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         private LdapBackendInterface $backend,
         private WriteOperationDispatcher $writeDispatcher,
         private AccessControlInterface $accessControl,
-        private DispatchEventRecorder $eventRecorder = new DispatchEventRecorder(new EventLogger(null)),
         private WriteCommandFactory $commandFactory = new WriteCommandFactory(),
         private ResponseFactory $responseFactory = new ResponseFactory(),
         private ?PasswordPolicyContext $passwordPolicyContext = null,
@@ -59,7 +60,7 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): void {
+    ): OperationResult {
         $this->passwordPolicyContext?->clear();
         $schemaViolations = new SchemaViolations();
 
@@ -74,13 +75,11 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                         ? ResultCode::COMPARE_TRUE
                         : ResultCode::COMPARE_FALSE,
                 ));
-                $this->eventRecorder->recordCompareCompleted(
+
+                return CompareOperationResult::completed(
                     $message,
                     $match,
-                    $token,
                 );
-
-                return;
             }
 
             $this->writeDispatcher->dispatch(
@@ -91,11 +90,6 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                     schemaViolations: $schemaViolations,
                 ),
             );
-            $this->eventRecorder->recordSchemaViolations(
-                $schemaViolations,
-                $message,
-                $token,
-            );
 
             $successControl = $this->passwordPolicyControl();
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(
@@ -105,9 +99,10 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                 null,
                 ...($successControl === null ? [] : [$successControl]),
             ));
-            $this->eventRecorder->recordWriteSuccess(
+
+            return WriteOperationResult::success(
                 $message,
-                $token,
+                $schemaViolations,
             );
         } catch (OperationException $e) {
             $errorControl = $this->passwordPolicyControl();
@@ -123,15 +118,11 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                 ),
                 ...($errorControl === null ? [] : [$errorControl]),
             ));
-            $this->eventRecorder->recordSchemaViolations(
-                $schemaViolations,
-                $message,
-                $token,
-            );
-            $this->eventRecorder->recordFailure(
+
+            return WriteOperationResult::failure(
                 $message,
                 $e,
-                $token,
+                $schemaViolations,
             );
         }
     }

@@ -32,6 +32,8 @@ use FreeDSx\Ldap\Server\Paging\PagingRequestComparator;
 use FreeDSx\Ldap\Server\Paging\PagingResponse;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
+use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use Generator;
@@ -66,7 +68,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): void {
+    ): OperationResult {
         $pagingRequest = $this->findOrMakePagingRequest($message);
         $searchRequest = $this->getSearchRequestFromMessage($message);
 
@@ -156,6 +158,10 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $this->queue,
             ...$controls,
         );
+
+        return $response !== null
+            ? OperationOutcomeResult::succeeded()
+            : OperationOutcomeResult::failed();
     }
 
     /**

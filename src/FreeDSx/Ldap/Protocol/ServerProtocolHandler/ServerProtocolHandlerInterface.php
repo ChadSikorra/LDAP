@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
 
@@ -27,7 +28,7 @@ use FreeDSx\Socket\Exception\ConnectionException;
 interface ServerProtocolHandlerInterface
 {
     /**
-     * Handle protocol actions specific to the request received.
+     * Handle protocol actions specific to the request received and return its outcome.
      *
      * @throws OperationException
      * @throws ConnectionException
@@ -35,5 +36,5 @@ interface ServerProtocolHandlerInterface
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): void;
+    ): OperationResult;
 }

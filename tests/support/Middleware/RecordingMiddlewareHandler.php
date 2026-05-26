@@ -15,6 +15,8 @@ namespace Tests\Support\FreeDSx\Ldap\Middleware;
 
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
+use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 
 /**
  * Terminal handler that records its invocation and captures the received context.
@@ -30,9 +32,11 @@ final class RecordingMiddlewareHandler implements MiddlewareHandlerInterface
         private readonly string $label = 'terminal',
     ) {}
 
-    public function handle(ServerRequestContext $context): void
+    public function handle(ServerRequestContext $context): OperationResult
     {
         $this->received = $context;
         $this->log->record($this->label);
+
+        return OperationOutcomeResult::succeeded();
     }
 }

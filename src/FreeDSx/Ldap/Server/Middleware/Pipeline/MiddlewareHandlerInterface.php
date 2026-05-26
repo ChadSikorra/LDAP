@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Middleware\Pipeline;
 
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Socket\Exception\ConnectionException;
 
 /**
@@ -28,5 +29,5 @@ interface MiddlewareHandlerInterface
      * @throws OperationException
      * @throws ConnectionException
      */
-    public function handle(ServerRequestContext $context): void;
+    public function handle(ServerRequestContext $context): OperationResult;
 }

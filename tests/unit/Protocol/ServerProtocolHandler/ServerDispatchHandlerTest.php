@@ -35,6 +35,9 @@ use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Backend\Write\WriteRequestInterface;
+use FreeDSx\Ldap\Server\Operation\CompareOperationResult;
+use FreeDSx\Ldap\Server\Operation\OperationOutcome;
+use FreeDSx\Ldap\Server\Operation\WriteOperationResult;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -86,7 +89,13 @@ final class ServerDispatchHandlerTest extends TestCase
             ->method('handle')
             ->with(self::isInstanceOf(WriteRequestInterface::class));
 
-        $this->subject->handleRequest($add, $this->mockToken);
+        $result = $this->subject->handleRequest($add, $this->mockToken);
+
+        self::assertInstanceOf(WriteOperationResult::class, $result);
+        self::assertSame(
+            OperationOutcome::Succeeded,
+            $result->outcome(),
+        );
     }
 
     public function test_it_sends_error_response_for_operation_exceptions_from_the_write_handler(): void
@@ -109,7 +118,13 @@ final class ServerDispatchHandlerTest extends TestCase
             }))
             ->willReturnSelf();
 
-        $this->subject->handleRequest($add, $this->mockToken);
+        $result = $this->subject->handleRequest($add, $this->mockToken);
+
+        self::assertInstanceOf(WriteOperationResult::class, $result);
+        self::assertSame(
+            OperationOutcome::Failed,
+            $result->outcome(),
+        );
     }
 
     public function test_it_delegates_compare_to_the_backend(): void
@@ -130,7 +145,9 @@ final class ServerDispatchHandlerTest extends TestCase
             )
             ->willReturn(true);
 
-        $this->subject->handleRequest($compare, $this->mockToken);
+        $result = $this->subject->handleRequest($compare, $this->mockToken);
+
+        self::assertInstanceOf(CompareOperationResult::class, $result);
     }
 
     public function test_it_sends_error_response_for_operation_exceptions_from_backend_compare(): void

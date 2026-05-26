@@ -11,27 +11,38 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Tests\Support\FreeDSx\Ldap\Middleware;
+namespace FreeDSx\Ldap\Server\Middleware;
 
+use FreeDSx\Ldap\Server\Logging\OperationAuditor;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
+use FreeDSx\Ldap\Server\Operation\AuditableResult;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
-use Throwable;
 
 /**
- * Throws the given throwable before reaching the next handler.
+ * Audits the operation outcome the handler propagates back up the pipeline.
  *
+ * @internal
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final readonly class ThrowingMiddleware implements MiddlewareInterface
+final readonly class OperationAuditMiddleware implements MiddlewareInterface
 {
-    public function __construct(private Throwable $throwable) {}
+    public function __construct(private OperationAuditor $auditor) {}
 
     public function process(
         ServerRequestContext $context,
         MiddlewareHandlerInterface $next,
     ): OperationResult {
-        throw $this->throwable;
+        $result = $next->handle($context);
+
+        if ($result instanceof AuditableResult) {
+            $result->record(
+                $this->auditor,
+                $context->token,
+            );
+        }
+
+        return $result;
     }
 }

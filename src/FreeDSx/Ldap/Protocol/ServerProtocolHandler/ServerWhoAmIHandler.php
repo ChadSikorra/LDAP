@@ -21,6 +21,8 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
@@ -40,7 +42,7 @@ class ServerWhoAmIHandler implements ServerProtocolHandlerInterface
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): void {
+    ): OperationResult {
         $userId = null;
 
         if ($token instanceof AuthenticatedTokenInterface) {
@@ -58,5 +60,7 @@ class ServerWhoAmIHandler implements ServerProtocolHandlerInterface
             $message->getMessageId(),
             new ExtendedResponse(new LdapResult(ResultCode::SUCCESS), null, $userId),
         ));
+
+        return OperationOutcomeResult::succeeded();
     }
 }

@@ -20,6 +20,8 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -38,10 +40,12 @@ readonly class ServerCancelHandler implements ServerProtocolHandlerInterface
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): void {
+    ): OperationResult {
         $this->queue->sendMessage(new LdapMessageResponse(
             $message->getMessageId(),
             new ExtendedResponse(new LdapResult(ResultCode::NO_SUCH_OPERATION)),
         ));
+
+        return OperationOutcomeResult::failed();
     }
 }

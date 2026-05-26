@@ -15,6 +15,8 @@ namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -32,7 +34,9 @@ class ServerUnbindHandler implements ServerProtocolHandlerInterface
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): void {
+    ): OperationResult {
         $this->queue->close();
+
+        return OperationOutcomeResult::succeeded();
     }
 }

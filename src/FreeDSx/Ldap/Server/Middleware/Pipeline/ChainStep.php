@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Middleware\Pipeline;
 
+use FreeDSx\Ldap\Server\Operation\OperationResult;
+
 /**
  * Binds a single middleware to the next handler in the chain.
  *
@@ -26,9 +28,9 @@ final readonly class ChainStep implements MiddlewareHandlerInterface
         private MiddlewareHandlerInterface $next,
     ) {}
 
-    public function handle(ServerRequestContext $context): void
+    public function handle(ServerRequestContext $context): OperationResult
     {
-        $this->middleware->process(
+        return $this->middleware->process(
             $context,
             $this->next,
         );

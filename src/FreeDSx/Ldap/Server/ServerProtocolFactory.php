@@ -41,7 +41,9 @@ use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Logging\OperationAuditor;
 use FreeDSx\Ldap\Server\Middleware\CriticalControlMiddleware;
+use FreeDSx\Ldap\Server\Middleware\OperationAuditMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationAuthorizationMiddleware;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\HandlerInvoker;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareChain;
@@ -162,6 +164,7 @@ class ServerProtocolFactory
                         $this->options->getAccessControl(),
                         $eventLogger,
                     ),
+                    new OperationAuditMiddleware(new OperationAuditor($eventLogger)),
                 ],
                 new HandlerInvoker($handlerProvider),
             ),

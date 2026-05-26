@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Middleware\Pipeline;
 
 use FreeDSx\Ldap\Protocol\Factory\ProtocolHandlerProviderInterface;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 
 /**
  * Terminal handler that resolves and invokes the per-request protocol handler.
@@ -25,13 +26,14 @@ final readonly class HandlerInvoker implements MiddlewareHandlerInterface
 {
     public function __construct(private ProtocolHandlerProviderInterface $protocolHandlerProvider) {}
 
-    public function handle(ServerRequestContext $context): void
+    public function handle(ServerRequestContext $context): OperationResult
     {
         $handler = $this->protocolHandlerProvider->get(
             $context->message->getRequest(),
             $context->message->controls(),
         );
-        $handler->handleRequest(
+
+        return $handler->handleRequest(
             $context->message,
             $context->token,
         );

@@ -24,6 +24,8 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\RequestContext;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
@@ -61,7 +63,7 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): void {
+    ): OperationResult {
         $entry = Entry::fromArray('', [
             'namingContexts' => $this->options->getDseNamingContexts(),
             'subschemaSubentry' => [$this->options->getSubschemaEntry()->toString()],
@@ -121,6 +123,8 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
                 new SearchResultDone(ResultCode::SUCCESS),
             ),
         );
+
+        return OperationOutcomeResult::succeeded();
     }
 
     /**

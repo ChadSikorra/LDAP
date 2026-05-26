@@ -23,6 +23,8 @@ use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Schema\Definition\AttributeTypeOid;
 use FreeDSx\Ldap\Schema\Definition\ObjectClassOid;
 use FreeDSx\Ldap\Schema\Schema;
+use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Ldap\ServerOptions;
 
@@ -41,7 +43,7 @@ class ServerSubschemaHandler implements ServerProtocolHandlerInterface
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): void {
+    ): OperationResult {
         $schemaDn = $this->options->getSubschemaEntry();
         $rdn = $schemaDn->getRdn();
         $schema = $this->options->getSchema();
@@ -84,6 +86,8 @@ class ServerSubschemaHandler implements ServerProtocolHandlerInterface
                 new SearchResultDone(ResultCode::SUCCESS),
             ),
         );
+
+        return OperationOutcomeResult::succeeded();
     }
 
     /**
