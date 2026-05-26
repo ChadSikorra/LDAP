@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol;
 
 use FreeDSx\Asn1\Encoder\BerEncoder;
+use FreeDSx\Asn1\Encoder\EncoderOptions;
 use FreeDSx\Asn1\Type\AbstractType;
 
 /**
@@ -31,9 +32,9 @@ class LdapEncoder extends BerEncoder
     /**
      * {@inheritdoc}
      */
-    public function __construct()
+    public function __construct(EncoderOptions $options = new EncoderOptions())
     {
-        parent::__construct();
+        parent::__construct($options);
         $this->setTagMap(AbstractType::TAG_CLASS_APPLICATION, [
             0 => AbstractType::TAG_TYPE_SEQUENCE,
             1 => AbstractType::TAG_TYPE_SEQUENCE,

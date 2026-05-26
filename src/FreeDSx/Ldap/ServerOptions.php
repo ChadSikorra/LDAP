@@ -98,6 +98,11 @@ final class ServerOptions
 
     private int $idleTimeout = 600;
 
+    /**
+     * The largest incoming request PDU accepted, in bytes (5 MiB); 0 disables the limit.
+     */
+    private int $maxRequestSize = 5_242_880;
+
     private bool $requireAuthentication = true;
 
     private bool $allowAnonymous = false;
@@ -237,6 +242,18 @@ final class ServerOptions
     public function setIdleTimeout(int $idleTimeout): self
     {
         $this->idleTimeout = $idleTimeout;
+
+        return $this;
+    }
+
+    public function getMaxRequestSize(): int
+    {
+        return $this->maxRequestSize;
+    }
+
+    public function setMaxRequestSize(int $maxRequestSize): self
+    {
+        $this->maxRequestSize = $maxRequestSize;
 
         return $this;
     }

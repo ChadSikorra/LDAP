@@ -106,9 +106,10 @@ class ServerProtocolHandler
         } catch (ConnectionException) {
             # Connection closure is recorded by the runner's lifecycle logging; no audit event for normal client disconnects.
         } catch (EncoderException|ProtocolException) {
-            # Per RFC 4511, 4.1.1 if the PDU cannot be parsed or is otherwise malformed a disconnect should be sent with
-            # a result code of protocol error. The NoticeOfDisconnectSent event records the malformed-PDU reason.
-            $this->sendNoticeOfDisconnect('The message encoding is malformed.');
+            # Per RFC 4511 §4.1.1, a PDU that cannot be processed — malformed, or rejected for exceeding the configured
+            # size cap (RequestSizeExceededException) — warrants a disconnect with a protocol error. The
+            # NoticeOfDisconnectSent event records the specific reason.
+            $this->sendNoticeOfDisconnect('The message could not be processed.');
         } catch (Throwable $e) {
             if ($this->queue->isConnected()) {
                 $this->sendNoticeOfDisconnect(cause: $e);

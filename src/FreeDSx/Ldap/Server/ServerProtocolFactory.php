@@ -73,7 +73,10 @@ class ServerProtocolFactory
         Socket $socket,
         ConnectionContext $context = new ConnectionContext(),
     ): ServerProtocolHandler {
-        $serverQueue = new ServerQueue($socket);
+        $serverQueue = new ServerQueue(
+            $socket,
+            maxReceiveSize: $this->options->getMaxRequestSize(),
+        );
         $eventLogger = new EventLogger(
             $this->options->getLogger(),
             $this->options->getEventLogPolicy(),

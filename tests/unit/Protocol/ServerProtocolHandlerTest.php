@@ -19,6 +19,7 @@ use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
 use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\ProtocolException;
+use FreeDSx\Ldap\Exception\RequestSizeExceededException;
 use FreeDSx\Ldap\Exception\ResponseAlreadySentException;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Request\AnonBindRequest;
@@ -228,7 +229,26 @@ final class ServerProtocolHandlerTest extends TestCase
             ->method('sendMessage')
             ->with($this->equalTo(
                 new LdapMessageResponse(0, new ExtendedResponse(
-                    new LdapResult(ResultCode::PROTOCOL_ERROR, '', 'The message encoding is malformed.'),
+                    new LdapResult(ResultCode::PROTOCOL_ERROR, '', 'The message could not be processed.'),
+                    ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
+                )),
+            ));
+
+        $this->subject->handle();
+    }
+
+    public function test_it_should_send_a_notice_of_disconnect_when_a_request_exceeds_the_max_size(): void
+    {
+        $this->mockQueue
+            ->method('getMessage')
+            ->willThrowException(new RequestSizeExceededException('too big'));
+
+        $this->mockQueue
+            ->expects($this->once())
+            ->method('sendMessage')
+            ->with($this->equalTo(
+                new LdapMessageResponse(0, new ExtendedResponse(
+                    new LdapResult(ResultCode::PROTOCOL_ERROR, '', 'The message could not be processed.'),
                     ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
                 )),
             ));
@@ -260,7 +280,7 @@ final class ServerProtocolHandlerTest extends TestCase
             ->method('sendMessage')
             ->with($this->equalTo(
                 new LdapMessageResponse(0, new ExtendedResponse(
-                    new LdapResult(ResultCode::PROTOCOL_ERROR, '', 'The message encoding is malformed.'),
+                    new LdapResult(ResultCode::PROTOCOL_ERROR, '', 'The message could not be processed.'),
                     ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
                 )),
             ));
