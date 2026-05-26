@@ -28,6 +28,8 @@ use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
+use FreeDSx\Ldap\Server\Operation\OperationOutcome;
+use FreeDSx\Ldap\Server\Operation\PasswordModifyOperationResult;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyService;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
 use FreeDSx\Ldap\Server\Token\AnonToken;
@@ -97,12 +99,18 @@ final class ServerPasswordModifyHandlerTest extends TestCase
                 && $r->getResponse()->getGeneratedPassword() === null,
             ));
 
-        $this->subject->handleRequest(
+        $result = $this->subject->handleRequest(
             new LdapMessageRequest(
                 1,
                 new PasswordModifyRequest(null, '12345', 'newpass'),
             ),
             $this->userToken,
+        );
+
+        self::assertInstanceOf(PasswordModifyOperationResult::class, $result);
+        self::assertSame(
+            OperationOutcome::Succeeded,
+            $result->outcome(),
         );
     }
 
@@ -162,12 +170,18 @@ final class ServerPasswordModifyHandlerTest extends TestCase
                 && $r->getResponse()->getResultCode() === ResultCode::INVALID_CREDENTIALS,
             ));
 
-        $this->subject->handleRequest(
+        $result = $this->subject->handleRequest(
             new LdapMessageRequest(
                 1,
                 new PasswordModifyRequest(null, 'wrongpass', 'newpass'),
             ),
             $this->userToken,
+        );
+
+        self::assertInstanceOf(PasswordModifyOperationResult::class, $result);
+        self::assertSame(
+            OperationOutcome::Failed,
+            $result->outcome(),
         );
     }
 }

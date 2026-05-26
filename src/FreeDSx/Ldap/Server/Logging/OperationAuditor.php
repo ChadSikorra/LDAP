@@ -140,6 +140,52 @@ final readonly class OperationAuditor
         );
     }
 
+    public function recordPasswordModifySuccess(
+        LdapMessageRequest $message,
+        Dn $targetDn,
+        TokenInterface $token,
+    ): void {
+        $this->eventLogger->record(
+            ServerEvent::PasswordModifySuccess,
+            [
+                EventContext::TARGET => [EventContext::DN => $targetDn->toString()],
+            ],
+            subject: $token,
+            message: $message,
+        );
+    }
+
+    public function recordPasswordModifyFailure(
+        LdapMessageRequest $message,
+        OperationException $exception,
+        ?Dn $targetDn,
+        TokenInterface $token,
+    ): void {
+        $event = ServerEvent::fromOperationException(
+            $exception,
+            ServerEvent::AuthorizationDeniedWrite,
+            ServerEvent::PasswordModifyFailed,
+        );
+
+        if ($event === null) {
+            return;
+        }
+
+        $context = [];
+
+        if ($targetDn !== null) {
+            $context[EventContext::TARGET] = [EventContext::DN => $targetDn->toString()];
+        }
+
+        $this->eventLogger->recordFailure(
+            $event,
+            $exception,
+            $context,
+            subject: $token,
+            message: $message,
+        );
+    }
+
     public function recordFailure(
         LdapMessageRequest $message,
         OperationException $exception,
