@@ -15,7 +15,6 @@ namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Control\Control;
-use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
@@ -26,11 +25,8 @@ use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
-use FreeDSx\Ldap\Server\Logging\EventContext;
-use FreeDSx\Ldap\Server\Logging\EventLogger;
-use FreeDSx\Ldap\Server\Logging\ServerEvent;
-use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
+use FreeDSx\Ldap\Server\Operation\PasswordModifyOperationResult;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyResult;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyService;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
@@ -47,7 +43,6 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
     public function __construct(
         private ServerQueue $queue,
         private PasswordModifyService $service,
-        private EventLogger $eventLogger = new EventLogger(null),
         private ResponseFactory $responseFactory = new ResponseFactory(),
         private ?PasswordPolicyContext $passwordPolicyContext = null,
     ) {}
@@ -83,26 +78,18 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
                 null,
                 ...($control === null ? [] : [$control]),
             ));
-            $this->recordFailure(
-                $e,
-                $token,
-                $targetDn,
-                $message,
-            );
 
-            return OperationOutcomeResult::failed();
+            return PasswordModifyOperationResult::failure(
+                $message,
+                $e,
+                $targetDn,
+            );
         }
 
-        $this->eventLogger->record(
-            ServerEvent::PasswordModifySuccess,
-            [
-                EventContext::TARGET => [EventContext::DN => $targetDn->toString()],
-            ],
-            subject: $token,
-            message: $message,
+        return PasswordModifyOperationResult::success(
+            $message,
+            $targetDn,
         );
-
-        return OperationOutcomeResult::succeeded();
     }
 
     /**
@@ -150,36 +137,5 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
         $this->passwordPolicyContext?->clear();
 
         return $control;
-    }
-
-    private function recordFailure(
-        OperationException $exception,
-        TokenInterface $token,
-        ?Dn $targetDn,
-        LdapMessageRequest $message,
-    ): void {
-        $event = ServerEvent::fromOperationException(
-            $exception,
-            ServerEvent::AuthorizationDeniedWrite,
-            ServerEvent::PasswordModifyFailed,
-        );
-
-        if ($event === null) {
-            return;
-        }
-
-        $context = [];
-
-        if ($targetDn !== null) {
-            $context[EventContext::TARGET] = [EventContext::DN => $targetDn->toString()];
-        }
-
-        $this->eventLogger->recordFailure(
-            $event,
-            $exception,
-            $context,
-            subject: $token,
-            message: $message,
-        );
     }
 }

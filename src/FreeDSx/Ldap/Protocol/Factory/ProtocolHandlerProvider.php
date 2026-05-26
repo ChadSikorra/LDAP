@@ -86,7 +86,6 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
                 ),
                 passwordPolicyContext: $this->passwordPolicyContext,
             ),
-            eventLogger: $this->eventLogger,
             passwordPolicyContext: $this->passwordPolicyContext,
         );
     }

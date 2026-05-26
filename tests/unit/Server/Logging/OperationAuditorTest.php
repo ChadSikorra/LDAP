@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Operation\Request\CompareRequest;
 use FreeDSx\Ldap\Operation\Request\DeleteRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyRequest;
+use FreeDSx\Ldap\Operation\Request\PasswordModifyRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
@@ -261,6 +262,66 @@ final class OperationAuditorTest extends TestCase
         self::assertSame(
             ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
             $record['context'][EventContext::RESULT_CODE],
+        );
+    }
+
+    public function test_record_password_modify_success_carries_target(): void
+    {
+        $this->subject->recordPasswordModifySuccess(
+            self::wrap(new PasswordModifyRequest(self::TARGET_DN)),
+            new Dn(self::TARGET_DN),
+            $this->token,
+        );
+
+        $record = $this->onlyRecord();
+        self::assertSame(
+            'password_modify.success',
+            $record['message'],
+        );
+        self::assertSame(
+            [EventContext::DN => self::TARGET_DN],
+            $record['context'][EventContext::TARGET],
+        );
+    }
+
+    public function test_record_password_modify_failure_falls_back_to_password_modify_failed(): void
+    {
+        $this->subject->recordPasswordModifyFailure(
+            self::wrap(new PasswordModifyRequest(self::TARGET_DN)),
+            new OperationException(
+                'Boom',
+                ResultCode::OPERATIONS_ERROR,
+            ),
+            new Dn(self::TARGET_DN),
+            $this->token,
+        );
+
+        $record = $this->onlyRecord();
+        self::assertSame(
+            'password_modify.failed',
+            $record['message'],
+        );
+        self::assertSame(
+            [EventContext::DN => self::TARGET_DN],
+            $record['context'][EventContext::TARGET],
+        );
+    }
+
+    public function test_record_password_modify_failure_omits_target_when_unresolved(): void
+    {
+        $this->subject->recordPasswordModifyFailure(
+            self::wrap(new PasswordModifyRequest()),
+            new OperationException(
+                'Boom',
+                ResultCode::OPERATIONS_ERROR,
+            ),
+            null,
+            $this->token,
+        );
+
+        self::assertArrayNotHasKey(
+            EventContext::TARGET,
+            $this->onlyRecord()['context'],
         );
     }
 
