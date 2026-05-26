@@ -15,11 +15,9 @@ namespace FreeDSx\Ldap\Server\Middleware;
 
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ControlBag;
-use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Operation\Request\CompareRequest;
-use FreeDSx\Ldap\Operation\Request\DeleteRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
@@ -28,6 +26,7 @@ use FreeDSx\Ldap\Protocol\Factory\HandlerId;
 use FreeDSx\Ldap\Protocol\Factory\HandlerRouteResolverInterface;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
+use FreeDSx\Ldap\Server\AccessControl\OperationTargetDn;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\OperationAuditor;
@@ -190,7 +189,7 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
             return;
         }
 
-        $dn = $this->dnFor($request);
+        $dn = OperationTargetDn::of($request);
 
         if ($dn === null) {
             return;
@@ -271,7 +270,7 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
         ControlBag $controls,
         TokenInterface $token,
     ): void {
-        $dn = $this->dnFor($request);
+        $dn = OperationTargetDn::of($request);
 
         if ($dn === null) {
             return;
@@ -288,17 +287,5 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
                 $oid,
             );
         }
-    }
-
-    private function dnFor(RequestInterface $request): ?Dn
-    {
-        return match (true) {
-            $request instanceof AddRequest => $request->getEntry()->getDn(),
-            $request instanceof ModifyRequest,
-            $request instanceof DeleteRequest,
-            $request instanceof ModifyDnRequest,
-            $request instanceof CompareRequest => $request->getDn(),
-            default => null,
-        };
     }
 }
