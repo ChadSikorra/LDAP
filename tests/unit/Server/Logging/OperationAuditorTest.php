@@ -11,7 +11,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
+namespace Tests\Unit\FreeDSx\Ldap\Server\Logging;
 
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Change;
@@ -27,19 +27,19 @@ use FreeDSx\Ldap\Operation\Request\ModifyRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Protocol\ServerProtocolHandler\DispatchEventRecorder;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Server\Backend\Write\SchemaViolationDisposition;
 use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
+use FreeDSx\Ldap\Server\Logging\OperationAuditor;
 use FreeDSx\Ldap\Server\Token\BindToken;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\FreeDSx\Ldap\Logging\RecordingLogger;
 
-final class DispatchEventRecorderTest extends TestCase
+final class OperationAuditorTest extends TestCase
 {
     private const TARGET_DN = 'cn=Bob,dc=example,dc=com';
 
@@ -49,14 +49,14 @@ final class DispatchEventRecorderTest extends TestCase
 
     private RecordingLogger $recordingLogger;
 
-    private DispatchEventRecorder $subject;
+    private OperationAuditor $subject;
 
     private BindToken $token;
 
     protected function setUp(): void
     {
         $this->recordingLogger = new RecordingLogger();
-        $this->subject = new DispatchEventRecorder(new EventLogger(
+        $this->subject = new OperationAuditor(new EventLogger(
             $this->recordingLogger,
             EventLogPolicy::all(),
         ));

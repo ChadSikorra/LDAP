@@ -135,7 +135,6 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
                 ? $this->handlerFactory->makeWriteDispatcher($policyWriteHandler)
                 : $this->writeDispatcher,
             accessControl: $this->options->getAccessControl(),
-            eventRecorder: new ServerProtocolHandler\DispatchEventRecorder($this->eventLogger),
             passwordPolicyContext: $this->passwordPolicyContext,
         );
     }

@@ -28,6 +28,8 @@ use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use Generator;
@@ -61,7 +63,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): void {
+    ): OperationResult {
         $request = $this->getSearchRequestFromMessage($message);
         $state = new SearchResultState();
         $isSuccessful = true;
@@ -132,6 +134,10 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                 $token,
             );
         }
+
+        return $isSuccessful
+            ? OperationOutcomeResult::succeeded()
+            : OperationOutcomeResult::failed();
     }
 
     /**

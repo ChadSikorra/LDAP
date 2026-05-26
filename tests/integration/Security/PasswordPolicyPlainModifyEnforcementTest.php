@@ -33,7 +33,6 @@ use FreeDSx\Ldap\Server\Backend\Write\PasswordPolicyWriteHandler;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerDispatchHandler;
-use FreeDSx\Ldap\Protocol\ServerProtocolHandler\DispatchEventRecorder;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\AllowUserChangeConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\HistoryConstraint;
@@ -318,7 +317,6 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
                 $this->backend,
             ),
             accessControl: $this->createMock(AccessControlInterface::class),
-            eventRecorder: new DispatchEventRecorder(new EventLogger(null)),
             passwordPolicyContext: $this->context,
         );
     }

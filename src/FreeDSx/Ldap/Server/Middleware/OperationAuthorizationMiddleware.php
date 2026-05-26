@@ -27,13 +27,14 @@ use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Protocol\Factory\HandlerId;
 use FreeDSx\Ldap\Protocol\Factory\HandlerRouteResolverInterface;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Protocol\ServerProtocolHandler\DispatchEventRecorder;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Logging\OperationAuditor;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -49,14 +50,14 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
      */
     private const PRIVILEGED_CONTROLS = [Control::OID_RELAX_RULES];
 
-    private DispatchEventRecorder $writeAuditRecorder;
+    private OperationAuditor $writeAuditRecorder;
 
     public function __construct(
         private HandlerRouteResolverInterface $routeResolver,
         private AccessControlInterface $accessControl,
         private EventLogger $eventLogger = new EventLogger(null),
     ) {
-        $this->writeAuditRecorder = new DispatchEventRecorder($eventLogger);
+        $this->writeAuditRecorder = new OperationAuditor($eventLogger);
     }
 
     /**
@@ -65,7 +66,7 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
     public function process(
         ServerRequestContext $context,
         MiddlewareHandlerInterface $next,
-    ): void {
+    ): OperationResult {
         $routeId = $this->routeResolver->routeIdFor(
             $context->message->getRequest(),
             $context->message->controls(),
@@ -83,7 +84,7 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
             );
         }
 
-        $next->handle($context);
+        return $next->handle($context);
     }
 
     /**

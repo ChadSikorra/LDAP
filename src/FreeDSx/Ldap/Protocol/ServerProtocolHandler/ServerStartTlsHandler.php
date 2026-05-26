@@ -24,6 +24,8 @@ use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
+use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\Exception\ConnectionException;
@@ -57,7 +59,7 @@ class ServerStartTlsHandler implements ServerProtocolHandlerInterface
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): void {
+    ): OperationResult {
         # RFC 4511 §4.14.2: return unavailable (not protocolError) when the server cannot negotiate TLS.
         if ($this->options->getSslCert() === null || !self::$hasOpenssl) {
             $this->queue->sendMessage(new LdapMessageResponse($message->getMessageId(), new ExtendedResponse(
@@ -77,7 +79,7 @@ class ServerStartTlsHandler implements ServerProtocolHandlerInterface
                 message: $message,
             );
 
-            return;
+            return OperationOutcomeResult::failed();
         }
         # If we are already encrypted, then consider this an operations error...
         if ($this->queue->isEncrypted()) {
@@ -94,7 +96,7 @@ class ServerStartTlsHandler implements ServerProtocolHandlerInterface
                 message: $message,
             );
 
-            return;
+            return OperationOutcomeResult::failed();
         }
 
         $this->queue->sendMessage(new LdapMessageResponse($message->getMessageId(), new ExtendedResponse(
@@ -106,5 +108,7 @@ class ServerStartTlsHandler implements ServerProtocolHandlerInterface
             ServerEvent::StartTlsSucceeded,
             message: $message,
         );
+
+        return OperationOutcomeResult::succeeded();
     }
 }

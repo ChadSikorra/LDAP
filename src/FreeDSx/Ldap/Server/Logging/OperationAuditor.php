@@ -11,7 +11,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
+namespace FreeDSx\Ldap\Server\Logging;
 
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -24,17 +24,14 @@ use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
-use FreeDSx\Ldap\Server\Logging\EventContext;
-use FreeDSx\Ldap\Server\Logging\EventLogger;
-use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
- * Builds the per-operation event shape for {@see ServerDispatchHandler} and routes it through {@see EventLogger}.
+ * Builds the per-operation event shape for dispatched operations and routes it through {@see EventLogger}.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final readonly class DispatchEventRecorder
+final readonly class OperationAuditor
 {
     public function __construct(private EventLogger $eventLogger) {}
 

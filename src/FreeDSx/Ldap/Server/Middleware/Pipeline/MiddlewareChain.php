@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Middleware\Pipeline;
 
+use FreeDSx\Ldap\Server\Operation\OperationResult;
+
 /**
  * Nests an ordered list of middleware around a terminal handler.
  *
@@ -41,8 +43,8 @@ final readonly class MiddlewareChain implements MiddlewareHandlerInterface
         $this->pipeline = $pipeline;
     }
 
-    public function handle(ServerRequestContext $context): void
+    public function handle(ServerRequestContext $context): OperationResult
     {
-        $this->pipeline->handle($context);
+        return $this->pipeline->handle($context);
     }
 }

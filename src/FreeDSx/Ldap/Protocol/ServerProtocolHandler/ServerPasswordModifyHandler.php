@@ -29,6 +29,8 @@ use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
+use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyResult;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyService;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
@@ -58,7 +60,7 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): void {
+    ): OperationResult {
         $this->passwordPolicyContext?->clear();
         $targetDn = null;
 
@@ -88,7 +90,7 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
                 $message,
             );
 
-            return;
+            return OperationOutcomeResult::failed();
         }
 
         $this->eventLogger->record(
@@ -99,6 +101,8 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
             subject: $token,
             message: $message,
         );
+
+        return OperationOutcomeResult::succeeded();
     }
 
     /**
