@@ -14,14 +14,18 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol;
 
 use FreeDSx\Asn1\Encoder\EncoderInterface;
+use FreeDSx\Asn1\Encoder\EncoderOptions;
 use FreeDSx\Asn1\Exception\EncoderException;
+use FreeDSx\Asn1\Exception\PduLengthException;
 use FreeDSx\Ldap\Exception\ProtocolException;
+use FreeDSx\Ldap\Exception\RequestSizeExceededException;
 use FreeDSx\Ldap\Exception\UnsolicitedNotificationException;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Protocol\Queue\MessageWrapperInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
 use FreeDSx\Socket\Queue\Asn1MessageQueue;
 use FreeDSx\Socket\Queue\Buffer;
+use FreeDSx\Socket\Queue\Message;
 use FreeDSx\Socket\Socket;
 
 use function strlen;
@@ -43,10 +47,11 @@ class LdapQueue extends Asn1MessageQueue
     public function __construct(
         Socket $socket,
         ?EncoderInterface $encoder = null,
+        int $maxReceiveSize = 0,
     ) {
         parent::__construct(
             $socket,
-            $encoder ?? new LdapEncoder(),
+            $encoder ?? new LdapEncoder(new EncoderOptions(maxLength: $maxReceiveSize)),
         );
     }
 
@@ -112,6 +117,23 @@ class LdapQueue extends Asn1MessageQueue
         }
 
         return $this->messageWrapper->unwrap($bytes);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @throws RequestSizeExceededException
+     */
+    protected function decode(string $bytes): Message
+    {
+        try {
+            return parent::decode($bytes);
+        } catch (PduLengthException $e) {
+            throw new RequestSizeExceededException(
+                $e->getMessage(),
+                previous: $e,
+            );
+        }
     }
 
     /**

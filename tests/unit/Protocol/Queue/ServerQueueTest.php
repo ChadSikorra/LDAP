@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Operation\Response\DeleteResponse;
 use FreeDSx\Ldap\Protocol\LdapEncoder;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
+use FreeDSx\Ldap\Exception\RequestSizeExceededException;
 use FreeDSx\Ldap\Protocol\Queue\MessageWrapperInterface;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Socket\Queue\Buffer;
@@ -254,6 +255,36 @@ final class ServerQueueTest extends TestCase
         self::assertInstanceOf(
             DeleteRequest::class,
             $result->getRequest(),
+        );
+    }
+
+    public function test_it_should_reject_a_request_whose_declared_length_exceeds_the_max_receive_size(): void
+    {
+        $socket = $this->createMock(Socket::class);
+        $socket->method('read')->willReturn(hex2bin('3084000000c8'));
+
+        $queue = new ServerQueue($socket, maxReceiveSize: 100);
+
+        $this->expectException(RequestSizeExceededException::class);
+
+        $queue->getMessage();
+    }
+
+    public function test_it_should_decode_a_request_within_the_max_receive_size(): void
+    {
+        $encoder = new LdapEncoder();
+        $bytes = $encoder->encode(
+            (new LdapMessageRequest(5, new DeleteRequest('dc=foo,dc=bar')))->toAsn1(),
+        );
+
+        $socket = $this->createMock(Socket::class);
+        $socket->method('read')->willReturn($bytes);
+
+        $queue = new ServerQueue($socket, maxReceiveSize: 5_242_880);
+
+        self::assertSame(
+            5,
+            $queue->getMessage()->getMessageId(),
         );
     }
 
