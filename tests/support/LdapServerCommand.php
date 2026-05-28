@@ -6,6 +6,7 @@ namespace Tests\Support\FreeDSx\Ldap;
 
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\Ldif\Loader\FileLdifLoader;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\MysqlStorage;
@@ -67,6 +68,13 @@ final class LdapServerCommand extends Command
                 null,
                 InputOption::VALUE_NONE,
                 'Allow anonymous bind',
+            )
+            ->addOption(
+                'seed',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Load directory data from an LDIF file via LdapServer::seed() instead of the built-in entries',
+                '',
             );
     }
 
@@ -80,6 +88,7 @@ final class LdapServerCommand extends Command
         $entryCount = (int) $this->getStringOption($input, 'entries');
         $sasl = $input->getOption('sasl') === true;
         $allowAnonymous = $input->getOption('allow-anonymous') === true;
+        $seedFile = $this->getStringOption($input, 'seed');
         $useSsl = false;
 
         if (!in_array($storageType, self::VALID_STORAGE, true)) {
@@ -108,8 +117,6 @@ final class LdapServerCommand extends Command
         }
 
         $storage = $this->createStorage($storageType);
-        $importer = new LdapImporter($storage);
-        $importer->importEntries($entries);
 
         $options = (new ServerOptions())
             ->setPort(10389)
@@ -133,6 +140,13 @@ final class LdapServerCommand extends Command
         }
 
         $server->useStorage($storage);
+
+        if ($seedFile !== '') {
+            $server->seed(new FileLdifLoader($seedFile));
+        } else {
+            (new LdapImporter($storage))->importEntries($entries);
+        }
+
         $server->run();
 
         return Command::SUCCESS;

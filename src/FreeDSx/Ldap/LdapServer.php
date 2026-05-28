@@ -13,6 +13,13 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap;
 
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Exception\InvalidArgumentException;
+use FreeDSx\Ldap\Exception\LdifParseException;
+use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Exception\RuntimeException;
+use FreeDSx\Ldap\Ldif\LdifParser;
+use FreeDSx\Ldap\Ldif\Loader\LdifLoaderInterface;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
@@ -23,6 +30,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\OperationalAttributeGenerator;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\RequestHandler\ProxyHandler;
@@ -133,10 +141,44 @@ class LdapServer
         return $this->useBackend(new WritableStorageBackend(
             storage: $storage,
             limits: $this->options->makeSearchLimits(),
-            namingContexts: $this->options->getDseNamingContexts(),
             validator: $this->buildSchemaValidator(),
+            namingContexts: $this->options->getDseNamingContexts(),
             operationalAttrs: new OperationalAttributeGenerator($schema),
         ));
+    }
+
+    /**
+     * Convenience method to bulk-load LDIF entries into the storage configured via {@see useStorage()}.
+     *
+     * The LDIF source is pluggable via {@see LdifLoaderInterface} (a file, a string, a database, etc.). Entries are
+     * validated and stamped with operational attributes the same way the live write path would.
+     *
+     * @param Dn $creatorDn DN recorded as creatorsName/modifiersName on imported entries; defaults to the anonymous (empty) DN.
+     * @throws LdifParseException when the LDIF cannot be parsed
+     * @throws RuntimeException when no storage backend is configured (or the loader fails to load)
+     * @throws InvalidArgumentException when the creator DN is malformed or an entry's parent is missing
+     * @throws OperationException when an entry violates the schema and validation mode is strict
+     */
+    public function seed(
+        LdifLoaderInterface $loader,
+        Dn $creatorDn = new Dn(''),
+    ): self {
+        $backend = $this->options->getBackend();
+
+        if (!$backend instanceof WritableStorageBackend) {
+            throw new RuntimeException('seed() requires a storage backend configured via useStorage().');
+        }
+
+        $entries = (new LdifParser())
+            ->parse($loader->load());
+        (new LdapImporter(
+            $backend->getStorage(),
+            $backend->getOperationalAttributeGenerator(),
+            $backend->getSchemaValidator(),
+            $creatorDn,
+        ))->importEntries($entries->toArray());
+
+        return $this;
     }
 
     private function buildSchemaValidator(): ?SchemaValidator

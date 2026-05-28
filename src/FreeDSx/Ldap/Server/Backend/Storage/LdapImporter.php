@@ -16,24 +16,33 @@ namespace FreeDSx\Ldap\Server\Backend\Storage;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
+use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Schema\SchemaValidationMode;
+use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 
 /**
  * Bulk-imports entries into an EntryStorageInterface under a single atomic write.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class LdapImporter
+final readonly class LdapImporter
 {
     public function __construct(
-        private readonly EntryStorageInterface $storage,
-    ) {}
+        private EntryStorageInterface $storage,
+        private OperationalAttributeGenerator $operationalAttrs = new OperationalAttributeGenerator(),
+        private ?SchemaValidator $validator = null,
+        private Dn $creatorDn = new Dn(''),
+    ) {
+        $this->assertValidCreatorDn($creatorDn);
+    }
 
     /**
      * Persist all entries in one atomic batch; no-op when the list is empty.
      *
      * @param Entry[] $entries
-     * @param bool $ignoreValidation when true, skips basic validation. only do this if you know what you're doing.
+     * @param bool $ignoreValidation when true, skips parent and schema checks. only do this if you know what you're doing.
      * @throws InvalidArgumentException when a non-top-level entry's parent is not present in storage yet
+     * @throws OperationException when an entry violates the schema and validation mode is strict
      */
     public function importEntries(
         array $entries,
@@ -50,9 +59,20 @@ final class LdapImporter
         $this->storage->atomic(function (EntryStorageInterface $storage) use ($entries, $ignoreValidation): void {
             foreach ($entries as $entry) {
                 if (!$ignoreValidation) {
-                    $this->assertParentExists($storage, $entry->getDn());
+                    $this->assertParentExists(
+                        $storage,
+                        $entry->getDn(),
+                    );
                 }
 
+                $this->validateForImport(
+                    $entry,
+                    $ignoreValidation,
+                );
+                $this->operationalAttrs->applyForBulkLoad(
+                    $entry,
+                    $this->creatorDn->toString(),
+                );
                 $storage->store($entry);
             }
         });
@@ -93,6 +113,45 @@ final class LdapImporter
             'Parent entry "%s" does not exist for "%s".',
             $parent->toString(),
             $dn->toString(),
+        ));
+    }
+
+    /**
+     * Validates a bulk-loaded entry as a system-initiated add; only strict mode rejects violations.
+     *
+     * @throws OperationException
+     */
+    private function validateForImport(
+        Entry $entry,
+        bool $ignoreValidation,
+    ): void {
+        $validator = $this->validator;
+
+        if ($ignoreValidation || $validator === null) {
+            return;
+        }
+        if ($validator->mode() !== SchemaValidationMode::Strict) {
+            return;
+        }
+
+        $validator->validateAdd(
+            $entry,
+            true,
+        );
+    }
+
+    /**
+     * @throws InvalidArgumentException when the creator DN is malformed
+     */
+    private function assertValidCreatorDn(Dn $creatorDn): void
+    {
+        if (Dn::isValid($creatorDn)) {
+            return;
+        }
+
+        throw new InvalidArgumentException(sprintf(
+            'The import creator DN "%s" is not a valid DN.',
+            $creatorDn->toString(),
         ));
     }
 }

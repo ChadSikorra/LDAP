@@ -17,9 +17,13 @@ use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
+use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Schema\SchemaValidationMode;
+use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
+use FreeDSx\Ldap\ServerOptions;
 use PHPUnit\Framework\TestCase;
 
 final class LdapImporterTest extends TestCase
@@ -117,5 +121,118 @@ final class LdapImporterTest extends TestCase
         );
 
         self::assertNotNull($storage->find(new Dn('cn=alice,dc=example,dc=com')));
+    }
+
+    public function test_importEntries_stamps_operational_attributes_by_default(): void
+    {
+        $storage = new InMemoryStorage();
+
+        (new LdapImporter($storage))->importEntries([
+            new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
+        ]);
+
+        $entry = $storage->find(new Dn('dc=example,dc=com'));
+
+        self::assertNotNull($entry);
+        self::assertMatchesRegularExpression(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/',
+            $entry->get('entryUUID')?->getValues()[0] ?? '',
+        );
+    }
+
+    public function test_importEntries_records_the_creator_dn_on_stamped_entries(): void
+    {
+        $storage = new InMemoryStorage();
+
+        (new LdapImporter(
+            $storage,
+            creatorDn: new Dn('cn=Importer,dc=example,dc=com'),
+        ))->importEntries([
+            new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
+        ]);
+
+        self::assertSame(
+            'cn=Importer,dc=example,dc=com',
+            $storage->find(new Dn('dc=example,dc=com'))?->get('creatorsName')?->getValues()[0],
+        );
+    }
+
+    public function test_construction_throws_for_an_invalid_creator_dn(): void
+    {
+        self::expectException(InvalidArgumentException::class);
+        self::expectExceptionMessage('The import creator DN "not a dn" is not a valid DN.');
+
+        new LdapImporter(
+            new InMemoryStorage(),
+            creatorDn: new Dn('not a dn'),
+        );
+    }
+
+    public function test_importEntries_rejects_a_schema_violation_in_strict_mode(): void
+    {
+        $validator = new SchemaValidator(
+            (new ServerOptions())->getSchema(),
+            SchemaValidationMode::Strict,
+        );
+
+        self::expectException(OperationException::class);
+
+        (new LdapImporter(
+            new InMemoryStorage(),
+            validator: $validator,
+        ))->importEntries([
+            new Entry(
+                new Dn('dc=example,dc=com'),
+                new Attribute('cn', 'foo'),
+                new Attribute('objectClass', 'top', 'person'),
+            ),
+        ]);
+    }
+
+    public function test_importEntries_allows_a_schema_violation_in_lenient_mode(): void
+    {
+        $storage = new InMemoryStorage();
+        $validator = new SchemaValidator(
+            (new ServerOptions())->getSchema(),
+            SchemaValidationMode::Lenient,
+        );
+
+        (new LdapImporter(
+            $storage,
+            validator: $validator,
+        ))->importEntries([
+            new Entry(
+                new Dn('dc=example,dc=com'),
+                new Attribute('cn', 'foo'),
+                new Attribute('objectClass', 'top', 'person'),
+            ),
+        ]);
+
+        self::assertNotNull($storage->find(new Dn('dc=example,dc=com')));
+    }
+
+    public function test_importEntries_ignoreValidation_skips_schema_validation_in_strict_mode(): void
+    {
+        $storage = new InMemoryStorage();
+        $validator = new SchemaValidator(
+            (new ServerOptions())->getSchema(),
+            SchemaValidationMode::Strict,
+        );
+
+        (new LdapImporter(
+            $storage,
+            validator: $validator,
+        ))->importEntries(
+            entries: [
+                new Entry(
+                    new Dn('dc=example,dc=com'),
+                    new Attribute('cn', 'foo'),
+                    new Attribute('objectClass', 'top', 'person'),
+                ),
+            ],
+            ignoreValidation: true,
+        );
+
+        self::assertNotNull($storage->find(new Dn('dc=example,dc=com')));
     }
 }

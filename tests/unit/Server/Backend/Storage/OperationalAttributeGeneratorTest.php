@@ -330,4 +330,119 @@ final class OperationalAttributeGeneratorTest extends TestCase
             'Timestamp must be in generalized time format YYYYMMDDHHmmssZ.',
         );
     }
+
+    public function test_apply_for_bulk_load_fills_entry_uuid_when_missing(): void
+    {
+        $this->subject->applyForBulkLoad($this->entry);
+
+        self::assertMatchesRegularExpression(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/',
+            $this->entry->get('entryUUID')?->getValues()[0] ?? '',
+        );
+    }
+
+    public function test_apply_for_bulk_load_fills_create_and_modify_timestamps_when_missing(): void
+    {
+        $this->subject->applyForBulkLoad($this->entry);
+
+        self::assertMatchesRegularExpression(
+            '/^\d{14}Z$/',
+            $this->entry->get('createTimestamp')?->getValues()[0] ?? '',
+        );
+        self::assertSame(
+            $this->entry->get('createTimestamp')?->getValues()[0],
+            $this->entry->get('modifyTimestamp')?->getValues()[0],
+        );
+    }
+
+    public function test_apply_for_bulk_load_defaults_creator_and_modifier_to_empty_string(): void
+    {
+        $this->subject->applyForBulkLoad($this->entry);
+
+        self::assertSame(
+            '',
+            $this->entry->get('creatorsName')?->getValues()[0],
+        );
+        self::assertSame(
+            '',
+            $this->entry->get('modifiersName')?->getValues()[0],
+        );
+    }
+
+    public function test_apply_for_bulk_load_attributes_creator_and_modifier_to_the_actor_dn(): void
+    {
+        $this->subject->applyForBulkLoad(
+            $this->entry,
+            'cn=Importer,dc=example,dc=com',
+        );
+
+        self::assertSame(
+            'cn=Importer,dc=example,dc=com',
+            $this->entry->get('creatorsName')?->getValues()[0],
+        );
+        self::assertSame(
+            'cn=Importer,dc=example,dc=com',
+            $this->entry->get('modifiersName')?->getValues()[0],
+        );
+    }
+
+    public function test_apply_for_bulk_load_preserves_operational_attributes_supplied_by_the_source(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=Alice,dc=example,dc=com'),
+            new Attribute('cn', 'Alice'),
+            new Attribute('entryUUID', '11111111-2222-4333-8444-555555555555'),
+            new Attribute('createTimestamp', '19990101000000Z'),
+            new Attribute('creatorsName', 'cn=Original,dc=example,dc=com'),
+        );
+
+        $this->subject->applyForBulkLoad(
+            $entry,
+            'cn=Importer,dc=example,dc=com',
+        );
+
+        self::assertSame(
+            '11111111-2222-4333-8444-555555555555',
+            $entry->get('entryUUID')?->getValues()[0],
+        );
+        self::assertSame(
+            '19990101000000Z',
+            $entry->get('createTimestamp')?->getValues()[0],
+        );
+        self::assertSame(
+            'cn=Original,dc=example,dc=com',
+            $entry->get('creatorsName')?->getValues()[0],
+        );
+    }
+
+    public function test_apply_for_bulk_load_sets_structural_object_class_with_schema(): void
+    {
+        $top = new ObjectClass(
+            oid: '2.5.6.0',
+            names: ['top'],
+            type: ObjectClassType::AbstractClass,
+        );
+        $person = new ObjectClass(
+            oid: '2.5.6.6',
+            names: ['person'],
+            superClassOids: ['2.5.6.0'],
+        );
+
+        $schema = (new Schema())
+            ->addObjectClass($top)
+            ->addObjectClass($person);
+
+        $entry = new Entry(
+            new Dn('cn=Alice,dc=example,dc=com'),
+            new Attribute('cn', 'Alice'),
+            new Attribute('objectClass', 'top', 'person'),
+        );
+
+        (new OperationalAttributeGenerator($schema))->applyForBulkLoad($entry);
+
+        self::assertSame(
+            'person',
+            $entry->get('structuralObjectClass')?->getValues()[0],
+        );
+    }
 }
