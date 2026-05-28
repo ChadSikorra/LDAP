@@ -75,6 +75,13 @@ final class LdapServerCommand extends Command
                 InputOption::VALUE_REQUIRED,
                 'Load directory data from an LDIF file via LdapServer::seed() instead of the built-in entries',
                 '',
+            )
+            ->addOption(
+                'changes',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'After seeding, replay an LDIF changelog file via LdapServer::applyChanges()',
+                '',
             );
     }
 
@@ -89,6 +96,7 @@ final class LdapServerCommand extends Command
         $sasl = $input->getOption('sasl') === true;
         $allowAnonymous = $input->getOption('allow-anonymous') === true;
         $seedFile = $this->getStringOption($input, 'seed');
+        $changesFile = $this->getStringOption($input, 'changes');
         $useSsl = false;
 
         if (!in_array($storageType, self::VALID_STORAGE, true)) {
@@ -145,6 +153,10 @@ final class LdapServerCommand extends Command
             $server->seed(new FileLdifLoader($seedFile));
         } else {
             (new LdapImporter($storage))->importEntries($entries);
+        }
+
+        if ($changesFile !== '') {
+            $server->applyChanges(new FileLdifLoader($changesFile));
         }
 
         $server->run();

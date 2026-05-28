@@ -265,4 +265,52 @@ class LdapServerTest extends TestCase
 
         $this->subject->seed(new StringLdifLoader(self::SEED_LDIF));
     }
+
+    public function test_it_should_reject_seeding_when_the_ldif_contains_change_records(): void
+    {
+        $storage = new InMemoryStorage();
+        $this->subject->useStorage($storage);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('only accepts content records');
+
+        $this->subject->seed(new StringLdifLoader("dn: cn=any,dc=x\nchangetype: delete\n"));
+    }
+
+    public function test_it_should_apply_modify_changes_against_the_seeded_storage(): void
+    {
+        $storage = new InMemoryStorage();
+        $this->subject->useStorage($storage);
+        $this->subject->seed(new StringLdifLoader(self::SEED_LDIF));
+
+        $this->subject->applyChanges(new StringLdifLoader(
+            "dn: cn=foo,dc=example,dc=com\nchangetype: modify\nreplace: sn\nsn: Updated\n-\n",
+        ));
+
+        self::assertSame(
+            ['Updated'],
+            $storage->find(new Dn('cn=foo,dc=example,dc=com'))?->get('sn')?->getValues(),
+        );
+    }
+
+    public function test_it_should_apply_a_delete_change_against_the_seeded_storage(): void
+    {
+        $storage = new InMemoryStorage();
+        $this->subject->useStorage($storage);
+        $this->subject->seed(new StringLdifLoader(self::SEED_LDIF));
+
+        $this->subject->applyChanges(new StringLdifLoader(
+            "dn: cn=foo,dc=example,dc=com\nchangetype: delete\n",
+        ));
+
+        self::assertNull($storage->find(new Dn('cn=foo,dc=example,dc=com')));
+    }
+
+    public function test_it_should_throw_when_applying_changes_without_a_writable_backend(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('requires a writable backend');
+
+        $this->subject->applyChanges(new StringLdifLoader("dn: cn=x,dc=x\nchangetype: delete\n"));
+    }
 }

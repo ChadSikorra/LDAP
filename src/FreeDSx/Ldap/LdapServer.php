@@ -33,6 +33,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WriteRequestReplayer;
 use FreeDSx\Ldap\Server\RequestHandler\ProxyHandler;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
@@ -148,10 +149,9 @@ class LdapServer
     }
 
     /**
-     * Convenience method to bulk-load LDIF entries into the storage configured via {@see useStorage()}.
+     * Bulk-loads LDIF content records into the storage configured via {@see useStorage()} as one atomic batch.
      *
-     * The LDIF source is pluggable via {@see LdifLoaderInterface} (a file, a string, a database, etc.). Entries are
-     * validated and stamped with operational attributes the same way the live write path would.
+     * Use {@see applyChanges()} instead to replay a changelog (modify/delete/rename) through the live write path.
      *
      * @param Dn $creatorDn DN recorded as creatorsName/modifiersName on imported entries; defaults to the anonymous (empty) DN.
      * @throws LdifParseException when the LDIF cannot be parsed
@@ -169,14 +169,53 @@ class LdapServer
             throw new RuntimeException('seed() requires a storage backend configured via useStorage().');
         }
 
-        $entries = (new LdifParser())
+        $changes = (new LdifParser())
             ->parse($loader->load());
+
+        if (!$changes->isAddOnly()) {
+            throw new RuntimeException(
+                'seed() only accepts content records (adds). Use applyChanges() for modify/delete/rename.',
+            );
+        }
+
         (new LdapImporter(
             $backend->getStorage(),
             $backend->getOperationalAttributeGenerator(),
             $backend->getSchemaValidator(),
             $creatorDn,
-        ))->importEntries($entries->toArray());
+        ))->importEntries($changes->entries());
+
+        return $this;
+    }
+
+    /**
+     * Replays an LDIF changelog against the configured backend via the live write path.
+     *
+     * Use {@see seed()} instead for bulk initial provisioning of content records straight to storage.
+     *
+     * @throws LdifParseException when the LDIF cannot be parsed
+     * @throws RuntimeException when no writable backend is configured
+     * @throws OperationException when a write fails (no such entry, schema violation, etc.)
+     */
+    public function applyChanges(LdifLoaderInterface $loader): self
+    {
+        $backend = $this->options->getBackend();
+
+        if (!$backend instanceof WriteHandlerInterface) {
+            throw new RuntimeException('applyChanges() requires a writable backend.');
+        }
+
+        $changes = (new LdifParser())
+            ->parse($loader->load());
+
+        if (count($changes) === 0) {
+            return $this;
+        }
+
+        (new WriteRequestReplayer(
+            $backend,
+            $this->options->getWriteHandlers(),
+        ))->apply($changes);
 
         return $this;
     }

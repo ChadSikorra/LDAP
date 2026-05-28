@@ -107,7 +107,7 @@ final class LdifWriterTest extends TestCase
         );
 
         $ldif = (new LdifWriter())->write($entries);
-        $parsed = (new LdifParser())->parse($ldif);
+        $parsed = new Entries(...(new LdifParser())->parse($ldif)->entries());
 
         self::assertSame(
             $this->normalize($entries),
