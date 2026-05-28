@@ -1,0 +1,26 @@
+version: 1
+
+# Domain root
+dn: dc=foo,dc=bar
+objectClass: top
+objectClass: domain
+dc: foo
+
+# Bind user used by the integration test
+dn: cn=user,dc=foo,dc=bar
+objectClass: inetOrgPerson
+cn: user
+sn: User
+userPassword: {SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=
+
+dn: cn=alice,dc=foo,dc=bar
+objectClass: inetOrgPerson
+cn: alice
+sn: Anderson
+description: A folded description value that is intentionally
+  longer than seventy-six characters so the parser must unfold it.
+
+dn: cn=bob,dc=foo,dc=bar
+objectClass: inetOrgPerson
+cn: bob
+sn: Builder

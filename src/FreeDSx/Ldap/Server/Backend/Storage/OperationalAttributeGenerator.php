@@ -74,6 +74,44 @@ final readonly class OperationalAttributeGenerator
     }
 
     /**
+     * Fills server-managed attributes on a bulk-loaded entry, preserving any the source supplied; creator/modifier
+     * default to the given actor DN.
+     */
+    public function applyForBulkLoad(
+        Entry $entry,
+        string $actorDn = '',
+    ): void {
+        $timestamp = $this->generateTimestamp();
+
+        $this->setIfMissing(
+            $entry,
+            AttributeTypeOid::NAME_ENTRY_UUID,
+            Uuid::v4(),
+        );
+        $this->setIfMissing(
+            $entry,
+            AttributeTypeOid::NAME_CREATE_TIMESTAMP,
+            $timestamp,
+        );
+        $this->setIfMissing(
+            $entry,
+            AttributeTypeOid::NAME_MODIFY_TIMESTAMP,
+            $timestamp,
+        );
+        $this->setIfMissing(
+            $entry,
+            AttributeTypeOid::NAME_CREATORS_NAME,
+            $actorDn,
+        );
+        $this->setIfMissing(
+            $entry,
+            AttributeTypeOid::NAME_MODIFIERS_NAME,
+            $actorDn,
+        );
+        $this->applyStructuralObjectClass($entry);
+    }
+
+    /**
      * Updates modifyTimestamp and modifiersName only.
      */
     public function applyForModify(
@@ -93,6 +131,39 @@ final readonly class OperationalAttributeGenerator
     private function generateTimestamp(): string
     {
         return gmdate('YmdHis') . 'Z';
+    }
+
+    private function setIfMissing(
+        Entry $entry,
+        string $attribute,
+        string $value,
+    ): void {
+        if ($entry->has($attribute)) {
+            return;
+        }
+
+        $entry->set(
+            $attribute,
+            $value,
+        );
+    }
+
+    private function applyStructuralObjectClass(Entry $entry): void
+    {
+        if ($entry->has(AttributeTypeOid::NAME_STRUCTURAL_OBJECT_CLASS)) {
+            return;
+        }
+
+        $structuralOc = $this->resolveStructuralObjectClass($entry);
+
+        if ($structuralOc === null) {
+            return;
+        }
+
+        $entry->set(
+            AttributeTypeOid::NAME_STRUCTURAL_OBJECT_CLASS,
+            $structuralOc,
+        );
     }
 
     private function resolveStructuralObjectClass(Entry $entry): ?string

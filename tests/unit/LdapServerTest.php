@@ -13,9 +13,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap;
 
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\Ldif\Loader\StringLdifLoader;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\RequestHandler\ProxyHandler;
@@ -28,6 +32,19 @@ use Psr\Log\LoggerInterface;
 
 class LdapServerTest extends TestCase
 {
+    private const SEED_LDIF = <<<'LDIF'
+        dn: dc=example,dc=com
+        objectClass: top
+        objectClass: domain
+        dc: example
+
+        dn: cn=foo,dc=example,dc=com
+        objectClass: top
+        objectClass: person
+        cn: foo
+        sn: Bar
+        LDIF;
+
     private LdapServer $subject;
 
     private ServerOptions $options;
@@ -184,5 +201,68 @@ class LdapServerTest extends TestCase
         );
 
         self::assertNull($proxyOptions->getRootDseHandler());
+    }
+
+    public function test_it_should_seed_entries_into_the_configured_storage(): void
+    {
+        $storage = new InMemoryStorage();
+        $this->subject->useStorage($storage);
+
+        $this->subject->seed(new StringLdifLoader(self::SEED_LDIF));
+
+        self::assertNotNull($storage->find(new Dn('dc=example,dc=com')));
+        $foo = $storage->find(new Dn('cn=foo,dc=example,dc=com'));
+        self::assertNotNull($foo);
+        self::assertSame(
+            ['Bar'],
+            $foo->get('sn')?->getValues(),
+        );
+    }
+
+    public function test_it_should_stamp_operational_attributes_on_seeded_entries(): void
+    {
+        $storage = new InMemoryStorage();
+        $this->subject->useStorage($storage);
+
+        $this->subject->seed(new StringLdifLoader(self::SEED_LDIF));
+
+        $foo = $storage->find(new Dn('cn=foo,dc=example,dc=com'));
+
+        self::assertNotNull($foo);
+        self::assertMatchesRegularExpression(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/',
+            $foo->get('entryUUID')?->getValues()[0] ?? '',
+        );
+        self::assertSame(
+            'person',
+            $foo->get('structuralObjectClass')?->getValues()[0],
+        );
+        self::assertSame(
+            '',
+            $foo->get('creatorsName')?->getValues()[0],
+        );
+    }
+
+    public function test_it_should_record_the_creator_dn_when_seeding(): void
+    {
+        $storage = new InMemoryStorage();
+        $this->subject->useStorage($storage);
+
+        $this->subject->seed(
+            new StringLdifLoader(self::SEED_LDIF),
+            new Dn('cn=Importer,dc=example,dc=com'),
+        );
+
+        self::assertSame(
+            'cn=Importer,dc=example,dc=com',
+            $storage->find(new Dn('cn=foo,dc=example,dc=com'))?->get('creatorsName')?->getValues()[0],
+        );
+    }
+
+    public function test_it_should_throw_when_seeding_without_a_storage_backend(): void
+    {
+        $this->expectException(RuntimeException::class);
+
+        $this->subject->seed(new StringLdifLoader(self::SEED_LDIF));
     }
 }
