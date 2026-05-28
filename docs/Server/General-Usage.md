@@ -17,6 +17,9 @@ General LDAP Server Usage
     * [MysqlStorage](#mysqlstorage)
   * [Proxy Backend](#proxy-backend)
   * [Custom Filter Evaluation](#custom-filter-evaluation)
+* [Loading LDIF Data](#loading-ldif-data)
+  * [Seeding Initial Entries](#seeding-initial-entries)
+  * [Replaying LDIF Changelogs](#replaying-ldif-changelogs)
 * [Authentication](#authentication)
   * [Default Authentication](#default-authentication)
   * [Custom Bind Name Resolution](#custom-bind-name-resolution)
@@ -607,38 +610,6 @@ final class PostgresStorage implements PdoStorageFactoryInterface
 }
 ```
 
-#### Seeding Initial Entries
-
-`LdapImporter` writes a batch of entries in one atomic transaction. Use it to populate a persistent storage backend
-before `$server->run()`. The same pattern works for every adapter.
-
-```php
-use FreeDSx\Ldap\Entry\Attribute;
-use FreeDSx\Ldap\Entry\Dn;
-use FreeDSx\Ldap\Entry\Entry;
-use FreeDSx\Ldap\LdapServer;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
-use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
-
-$storage = SqliteStorage::forPcntl('/var/lib/myapp/ldap.sqlite');
-
-(new LdapImporter($storage))->importEntries([
-    new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
-    new Entry(
-        new Dn('cn=admin,dc=example,dc=com'),
-        new Attribute('cn', 'admin'),
-    ),
-]);
-
-(new LdapServer())->useStorage($storage)->run();
-```
-
-`importEntries()` is an upsert: existing entries at the same DN are replaced. Re-running is safe, but any changes made
-between imports are overwritten — guard the call yourself if you only want to seed on first run.
-
-For Swoole factories (`::forSwoole()`), wrap the `importEntries()` call in `Swoole\Coroutine\run()` so the adapter's
-coroutine-scoped connection is available during import.
-
 ### Proxy Backend
 
 `ProxyBackend` implements `WritableLdapBackendInterface` by forwarding all operations to an upstream LDAP server.
@@ -705,6 +676,78 @@ class MySqlFilterEvaluator implements FilterEvaluatorInterface
     }
 }
 ```
+
+## Loading LDIF Data
+
+### Seeding Initial Entries
+
+`LdapServer::seed()` bulk-imports RFC 2849 LDIF content records into the storage configured via `useStorage()` in one
+atomic transaction, with schema validation and operational-attribute stamping (`createTimestamp`, `entryUUID`, etc.)
+applied. Use it to populate a persistent storage backend before `$server->run()`.
+
+```php
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\Ldif\Loader\FileLdifLoader;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+
+$server = (new LdapServer())
+    ->useStorage(SqliteStorage::forPcntl('/var/lib/myapp/ldap.sqlite'))
+    ->seed(
+        new FileLdifLoader('/etc/myapp/initial-data.ldif'),
+        new Dn('cn=admin,dc=example,dc=com'),
+    );
+
+$server->run();
+```
+
+The optional second argument is the creator DN, stamped as `creatorsName`/`modifiersName` on each imported entry —
+defaults to the empty (anonymous) DN.
+
+`seed()` accepts only content records (entries without `changetype:`). LDIF sources are pluggable via `LdifLoaderInterface`:
+use `FileLdifLoader`, `StringLdifLoader`, or implement your own (e.g. fetching from a database or remote URL). The
+operation itself is an upsert that overwrites.
+
+For Swoole factories (`::forSwoole()`), call `seed()` inside `Swoole\Coroutine\run()` so the adapter's
+coroutine-scoped connection is available during import.
+
+### Replaying LDIF Changelogs
+
+`LdapServer::applyChanges()` replays an LDIF changelog through the live write path. Use it for applying diffs, migrations,
+or administrative changes after the initial directory is populated.
+
+```ldif
+version: 1
+
+dn: cn=alice,dc=example,dc=com
+changetype: modify
+replace: sn
+sn: Anderson
+-
+
+dn: cn=bob,dc=example,dc=com
+changetype: delete
+
+dn: cn=carol,dc=example,dc=com
+changetype: modrdn
+newrdn: cn=carolyn
+deleteoldrdn: 1
+```
+
+```php
+use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\Ldif\Loader\FileLdifLoader;
+
+(new LdapServer())
+    ->useStorage($storage)
+    ->seed(new FileLdifLoader('/etc/myapp/initial-data.ldif'))
+    ->applyChanges(new FileLdifLoader('/etc/myapp/changes-today.ldif'))
+    ->run();
+```
+
+Unlike `seed()`, `applyChanges()` dispatches each request through the same write path the live server uses for client
+requests. Supported changetypes: `add`, `delete`, `modify` (`add:`/`delete:`/`replace:` mod-specs), and `modrdn`/`moddn`
+(rename or move; supports optional `newsuperior:` for moving across subtrees).
 
 ## Authentication
 

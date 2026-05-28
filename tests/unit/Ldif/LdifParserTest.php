@@ -15,6 +15,8 @@ namespace Tests\Unit\FreeDSx\Ldap\Ldif;
 
 use FreeDSx\Ldap\Exception\LdifParseException;
 use FreeDSx\Ldap\Ldif\LdifParser;
+use FreeDSx\Ldap\Operation\Request\AddRequest;
+use FreeDSx\Ldap\Operation\Request\ModifyRequest;
 use PHPUnit\Framework\TestCase;
 
 final class LdifParserTest extends TestCase
@@ -26,36 +28,45 @@ final class LdifParserTest extends TestCase
         $this->subject = new LdifParser();
     }
 
-    public function test_it_parses_a_single_entry_with_multi_valued_attributes(): void
+    public function test_it_parses_a_single_content_record_with_multi_valued_attributes(): void
     {
-        $entries = $this->subject->parse(
+        $result = $this->subject->parse(
             "dn: cn=foo,dc=example,dc=com\nobjectClass: top\nobjectClass: person\ncn: foo\nsn: Bar\n",
         );
 
-        self::assertCount(1, $entries);
-        $entry = $entries->toArray()[0];
-        self::assertSame('cn=foo,dc=example,dc=com', $entry->getDn()->toString());
+        self::assertCount(1, $result);
+        $entry = $result->entries()[0];
+        self::assertSame(
+            'cn=foo,dc=example,dc=com',
+            $entry->getDn()->toString(),
+        );
         self::assertSame(
             ['top', 'person'],
             $entry->get('objectClass')?->getValues(),
         );
-        self::assertSame(['Bar'], $entry->get('sn')?->getValues());
+        self::assertSame(
+            ['Bar'],
+            $entry->get('sn')?->getValues(),
+        );
     }
 
-    public function test_it_parses_multiple_entries_separated_by_blank_lines(): void
+    public function test_it_parses_multiple_records_separated_by_blank_lines(): void
     {
-        $entries = $this->subject->parse(
+        $result = $this->subject->parse(
             "dn: cn=a,dc=x\ncn: a\n\ndn: cn=b,dc=x\ncn: b\n",
         );
 
-        self::assertCount(2, $entries);
+        self::assertCount(
+            2,
+            $result,
+        );
     }
 
     public function test_it_unfolds_continued_lines(): void
     {
         $entry = $this->subject->parse(
             "dn: cn=foo,dc=x\ndescription: this is a long\n  description value\n",
-        )->toArray()[0];
+        )->entries()[0];
 
         self::assertSame(
             ['this is a long description value'],
@@ -67,28 +78,37 @@ final class LdifParserTest extends TestCase
     {
         $entry = $this->subject->parse(
             "dn: cn=foo,dc=x\ncn:: " . base64_encode('Bär') . "\n",
-        )->toArray()[0];
+        )->entries()[0];
 
-        self::assertSame(['Bär'], $entry->get('cn')?->getValues());
+        self::assertSame(
+            ['Bär'],
+            $entry->get('cn')?->getValues(),
+        );
     }
 
     public function test_it_decodes_a_base64_dn(): void
     {
         $entry = $this->subject->parse(
             "dn:: " . base64_encode('cn=Bär,dc=x') . "\ncn: x\n",
-        )->toArray()[0];
+        )->entries()[0];
 
-        self::assertSame('cn=Bär,dc=x', $entry->getDn()->toString());
+        self::assertSame(
+            'cn=Bär,dc=x',
+            $entry->getDn()->toString(),
+        );
     }
 
     public function test_it_skips_comments_including_folded_ones(): void
     {
-        $entries = $this->subject->parse(
+        $result = $this->subject->parse(
             "# a top comment\ndn: cn=foo,dc=x\n# inline comment\n# folded\n more comment\ncn: foo\n",
         );
 
-        self::assertCount(1, $entries);
-        self::assertSame(['foo'], $entries->toArray()[0]->get('cn')?->getValues());
+        self::assertCount(1, $result);
+        self::assertSame(
+            ['foo'],
+            $result->entries()[0]->get('cn')?->getValues(),
+        );
     }
 
     public function test_it_accepts_a_version_one_header(): void
@@ -106,19 +126,30 @@ final class LdifParserTest extends TestCase
         $this->subject->parse("version: 2\ndn: cn=foo,dc=x\ncn: foo\n");
     }
 
-    public function test_it_rejects_a_version_after_an_entry(): void
+    public function test_it_rejects_a_version_after_a_record(): void
     {
         $this->expectException(LdifParseException::class);
 
         $this->subject->parse("dn: cn=foo,dc=x\ncn: foo\n\nversion: 1\n");
     }
 
-    public function test_it_rejects_change_records(): void
+    public function test_it_parses_a_mixed_file_with_content_and_change_records(): void
     {
-        $this->expectException(LdifParseException::class);
-        $this->expectExceptionMessage('change records');
+        $result = $this->subject->parse(
+            "dn: cn=foo,dc=x\ncn: foo\nsn: Bar\n"
+            . "\n"
+            . "dn: cn=baz,dc=x\nchangetype: modify\nreplace: sn\nsn: Quux\n-\n",
+        );
 
-        $this->subject->parse("dn: cn=foo,dc=x\nchangetype: add\ncn: foo\n");
+        self::assertCount(2, $result);
+        self::assertInstanceOf(
+            AddRequest::class,
+            $result->toArray()[0],
+        );
+        self::assertInstanceOf(
+            ModifyRequest::class,
+            $result->toArray()[1],
+        );
     }
 
     public function test_it_rejects_url_referenced_values(): void
@@ -136,18 +167,24 @@ final class LdifParserTest extends TestCase
             self::fail('Expected an LdifParseException.');
         } catch (LdifParseException $e) {
             self::assertSame(3, $e->getLineNumber());
-            self::assertSame('this-has-no-colon', $e->getSourceLine());
+            self::assertSame(
+                'this-has-no-colon',
+                $e->getSourceLine(),
+            );
         }
     }
 
     public function test_it_parses_an_empty_value(): void
     {
-        $entry = $this->subject->parse("dn: cn=foo,dc=x\ndescription:\n")->toArray()[0];
+        $entry = $this->subject->parse("dn: cn=foo,dc=x\ndescription:\n")->entries()[0];
 
-        self::assertSame([''], $entry->get('description')?->getValues());
+        self::assertSame(
+            [''],
+            $entry->get('description')?->getValues(),
+        );
     }
 
-    public function test_it_returns_no_entries_for_empty_input(): void
+    public function test_it_returns_no_records_for_empty_input(): void
     {
         self::assertCount(0, $this->subject->parse(''));
     }

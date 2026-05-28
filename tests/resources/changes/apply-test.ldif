@@ -1,0 +1,25 @@
+version: 1
+
+# Modify alice: replace sn
+dn: cn=alice,dc=foo,dc=bar
+changetype: modify
+replace: sn
+sn: Renamed
+-
+
+# Delete bob
+dn: cn=bob,dc=foo,dc=bar
+changetype: delete
+
+# Add a new entry that will then be renamed below
+dn: cn=carol,dc=foo,dc=bar
+changetype: add
+objectClass: inetOrgPerson
+cn: carol
+sn: Coder
+
+# Rename carol -> carolyn
+dn: cn=carol,dc=foo,dc=bar
+changetype: modrdn
+newrdn: cn=carolyn
+deleteoldrdn: 1
