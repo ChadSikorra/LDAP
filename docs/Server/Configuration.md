@@ -25,7 +25,6 @@ LDAP Server Configuration
     * [ServerOptions:setSchemaValidationMode](#setschemavalidationmode)
     * [ServerOptions:setSchema](#setschema)
 * [RootDSE Options](#rootdse-options)
-    * [ServerOptions:setDseNamingContexts](#setdsenamingcontexts)
     * [ServerOptions:setDseAltServer](#setdsealtserver)
     * [ServerOptions:setDseVendorName](#setdsevendorname)
     * [ServerOptions:setDseVendorVersion](#setdsevendorversion)
@@ -423,12 +422,7 @@ Replaces the active schema used for validation and operational attributes. See
 
 ## RootDSE Options
 
-------------------
-#### setDseNamingContexts
-
-The namingContexts attribute for the RootDSE as an array of strings.
-
-**Default**: `['dc=FreeDSx,dc=local']`
+The `namingContexts` attribute is derived from the backend. No configuration is needed.
 
 ------------------
 #### setDseAltServer

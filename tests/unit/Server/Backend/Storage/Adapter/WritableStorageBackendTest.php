@@ -287,16 +287,13 @@ final class WritableStorageBackendTest extends TestCase
         );
     }
 
-    public function test_delete_throws_unwilling_to_perform_for_configured_naming_context(): void
+    public function test_delete_throws_unwilling_to_perform_when_parent_is_not_in_storage(): void
     {
         $leaf = new Entry(
             new Dn('dc=example,dc=com'),
             new Attribute('dc', 'example'),
         );
-        $backend = new WritableStorageBackend(
-            storage: new InMemoryStorage([$leaf]),
-            namingContexts: ['dc=example,dc=com'],
-        );
+        $backend = new WritableStorageBackend(new InMemoryStorage([$leaf]));
 
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::UNWILLING_TO_PERFORM);
@@ -307,36 +304,13 @@ final class WritableStorageBackendTest extends TestCase
         );
     }
 
-    public function test_delete_naming_context_check_is_case_insensitive(): void
+    public function test_move_throws_unwilling_to_perform_when_parent_is_not_in_storage(): void
     {
         $leaf = new Entry(
             new Dn('dc=example,dc=com'),
             new Attribute('dc', 'example'),
         );
-        $backend = new WritableStorageBackend(
-            storage: new InMemoryStorage([$leaf]),
-            namingContexts: ['DC=Example,DC=Com'],
-        );
-
-        self::expectException(OperationException::class);
-        self::expectExceptionCode(ResultCode::UNWILLING_TO_PERFORM);
-
-        $backend->delete(
-            new DeleteCommand(new Dn('dc=example,dc=com')),
-            $this->context(),
-        );
-    }
-
-    public function test_move_throws_unwilling_to_perform_when_renaming_naming_context(): void
-    {
-        $leaf = new Entry(
-            new Dn('dc=example,dc=com'),
-            new Attribute('dc', 'example'),
-        );
-        $backend = new WritableStorageBackend(
-            storage: new InMemoryStorage([$leaf]),
-            namingContexts: ['dc=example,dc=com'],
-        );
+        $backend = new WritableStorageBackend(new InMemoryStorage([$leaf]));
 
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::UNWILLING_TO_PERFORM);
@@ -352,7 +326,7 @@ final class WritableStorageBackendTest extends TestCase
         );
     }
 
-    public function test_delete_allows_non_naming_context_entries_when_naming_context_configured(): void
+    public function test_delete_allows_entries_whose_parent_is_in_storage(): void
     {
         $base = new Entry(
             new Dn('dc=example,dc=com'),
@@ -362,10 +336,7 @@ final class WritableStorageBackendTest extends TestCase
             new Dn('cn=Alice,dc=example,dc=com'),
             new Attribute('cn', 'Alice'),
         );
-        $backend = new WritableStorageBackend(
-            storage: new InMemoryStorage([$base, $leaf]),
-            namingContexts: ['dc=example,dc=com'],
-        );
+        $backend = new WritableStorageBackend(new InMemoryStorage([$base, $leaf]));
 
         $backend->delete(
             new DeleteCommand(new Dn('cn=Alice,dc=example,dc=com')),
@@ -373,6 +344,27 @@ final class WritableStorageBackendTest extends TestCase
         );
 
         self::assertNull($backend->get(new Dn('cn=Alice,dc=example,dc=com')));
+    }
+
+    public function test_naming_contexts_delegates_to_storage(): void
+    {
+        $storage = new InMemoryStorage([
+            new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
+            new Entry(new Dn('cn=Alice,dc=example,dc=com'), new Attribute('cn', 'Alice')),
+            new Entry(new Dn('dc=other,dc=org'), new Attribute('dc', 'other')),
+        ]);
+        $backend = new WritableStorageBackend($storage);
+
+        $contexts = array_map(
+            fn(Dn $dn): string => $dn->toString(),
+            $backend->namingContexts(),
+        );
+        sort($contexts);
+
+        self::assertSame(
+            ['dc=example,dc=com', 'dc=other,dc=org'],
+            $contexts,
+        );
     }
 
     public function test_update_add_attribute_value(): void

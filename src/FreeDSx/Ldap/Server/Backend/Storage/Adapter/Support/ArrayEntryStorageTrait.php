@@ -80,6 +80,23 @@ trait ArrayEntryStorageTrait
 
     /**
      * @param array<string, Entry> $entries Entries keyed by normalised DN string
+     * @return list<Dn>
+     */
+    private function namingContextsFromArray(array $entries): array
+    {
+        $roots = [];
+        foreach (array_keys($entries) as $normDn) {
+            $parent = (new Dn($normDn))->getParent()?->normalize()->toString() ?? '';
+            if ($parent === '' || !isset($entries[$parent])) {
+                $roots[] = new Dn($normDn);
+            }
+        }
+
+        return $roots;
+    }
+
+    /**
+     * @param array<string, Entry> $entries Entries keyed by normalised DN string
      * @return Generator<Entry>
      */
     private function yieldByScope(

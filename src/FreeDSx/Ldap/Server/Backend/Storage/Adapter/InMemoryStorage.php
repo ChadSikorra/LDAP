@@ -76,4 +76,9 @@ final class InMemoryStorage implements EntryStorageInterface
     {
         $operation($this);
     }
+
+    public function namingContexts(): array
+    {
+        return $this->namingContextsFromArray($this->entries);
+    }
 }

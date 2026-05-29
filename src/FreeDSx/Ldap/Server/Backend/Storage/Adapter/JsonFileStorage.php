@@ -121,6 +121,11 @@ final class JsonFileStorage implements EntryStorageInterface
         });
     }
 
+    public function namingContexts(): array
+    {
+        return $this->namingContextsFromArray($this->read());
+    }
+
     /**
      * @param callable(string): string $mutation
      */

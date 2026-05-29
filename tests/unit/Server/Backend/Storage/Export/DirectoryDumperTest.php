@@ -36,7 +36,7 @@ final class DirectoryDumperTest extends TestCase
     {
         $dumper = new DirectoryDumper(
             $this->backendWithEntries(),
-            ['dc=foo,dc=bar'],
+            [new Dn('dc=foo,dc=bar')],
         );
 
         $chunks = iterator_to_array(
@@ -55,7 +55,7 @@ final class DirectoryDumperTest extends TestCase
         $writer = new LdifWriter((new LdifOutputOptions())->setIncludeVersion(false));
         $dumper = new DirectoryDumper(
             $this->backendWithEntries(),
-            ['dc=foo,dc=bar'],
+            [new Dn('dc=foo,dc=bar')],
             writer: $writer,
         );
 
@@ -74,7 +74,7 @@ final class DirectoryDumperTest extends TestCase
     {
         $dumper = new DirectoryDumper(
             $this->backendWithEntries(),
-            ['dc=foo,dc=bar'],
+            [new Dn('dc=foo,dc=bar')],
             writer: new LdifWriter((new LdifOutputOptions())->setIncludeVersion(false)),
         );
 
@@ -101,7 +101,7 @@ final class DirectoryDumperTest extends TestCase
     {
         $dumper = new DirectoryDumper(
             $this->backendWithEntries(),
-            ['dc=foo,dc=bar'],
+            [new Dn('dc=foo,dc=bar')],
             writer: new LdifWriter((new LdifOutputOptions())->setIncludeVersion(false)),
         );
 
@@ -150,7 +150,7 @@ final class DirectoryDumperTest extends TestCase
 
         $dumper = new DirectoryDumper(
             new WritableStorageBackend($storage),
-            ['dc=foo,dc=bar'],
+            [new Dn('dc=foo,dc=bar')],
             $evaluator,
             new LdifWriter((new LdifOutputOptions())->setIncludeVersion(false)),
         );
@@ -185,7 +185,7 @@ final class DirectoryDumperTest extends TestCase
 
         $dumper = new DirectoryDumper(
             new WritableStorageBackend($storage),
-            ['dc=foo,dc=bar'],
+            [new Dn('dc=foo,dc=bar')],
             $evaluator,
             new LdifWriter((new LdifOutputOptions())->setIncludeVersion(false)),
         );
@@ -213,7 +213,7 @@ final class DirectoryDumperTest extends TestCase
 
         $dumper = new DirectoryDumper(
             new WritableStorageBackend($storage),
-            ['dc=foo,dc=bar'],
+            [new Dn('dc=foo,dc=bar')],
         );
 
         iterator_to_array(

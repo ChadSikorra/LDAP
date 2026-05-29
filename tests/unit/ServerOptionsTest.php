@@ -303,24 +303,6 @@ final class ServerOptionsTest extends TestCase
         );
     }
 
-    public function test_dse_naming_contexts_has_a_default(): void
-    {
-        self::assertSame(
-            ['dc=FreeDSx,dc=local'],
-            $this->subject->getDseNamingContexts(),
-        );
-    }
-
-    public function test_it_can_set_dse_naming_contexts(): void
-    {
-        $this->subject->setDseNamingContexts('dc=example,dc=com', 'dc=other,dc=com');
-
-        self::assertSame(
-            ['dc=example,dc=com', 'dc=other,dc=com'],
-            $this->subject->getDseNamingContexts(),
-        );
-    }
-
     public function test_dse_vendor_name_defaults_to_freedsx(): void
     {
         self::assertSame(

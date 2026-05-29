@@ -99,6 +99,11 @@ interface PdoDialectInterface
     public function queryHasChildren(): string;
 
     /**
+     * SELECT dn for entries whose parent is not in `entries` (i.e. naming-context roots). No parameters.
+     */
+    public function queryNamingContexts(): string;
+
+    /**
      * Upsert a single entry. Parameters: [lc_dn, dn, lc_parent_dn, attributes]
      */
     public function queryUpsert(): string;

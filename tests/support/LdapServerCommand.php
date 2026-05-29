@@ -143,7 +143,6 @@ final class LdapServerCommand extends Command
             ->setSslCertKey(self::SSL_KEY)
             ->setUseSsl($useSsl)
             ->setAllowAnonymous($allowAnonymous)
-            ->setDseNamingContexts('dc=foo,dc=bar')
             ->setSocketAcceptTimeout(0.1)
             ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL));
 

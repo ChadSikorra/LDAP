@@ -77,6 +77,11 @@ final readonly class WriteSerializingStorage implements EntryStorageInterface, R
         });
     }
 
+    public function namingContexts(): array
+    {
+        return $this->reads->namingContexts();
+    }
+
     public function reset(): void
     {
         if ($this->reads instanceof ResettableInterface) {

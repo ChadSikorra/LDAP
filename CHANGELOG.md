@@ -3,6 +3,7 @@ CHANGELOG
 
 1.0.0 (202x-xx-xx)
 ------------------
+* Removed `ServerOptions::setDseNamingContexts()`. RootDSE `namingContexts` is now derived from the backend.
 * Updated the minimum version of PHP to version 8.1.
 * All classes now use "strict_types=1". This internal change should not impact external usage.
 * Client and server options arrays have been replaced by ClientOptions and ServerOptions classes.

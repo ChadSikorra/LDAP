@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Server\RequestHandler;
 
+use FreeDSx\Ldap\ClientOptions;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Entry\Dn;
@@ -270,6 +271,32 @@ final class ProxyBackendTest extends TestCase
                 null,
             ),
             $this->context(),
+        );
+    }
+
+    public function test_naming_contexts_returns_configured_dns_normalised(): void
+    {
+        $subject = new ProxyBackend(
+            new ClientOptions(),
+            ['DC=Example,DC=Com', 'dc=other,dc=org'],
+        );
+
+        $contexts = array_map(
+            fn(Dn $dn): string => $dn->toString(),
+            $subject->namingContexts(),
+        );
+
+        self::assertSame(
+            ['dc=example,dc=com', 'dc=other,dc=org'],
+            $contexts,
+        );
+    }
+
+    public function test_naming_contexts_is_empty_when_not_configured(): void
+    {
+        self::assertSame(
+            [],
+            $this->subject->namingContexts(),
         );
     }
 }

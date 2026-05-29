@@ -50,33 +50,24 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
 {
     use WritableBackendTrait;
 
-    /**
-     * @var array<string, true> normalised DN strings of protected naming contexts.
-     */
-    private readonly array $namingContexts;
-
     private readonly SearchStreamBuilder $searchStream;
 
-    /**
-     * @param string[] $namingContexts DN strings that may not be deleted.
-     */
     public function __construct(
         private readonly EntryStorageInterface $storage,
         private readonly SearchLimits $limits = new SearchLimits(),
         private readonly ?SchemaValidator $validator = null,
-        array $namingContexts = [],
         private readonly OperationalAttributeGenerator $operationalAttrs = new OperationalAttributeGenerator(),
         private readonly WriteEntryOperationHandler $entryHandler = new WriteEntryOperationHandler(),
     ) {
-        $normalised = [];
-        foreach ($namingContexts as $namingContext) {
-            $normalised[(new Dn($namingContext))->normalize()->toString()] = true;
-        }
-        $this->namingContexts = $normalised;
         $this->searchStream = new SearchStreamBuilder(
             $this->storage,
             $this->limits,
         );
+    }
+
+    public function namingContexts(): array
+    {
+        return $this->storage->namingContexts();
     }
 
     public function reset(): void
@@ -242,8 +233,6 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         DeleteCommand $command,
         WriteContext $context,
     ): void {
-        $this->assertNotNamingContext($command->dn);
-
         $this->writeAtomic(function (EntryStorageInterface $storage) use ($command): void {
             $dn = $command->dn->normalize();
             $this->findOrFail($storage, $dn);
@@ -257,6 +246,11 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                     ResultCode::NOT_ALLOWED_ON_NON_LEAF,
                 );
             }
+
+            $this->assertNotNamingContext(
+                $storage,
+                $command->dn,
+            );
 
             $storage->remove($dn);
         });
@@ -383,8 +377,6 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         MoveCommand $command,
         WriteContext $context,
     ): void {
-        $this->assertNotNamingContext($command->dn);
-
         $this->writeAtomic(function (EntryStorageInterface $storage) use ($command, $context): void {
             $normOld = $command->dn->normalize();
             $entry = $this->findOrFail($storage, $normOld);
@@ -395,6 +387,11 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                     ResultCode::NOT_ALLOWED_ON_NON_LEAF,
                 );
             }
+
+            $this->assertNotNamingContext(
+                $storage,
+                $command->dn,
+            );
 
             $this->assertNewSuperiorExists($storage, $command);
 
@@ -499,9 +496,13 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     /**
      * @throws OperationException
      */
-    private function assertNotNamingContext(Dn $dn): void
-    {
-        if (!isset($this->namingContexts[$dn->normalize()->toString()])) {
+    private function assertNotNamingContext(
+        EntryStorageInterface $storage,
+        Dn $dn,
+    ): void {
+        $parent = $dn->normalize()->getParent();
+
+        if ($parent !== null && $parent->toString() !== '' && $storage->exists($parent)) {
             return;
         }
 

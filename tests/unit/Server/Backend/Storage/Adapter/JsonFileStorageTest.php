@@ -272,4 +272,28 @@ final class JsonFileStorageTest extends TestCase
     {
         self::assertFalse($this->storage->hasChildren(new Dn('cn=alice,dc=example,dc=com')));
     }
+
+    public function test_naming_contexts_returns_top_most_entries_from_storage(): void
+    {
+        $this->subject->add(
+            new AddCommand(
+                new Entry(
+                    new Dn('dc=other,dc=org'),
+                    new Attribute('dc', 'other'),
+                ),
+            ),
+            $this->context(),
+        );
+
+        $contexts = array_map(
+            fn(Dn $dn): string => $dn->toString(),
+            $this->storage->namingContexts(),
+        );
+
+        sort($contexts);
+        self::assertSame(
+            ['dc=example,dc=com', 'dc=other,dc=org'],
+            $contexts,
+        );
+    }
 }

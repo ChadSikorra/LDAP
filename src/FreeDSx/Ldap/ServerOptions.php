@@ -120,11 +120,6 @@ final class ServerOptions
 
     private ?Dn $subschemaEntry = null;
 
-    /**
-     * @var string[]
-     */
-    private array $dseNamingContexts = ['dc=FreeDSx,dc=local'];
-
     private string $dseVendorName = 'FreeDSx';
 
     private ?string $dseVendorVersion = null;
@@ -351,21 +346,6 @@ final class ServerOptions
     public function setSubschemaEntry(Dn $subschemaEntry): self
     {
         $this->subschemaEntry = $subschemaEntry;
-
-        return $this;
-    }
-
-    /**
-     * @return string[]
-     */
-    public function getDseNamingContexts(): array
-    {
-        return $this->dseNamingContexts;
-    }
-
-    public function setDseNamingContexts(string ...$dseNamingContexts): self
-    {
-        $this->dseNamingContexts = $dseNamingContexts;
 
         return $this;
     }
@@ -782,7 +762,7 @@ final class ServerOptions
     }
 
     /**
-     * @return array{ip: string, port: int, unix_socket: string, transport: string, idle_timeout: int, require_authentication: bool, allow_anonymous: bool, backend: ?LdapBackendInterface, rootdse_handler: ?RootDseHandlerInterface, logger: ?LoggerInterface, use_ssl: bool, ssl_cert: ?string, ssl_cert_key: ?string, ssl_cert_passphrase: ?string, dse_alt_server: ?string, dse_naming_contexts: string[], dse_vendor_name: string, dse_vendor_version: ?string, sasl_mechanisms: string[]}
+     * @return array{ip: string, port: int, unix_socket: string, transport: string, idle_timeout: int, require_authentication: bool, allow_anonymous: bool, backend: ?LdapBackendInterface, rootdse_handler: ?RootDseHandlerInterface, logger: ?LoggerInterface, use_ssl: bool, ssl_cert: ?string, ssl_cert_key: ?string, ssl_cert_passphrase: ?string, dse_alt_server: ?string, dse_vendor_name: string, dse_vendor_version: ?string, sasl_mechanisms: string[]}
      */
     public function toArray(): array
     {
@@ -802,7 +782,6 @@ final class ServerOptions
             'ssl_cert_key' => $this->getSslCertKey(),
             'ssl_cert_passphrase' => $this->getSslCertPassphrase(),
             'dse_alt_server' => $this->getDseAltServer(),
-            'dse_naming_contexts' => $this->getDseNamingContexts(),
             'dse_vendor_name' => $this->getDseVendorName(),
             'dse_vendor_version' => $this->getDseVendorVersion(),
             'sasl_mechanisms' => $this->getSaslMechanisms(),
