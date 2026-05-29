@@ -14,7 +14,16 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Ldif;
 
 use FreeDSx\Ldap\Entry\Attribute;
-use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Entry\Change;
+use FreeDSx\Ldap\Exception\InvalidArgumentException;
+use FreeDSx\Ldap\Ldif\Parser\ChangeType;
+use FreeDSx\Ldap\Ldif\Parser\ModSpecOp;
+use FreeDSx\Ldap\Operation\Request\AddRequest;
+use FreeDSx\Ldap\Operation\Request\DeleteRequest;
+use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
+use FreeDSx\Ldap\Operation\Request\ModifyRequest;
+use FreeDSx\Ldap\Operation\Request\RequestInterface;
+use LogicException;
 
 use function array_map;
 use function array_merge;
@@ -23,12 +32,13 @@ use function base64_encode;
 use function implode;
 use function max;
 use function preg_match;
+use function sprintf;
 use function str_split;
 use function strlen;
 use function substr;
 
 /**
- * Serializes entries to RFC 2849 LDIF content records.
+ * Serializes write requests to RFC 2849 LDIF (content and change records).
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -37,14 +47,15 @@ final readonly class LdifWriter
     public function __construct(private LdifOutputOptions $options = new LdifOutputOptions()) {}
 
     /**
-     * @param iterable<Entry> $entries
+     * @param iterable<RequestInterface> $requests
+     * @throws InvalidArgumentException when a request type is not serializable to LDIF
      */
-    public function write(iterable $entries): string
+    public function write(iterable $requests): string
     {
         $blocks = [];
 
-        foreach ($entries as $entry) {
-            $blocks[] = $this->entryBlock($entry);
+        foreach ($requests as $request) {
+            $blocks[] = $this->requestBlock($request);
         }
 
         $body = implode($this->options->getLineEnding(), $blocks);
@@ -54,15 +65,121 @@ final readonly class LdifWriter
             : $body;
     }
 
-    private function entryBlock(Entry $entry): string
+    /**
+     * @throws InvalidArgumentException
+     */
+    private function requestBlock(RequestInterface $request): string
     {
+        return match (true) {
+            $request instanceof AddRequest => $this->addBlock($request),
+            $request instanceof DeleteRequest => $this->deleteBlock($request),
+            $request instanceof ModifyRequest => $this->modifyBlock($request),
+            $request instanceof ModifyDnRequest => $this->modRdnBlock($request),
+            default => throw new InvalidArgumentException(sprintf(
+                'Unsupported request type for LDIF output: %s',
+                $request::class,
+            )),
+        };
+    }
+
+    private function addBlock(AddRequest $request): string
+    {
+        $entry = $request->getEntry();
+        $prelude = [$this->line('dn', $entry->getDn()->toString())];
+
+        if ($this->options->isEmitChangetypeForAdds()) {
+            $prelude[] = $this->line(
+                'changetype',
+                ChangeType::Add->value,
+            );
+        }
+
         $lines = array_merge(
-            [$this->line('dn', $entry->getDn()->toString())],
+            $prelude,
             ...array_map(
                 $this->attributeLines(...),
                 $entry->getAttributes(),
             ),
         );
+
+        return implode($this->options->getLineEnding(), $lines) . $this->options->getLineEnding();
+    }
+
+    private function deleteBlock(DeleteRequest $request): string
+    {
+        $lines = [
+            $this->line('dn', $request->getDn()->toString()),
+            $this->line('changetype', ChangeType::Delete->value),
+        ];
+
+        return implode($this->options->getLineEnding(), $lines) . $this->options->getLineEnding();
+    }
+
+    private function modifyBlock(ModifyRequest $request): string
+    {
+        $lines = [
+            $this->line('dn', $request->getDn()->toString()),
+            $this->line('changetype', ChangeType::Modify->value),
+        ];
+
+        foreach ($request->getChanges() as $change) {
+            $lines = array_merge(
+                $lines,
+                $this->modSpecLines($change),
+            );
+        }
+
+        return implode($this->options->getLineEnding(), $lines) . $this->options->getLineEnding();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function modSpecLines(Change $change): array
+    {
+        $op = match ($change->getType()) {
+            Change::TYPE_ADD => ModSpecOp::Add->value,
+            Change::TYPE_DELETE => ModSpecOp::Delete->value,
+            Change::TYPE_REPLACE => ModSpecOp::Replace->value,
+            default => throw new LogicException(sprintf(
+                'Unknown Change type %d.',
+                $change->getType(),
+            )),
+        };
+        $attribute = $change->getAttribute();
+        $attrName = $attribute->getDescription();
+
+        $lines = [$this->line($op, $attrName)];
+
+        foreach ($attribute->getValues() as $value) {
+            $lines[] = $this->line(
+                $attrName,
+                $value,
+            );
+        }
+
+        $lines[] = '-';
+
+        return $lines;
+    }
+
+    private function modRdnBlock(ModifyDnRequest $request): string
+    {
+        $lines = [
+            $this->line('dn', $request->getDn()->toString()),
+            $this->line('changetype', ChangeType::ModRdn->value),
+            $this->line('newrdn', $request->getNewRdn()->toString()),
+            $this->line('deleteoldrdn', $request->getDeleteOldRdn() ? '1' : '0'),
+        ];
+
+        $newParent = $request->getNewParentDn();
+
+        if ($newParent !== null) {
+            $lines[] = $this->line(
+                'newsuperior',
+                $newParent->toString(),
+            );
+        }
 
         return implode($this->options->getLineEnding(), $lines) . $this->options->getLineEnding();
     }

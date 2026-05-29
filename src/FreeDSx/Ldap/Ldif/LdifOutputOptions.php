@@ -28,6 +28,8 @@ final class LdifOutputOptions
 
     private string $lineEnding = "\n";
 
+    private bool $emitChangetypeForAdds = false;
+
     public function isIncludeVersion(): bool
     {
         return $this->includeVersion;
@@ -72,6 +74,18 @@ final class LdifOutputOptions
     public function setLineEnding(string $lineEnding): self
     {
         $this->lineEnding = $lineEnding;
+
+        return $this;
+    }
+
+    public function isEmitChangetypeForAdds(): bool
+    {
+        return $this->emitChangetypeForAdds;
+    }
+
+    public function setEmitChangetypeForAdds(bool $emitChangetypeForAdds): self
+    {
+        $this->emitChangetypeForAdds = $emitChangetypeForAdds;
 
         return $this;
     }
