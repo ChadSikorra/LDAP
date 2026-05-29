@@ -208,7 +208,11 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     ): void {
         $this->writeAtomic(function (EntryStorageInterface $storage) use ($command, $context): void {
             $dn = $command->entry->getDn()->normalize();
-            $this->assertParentExists($storage, $dn);
+            $this->assertParentExists(
+                $storage,
+                $dn,
+                $context,
+            );
 
             if ($storage->exists($dn)) {
                 $this->throwEntryAlreadyExists($command->entry->getDn());
@@ -456,22 +460,26 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     /**
      * @throws OperationException
      */
-    private function assertParentExists(EntryStorageInterface $storage, Dn $dn): void
-    {
+    private function assertParentExists(
+        EntryStorageInterface $storage,
+        Dn $dn,
+        WriteContext $context,
+    ): void {
         $parent = $dn->getParent();
 
-        // Skip check when the immediate parent is a root-level entry (single-component
-        // DN), which is a valid naming context that may not be stored on this server.
-        if ($parent === null || $parent->getParent() === null) {
+        if ($parent !== null && $storage->exists($parent)) {
             return;
         }
 
-        if (!$storage->exists($parent)) {
-            $this->throwNoSuchObject(
-                $storage,
-                $parent,
-            );
+        // New naming-context roots may only be created by system writes.
+        if ($context->isSystem()) {
+            return;
         }
+
+        $this->throwNoSuchObject(
+            $storage,
+            $parent ?? $dn,
+        );
     }
 
     /**
