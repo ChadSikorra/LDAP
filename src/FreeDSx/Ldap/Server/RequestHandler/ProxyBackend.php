@@ -57,8 +57,17 @@ class ProxyBackend implements WritableLdapBackendInterface, PasswordAuthenticata
 
     protected ClientOptions $options;
 
+    /**
+     * @var list<Dn> Normalised DNs the proxy advertises as namingContexts.
+     */
+    private readonly array $namingContexts;
+
+    /**
+     * @param string[] $namingContexts DN strings the proxy exposes; advertised by the server as RootDSE namingContexts.
+     */
     public function __construct(
         LdapClient|ClientOptions $clientOrOptions = new ClientOptions(),
+        array $namingContexts = [],
     ) {
         if ($clientOrOptions instanceof LdapClient) {
             $this->ldap = $clientOrOptions;
@@ -66,6 +75,16 @@ class ProxyBackend implements WritableLdapBackendInterface, PasswordAuthenticata
         } else {
             $this->options = $clientOrOptions;
         }
+
+        $this->namingContexts = array_values(array_map(
+            fn(string $dn): Dn => (new Dn($dn))->normalize(),
+            $namingContexts,
+        ));
+    }
+
+    public function namingContexts(): array
+    {
+        return $this->namingContexts;
     }
 
     public function search(

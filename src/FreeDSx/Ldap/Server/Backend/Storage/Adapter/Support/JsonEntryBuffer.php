@@ -109,6 +109,20 @@ final class JsonEntryBuffer implements EntryStorageInterface
         $operation($this);
     }
 
+    public function namingContexts(): array
+    {
+        $roots = [];
+
+        foreach (array_keys($this->data) as $normDn) {
+            $parent = (new Dn($normDn))->getParent()?->normalize()->toString() ?? '';
+            if ($parent === '' || !isset($this->data[$parent])) {
+                $roots[] = new Dn($normDn);
+            }
+        }
+
+        return $roots;
+    }
+
     /**
      * @return array<string, mixed>
      */

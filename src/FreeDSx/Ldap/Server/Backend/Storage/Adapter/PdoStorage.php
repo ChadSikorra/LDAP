@@ -311,6 +311,21 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
         return $stmt->fetch() !== false;
     }
 
+    public function namingContexts(): array
+    {
+        $stmt = $this->prepareAndExecute($this->dialect->queryNamingContexts());
+
+        $contexts = [];
+        while (($row = $stmt->fetch()) !== false) {
+            if (!is_array($row) || !isset($row['dn']) || !is_string($row['dn'])) {
+                continue;
+            }
+            $contexts[] = (new Dn($row['dn']))->normalize();
+        }
+
+        return $contexts;
+    }
+
     public function atomic(callable $operation): void
     {
         $pdo = $this->provider->get();

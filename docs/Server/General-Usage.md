@@ -62,9 +62,7 @@ use FreeDSx\Ldap\ServerOptions;
 
 $passwordHash = '{SHA}' . base64_encode(sha1('secret', true));
 
-$server = new LdapServer(
-    (new ServerOptions())->setDseNamingContexts('dc=example,dc=com')
-);
+$server = new LdapServer();
 
 $server->useStorage(new InMemoryStorage([
     new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
@@ -94,9 +92,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
 use FreeDSx\Ldap\ServerOptions;
 
 $server = new LdapServer(
-    (new ServerOptions())
-        ->setDseNamingContexts('dc=example,dc=com')
-        ->setSaslMechanisms(ServerOptions::SASL_PLAIN)
+    (new ServerOptions())->setSaslMechanisms(ServerOptions::SASL_PLAIN),
 );
 
 $server->useStorage(JsonFileStorage::forPcntl('/var/lib/myapp/ldap.json'));
@@ -152,12 +148,10 @@ class MyAuthenticator implements PasswordAuthenticatableInterface
 }
 
 $server = new LdapServer(
-    (new ServerOptions())
-        ->setDseNamingContexts('dc=example,dc=com')
-        ->setSaslMechanisms(
-            ServerOptions::SASL_PLAIN,
-            ServerOptions::SASL_SCRAM_SHA_256,
-        )
+    (new ServerOptions())->setSaslMechanisms(
+        ServerOptions::SASL_PLAIN,
+        ServerOptions::SASL_SCRAM_SHA_256,
+    ),
 );
 
 $server->useStorage(JsonFileStorage::forPcntl('/var/lib/myapp/ldap.json'));
@@ -919,8 +913,9 @@ $server = (new LdapServer())->usePasswordAuthenticator(new MyAuthenticator());
 
 ## Handling the RootDSE
 
-The server generates a default RootDSE from `ServerOptions` values (`setDseNamingContexts()`, `setDseVendorName()`,
-etc.). For most deployments this is sufficient. The default entry always advertises:
+The server generates a default RootDSE. `namingContexts` is derived from the backend (storage contents, or whatever a
+custom backend declares); other attributes such as `vendorName` come from `ServerOptions`. For most deployments this is
+sufficient. The default entry always advertises:
 
 - `supportedControl`: paging (RFC 2696)
 - `supportedExtension`: WhoAmI (RFC 4532), Password Modify (RFC 3062), and StartTLS (RFC 4511) if an SSL certificate is configured

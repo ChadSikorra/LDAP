@@ -99,6 +99,16 @@ trait PdoDialectTrait
         SQL;
     }
 
+    public function queryNamingContexts(): string
+    {
+        return <<<SQL
+            SELECT dn
+            FROM entries
+            WHERE lc_parent_dn = ''
+               OR lc_parent_dn NOT IN (SELECT lc_dn FROM entries)
+        SQL;
+    }
+
     public function queryDelete(): string
     {
         return <<<SQL

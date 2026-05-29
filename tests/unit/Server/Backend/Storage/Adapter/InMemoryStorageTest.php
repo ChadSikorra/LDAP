@@ -253,4 +253,49 @@ final class InMemoryStorageTest extends TestCase
 
         self::assertCount(2, $entries);
     }
+
+    public function test_naming_contexts_is_empty_when_storage_is_empty(): void
+    {
+        self::assertSame(
+            [],
+            (new InMemoryStorage())->namingContexts(),
+        );
+    }
+
+    public function test_naming_contexts_returns_entries_whose_parent_is_missing(): void
+    {
+        $storage = new InMemoryStorage([
+            new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
+            new Entry(new Dn('cn=Alice,dc=example,dc=com'), new Attribute('cn', 'Alice')),
+            new Entry(new Dn('dc=other,dc=org'), new Attribute('dc', 'other')),
+        ]);
+
+        $contexts = array_map(
+            fn(Dn $dn): string => $dn->toString(),
+            $storage->namingContexts(),
+        );
+
+        sort($contexts);
+        self::assertSame(
+            ['dc=example,dc=com', 'dc=other,dc=org'],
+            $contexts,
+        );
+    }
+
+    public function test_naming_contexts_returns_orphans_whose_parent_is_not_in_storage(): void
+    {
+        $storage = new InMemoryStorage([
+            new Entry(new Dn('cn=Alice,dc=example,dc=com'), new Attribute('cn', 'Alice')),
+        ]);
+
+        $contexts = array_map(
+            fn(Dn $dn): string => $dn->toString(),
+            $storage->namingContexts(),
+        );
+
+        self::assertSame(
+            ['cn=alice,dc=example,dc=com'],
+            $contexts,
+        );
+    }
 }

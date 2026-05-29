@@ -60,4 +60,11 @@ interface EntryStorageInterface
      * @param callable(EntryStorageInterface): void $operation
      */
     public function atomic(callable $operation): void;
+
+    /**
+     * Normalised DNs of entries whose parent is not in storage. Advertised by the server as RootDSE namingContexts.
+     *
+     * @return list<Dn>
+     */
+    public function namingContexts(): array;
 }

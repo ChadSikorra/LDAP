@@ -26,6 +26,8 @@ use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\RequestContext;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
@@ -53,6 +55,7 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
     public function __construct(
         private readonly ServerOptions $options,
         private readonly ServerQueue $queue,
+        private readonly LdapBackendInterface $backend,
         private readonly ?RootDseHandlerInterface $rootDseHandler = null,
     ) {}
 
@@ -65,7 +68,10 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
         TokenInterface $token,
     ): OperationResult {
         $entry = Entry::fromArray('', [
-            'namingContexts' => $this->options->getDseNamingContexts(),
+            'namingContexts' => array_map(
+                fn(Dn $dn): string => $dn->toString(),
+                $this->backend->namingContexts(),
+            ),
             'subschemaSubentry' => [$this->options->getSubschemaEntry()->toString()],
             'supportedControl' => [
                 Control::OID_PAGING,

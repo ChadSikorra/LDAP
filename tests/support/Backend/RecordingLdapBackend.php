@@ -65,4 +65,9 @@ final class RecordingLdapBackend implements LdapBackendInterface
     ): bool {
         return false;
     }
+
+    public function namingContexts(): array
+    {
+        return [];
+    }
 }

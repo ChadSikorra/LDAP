@@ -149,7 +149,6 @@ class LdapServer
             storage: $storage,
             limits: $this->options->makeSearchLimits(),
             validator: $this->buildSchemaValidator(),
-            namingContexts: $this->options->getDseNamingContexts(),
             operationalAttrs: new OperationalAttributeGenerator($schema),
         ));
     }
@@ -248,7 +247,7 @@ class LdapServer
 
         $output->write((new DirectoryDumper(
             $backend,
-            $this->options->getDseNamingContexts(),
+            $backend->namingContexts(),
             $this->options->getFilterEvaluator(),
         ))->dump($options));
 

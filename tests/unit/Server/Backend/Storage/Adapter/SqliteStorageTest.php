@@ -735,4 +735,33 @@ final class SqliteStorageTest extends TestCase
         self::assertNotNull($this->storage->find(new Dn('cn=outer,dc=example,dc=com')));
         self::assertNull($this->storage->find(new Dn('cn=inner,dc=example,dc=com')));
     }
+
+    public function test_naming_contexts_returns_entries_whose_parent_is_missing_in_storage(): void
+    {
+        $this->storage->store(new Entry(
+            new Dn('dc=other,dc=org'),
+            new Attribute('dc', 'other'),
+        ));
+
+        $contexts = array_map(
+            fn(Dn $dn): string => $dn->toString(),
+            $this->storage->namingContexts(),
+        );
+
+        sort($contexts);
+        self::assertSame(
+            ['dc=example,dc=com', 'dc=other,dc=org'],
+            $contexts,
+        );
+    }
+
+    public function test_naming_contexts_is_empty_when_storage_is_empty(): void
+    {
+        $emptyStorage = SqliteStorage::forPcntl(':memory:');
+
+        self::assertSame(
+            [],
+            $emptyStorage->namingContexts(),
+        );
+    }
 }

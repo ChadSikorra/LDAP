@@ -32,7 +32,7 @@ use Generator;
 final readonly class DirectoryDumper
 {
     /**
-     * @param string[] $namingContexts dump roots when DumpOptions::baseDn is not set
+     * @param list<Dn> $namingContexts dump roots when DumpOptions::baseDn is not set
      */
     public function __construct(
         private WritableStorageBackend $backend,
@@ -71,10 +71,7 @@ final readonly class DirectoryDumper
             return [$options->getBaseDn()];
         }
 
-        return array_values(array_map(
-            fn(string $namingContext): Dn => new Dn($namingContext),
-            $this->namingContexts,
-        ));
+        return $this->namingContexts;
     }
 
     /**

@@ -142,6 +142,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
         return new ServerProtocolHandler\ServerRootDseHandler(
             options: $this->options,
             queue: $this->queue,
+            backend: $this->handlerFactory->makeBackend(),
             rootDseHandler: $this->handlerFactory->makeRootDseHandler(),
         );
     }

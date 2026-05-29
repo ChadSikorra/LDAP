@@ -26,6 +26,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerRootDseHandler;
 use FreeDSx\Ldap\Search\Filters;
+use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\RequestContext;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
@@ -45,25 +46,42 @@ final class ServerRootDseHandlerTest extends TestCase
 
     private RootDseHandlerInterface&MockObject $mockDseHandler;
 
+    private LdapBackendInterface&MockObject $mockBackend;
+
     protected function setUp(): void
     {
         $this->options = new ServerOptions();
         $this->mockToken = $this->createMock(TokenInterface::class);
         $this->mockQueue = $this->createMock(ServerQueue::class);
         $this->mockDseHandler = $this->createMock(RootDseHandlerInterface::class);
+        $this->withBackendNamingContexts([]);
+    }
+
+    /**
+     * @param list<string> $dns
+     */
+    private function withBackendNamingContexts(array $dns): void
+    {
+        $this->mockBackend = $this->createMock(LdapBackendInterface::class);
+        $this->mockBackend
+            ->method('namingContexts')
+            ->willReturn(array_map(
+                fn(string $dn): Dn => new Dn($dn),
+                $dns,
+            ));
 
         $this->subject = new ServerRootDseHandler(
             $this->options,
             $this->mockQueue,
+            $this->mockBackend,
             null,
         );
     }
 
     public function test_it_should_send_back_a_RootDSE(): void
     {
-        $this->options
-            ->setDseVendorName('Foo')
-            ->setDseNamingContexts('dc=Foo,dc=Bar');
+        $this->options->setDseVendorName('Foo');
+        $this->withBackendNamingContexts(['dc=Foo,dc=Bar']);
 
         $search = new LdapMessageRequest(
             1,
@@ -134,13 +152,13 @@ final class ServerRootDseHandlerTest extends TestCase
 
     public function test_it_should_send_a_request_to_the_dispatcher_if_it_implements_a_rootdse_aware_interface(): void
     {
-        $this->options
-            ->setDseVendorName('Foo')
-            ->setDseNamingContexts('dc=Foo,dc=Bar');
+        $this->options->setDseVendorName('Foo');
+        $this->withBackendNamingContexts(['dc=Foo,dc=Bar']);
 
         $this->subject = new ServerRootDseHandler(
             $this->options,
             $this->mockQueue,
+            $this->mockBackend,
             $this->mockDseHandler,
         );
 
@@ -234,9 +252,8 @@ final class ServerRootDseHandlerTest extends TestCase
 
     public function test_it_should_only_return_attribute_names_from_the_RootDSE_if_requested(): void
     {
-        $this->options
-            ->setDseVendorName('Foo')
-            ->setDseNamingContexts('dc=Foo,dc=Bar');
+        $this->options->setDseVendorName('Foo');
+        $this->withBackendNamingContexts(['dc=Foo,dc=Bar']);
 
         $search = new LdapMessageRequest(
             1,
@@ -320,9 +337,8 @@ final class ServerRootDseHandlerTest extends TestCase
 
     public function test_it_should_only_return_specific_attributes_from_the_RootDSE_if_requested(): void
     {
-        $this->options
-            ->setDseVendorName('Foo')
-            ->setDseNamingContexts('dc=Foo,dc=Bar');
+        $this->options->setDseVendorName('Foo');
+        $this->withBackendNamingContexts(['dc=Foo,dc=Bar']);
 
         $search = new LdapMessageRequest(
             1,
