@@ -82,7 +82,6 @@ class PcntlServerRunner implements ServerRunnerInterface
         pcntl_async_signals(true);
 
         $this->handledSignals = [
-            SIGHUP,
             SIGINT,
             SIGTERM,
             SIGQUIT,
@@ -239,6 +238,11 @@ class PcntlServerRunner implements ServerRunnerInterface
                 },
             );
         }
+        // Children don't reload config; ignore SIGHUP so terminal hangups don't kill them.
+        pcntl_signal(
+            SIGHUP,
+            SIG_IGN,
+        );
     }
 
     /**
@@ -254,6 +258,15 @@ class PcntlServerRunner implements ServerRunnerInterface
                 },
             );
         }
+        pcntl_signal(
+            SIGHUP,
+            function () {
+                $this->logInfo(
+                    'Received SIGHUP. Configuration reload is not yet implemented.',
+                    $this->defaultContext,
+                );
+            },
+        );
     }
 
     /**

@@ -179,6 +179,30 @@ class ServerTestCase extends LdapTestCase
         );
     }
 
+    protected function sendServerSignal(int $signal): void
+    {
+        $process = $this->overrideProcess ?? self::$sharedProcess
+            ?? throw new RuntimeException('No server process is running.');
+
+        $pid = $process->getPid();
+
+        if ($pid === null) {
+            throw new RuntimeException('The server process has no PID.');
+        }
+
+        posix_kill(
+            $pid,
+            $signal,
+        );
+    }
+
+    protected function isServerRunning(): bool
+    {
+        $process = $this->overrideProcess ?? self::$sharedProcess;
+
+        return $process?->isRunning() ?? false;
+    }
+
     protected function authenticate(): void
     {
         $this->ldapClient()->bind(
