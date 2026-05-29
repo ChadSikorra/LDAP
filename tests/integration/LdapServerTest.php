@@ -21,6 +21,7 @@ use FreeDSx\Ldap\Operation\Response\BindResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Search\Filters;
+use Throwable;
 
 final class LdapServerTest extends ServerTestCase
 {
@@ -435,5 +436,47 @@ final class LdapServerTest extends ServerTestCase
 
         $paging->end();
         $this->assertFalse($paging->hasEntries());
+    }
+
+    public function testSighupDoesNotShutdownTheServer(): void
+    {
+        if (!extension_loaded('posix')) {
+            $this->markTestSkipped('The posix extension is required to send signals.');
+        }
+
+        $this->authenticate();
+        $this->assertSame(
+            'dn:cn=user,dc=foo,dc=bar',
+            $this->ldapClient()->whoami(),
+        );
+
+        $this->sendServerSignal(SIGHUP);
+
+        // Give the async signal handler a moment to run before checking state.
+        usleep(250_000);
+
+        $this->assertTrue(
+            $this->isServerRunning(),
+            'The server must remain running after SIGHUP.',
+        );
+
+        $newClient = $this->buildClient('tcp');
+
+        try {
+            $newClient->bind(
+                'cn=user,dc=foo,dc=bar',
+                '12345',
+            );
+            $this->assertSame(
+                'dn:cn=user,dc=foo,dc=bar',
+                $newClient->whoami(),
+            );
+        } finally {
+            try {
+                $newClient->unbind();
+            } catch (Throwable) {
+                // Connection may already be closed; ignore unbind failures.
+            }
+        }
     }
 }

@@ -110,6 +110,19 @@ class SwooleServerRunner implements ServerRunnerInterface
         Process::signal(SIGTERM, $this->handleShutdownSignal(...));
         Process::signal(SIGINT, $this->handleShutdownSignal(...));
         Process::signal(SIGQUIT, $this->handleShutdownSignal(...));
+        // SIGHUP is reserved for configuration reload, not shutdown. Stub it.
+        Process::signal(
+            SIGHUP,
+            $this->handleReloadSignal(...),
+        );
+    }
+
+    private function handleReloadSignal(int $signal): void
+    {
+        $this->getRunnerLogger()?->info(
+            'Received SIGHUP. Configuration reload is not yet implemented.',
+            ['signal' => $signal],
+        );
     }
 
     private function handleShutdownSignal(int $signal): void
