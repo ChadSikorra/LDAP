@@ -19,7 +19,6 @@ use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 
 /**
  * Responsible for instantiating classes needed by the core server logic.
@@ -32,11 +31,6 @@ interface HandlerFactoryInterface
      * Return the configured backend, or an empty in-memory backend if none is set.
      */
     public function makeBackend(): LdapBackendInterface;
-
-    /**
-     * Return the configured filter evaluator, or the default FilterEvaluator.
-     */
-    public function makeFilterEvaluator(): FilterEvaluatorInterface;
 
     /**
      * Return the optional root DSE handler, or null if not configured.

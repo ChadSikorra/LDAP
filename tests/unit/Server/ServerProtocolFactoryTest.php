@@ -30,7 +30,6 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\ServerProtocolFactory;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\Socket;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -52,10 +51,6 @@ final class ServerProtocolFactoryTest extends TestCase
         $this->mockHandlerFactory
             ->method('makeBackend')
             ->willReturn(new WritableStorageBackend(new InMemoryStorage()));
-
-        $this->mockHandlerFactory
-            ->method('makeFilterEvaluator')
-            ->willReturn(new FilterEvaluator());
 
         $options = new ServerOptions();
         $writeDispatcher = new WriteOperationDispatcher();

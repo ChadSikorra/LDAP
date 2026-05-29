@@ -17,7 +17,10 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Ldif\Loader\StringLdifLoader;
+use FreeDSx\Ldap\Ldif\Output\StringLdifOutput;
+use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Export\DumpOptions;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
@@ -312,5 +315,100 @@ class LdapServerTest extends TestCase
         $this->expectExceptionMessage('requires a writable backend');
 
         $this->subject->applyChanges(new StringLdifLoader("dn: cn=x,dc=x\nchangetype: delete\n"));
+    }
+
+    public function test_it_should_throw_when_dumping_without_a_storage_backend(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('requires a storage backend');
+
+        $this->subject->dump(new StringLdifOutput());
+    }
+
+    public function test_it_should_dump_seeded_entries_to_the_given_output(): void
+    {
+        $storage = new InMemoryStorage();
+        $this->subject->useStorage($storage);
+        $this->subject->seed(new StringLdifLoader(self::SEED_LDIF));
+
+        $output = new StringLdifOutput();
+        $this->subject->dump(
+            $output,
+            (new DumpOptions())->setBaseDn(new Dn('dc=example,dc=com')),
+        );
+
+        $ldif = $output->getLdif();
+        self::assertStringStartsWith(
+            'version: 1',
+            $ldif,
+        );
+        self::assertStringContainsString(
+            'dn: dc=example,dc=com',
+            $ldif,
+        );
+        self::assertStringContainsString(
+            'dn: cn=foo,dc=example,dc=com',
+            $ldif,
+        );
+    }
+
+    public function test_dump_seed_round_trip_preserves_entryUUID_and_create_timestamp(): void
+    {
+        $storage = new InMemoryStorage();
+        $this->subject->useStorage($storage);
+        $this->subject->seed(new StringLdifLoader(self::SEED_LDIF));
+
+        $originalFoo = $storage->find(new Dn('cn=foo,dc=example,dc=com'));
+        self::assertNotNull($originalFoo);
+        $originalUuid = $originalFoo->get('entryUUID')?->firstValue();
+        $originalTimestamp = $originalFoo->get('createTimestamp')?->firstValue();
+        self::assertNotNull($originalUuid);
+        self::assertNotNull($originalTimestamp);
+
+        $output = new StringLdifOutput();
+        $this->subject->dump(
+            $output,
+            (new DumpOptions())->setBaseDn(new Dn('dc=example,dc=com')),
+        );
+
+        $restoredStorage = new InMemoryStorage();
+        (new LdapServer())
+            ->useStorage($restoredStorage)
+            ->seed(new StringLdifLoader($output->getLdif()));
+
+        $restoredFoo = $restoredStorage->find(new Dn('cn=foo,dc=example,dc=com'));
+        self::assertNotNull($restoredFoo);
+        self::assertSame(
+            $originalUuid,
+            $restoredFoo->get('entryUUID')?->firstValue(),
+        );
+        self::assertSame(
+            $originalTimestamp,
+            $restoredFoo->get('createTimestamp')?->firstValue(),
+        );
+    }
+
+    public function test_it_should_apply_the_dump_options_filter(): void
+    {
+        $storage = new InMemoryStorage();
+        $this->subject->useStorage($storage);
+        $this->subject->seed(new StringLdifLoader(self::SEED_LDIF));
+
+        $output = new StringLdifOutput();
+        $this->subject->dump(
+            $output,
+            (new DumpOptions())
+                ->setBaseDn(new Dn('dc=example,dc=com'))
+                ->setFilter(Filters::equal('objectClass', 'person')),
+        );
+
+        self::assertStringContainsString(
+            'cn=foo,dc=example,dc=com',
+            $output->getLdif(),
+        );
+        self::assertStringNotContainsString(
+            'dn: dc=example,dc=com',
+            $output->getLdif(),
+        );
     }
 }

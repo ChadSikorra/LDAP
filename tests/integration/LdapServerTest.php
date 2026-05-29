@@ -179,7 +179,7 @@ final class LdapServerTest extends ServerTestCase
         $this->assertSame(
             [
                 'namingContexts' => [
-                    'dc=FreeDSx,dc=local',
+                    'dc=foo,dc=bar',
                 ],
                 'subschemaSubentry' => [
                     'cn=Subschema',
