@@ -56,9 +56,10 @@ final class CiThresholds
                 minThroughput: 1100.0,
                 maxP99Ms: 150.0,
             ),
+            // No minThroughput: too tightly dependent on the GH Actions node.
+            // Detection on throughput stays on sqlite:pcntl.
             'sqlite:swoole' => new ThresholdSet(
                 maxErrors: 0,
-                minThroughput: 900.0,
                 maxP99Ms: 500.0,
             ),
             'mysql:pcntl' => new ThresholdSet(
