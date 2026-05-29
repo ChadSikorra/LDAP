@@ -242,16 +242,44 @@ final class WritableStorageBackendTest extends TestCase
         );
     }
 
-    public function test_add_allows_root_naming_context_entry(): void
+    public function test_add_allows_root_naming_context_entry_for_system_context(): void
     {
         $backend = new WritableStorageBackend(new InMemoryStorage());
         $root = new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example'));
         $backend->add(
             new AddCommand($root),
-            $this->context(),
+            $this->systemContext(),
         );
 
         self::assertNotNull($backend->get(new Dn('dc=example,dc=com')));
+    }
+
+    public function test_add_refuses_root_naming_context_entry_for_non_system_context(): void
+    {
+        $backend = new WritableStorageBackend(new InMemoryStorage());
+        $root = new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example'));
+
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::NO_SUCH_OBJECT);
+
+        $backend->add(
+            new AddCommand($root),
+            $this->context(),
+        );
+    }
+
+    public function test_add_refuses_single_rdn_root_entry_for_non_system_context(): void
+    {
+        $backend = new WritableStorageBackend(new InMemoryStorage());
+        $root = new Entry(new Dn('dc=com'), new Attribute('dc', 'com'));
+
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::NO_SUCH_OBJECT);
+
+        $backend->add(
+            new AddCommand($root),
+            $this->context(),
+        );
     }
 
     public function test_delete_removes_entry(): void
@@ -663,6 +691,14 @@ final class WritableStorageBackendTest extends TestCase
     private function context(): WriteContext
     {
         return new WriteContext(
+            new AnonToken(),
+            new ControlBag(),
+        );
+    }
+
+    private function systemContext(): WriteContext
+    {
+        return WriteContext::system(
             new AnonToken(),
             new ControlBag(),
         );

@@ -63,7 +63,7 @@ final class SqliteStorageTest extends TestCase
             new AddCommand(
                 new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
             ),
-            $this->context(),
+            $this->systemContext(),
         );
         $this->subject->add(
             new AddCommand($this->alice),
@@ -74,6 +74,14 @@ final class SqliteStorageTest extends TestCase
     private function context(): WriteContext
     {
         return new WriteContext(
+            new AnonToken(),
+            new ControlBag(),
+        );
+    }
+
+    private function systemContext(): WriteContext
+    {
+        return WriteContext::system(
             new AnonToken(),
             new ControlBag(),
         );
@@ -575,8 +583,6 @@ final class SqliteStorageTest extends TestCase
         $storage = $this->createPdoStorageWithMaxDnLength(5);
         $backend = new WritableStorageBackend($storage);
 
-        // Use a root-level parent (dc=example) so assertParentExists skips the lookup
-        // and the path reaches PdoStorage::store() where the DnTooLongException fires.
         $entry = new Entry(
             new Dn('cn=TooLong,dc=example'),
             new Attribute('cn', 'TooLong'),
@@ -585,7 +591,7 @@ final class SqliteStorageTest extends TestCase
         try {
             $backend->add(
                 new AddCommand($entry),
-                $this->context(),
+                $this->systemContext(),
             );
             self::fail('Expected OperationException was not thrown.');
         } catch (OperationException $e) {
@@ -615,7 +621,7 @@ final class SqliteStorageTest extends TestCase
         );
         $backend->add(
             new AddCommand($base),
-            $this->context(),
+            $this->systemContext(),
         );
         $backend->add(
             new AddCommand($escaped),
@@ -647,7 +653,7 @@ final class SqliteStorageTest extends TestCase
         );
         $backend->add(
             new AddCommand($base),
-            $this->context(),
+            $this->systemContext(),
         );
         $backend->add(
             new AddCommand($escaped),

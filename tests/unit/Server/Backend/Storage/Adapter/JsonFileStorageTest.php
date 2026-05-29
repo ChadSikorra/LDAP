@@ -57,7 +57,7 @@ final class JsonFileStorageTest extends TestCase
                     new Attribute('dc', 'example'),
                 ),
             ),
-            $this->context(),
+            $this->systemContext(),
         );
         $this->subject->add(
             new AddCommand($this->alice),
@@ -68,6 +68,14 @@ final class JsonFileStorageTest extends TestCase
     private function context(): WriteContext
     {
         return new WriteContext(
+            new AnonToken(),
+            new ControlBag(),
+        );
+    }
+
+    private function systemContext(): WriteContext
+    {
+        return WriteContext::system(
             new AnonToken(),
             new ControlBag(),
         );
@@ -282,7 +290,7 @@ final class JsonFileStorageTest extends TestCase
                     new Attribute('dc', 'other'),
                 ),
             ),
-            $this->context(),
+            $this->systemContext(),
         );
 
         $contexts = array_map(
