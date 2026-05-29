@@ -17,9 +17,11 @@ General LDAP Server Usage
     * [MysqlStorage](#mysqlstorage)
   * [Proxy Backend](#proxy-backend)
   * [Custom Filter Evaluation](#custom-filter-evaluation)
-* [Loading LDIF Data](#loading-ldif-data)
+* [LDIF Data](#ldif-data)
   * [Seeding Initial Entries](#seeding-initial-entries)
   * [Replaying LDIF Changelogs](#replaying-ldif-changelogs)
+  * [Dumping the Directory](#dumping-the-directory)
+  * [Inspecting Parsed LDIF](#inspecting-parsed-ldif)
 * [Authentication](#authentication)
   * [Default Authentication](#default-authentication)
   * [Custom Bind Name Resolution](#custom-bind-name-resolution)
@@ -677,7 +679,12 @@ class MySqlFilterEvaluator implements FilterEvaluatorInterface
 }
 ```
 
-## Loading LDIF Data
+## LDIF Data
+
+`seed()`, `applyChanges()`, and `dump()` all stream. LDIF input is always taken through `LdifLoaderInterface`
+such as `FileLdifLoader` for a path, `StringLdifLoader` for an in-memory string, or your own implementation for any
+other source (database, remote URL, gzip stream, etc.). LDIF output uses the parallel `LdifOutputInterface` such as 
+`FileLdifOutput` and `StringLdifOutput`.
 
 ### Seeding Initial Entries
 
@@ -704,9 +711,8 @@ $server->run();
 The optional second argument is the creator DN, stamped as `creatorsName`/`modifiersName` on each imported entry —
 defaults to the empty (anonymous) DN.
 
-`seed()` accepts only content records (entries without `changetype:`). LDIF sources are pluggable via `LdifLoaderInterface`:
-use `FileLdifLoader`, `StringLdifLoader`, or implement your own (e.g. fetching from a database or remote URL). The
-operation itself is an upsert that overwrites.
+`seed()` accepts only content records (entries without `changetype:`) and requires depth-first input (parents first,
+then children entries). LDIF produced by `dump()` is already in this order. The operation itself is an upsert that overwrites.
 
 For Swoole factories (`::forSwoole()`), call `seed()` inside `Swoole\Coroutine\run()` so the adapter's
 coroutine-scoped connection is available during import.
@@ -748,6 +754,77 @@ use FreeDSx\Ldap\Ldif\Loader\FileLdifLoader;
 Unlike `seed()`, `applyChanges()` dispatches each request through the same write path the live server uses for client
 requests. Supported changetypes: `add`, `delete`, `modify` (`add:`/`delete:`/`replace:` mod-specs), and `modrdn`/`moddn`
 (rename or move; supports optional `newsuperior:` for moving across subtrees).
+
+### Dumping the Directory
+
+`LdapServer::dump()` streams the configured storage backend's entries to an LDIF output as RFC 2849 content records.
+Operational attributes (`entryUUID`, `createTimestamp`, etc.) are preserved. So `dump()` then `seed()` restores the
+entries exactly as they were.
+
+```php
+use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\Ldif\Output\FileLdifOutput;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+
+(new LdapServer())
+    ->useStorage(SqliteStorage::forPcntl('/var/lib/myapp/ldap.sqlite'))
+    ->dump(new FileLdifOutput('/var/backups/ldap-snapshot.ldif'));
+```
+
+For in-memory use (logging, tests, piping over the network) use `StringLdifOutput`, which collects the chunks and is
+both `Stringable` and exposes `getLdif()`:
+
+```php
+use FreeDSx\Ldap\Ldif\Output\StringLdifOutput;
+
+$output = new StringLdifOutput();
+$server->dump($output);
+
+echo $output; // or $output->getLdif()
+```
+
+Use `DumpOptions` to filter the dump by any filter you want. Useful for partial backups or extracting a single OU:
+
+```php
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Search\Filters;
+use FreeDSx\Ldap\Server\Backend\Storage\Export\DumpOptions;
+
+$options = (new DumpOptions())
+    ->setBaseDn(new Dn('ou=people,dc=example,dc=com'))
+    ->setFilter(Filters::equal('objectClass', 'inetOrgPerson'));
+
+$server->dump(
+    new FileLdifOutput('/tmp/people.ldif'),
+    $options,
+);
+```
+
+### Inspecting Parsed LDIF
+
+For one-off tooling that needs to inspect a parsed LDIF before applying it (counting records, filtering by changetype,
+etc) `LdifChanges` is a buffered collection with type filters:
+
+```php
+use FreeDSx\Ldap\Ldif\LdifChanges;
+use FreeDSx\Ldap\Ldif\Loader\FileLdifLoader;
+
+$changes = LdifChanges::fromLoader(new FileLdifLoader('/path/to/changes.ldif'));
+
+foreach ($changes->entries() as $entry) {
+    // each AddRequest's Entry
+}
+
+$changes->count();     // total changes
+$changes->adds();      // AddRequest[]
+$changes->modifies();  // ModifyRequest[]
+$changes->deletes();   // DeleteRequest[]
+$changes->modifyDns(); // ModifyDnRequest[]
+```
+
+`LdifChanges::fromString($ldif)` is the same flow for an in-memory string. The collection materializes every request,
+so prefer the streaming `seed()`/`applyChanges()`/`dump()` methods normal data paths; `LdifChanges` is best suited to
+small change sets.
 
 ## Authentication
 

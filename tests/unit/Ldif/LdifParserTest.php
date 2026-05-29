@@ -14,23 +14,16 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Ldif;
 
 use FreeDSx\Ldap\Exception\LdifParseException;
-use FreeDSx\Ldap\Ldif\LdifParser;
+use FreeDSx\Ldap\Ldif\LdifChanges;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyRequest;
 use PHPUnit\Framework\TestCase;
 
 final class LdifParserTest extends TestCase
 {
-    private LdifParser $subject;
-
-    protected function setUp(): void
-    {
-        $this->subject = new LdifParser();
-    }
-
     public function test_it_parses_a_single_content_record_with_multi_valued_attributes(): void
     {
-        $result = $this->subject->parse(
+        $result = LdifChanges::fromString(
             "dn: cn=foo,dc=example,dc=com\nobjectClass: top\nobjectClass: person\ncn: foo\nsn: Bar\n",
         );
 
@@ -52,7 +45,7 @@ final class LdifParserTest extends TestCase
 
     public function test_it_parses_multiple_records_separated_by_blank_lines(): void
     {
-        $result = $this->subject->parse(
+        $result = LdifChanges::fromString(
             "dn: cn=a,dc=x\ncn: a\n\ndn: cn=b,dc=x\ncn: b\n",
         );
 
@@ -64,7 +57,7 @@ final class LdifParserTest extends TestCase
 
     public function test_it_unfolds_continued_lines(): void
     {
-        $entry = $this->subject->parse(
+        $entry = LdifChanges::fromString(
             "dn: cn=foo,dc=x\ndescription: this is a long\n  description value\n",
         )->entries()[0];
 
@@ -76,7 +69,7 @@ final class LdifParserTest extends TestCase
 
     public function test_it_decodes_a_base64_value(): void
     {
-        $entry = $this->subject->parse(
+        $entry = LdifChanges::fromString(
             "dn: cn=foo,dc=x\ncn:: " . base64_encode('Bär') . "\n",
         )->entries()[0];
 
@@ -88,7 +81,7 @@ final class LdifParserTest extends TestCase
 
     public function test_it_decodes_a_base64_dn(): void
     {
-        $entry = $this->subject->parse(
+        $entry = LdifChanges::fromString(
             "dn:: " . base64_encode('cn=Bär,dc=x') . "\ncn: x\n",
         )->entries()[0];
 
@@ -100,7 +93,7 @@ final class LdifParserTest extends TestCase
 
     public function test_it_skips_comments_including_folded_ones(): void
     {
-        $result = $this->subject->parse(
+        $result = LdifChanges::fromString(
             "# a top comment\ndn: cn=foo,dc=x\n# inline comment\n# folded\n more comment\ncn: foo\n",
         );
 
@@ -115,7 +108,7 @@ final class LdifParserTest extends TestCase
     {
         self::assertCount(
             1,
-            $this->subject->parse("version: 1\ndn: cn=foo,dc=x\ncn: foo\n"),
+            LdifChanges::fromString("version: 1\ndn: cn=foo,dc=x\ncn: foo\n"),
         );
     }
 
@@ -123,19 +116,19 @@ final class LdifParserTest extends TestCase
     {
         $this->expectException(LdifParseException::class);
 
-        $this->subject->parse("version: 2\ndn: cn=foo,dc=x\ncn: foo\n");
+        LdifChanges::fromString("version: 2\ndn: cn=foo,dc=x\ncn: foo\n");
     }
 
     public function test_it_rejects_a_version_after_a_record(): void
     {
         $this->expectException(LdifParseException::class);
 
-        $this->subject->parse("dn: cn=foo,dc=x\ncn: foo\n\nversion: 1\n");
+        LdifChanges::fromString("dn: cn=foo,dc=x\ncn: foo\n\nversion: 1\n");
     }
 
     public function test_it_parses_a_mixed_file_with_content_and_change_records(): void
     {
-        $result = $this->subject->parse(
+        $result = LdifChanges::fromString(
             "dn: cn=foo,dc=x\ncn: foo\nsn: Bar\n"
             . "\n"
             . "dn: cn=baz,dc=x\nchangetype: modify\nreplace: sn\nsn: Quux\n-\n",
@@ -157,13 +150,13 @@ final class LdifParserTest extends TestCase
         $this->expectException(LdifParseException::class);
         $this->expectExceptionMessage('URL-referenced');
 
-        $this->subject->parse("dn: cn=foo,dc=x\njpegPhoto:< file:///tmp/x.jpg\n");
+        LdifChanges::fromString("dn: cn=foo,dc=x\njpegPhoto:< file:///tmp/x.jpg\n");
     }
 
     public function test_it_reports_the_line_number_of_a_malformed_line(): void
     {
         try {
-            $this->subject->parse("dn: cn=foo,dc=x\ncn: foo\nthis-has-no-colon\n");
+            LdifChanges::fromString("dn: cn=foo,dc=x\ncn: foo\nthis-has-no-colon\n");
             self::fail('Expected an LdifParseException.');
         } catch (LdifParseException $e) {
             self::assertSame(3, $e->getLineNumber());
@@ -176,7 +169,7 @@ final class LdifParserTest extends TestCase
 
     public function test_it_parses_an_empty_value(): void
     {
-        $entry = $this->subject->parse("dn: cn=foo,dc=x\ndescription:\n")->entries()[0];
+        $entry = LdifChanges::fromString("dn: cn=foo,dc=x\ndescription:\n")->entries()[0];
 
         self::assertSame(
             [''],
@@ -186,6 +179,6 @@ final class LdifParserTest extends TestCase
 
     public function test_it_returns_no_records_for_empty_input(): void
     {
-        self::assertCount(0, $this->subject->parse(''));
+        self::assertCount(0, LdifChanges::fromString(''));
     }
 }

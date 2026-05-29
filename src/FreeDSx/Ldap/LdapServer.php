@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap;
 
 use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Exception\LdifParseException;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -21,6 +22,7 @@ use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Ldif\LdifParser;
 use FreeDSx\Ldap\Ldif\Loader\LdifLoaderInterface;
 use FreeDSx\Ldap\Ldif\Output\LdifOutputInterface;
+use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
@@ -42,6 +44,7 @@ use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
+use Generator;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -172,23 +175,32 @@ class LdapServer
             throw new RuntimeException('seed() requires a storage backend configured via useStorage().');
         }
 
-        $changes = (new LdifParser())
-            ->parse($loader->load());
-
-        if (!$changes->isAddOnly()) {
-            throw new RuntimeException(
-                'seed() only accepts content records (adds). Use applyChanges() for modify/delete/rename.',
-            );
-        }
-
         (new LdapImporter(
             $backend->getStorage(),
             $backend->getOperationalAttributeGenerator(),
             $backend->getSchemaValidator(),
             $creatorDn,
-        ))->importEntries($changes->entries());
+        ))->importEntries($this->streamSeedEntries($loader));
 
         return $this;
+    }
+
+    /**
+     * @return Generator<Entry>
+     * @throws RuntimeException when the LDIF contains a non-add change record
+     * @throws LdifParseException
+     */
+    private function streamSeedEntries(LdifLoaderInterface $loader): Generator
+    {
+        foreach ((new LdifParser())->parse($loader) as $request) {
+            if (!$request instanceof AddRequest) {
+                throw new RuntimeException(
+                    'seed() only accepts content records (adds). Use applyChanges() for modify/delete/rename.',
+                );
+            }
+
+            yield $request->getEntry();
+        }
     }
 
     /**
@@ -208,17 +220,10 @@ class LdapServer
             throw new RuntimeException('applyChanges() requires a writable backend.');
         }
 
-        $changes = (new LdifParser())
-            ->parse($loader->load());
-
-        if (count($changes) === 0) {
-            return $this;
-        }
-
         (new WriteRequestReplayer(
             $backend,
             $this->options->getWriteHandlers(),
-        ))->apply($changes);
+        ))->apply((new LdifParser())->parse($loader));
 
         return $this;
     }

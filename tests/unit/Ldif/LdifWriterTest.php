@@ -18,7 +18,6 @@ use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Ldif\LdifChanges;
 use FreeDSx\Ldap\Ldif\LdifOutputOptions;
-use FreeDSx\Ldap\Ldif\LdifParser;
 use FreeDSx\Ldap\Ldif\LdifWriter;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Operation\Request\DeleteRequest;
@@ -349,7 +348,7 @@ final class LdifWriterTest extends TestCase
         );
 
         $ldif = (new LdifWriter($options))->write($changes);
-        $parsed = (new LdifParser())->parse($ldif);
+        $parsed = LdifChanges::fromString($ldif);
 
         self::assertSame(
             $this->normalize($changes),

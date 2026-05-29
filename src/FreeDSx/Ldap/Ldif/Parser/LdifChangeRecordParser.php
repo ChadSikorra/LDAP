@@ -77,8 +77,8 @@ final class LdifChangeRecordParser
         $directive = $cursor->readDirective();
 
         if (!$directive->is(self::CHANGETYPE)) {
-            $cursor->errorAt(
-                $directive->position,
+            $cursor->errorFor(
+                $directive,
                 'Expected "changetype:" directive after DN',
             );
         }
@@ -146,8 +146,8 @@ final class LdifChangeRecordParser
         $attr = $directive->value;
 
         if ($op === null) {
-            $cursor->errorAt(
-                $directive->position,
+            $cursor->errorFor(
+                $directive,
                 sprintf(
                     'Expected an add:, delete:, or replace: mod-spec, got "%s:"',
                     $directive->name,
@@ -196,8 +196,8 @@ final class LdifChangeRecordParser
             $directive = $cursor->readDirective();
 
             if (!$directive->is($attr)) {
-                $cursor->errorAt(
-                    $directive->position,
+                $cursor->errorFor(
+                    $directive,
                     sprintf(
                         'Mod-spec attribute "%s" does not match values for "%s"',
                         $directive->name,
@@ -245,8 +245,8 @@ final class LdifChangeRecordParser
                     $directive,
                     $cursor,
                 ),
-                null => $cursor->errorAt(
-                    $directive->position,
+                null => $cursor->errorFor(
+                    $directive,
                     sprintf(
                         'Unexpected directive "%s:" in modrdn record',
                         $directive->name,
@@ -279,8 +279,8 @@ final class LdifChangeRecordParser
         LdifLineCursor $cursor,
     ): string {
         if ($current !== null) {
-            $cursor->errorAt(
-                $directive->position,
+            $cursor->errorFor(
+                $directive,
                 sprintf(
                     'Duplicate "%s:" in modrdn record',
                     strtolower($directive->name),
@@ -300,8 +300,8 @@ final class LdifChangeRecordParser
         LdifLineCursor $cursor,
     ): bool {
         if ($current !== null) {
-            $cursor->errorAt(
-                $directive->position,
+            $cursor->errorFor(
+                $directive,
                 'Duplicate "deleteoldrdn:" in modrdn record',
             );
         }
@@ -312,8 +312,8 @@ final class LdifChangeRecordParser
             return true;
         }
 
-        $cursor->errorAt(
-            $directive->position,
+        $cursor->errorFor(
+            $directive,
             sprintf(
                 '"deleteoldrdn" must be 0 or 1, got "%s"',
                 $directive->value,
