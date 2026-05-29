@@ -19,7 +19,7 @@ use PHPUnit\Framework\TestCase;
 
 final class FileLdifLoaderTest extends TestCase
 {
-    public function test_it_loads_the_file_contents(): void
+    public function test_it_yields_lines_without_trailing_newlines(): void
     {
         $path = tempnam(
             sys_get_temp_dir(),
@@ -32,9 +32,13 @@ final class FileLdifLoaderTest extends TestCase
         );
 
         try {
-            self::assertSame(
-                "dn: dc=x\ndc: x\n",
+            $lines = iterator_to_array(
                 (new FileLdifLoader($path))->load(),
+                false,
+            );
+            self::assertSame(
+                ['dn: dc=x', 'dc: x'],
+                $lines,
             );
         } finally {
             unlink($path);
@@ -45,6 +49,9 @@ final class FileLdifLoaderTest extends TestCase
     {
         $this->expectException(RuntimeException::class);
 
-        (new FileLdifLoader('/does/not/exist/seed.ldif'))->load();
+        iterator_to_array(
+            (new FileLdifLoader('/does/not/exist/seed.ldif'))->load(),
+            false,
+        );
     }
 }

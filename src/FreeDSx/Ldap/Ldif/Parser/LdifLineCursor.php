@@ -14,18 +14,18 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Ldif\Parser;
 
 use FreeDSx\Ldap\Exception\LdifParseException;
+use FreeDSx\Ldap\Ldif\Loader\LdifLoaderInterface;
+use Generator;
 
 use function base64_decode;
-use function count;
-use function explode;
 use function ltrim;
-use function str_replace;
+use function preg_split;
 use function strpos;
 use function strtolower;
 use function substr;
 
 /**
- * Cursor over LDIF lines exposing the shared low-level reading primitives.
+ * Streaming cursor over LDIF lines exposing the shared low-level reading primitives.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -37,44 +37,76 @@ final class LdifLineCursor
 
     private const URL_MARKER = '<';
 
+    private ?string $current = null;
+
+    private int $lineNumber = 0;
+
     /**
-     * @param string[] $lines
+     * @param Generator<int, string> $source
      */
-    private function __construct(
-        private array $lines,
-        private int $pos = 0,
-    ) {}
+    private function __construct(private readonly Generator $source)
+    {
+        $this->source->rewind();
+        $this->advance();
+    }
+
+    /**
+     * @param iterable<string> $lines
+     */
+    public static function forIterable(iterable $lines): self
+    {
+        return new self(self::toGenerator($lines));
+    }
 
     public static function forInput(string $ldif): self
     {
-        return new self(explode(
-            "\n",
-            str_replace(
-                ["\r\n", "\r"],
-                "\n",
-                $ldif,
-            ),
-        ));
+        $lines = preg_split("/\r\n|\r|\n/", $ldif);
+
+        return self::forIterable($lines === false ? [] : $lines);
+    }
+
+    public static function forLoader(LdifLoaderInterface $loader): self
+    {
+        return self::forIterable($loader->load());
     }
 
     public function atEnd(): bool
     {
-        return $this->pos >= count($this->lines);
+        return $this->current === null;
     }
 
     public function current(): string
     {
-        return $this->lines[$this->pos];
+        return $this->current ?? '';
     }
 
     public function position(): int
     {
-        return $this->pos;
+        return $this->lineNumber;
     }
 
     public function advance(): void
     {
-        $this->pos++;
+        if (!$this->source->valid()) {
+            $this->current = null;
+
+            return;
+        }
+
+        $this->current = $this->source->current();
+        $this->lineNumber++;
+        $this->source->next();
+    }
+
+    /**
+     * @param iterable<string> $lines
+     * @return Generator<int, string>
+     */
+    private static function toGenerator(iterable $lines): Generator
+    {
+        foreach ($lines as $line) {
+            yield $line;
+        }
     }
 
     /**
@@ -84,20 +116,22 @@ final class LdifLineCursor
      */
     public function readDirective(): LdifDirective
     {
-        $at = $this->pos;
-        $line = $this->lines[$at];
+        $startLine = $this->lineNumber;
+        $startSource = $this->current;
+        $line = $this->current ?? '';
         $colon = strpos($line, self::SEPARATOR);
 
         if ($colon === false || $colon === 0) {
             $this->errorAt(
-                $at,
+                $startLine,
+                $startSource,
                 'Expected a "name: value" directive',
             );
         }
 
         $name = substr($line, 0, $colon);
         $marker = $line[$colon + 1] ?? '';
-        $this->pos++;
+        $this->advance();
 
         if ($marker === self::SEPARATOR) {
             $value = $this->decodeBase64(
@@ -105,11 +139,13 @@ final class LdifLineCursor
                     substr($line, $colon + 2),
                     ' ',
                 )),
-                $at,
+                $startLine,
+                $startSource,
             );
         } elseif ($marker === self::URL_MARKER) {
             $this->errorAt(
-                $at,
+                $startLine,
+                $startSource,
                 'URL-referenced values ("name:< url") are not yet supported',
             );
         } else {
@@ -122,7 +158,8 @@ final class LdifLineCursor
         return new LdifDirective(
             $name,
             $value,
-            $at,
+            $startLine,
+            $startSource,
         );
     }
 
@@ -133,7 +170,7 @@ final class LdifLineCursor
     {
         while ($this->isAtContinuation()) {
             $value .= substr($this->current(), 1);
-            $this->pos++;
+            $this->advance();
         }
 
         return $value;
@@ -141,10 +178,10 @@ final class LdifLineCursor
 
     public function skipComment(): void
     {
-        $this->pos++;
+        $this->advance();
 
         while ($this->isAtContinuation()) {
-            $this->pos++;
+            $this->advance();
         }
     }
 
@@ -175,15 +212,17 @@ final class LdifLineCursor
     /**
      * @throws LdifParseException
      */
-    public function decodeBase64(
+    private function decodeBase64(
         string $raw,
-        int $at,
+        int $line,
+        ?string $sourceLine,
     ): string {
         $decoded = base64_decode($raw, true);
 
         if ($decoded === false) {
             $this->errorAt(
-                $at,
+                $line,
+                $sourceLine,
                 'A base64-encoded value is not valid',
             );
         }
@@ -197,7 +236,8 @@ final class LdifLineCursor
     public function error(string $message): never
     {
         $this->errorAt(
-            $this->pos,
+            $this->lineNumber,
+            $this->current,
             $message,
         );
     }
@@ -206,13 +246,28 @@ final class LdifLineCursor
      * @throws LdifParseException
      */
     public function errorAt(
-        int $at,
+        int $line,
+        ?string $sourceLine,
         string $message,
     ): never {
         throw new LdifParseException(
             $message,
-            $at + 1,
-            $this->lines[$at] ?? null,
+            $line,
+            $sourceLine,
+        );
+    }
+
+    /**
+     * @throws LdifParseException
+     */
+    public function errorFor(
+        LdifDirective $directive,
+        string $message,
+    ): never {
+        $this->errorAt(
+            $directive->position,
+            $directive->sourceLine,
+            $message,
         );
     }
 }

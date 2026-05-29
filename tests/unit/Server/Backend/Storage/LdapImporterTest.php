@@ -48,14 +48,13 @@ final class LdapImporterTest extends TestCase
         self::assertNotNull($storage->find(new Dn('cn=alice,dc=example,dc=com')));
     }
 
-    public function test_importEntries_is_noop_when_empty(): void
+    public function test_importEntries_handles_empty_input(): void
     {
-        $storage = $this->createMock(EntryStorageInterface::class);
-        $storage
-            ->expects(self::never())
-            ->method('atomic');
+        $storage = new InMemoryStorage();
 
         (new LdapImporter($storage))->importEntries([]);
+
+        self::assertNull($storage->find(new Dn('dc=example,dc=com')));
     }
 
     public function test_importEntries_runs_in_single_atomic_call(): void
@@ -71,17 +70,17 @@ final class LdapImporterTest extends TestCase
         ]);
     }
 
-    public function test_importEntries_sorts_by_depth_so_input_order_does_not_matter(): void
+    public function test_importEntries_requires_input_in_depth_first_order(): void
     {
         $storage = new InMemoryStorage();
+
+        self::expectException(InvalidArgumentException::class);
+        self::expectExceptionMessage('Parent entry "dc=example,dc=com" does not exist for "cn=Alice,dc=example,dc=com".');
 
         (new LdapImporter($storage))->importEntries([
             new Entry(new Dn('cn=Alice,dc=example,dc=com'), new Attribute('cn', 'Alice')),
             new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
         ]);
-
-        self::assertNotNull($storage->find(new Dn('dc=example,dc=com')));
-        self::assertNotNull($storage->find(new Dn('cn=alice,dc=example,dc=com')));
     }
 
     public function test_importEntries_throws_when_parent_is_missing(): void

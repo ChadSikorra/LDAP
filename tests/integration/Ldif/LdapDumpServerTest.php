@@ -15,9 +15,9 @@ namespace Tests\Integration\FreeDSx\Ldap\Ldif;
 
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\Ldif\LdifChanges;
 use FreeDSx\Ldap\Ldif\Loader\FileLdifLoader;
 use FreeDSx\Ldap\Ldif\Loader\StringLdifLoader;
-use FreeDSx\Ldap\Ldif\LdifParser;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\ServerOptions;
 use Tests\Integration\FreeDSx\Ldap\ServerTestCase;
@@ -82,8 +82,7 @@ final class LdapDumpServerTest extends ServerTestCase
 
     public function test_the_dump_file_parses_into_the_seeded_entries(): void
     {
-        $loader = new FileLdifLoader(self::$dumpPath);
-        $parsed = (new LdifParser())->parse($loader->load());
+        $parsed = LdifChanges::fromLoader(new FileLdifLoader(self::$dumpPath));
 
         $dns = [];
         foreach ($parsed->entries() as $entry) {
@@ -132,8 +131,7 @@ final class LdapDumpServerTest extends ServerTestCase
 
     public function test_the_dump_preserves_operational_attributes_for_round_trip(): void
     {
-        $loader = new FileLdifLoader(self::$dumpPath);
-        $parsed = (new LdifParser())->parse($loader->load());
+        $parsed = LdifChanges::fromLoader(new FileLdifLoader(self::$dumpPath));
 
         $alice = null;
         foreach ($parsed->entries() as $entry) {

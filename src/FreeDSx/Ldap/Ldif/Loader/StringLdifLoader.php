@@ -13,8 +13,12 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Ldif\Loader;
 
+use Generator;
+
+use function preg_split;
+
 /**
- * Loads LDIF text held in memory as a string.
+ * Yields LDIF lines from a string held in memory.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -22,8 +26,22 @@ final readonly class StringLdifLoader implements LdifLoaderInterface
 {
     public function __construct(private string $ldif) {}
 
-    public function load(): string
+    /**
+     * @return Generator<string>
+     */
+    public function load(): Generator
     {
-        return $this->ldif;
+        $lines = preg_split(
+            "/\r\n|\r|\n/",
+            $this->ldif,
+        );
+
+        if ($lines === false) {
+            return;
+        }
+
+        foreach ($lines as $line) {
+            yield $line;
+        }
     }
 }

@@ -26,6 +26,7 @@ final readonly class LdifDirective
         public string $name,
         public string $value,
         public int $position,
+        public ?string $sourceLine = null,
     ) {}
 
     /**

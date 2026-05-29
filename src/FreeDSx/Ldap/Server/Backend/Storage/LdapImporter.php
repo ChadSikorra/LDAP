@@ -37,25 +37,20 @@ final readonly class LdapImporter
     }
 
     /**
-     * Persist all entries in one atomic batch; no-op when the list is empty.
+     * Stream entries into storage under a single atomic write.
      *
-     * @param Entry[] $entries
+     * Input must be in depth-first order (each entry's parent appears before its children). Unsorted input will fail
+     * at the parent check.
+     *
+     * @param iterable<Entry> $entries
      * @param bool $ignoreValidation when true, skips parent and schema checks. only do this if you know what you're doing.
      * @throws InvalidArgumentException when a non-top-level entry's parent is not present in storage yet
      * @throws OperationException when an entry violates the schema and validation mode is strict
      */
     public function importEntries(
-        array $entries,
+        iterable $entries,
         bool $ignoreValidation = false,
     ): void {
-        if ($entries === []) {
-            return;
-        }
-
-        if (!$ignoreValidation) {
-            $entries = $this->sortByDepth($entries);
-        }
-
         $this->storage->atomic(function (EntryStorageInterface $storage) use ($entries, $ignoreValidation): void {
             foreach ($entries as $entry) {
                 if (!$ignoreValidation) {
@@ -76,20 +71,6 @@ final readonly class LdapImporter
                 $storage->store($entry);
             }
         });
-    }
-
-    /**
-     * @param Entry[] $entries
-     * @return Entry[]
-     */
-    private function sortByDepth(array $entries): array
-    {
-        usort(
-            $entries,
-            static fn(Entry $a, Entry $b): int => $a->getDn()->count() <=> $b->getDn()->count(),
-        );
-
-        return $entries;
     }
 
     /**

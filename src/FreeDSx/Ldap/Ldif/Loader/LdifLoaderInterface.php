@@ -13,15 +13,17 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Ldif\Loader;
 
+use Generator;
+
 /**
- * Yields LDIF text from some source (file, string, database, etc.) for parsing.
+ * Yields LDIF lines from some source (file, string, database, etc.) for streaming parse.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 interface LdifLoaderInterface
 {
     /**
-     * Return the LDIF text to be parsed.
+     * @return Generator<string> LDIF lines without trailing newlines
      */
-    public function load(): string;
+    public function load(): Generator;
 }

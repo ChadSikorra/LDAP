@@ -14,13 +14,19 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Ldif\Loader;
 
 use FreeDSx\Ldap\Exception\RuntimeException;
+use Generator;
 
-use function file_get_contents;
+use function fclose;
+use function feof;
+use function fgets;
+use function fopen;
 use function is_file;
 use function is_readable;
+use function rtrim;
+use function sprintf;
 
 /**
- * Loads LDIF text from a file.
+ * Streams LDIF lines from a file.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -29,9 +35,10 @@ final readonly class FileLdifLoader implements LdifLoaderInterface
     public function __construct(private string $file) {}
 
     /**
+     * @return Generator<string>
      * @throws RuntimeException when the file is missing or unreadable
      */
-    public function load(): string
+    public function load(): Generator
     {
         if (!is_file($this->file) || !is_readable($this->file)) {
             throw new RuntimeException(sprintf(
@@ -40,15 +47,33 @@ final readonly class FileLdifLoader implements LdifLoaderInterface
             ));
         }
 
-        $ldif = file_get_contents($this->file);
+        $handle = fopen(
+            $this->file,
+            'r',
+        );
 
-        if ($ldif === false) {
+        if ($handle === false) {
             throw new RuntimeException(sprintf(
                 'Unable to read the LDIF file "%s".',
                 $this->file,
             ));
         }
 
-        return $ldif;
+        try {
+            while (!feof($handle)) {
+                $line = fgets($handle);
+
+                if ($line === false) {
+                    break;
+                }
+
+                yield rtrim(
+                    $line,
+                    "\r\n",
+                );
+            }
+        } finally {
+            fclose($handle);
+        }
     }
 }

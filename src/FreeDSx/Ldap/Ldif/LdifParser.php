@@ -15,13 +15,15 @@ namespace FreeDSx\Ldap\Ldif;
 
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\LdifParseException;
+use FreeDSx\Ldap\Ldif\Loader\LdifLoaderInterface;
+use FreeDSx\Ldap\Ldif\Loader\StringLdifLoader;
 use FreeDSx\Ldap\Ldif\Parser\LdifChangeRecordParser;
 use FreeDSx\Ldap\Ldif\Parser\LdifLineCursor;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Operations;
+use Generator;
 
-use function count;
 use function sprintf;
 
 /**
@@ -42,12 +44,15 @@ final class LdifParser
     ) {}
 
     /**
+     * Streams parsed write requests from an LDIF source.
+     *
+     * @return Generator<RequestInterface>
      * @throws LdifParseException
      */
-    public function parse(string $ldif): LdifChanges
+    public function parse(LdifLoaderInterface $loader): Generator
     {
-        $cursor = LdifLineCursor::forInput($ldif);
-        $requests = [];
+        $cursor = LdifLineCursor::forLoader($loader);
+        $recordsSeen = 0;
 
         while (!$cursor->atEnd()) {
             $line = $cursor->current();
@@ -64,15 +69,27 @@ final class LdifParser
             $key = $cursor->keyOf($line);
 
             if ($key === self::DN) {
-                $requests[] = $this->parseRecord($cursor);
+                yield $this->parseRecord($cursor);
+
+                $recordsSeen++;
             } elseif ($key === self::VERSION) {
-                $this->assertVersion($cursor, count($requests));
+                $this->assertVersion($cursor, $recordsSeen);
             } else {
                 $cursor->error('Expected a "dn:" line to begin a record');
             }
         }
+    }
 
-        return new LdifChanges(...$requests);
+    /**
+     * Convenience for parsing an in-memory LDIF string.
+     *
+     * @return Generator<RequestInterface>
+     * @throws LdifParseException
+     */
+    public static function parseString(string $ldif): Generator
+    {
+        return (new self())
+            ->parse(new StringLdifLoader($ldif));
     }
 
     /**
@@ -114,8 +131,8 @@ final class LdifParser
             $directive = $cursor->readDirective();
 
             if ($directive->is(self::CHANGETYPE)) {
-                $cursor->errorAt(
-                    $directive->position,
+                $cursor->errorFor(
+                    $directive,
                     '"changetype:" must be the first directive after dn',
                 );
             }
@@ -153,10 +170,12 @@ final class LdifParser
         int $recordsSeen,
     ): void {
         $at = $cursor->position();
+        $sourceLine = $cursor->current();
 
         if ($recordsSeen !== 0) {
             $cursor->errorAt(
                 $at,
+                $sourceLine,
                 'The version directive must appear before any records',
             );
         }
@@ -166,6 +185,7 @@ final class LdifParser
         if ($version !== '1') {
             $cursor->errorAt(
                 $at,
+                $sourceLine,
                 sprintf(
                     'Unsupported LDIF version "%s"',
                     $version,
