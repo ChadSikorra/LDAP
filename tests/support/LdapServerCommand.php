@@ -7,6 +7,7 @@ namespace Tests\Support\FreeDSx\Ldap;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Ldif\Loader\FileLdifLoader;
+use FreeDSx\Ldap\Ldif\Output\FileLdifOutput;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\MysqlStorage;
@@ -82,6 +83,13 @@ final class LdapServerCommand extends Command
                 InputOption::VALUE_REQUIRED,
                 'After seeding, replay an LDIF changelog file via LdapServer::applyChanges()',
                 '',
+            )
+            ->addOption(
+                'dump',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'After seeding/applying changes, dump the directory to an LDIF file via LdapServer::dump()',
+                '',
             );
     }
 
@@ -97,6 +105,7 @@ final class LdapServerCommand extends Command
         $allowAnonymous = $input->getOption('allow-anonymous') === true;
         $seedFile = $this->getStringOption($input, 'seed');
         $changesFile = $this->getStringOption($input, 'changes');
+        $dumpFile = $this->getStringOption($input, 'dump');
         $useSsl = false;
 
         if (!in_array($storageType, self::VALID_STORAGE, true)) {
@@ -134,6 +143,7 @@ final class LdapServerCommand extends Command
             ->setSslCertKey(self::SSL_KEY)
             ->setUseSsl($useSsl)
             ->setAllowAnonymous($allowAnonymous)
+            ->setDseNamingContexts('dc=foo,dc=bar')
             ->setSocketAcceptTimeout(0.1)
             ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL));
 
@@ -157,6 +167,10 @@ final class LdapServerCommand extends Command
 
         if ($changesFile !== '') {
             $server->applyChanges(new FileLdifLoader($changesFile));
+        }
+
+        if ($dumpFile !== '') {
+            $server->dump(new FileLdifOutput($dumpFile));
         }
 
         $server->run();

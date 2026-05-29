@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Ldif\LdifParser;
 use FreeDSx\Ldap\Ldif\Loader\LdifLoaderInterface;
+use FreeDSx\Ldap\Ldif\Output\LdifOutputInterface;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
@@ -30,6 +31,8 @@ use FreeDSx\Ldap\Server\Backend\Storage\OperationalAttributeGenerator;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Export\DirectoryDumper;
+use FreeDSx\Ldap\Server\Backend\Storage\Export\DumpOptions;
 use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
@@ -216,6 +219,33 @@ class LdapServer
             $backend,
             $this->options->getWriteHandlers(),
         ))->apply($changes);
+
+        return $this;
+    }
+
+    /**
+     * Streams the configured storage backend's entries as RFC 2849 LDIF content records to the given output.
+     *
+     * Symmetric with {@see seed()}: the produced LDIF re-seeds the directory verbatim, including operational
+     * attributes.
+     *
+     * @throws RuntimeException when no storage backend is configured
+     */
+    public function dump(
+        LdifOutputInterface $output,
+        DumpOptions $options = new DumpOptions(),
+    ): self {
+        $backend = $this->options->getBackend();
+
+        if (!$backend instanceof WritableStorageBackend) {
+            throw new RuntimeException('dump() requires a storage backend configured via useStorage().');
+        }
+
+        $output->write((new DirectoryDumper(
+            $backend,
+            $this->options->getDseNamingContexts(),
+            $this->options->getFilterEvaluator(),
+        ))->dump($options));
 
         return $this;
     }

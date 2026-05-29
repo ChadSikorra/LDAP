@@ -112,7 +112,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
         return new ServerProtocolHandler\ServerSearchHandler(
             queue: $this->queue,
             backend: $this->handlerFactory->makeBackend(),
-            filterEvaluator: $this->handlerFactory->makeFilterEvaluator(),
+            filterEvaluator: $this->options->getFilterEvaluator(),
             accessControl: $this->options->getAccessControl(),
             schema: $this->options->getSchema(),
             limits: $this->options->makeSearchLimits(),
@@ -151,7 +151,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
         return new ServerProtocolHandler\ServerPagingHandler(
             queue: $this->queue,
             backend: $this->handlerFactory->makeBackend(),
-            filterEvaluator: $this->handlerFactory->makeFilterEvaluator(),
+            filterEvaluator: $this->options->getFilterEvaluator(),
             accessControl: $this->options->getAccessControl(),
             requestHistory: $this->requestHistory,
             schema: $this->options->getSchema(),

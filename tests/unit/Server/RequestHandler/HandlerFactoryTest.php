@@ -21,8 +21,6 @@ use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\RequestHandler\HandlerFactory;
 use FreeDSx\Ldap\Server\RequestHandler\ProxyHandler;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\ServerOptions;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -49,27 +47,6 @@ final class HandlerFactoryTest extends TestCase
         self::assertSame(
             $backend,
             $this->subject->makeBackend(),
-        );
-    }
-
-    public function test_it_should_return_a_default_filter_evaluator_when_none_is_configured(): void
-    {
-        $this->subject = new HandlerFactory(new ServerOptions());
-
-        self::assertInstanceOf(
-            FilterEvaluator::class,
-            $this->subject->makeFilterEvaluator(),
-        );
-    }
-
-    public function test_it_should_allow_a_filter_evaluator_as_an_object(): void
-    {
-        $evaluator = $this->createMock(FilterEvaluatorInterface::class);
-        $this->subject = new HandlerFactory((new ServerOptions())->setFilterEvaluator($evaluator));
-
-        self::assertSame(
-            $evaluator,
-            $this->subject->makeFilterEvaluator(),
         );
     }
 

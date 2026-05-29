@@ -37,7 +37,6 @@ use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Clock\SystemClock;
@@ -71,9 +70,6 @@ final class ProtocolHandlerProviderTest extends TestCase
         $this->mockHandlerFactory
             ->method('makeBackend')
             ->willReturn($backend);
-        $this->mockHandlerFactory
-            ->method('makeFilterEvaluator')
-            ->willReturn(new FilterEvaluator());
         $this->mockHandlerFactory
             ->method('makeWriteDispatcher')
             ->willReturn(new WriteOperationDispatcher());

@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
@@ -444,9 +445,12 @@ final class ServerOptionsTest extends TestCase
         );
     }
 
-    public function test_filter_evaluator_is_null_by_default(): void
+    public function test_filter_evaluator_defaults_to_a_filter_evaluator_instance(): void
     {
-        self::assertNull($this->subject->getFilterEvaluator());
+        self::assertInstanceOf(
+            FilterEvaluator::class,
+            $this->subject->getFilterEvaluator(),
+        );
     }
 
     public function test_it_can_set_filter_evaluator(): void

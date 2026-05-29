@@ -55,20 +55,28 @@ final readonly class LdifWriter
         $blocks = [];
 
         foreach ($requests as $request) {
-            $blocks[] = $this->requestBlock($request);
+            $blocks[] = $this->writeOne($request);
         }
 
-        $body = implode($this->options->getLineEnding(), $blocks);
-
-        return $this->options->isIncludeVersion()
-            ? 'version: 1' . $this->options->getLineEnding() . $this->options->getLineEnding() . $body
-            : $body;
+        return $this->versionHeader() . implode($this->options->getLineEnding(), $blocks);
     }
 
     /**
+     * Returns the LDIF "version: 1" header (with trailing blank line) when enabled, otherwise empty.
+     */
+    public function versionHeader(): string
+    {
+        return $this->options->isIncludeVersion()
+            ? 'version: 1' . $this->options->getLineEnding() . $this->options->getLineEnding()
+            : '';
+    }
+
+    /**
+     * Serializes a single request to its LDIF block (ending with the configured line ending).
+     *
      * @throws InvalidArgumentException
      */
-    private function requestBlock(RequestInterface $request): string
+    public function writeOne(RequestInterface $request): string
     {
         return match (true) {
             $request instanceof AddRequest => $this->addBlock($request),

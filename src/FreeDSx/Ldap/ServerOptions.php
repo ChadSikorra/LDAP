@@ -26,6 +26,7 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashScheme;
 use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\DefaultPasswordQualityChecker;
 use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\PasswordQualityCheckerInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\AclRules;
@@ -456,9 +457,9 @@ final class ServerOptions
         return $this;
     }
 
-    public function getFilterEvaluator(): ?FilterEvaluatorInterface
+    public function getFilterEvaluator(): FilterEvaluatorInterface
     {
-        return $this->filterEvaluator;
+        return $this->filterEvaluator ??= new FilterEvaluator($this->getSchema());
     }
 
     public function setFilterEvaluator(?FilterEvaluatorInterface $filterEvaluator): self

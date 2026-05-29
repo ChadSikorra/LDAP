@@ -21,9 +21,7 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticator;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
@@ -45,14 +43,6 @@ class HandlerFactory implements HandlerFactoryInterface
     public function makeBackend(): LdapBackendInterface
     {
         return $this->options->getBackend() ?? new WritableStorageBackend(new InMemoryStorage());
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function makeFilterEvaluator(): FilterEvaluatorInterface
-    {
-        return $this->options->getFilterEvaluator() ?? new FilterEvaluator($this->options->getSchema());
     }
 
     /**
