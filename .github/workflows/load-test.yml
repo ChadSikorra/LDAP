@@ -38,8 +38,8 @@ jobs:
         uses: shivammathur/cache-extensions@v1
         with:
           php-version: '8.5'
-          extensions: swoole, pdo_sqlite, pcntl
-          key: load-test-ext-v1
+          extensions: swoole, pdo_sqlite, pcntl, opcache
+          key: load-test-ext-v2
 
       - name: Cache extensions
         uses: actions/cache@v3
@@ -52,9 +52,10 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: swoole, pdo_sqlite, pcntl
+          extensions: swoole, pdo_sqlite, pcntl, opcache
           coverage: none
           tools: composer:2.9
+          ini-values: opcache.enable_cli=1, opcache.jit_buffer_size=128M, opcache.jit=tracing
 
       - name: Install Composer dependencies
         run: composer install --no-progress --prefer-dist --optimize-autoloader
@@ -112,8 +113,8 @@ jobs:
         uses: shivammathur/cache-extensions@v1
         with:
           php-version: '8.5'
-          extensions: swoole, pdo_mysql, pcntl
-          key: load-test-mysql-ext-v1
+          extensions: swoole, pdo_mysql, pcntl, opcache
+          key: load-test-mysql-ext-v2
 
       - name: Cache extensions
         uses: actions/cache@v3
@@ -126,9 +127,10 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: swoole, pdo_mysql, pcntl
+          extensions: swoole, pdo_mysql, pcntl, opcache
           coverage: none
           tools: composer:2.9
+          ini-values: opcache.enable_cli=1, opcache.jit_buffer_size=128M, opcache.jit=tracing
 
       - name: Install Composer dependencies
         run: composer install --no-progress --prefer-dist --optimize-autoloader
