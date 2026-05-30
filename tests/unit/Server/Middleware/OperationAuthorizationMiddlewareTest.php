@@ -233,6 +233,62 @@ final class OperationAuthorizationMiddlewareTest extends TestCase
         self::assertNotNull($this->next->received);
     }
 
+    public function test_dispatch_gates_a_control_configured_as_privileged(): void
+    {
+        $subject = new OperationAuthorizationMiddleware(
+            $this->resolver,
+            $this->accessControl,
+            new EventLogger(
+                $this->logger,
+                EventLogPolicy::default(),
+            ),
+            [Control::OID_SUBTREE_DELETE],
+        );
+        $this->routeResolvesTo(HandlerId::Dispatch);
+        $this->accessControl
+            ->expects(self::once())
+            ->method('authorizeControl')
+            ->with(
+                $this->token,
+                self::isInstanceOf(Dn::class),
+                Control::OID_SUBTREE_DELETE,
+            );
+
+        $message = new LdapMessageRequest(
+            1,
+            new DeleteRequest('cn=foo,dc=bar'),
+            new Control(Control::OID_SUBTREE_DELETE, criticality: true),
+        );
+
+        $subject->process(
+            new ServerRequestContext($message, $this->token),
+            $this->next,
+        );
+
+        self::assertNotNull($this->next->received);
+    }
+
+    public function test_dispatch_does_not_gate_a_control_outside_the_privileged_set(): void
+    {
+        $this->routeResolvesTo(HandlerId::Dispatch);
+        $this->accessControl
+            ->expects(self::never())
+            ->method('authorizeControl');
+
+        $message = new LdapMessageRequest(
+            1,
+            new DeleteRequest('cn=foo,dc=bar'),
+            new Control(Control::OID_SUBTREE_DELETE, criticality: true),
+        );
+
+        $this->subject->process(
+            new ServerRequestContext($message, $this->token),
+            $this->next,
+        );
+
+        self::assertNotNull($this->next->received);
+    }
+
     #[DataProvider('unauthorizedRoutes')]
     public function test_routes_without_operation_authorization_are_not_gated(HandlerId $routeId): void
     {

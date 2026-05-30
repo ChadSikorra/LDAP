@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap;
 
+use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Schema\PasswordPolicySchemaProvider;
@@ -146,6 +147,11 @@ final class ServerOptions
     private ?AccessControlInterface $accessControl = null;
 
     private ?AclRules $aclRules = null;
+
+    /**
+     * @var list<string>
+     */
+    private array $privilegedControls = [Control::OID_RELAX_RULES];
 
     private ?PasswordPolicy $passwordPolicy = null;
 
@@ -504,6 +510,26 @@ final class ServerOptions
     public function getAclRules(): AclRules
     {
         return $this->aclRules ??= new AclRules();
+    }
+
+    /**
+     * Control OIDs treated as privileged on writes: each requires an explicit ControlRule grant (default: Relax Rules).
+     *
+     * @return list<string>
+     */
+    public function getPrivilegedControls(): array
+    {
+        return $this->privilegedControls;
+    }
+
+    /**
+     * Replace the set of privileged control OIDs. Add e.g. Control::OID_SUBTREE_DELETE to gate Tree-Delete behind a grant.
+     */
+    public function setPrivilegedControls(string ...$controlOids): self
+    {
+        $this->privilegedControls = array_values($controlOids);
+
+        return $this;
     }
 
     /**

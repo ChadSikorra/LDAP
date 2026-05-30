@@ -48,6 +48,8 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
     use ServerSearchTrait;
     use MatchedDnAccessFilterTrait;
 
+    private readonly AssertionEvaluator $assertionEvaluator;
+
     public function __construct(
         private readonly ServerQueue $queue,
         private readonly LdapBackendInterface $backend,
@@ -57,7 +59,12 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         private readonly Schema $schema,
         private readonly PagingRequestComparator $requestComparator = new PagingRequestComparator(),
         private readonly SearchLimits $limits = new SearchLimits(),
-    ) {}
+    ) {
+        $this->assertionEvaluator = new AssertionEvaluator(
+            $this->filterEvaluator,
+            $this->backend,
+        );
+    }
 
     /**
      * @inheritDoc
@@ -76,6 +83,15 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
         $failure = null;
         try {
             $this->assertBaseDnProvided($searchRequest);
+
+            $baseDn = $searchRequest->getBaseDn();
+            if ($pagingRequest->isPagingStart() && $baseDn !== null) {
+                $this->assertionEvaluator->assertSatisfied(
+                    $baseDn,
+                    $message->controls(),
+                );
+            }
+
             $response = $this->handlePaging(
                 $pagingRequest,
                 $message,

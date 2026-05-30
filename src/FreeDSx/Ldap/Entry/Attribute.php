@@ -65,6 +65,16 @@ class Attribute implements IteratorAggregate, Countable, Stringable
     }
 
     /**
+     * Clone the mutable options so a copied attribute is fully isolated from the original.
+     */
+    public function __clone()
+    {
+        if ($this->options !== null) {
+            $this->options = clone $this->options;
+        }
+    }
+
+    /**
      * @param string[] $values
      */
     public static function fromArray(

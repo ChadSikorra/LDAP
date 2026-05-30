@@ -44,17 +44,16 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  */
 final readonly class OperationAuthorizationMiddleware implements MiddlewareInterface
 {
-    /**
-     * Controls that require an explicit ControlRule grant before they may be used on a write.
-     */
-    private const PRIVILEGED_CONTROLS = [Control::OID_RELAX_RULES];
-
     private OperationAuditor $auditor;
 
+    /**
+     * @param list<string> $privilegedControls Control OIDs that require an explicit ControlRule grant before use on a write.
+     */
     public function __construct(
         private HandlerRouteResolverInterface $routeResolver,
         private AccessControlInterface $accessControl,
         EventLogger $eventLogger = new EventLogger(null),
+        private array $privilegedControls = [Control::OID_RELAX_RULES],
     ) {
         $this->auditor = new OperationAuditor($eventLogger);
     }
@@ -276,7 +275,7 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
             return;
         }
 
-        foreach (self::PRIVILEGED_CONTROLS as $oid) {
+        foreach ($this->privilegedControls as $oid) {
             if (!$controls->has($oid)) {
                 continue;
             }

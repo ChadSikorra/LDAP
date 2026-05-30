@@ -1572,6 +1572,132 @@ final class WritableStorageBackendTest extends TestCase
         }
     }
 
+    public function test_delete_subtree_removes_the_entry_and_all_descendants(): void
+    {
+        $backend = $this->subtreeBackend();
+
+        $backend->deleteSubtree(
+            new DeleteCommand(new Dn('ou=people,dc=example,dc=com')),
+            $this->context(),
+            static function (Dn $dn): void {},
+        );
+
+        self::assertNull($backend->get(new Dn('ou=people,dc=example,dc=com')));
+        self::assertNull($backend->get(new Dn('cn=alice,ou=people,dc=example,dc=com')));
+        self::assertNull($backend->get(new Dn('cn=bob,ou=people,dc=example,dc=com')));
+        self::assertNotNull($backend->get(new Dn('dc=example,dc=com')));
+    }
+
+    public function test_delete_subtree_removes_a_deeply_nested_subtree(): void
+    {
+        $backend = new WritableStorageBackend(new InMemoryStorage([
+            new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
+            new Entry(new Dn('ou=people,dc=example,dc=com'), new Attribute('ou', 'people')),
+            new Entry(new Dn('ou=staff,ou=people,dc=example,dc=com'), new Attribute('ou', 'staff')),
+            new Entry(new Dn('cn=deep,ou=staff,ou=people,dc=example,dc=com'), new Attribute('cn', 'deep')),
+        ]));
+
+        $backend->deleteSubtree(
+            new DeleteCommand(new Dn('ou=people,dc=example,dc=com')),
+            $this->context(),
+            static function (Dn $dn): void {},
+        );
+
+        self::assertNull($backend->get(new Dn('ou=people,dc=example,dc=com')));
+        self::assertNull($backend->get(new Dn('ou=staff,ou=people,dc=example,dc=com')));
+        self::assertNull($backend->get(new Dn('cn=deep,ou=staff,ou=people,dc=example,dc=com')));
+        self::assertNotNull($backend->get(new Dn('dc=example,dc=com')));
+    }
+
+    public function test_delete_subtree_authorizes_every_entry(): void
+    {
+        $backend = $this->subtreeBackend();
+        $seen = [];
+
+        $backend->deleteSubtree(
+            new DeleteCommand(new Dn('ou=people,dc=example,dc=com')),
+            $this->context(),
+            static function (Dn $dn) use (&$seen): void {
+                $seen[] = $dn->toString();
+            },
+        );
+
+        sort($seen);
+        self::assertSame(
+            [
+                'cn=alice,ou=people,dc=example,dc=com',
+                'cn=bob,ou=people,dc=example,dc=com',
+                'ou=people,dc=example,dc=com',
+            ],
+            $seen,
+        );
+    }
+
+    public function test_delete_subtree_removes_nothing_when_authorization_is_denied(): void
+    {
+        $backend = $this->subtreeBackend();
+
+        try {
+            $backend->deleteSubtree(
+                new DeleteCommand(new Dn('ou=people,dc=example,dc=com')),
+                $this->context(),
+                static function (Dn $dn): void {
+                    if (str_contains($dn->toString(), 'cn=bob')) {
+                        throw new OperationException(
+                            'denied',
+                            ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+                        );
+                    }
+                },
+            );
+            self::fail('Expected OperationException was not thrown.');
+        } catch (OperationException $e) {
+            self::assertSame(ResultCode::INSUFFICIENT_ACCESS_RIGHTS, $e->getCode());
+        }
+
+        self::assertNotNull($backend->get(new Dn('ou=people,dc=example,dc=com')));
+        self::assertNotNull($backend->get(new Dn('cn=alice,ou=people,dc=example,dc=com')));
+        self::assertNotNull($backend->get(new Dn('cn=bob,ou=people,dc=example,dc=com')));
+    }
+
+    public function test_delete_subtree_rejects_a_naming_context_base(): void
+    {
+        $backend = $this->subtreeBackend();
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::UNWILLING_TO_PERFORM);
+
+        $backend->deleteSubtree(
+            new DeleteCommand(new Dn('dc=example,dc=com')),
+            $this->context(),
+            static function (Dn $dn): void {},
+        );
+    }
+
+    public function test_delete_subtree_throws_no_such_object_for_a_missing_base(): void
+    {
+        $backend = $this->subtreeBackend();
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::NO_SUCH_OBJECT);
+
+        $backend->deleteSubtree(
+            new DeleteCommand(new Dn('ou=missing,dc=example,dc=com')),
+            $this->context(),
+            static function (Dn $dn): void {},
+        );
+    }
+
+    private function subtreeBackend(): WritableStorageBackend
+    {
+        return new WritableStorageBackend(new InMemoryStorage([
+            new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
+            new Entry(new Dn('ou=people,dc=example,dc=com'), new Attribute('ou', 'people')),
+            new Entry(new Dn('cn=alice,ou=people,dc=example,dc=com'), new Attribute('cn', 'alice')),
+            new Entry(new Dn('cn=bob,ou=people,dc=example,dc=com'), new Attribute('cn', 'bob')),
+        ]));
+    }
+
     /**
      * @return Generator<Entry>
      */

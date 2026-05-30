@@ -64,6 +64,22 @@ class Entry implements IteratorAggregate, Countable, Stringable
     }
 
     /**
+     * An independent copy of the entry: the DN and a deep copy of its attributes.
+     *
+     * Note: Pending change tracking is not copied.
+     */
+    public function makeCopy(): self
+    {
+        return self::raw(
+            $this->dn,
+            array_map(
+                static fn(Attribute $attribute): Attribute => clone $attribute,
+                $this->attributes,
+            ),
+        );
+    }
+
+    /**
      * Add an attribute and its values.
      */
     public function add(
