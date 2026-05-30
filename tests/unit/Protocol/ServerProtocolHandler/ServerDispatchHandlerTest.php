@@ -28,8 +28,10 @@ use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerDispatchHandler;
+use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Search\Filters;
+use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
@@ -77,6 +79,8 @@ final class ServerDispatchHandlerTest extends TestCase
             backend: $this->mockBackend,
             writeDispatcher: new WriteOperationDispatcher($this->mockWriteHandler),
             accessControl: $this->mockAccessControl,
+            filterEvaluator: new FilterEvaluator(),
+            schema: new Schema(),
         );
     }
 
@@ -180,6 +184,8 @@ final class ServerDispatchHandlerTest extends TestCase
             backend: $this->mockBackend,
             writeDispatcher: new WriteOperationDispatcher(),
             accessControl: $this->mockAccessControl,
+            filterEvaluator: new FilterEvaluator(),
+            schema: new Schema(),
         );
 
         $add = new LdapMessageRequest(1, new AddRequest(Entry::create('cn=foo,dc=bar')));

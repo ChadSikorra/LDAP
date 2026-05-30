@@ -89,7 +89,7 @@ class ControlsTest extends TestCase
     public function testItShouldCreateASubtreeDeleteControl(): void
     {
         $result = Controls::subtreeDelete();
-        $expected = new Control(Control::OID_SUBTREE_DELETE);
+        $expected = new Control(Control::OID_SUBTREE_DELETE, true);
 
         $this->assertEquals($expected, $result);
     }

@@ -46,6 +46,8 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
 
     private const CANCEL_CHECK_INTERVAL = 50;
 
+    private readonly AssertionEvaluator $assertionEvaluator;
+
     public function __construct(
         private readonly ServerQueue $queue,
         private readonly LdapBackendInterface $backend,
@@ -53,7 +55,12 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         private readonly AccessControlInterface $accessControl,
         private readonly Schema $schema,
         private readonly SearchLimits $limits = new SearchLimits(),
-    ) {}
+    ) {
+        $this->assertionEvaluator = new AssertionEvaluator(
+            $this->filterEvaluator,
+            $this->backend,
+        );
+    }
 
     /**
      * @inheritDoc
@@ -68,6 +75,14 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
 
         try {
             $this->assertBaseDnProvided($request);
+
+            $baseDn = $request->getBaseDn();
+            if ($baseDn !== null) {
+                $this->assertionEvaluator->assertSatisfied(
+                    $baseDn,
+                    $message->controls(),
+                );
+            }
 
             $backendResult = $this->backend->search(
                 $request,

@@ -26,8 +26,10 @@ use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
+use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\PasswordPolicyWriteHandler;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
@@ -317,6 +319,8 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
                 $this->backend,
             ),
             accessControl: $this->createMock(AccessControlInterface::class),
+            filterEvaluator: new FilterEvaluator(),
+            schema: new Schema(),
             passwordPolicyContext: $this->context,
         );
     }

@@ -20,15 +20,19 @@ use FreeDSx\Ldap\Control\Ad\ExtendedDnControl;
 use FreeDSx\Ldap\Control\Ad\PolicyHintsControl;
 use FreeDSx\Ldap\Control\Ad\SdFlagsControl;
 use FreeDSx\Ldap\Control\Ad\SetOwnerControl;
+use FreeDSx\Ldap\Control\AssertionControl;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\PagingControl;
 use FreeDSx\Ldap\Control\ProxyAuthorizationControl;
+use FreeDSx\Ldap\Control\ReadEntry\PostReadControl;
+use FreeDSx\Ldap\Control\ReadEntry\PreReadControl;
 use FreeDSx\Ldap\Control\Sorting\SortingControl;
 use FreeDSx\Ldap\Control\Sorting\SortKey;
 use FreeDSx\Ldap\Control\SubentriesControl;
 use FreeDSx\Ldap\Control\Sync\SyncRequestControl;
 use FreeDSx\Ldap\Control\Vlv\VlvControl;
 use FreeDSx\Ldap\Protocol\ProtocolElementInterface;
+use FreeDSx\Ldap\Search\Filter\FilterInterface;
 use FreeDSx\Ldap\Search\Filter\GreaterThanOrEqualFilter;
 
 /**
@@ -52,6 +56,21 @@ class Controls
             controlType: $oid,
             criticality: $criticality,
             controlValue: $value,
+        );
+    }
+
+    /**
+     * Create an assertion control (RFC 4528).
+     *
+     * The operation proceeds only if the filter matches the target entry.
+     */
+    public static function assertion(
+        FilterInterface $filter,
+        bool $criticality = true,
+    ): AssertionControl {
+        return new AssertionControl(
+            $filter,
+            $criticality,
         );
     }
 
@@ -123,6 +142,22 @@ class Controls
     public static function policyHints(bool $isEnabled = true): PolicyHintsControl
     {
         return new PolicyHintsControl($isEnabled);
+    }
+
+    /**
+     * Create a Post-Read control (RFC 4527) requesting the entry state after the write, for the given attributes.
+     */
+    public static function postRead(string ...$attributes): PostReadControl
+    {
+        return new PostReadControl(...$attributes);
+    }
+
+    /**
+     * Create a Pre-Read control (RFC 4527) requesting the entry state before the write, for the given attributes.
+     */
+    public static function preRead(string ...$attributes): PreReadControl
+    {
+        return new PreReadControl(...$attributes);
     }
 
     /**
@@ -210,9 +245,9 @@ class Controls
 
     /**
      * Create a control for a subtree delete. On a delete request this will do a recursive delete from the DN and all
-     * of its children.
+     * of its children. Critical by default so an unsupporting server rejects it rather than silently doing a plain delete.
      */
-    public static function subtreeDelete(bool $criticality = false): Control
+    public static function subtreeDelete(bool $criticality = true): Control
     {
         return new Control(
             controlType: Control::OID_SUBTREE_DELETE,

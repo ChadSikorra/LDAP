@@ -66,12 +66,22 @@ final class ServerControlRegistry
     private function handlerControlsFor(HandlerId $id): array
     {
         return match ($id) {
-            HandlerId::Search => [Control::OID_SORTING],
+            HandlerId::Search => [
+                Control::OID_SORTING,
+                Control::OID_ASSERTION,
+            ],
             HandlerId::Paging => [
                 Control::OID_PAGING,
                 Control::OID_SORTING,
+                Control::OID_ASSERTION,
             ],
-            HandlerId::Dispatch => [Control::OID_RELAX_RULES],
+            HandlerId::Dispatch => [
+                Control::OID_RELAX_RULES,
+                Control::OID_ASSERTION,
+                Control::OID_PRE_READ,
+                Control::OID_POST_READ,
+                Control::OID_SUBTREE_DELETE,
+            ],
             default => [],
         };
     }

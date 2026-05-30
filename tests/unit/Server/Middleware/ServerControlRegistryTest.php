@@ -27,35 +27,41 @@ final class ServerControlRegistryTest extends TestCase
         $this->subject = new ServerControlRegistry();
     }
 
-    public function test_search_supports_sorting_and_proxy_authorization(): void
+    public function test_search_supports_sorting_assertion_and_proxy_authorization(): void
     {
         self::assertSame(
             [
                 Control::OID_PROXY_AUTHORIZATION,
                 Control::OID_SORTING,
+                Control::OID_ASSERTION,
             ],
             $this->subject->supportedControlsFor(HandlerId::Search),
         );
     }
 
-    public function test_paging_supports_paging_sorting_and_proxy_authorization(): void
+    public function test_paging_supports_paging_sorting_assertion_and_proxy_authorization(): void
     {
         self::assertSame(
             [
                 Control::OID_PROXY_AUTHORIZATION,
                 Control::OID_PAGING,
                 Control::OID_SORTING,
+                Control::OID_ASSERTION,
             ],
             $this->subject->supportedControlsFor(HandlerId::Paging),
         );
     }
 
-    public function test_dispatch_supports_relax_rules_and_proxy_authorization(): void
+    public function test_dispatch_supports_relax_rules_assertion_read_entry_subtree_delete_and_proxy_authorization(): void
     {
         self::assertSame(
             [
                 Control::OID_PROXY_AUTHORIZATION,
                 Control::OID_RELAX_RULES,
+                Control::OID_ASSERTION,
+                Control::OID_PRE_READ,
+                Control::OID_POST_READ,
+                Control::OID_SUBTREE_DELETE,
             ],
             $this->subject->supportedControlsFor(HandlerId::Dispatch),
         );

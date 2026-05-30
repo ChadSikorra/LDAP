@@ -110,15 +110,15 @@ final readonly class SearchStreamBuilder
 
     private function injectHasSubordinates(Entry $entry): Entry
     {
-        $clone = clone $entry;
-        $clone->set(
+        $copy = $entry->makeCopy();
+        $copy->set(
             'hasSubordinates',
             $this->storage->hasChildren($entry->getDn())
                 ? 'TRUE'
                 : 'FALSE',
         );
 
-        return $clone;
+        return $copy;
     }
 
     /**

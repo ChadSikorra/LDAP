@@ -17,6 +17,8 @@ use FreeDSx\Asn1\Type\AbstractType;
 use FreeDSx\Asn1\Type\SequenceType;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
+use FreeDSx\Ldap\Control\ReadEntry\PostReadResponseControl;
+use FreeDSx\Ldap\Control\ReadEntry\PreReadResponseControl;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Response\ResponseInterface;
 
@@ -56,6 +58,8 @@ class LdapMessageResponse extends LdapMessage
     {
         return match ($control->getChild(0)?->getValue()) {
             Control::OID_PWD_POLICY => PwdPolicyResponseControl::fromAsn1($control),
+            Control::OID_PRE_READ => PreReadResponseControl::fromAsn1($control),
+            Control::OID_POST_READ => PostReadResponseControl::fromAsn1($control),
             default => parent::controlFromAsn1($control),
         };
     }

@@ -166,6 +166,7 @@ class ServerProtocolFactory
                         $this->routeResolver,
                         $this->options->getAccessControl(),
                         $eventLogger,
+                        $this->options->getPrivilegedControls(),
                     ),
                     new OperationAuditMiddleware(new OperationAuditor($eventLogger)),
                 ],

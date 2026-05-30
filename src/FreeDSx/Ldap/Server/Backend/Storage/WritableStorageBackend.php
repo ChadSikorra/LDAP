@@ -34,6 +34,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Write\SchemaViolationDisposition;
+use FreeDSx\Ldap\Server\Backend\Write\SubtreeDeleteCapableInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WritableBackendTrait;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
@@ -46,9 +47,14 @@ use Generator;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class WritableStorageBackend implements WritableLdapBackendInterface, ResettableInterface
+final class WritableStorageBackend implements WritableLdapBackendInterface, ResettableInterface, SubtreeDeleteCapableInterface
 {
     use WritableBackendTrait;
+
+    /**
+     * Entries removed per transaction during a subtree delete; bounds per-transaction work for large subtrees.
+     */
+    private const SUBTREE_DELETE_BATCH_SIZE = 1000;
 
     private readonly SearchStreamBuilder $searchStream;
 
@@ -258,6 +264,59 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
 
             $storage->remove($dn);
         });
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @throws OperationException
+     */
+    public function deleteSubtree(
+        DeleteCommand $command,
+        WriteContext $context,
+        callable $authorize,
+    ): void {
+        $base = $command->dn->normalize();
+        $this->findOrFail(
+            $this->storage,
+            $base,
+        );
+        $this->assertNotNamingContext(
+            $this->storage,
+            $command->dn,
+        );
+
+        $dns = $this->collectSubtreeDnsDeepestFirst($base);
+
+        // Authorize every entry up front so a denial aborts before any removal.
+        foreach ($dns as $dn) {
+            $authorize($dn);
+        }
+
+        foreach (array_chunk($dns, self::SUBTREE_DELETE_BATCH_SIZE) as $batch) {
+            $this->writeAtomic(static function (EntryStorageInterface $storage) use ($batch): void {
+                foreach ($batch as $dn) {
+                    $storage->remove($dn);
+                }
+            });
+        }
+    }
+
+    /**
+     * @return Dn[] base entry and all descendants, deepest-first so children precede their parents.
+     */
+    private function collectSubtreeDnsDeepestFirst(Dn $base): array
+    {
+        $dns = [];
+        foreach ($this->storage->list(StorageListOptions::matchAll($base, subtree: true))->entries as $entry) {
+            $dns[] = $entry->getDn()->normalize();
+        }
+        usort(
+            $dns,
+            static fn(Dn $a, Dn $b): int => $b->count() <=> $a->count(),
+        );
+
+        return $dns;
     }
 
     /**
