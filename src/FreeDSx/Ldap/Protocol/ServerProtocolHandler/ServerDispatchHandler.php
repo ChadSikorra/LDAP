@@ -45,8 +45,6 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  */
 readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
 {
-    use MatchedDnAccessFilterTrait;
-
     private ReadEntryControlHandler $readEntryControlHandler;
 
     public function __construct(
@@ -68,6 +66,7 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
      * {@inheritDoc}
      *
      * @throws EncoderException
+     * @throws OperationException
      */
     public function handleRequest(
         LdapMessageRequest $message,
@@ -77,29 +76,20 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         $request = $message->getRequest();
         $controls = $message->controls();
 
-        try {
-            if ($request instanceof Request\CompareRequest) {
-                return $this->handleCompare(
-                    $message,
-                    $request,
-                );
-            }
-
-            return $this->handleWrite(
+        if ($request instanceof Request\CompareRequest) {
+            return $this->handleCompare(
                 $message,
                 $request,
-                $controls,
-                $token,
-                $schemaViolations,
-            );
-        } catch (OperationException $e) {
-            return $this->handleFailure(
-                $message,
-                $e,
-                $token,
-                $schemaViolations,
             );
         }
+
+        return $this->handleWrite(
+            $message,
+            $request,
+            $controls,
+            $token,
+            $schemaViolations,
+        );
     }
 
     /**
@@ -224,34 +214,6 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                     $dn,
                 );
             },
-        );
-    }
-
-    /**
-     * @throws EncoderException
-     */
-    private function handleFailure(
-        LdapMessageRequest $message,
-        OperationException $e,
-        TokenInterface $token,
-        SchemaViolations $schemaViolations,
-    ): OperationResult {
-        $this->queue->sendMessage($this->responseFactory->getStandardResponse(
-            $message,
-            $e->getCode(),
-            $e->getMessage(),
-            $this->filterMatchedDn(
-                $e->getMatchedDn(),
-                $token,
-                $this->backend,
-                $this->accessControl,
-            ),
-        ));
-
-        return WriteOperationResult::failure(
-            $message,
-            $e,
-            $schemaViolations,
         );
     }
 

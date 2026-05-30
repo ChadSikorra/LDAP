@@ -16,16 +16,13 @@ namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
-use FreeDSx\Ldap\Operation\Response\DeleteResponse;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\AbandonRequest;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Operation\Request\CompareRequest;
 use FreeDSx\Ldap\Operation\Request\DeleteRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerDispatchHandler;
 use FreeDSx\Ldap\Schema\Schema;
@@ -100,7 +97,7 @@ final class ServerDispatchHandlerTest extends TestCase
         );
     }
 
-    public function test_it_sends_error_response_for_operation_exceptions_from_the_write_handler(): void
+    public function test_it_lets_operation_exceptions_from_the_write_handler_bubble(): void
     {
         $add = new LdapMessageRequest(1, new AddRequest(Entry::create('cn=foo,dc=bar')));
 
@@ -111,22 +108,10 @@ final class ServerDispatchHandlerTest extends TestCase
                 ResultCode::ENTRY_ALREADY_EXISTS,
             ));
 
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(function (LdapMessageResponse $msg): bool {
-                return $msg->getResponse() instanceof LdapResult
-                    && $msg->getResponse()->getResultCode() === ResultCode::ENTRY_ALREADY_EXISTS;
-            }))
-            ->willReturnSelf();
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::ENTRY_ALREADY_EXISTS);
 
-        $result = $this->subject->handleRequest($add, $this->mockToken);
-
-        self::assertInstanceOf(WriteOperationResult::class, $result);
-        self::assertSame(
-            OperationOutcome::Failed,
-            $result->outcome(),
-        );
+        $this->subject->handleRequest($add, $this->mockToken);
     }
 
     public function test_it_delegates_compare_to_the_backend(): void
@@ -152,7 +137,7 @@ final class ServerDispatchHandlerTest extends TestCase
         self::assertInstanceOf(CompareOperationResult::class, $result);
     }
 
-    public function test_it_sends_error_response_for_operation_exceptions_from_backend_compare(): void
+    public function test_it_lets_operation_exceptions_from_backend_compare_bubble(): void
     {
         $compare = new LdapMessageRequest(1, new CompareRequest('cn=foo,dc=bar', Filters::equal('foo', 'bar')));
 
@@ -163,19 +148,13 @@ final class ServerDispatchHandlerTest extends TestCase
                 ResultCode::NO_SUCH_OBJECT,
             ));
 
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(function (LdapMessageResponse $msg): bool {
-                return $msg->getResponse() instanceof LdapResult
-                    && $msg->getResponse()->getResultCode() === ResultCode::NO_SUCH_OBJECT;
-            }))
-            ->willReturnSelf();
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::NO_SUCH_OBJECT);
 
         $this->subject->handleRequest($compare, $this->mockToken);
     }
 
-    public function test_it_sends_error_response_when_no_write_handler_supports_the_operation(): void
+    public function test_it_throws_when_no_write_handler_supports_the_operation(): void
     {
         $subject = new ServerDispatchHandler(
             queue: $this->mockQueue,
@@ -187,26 +166,17 @@ final class ServerDispatchHandlerTest extends TestCase
 
         $add = new LdapMessageRequest(1, new AddRequest(Entry::create('cn=foo,dc=bar')));
 
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(function (LdapMessageResponse $msg): bool {
-                return $msg->getResponse() instanceof LdapResult
-                    && $msg->getResponse()->getResultCode() === ResultCode::UNWILLING_TO_PERFORM;
-            }))
-            ->willReturnSelf();
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::UNWILLING_TO_PERFORM);
 
         $subject->handleRequest($add, $this->mockToken);
     }
 
-    public function test_it_sends_error_response_for_unsupported_requests(): void
+    public function test_it_throws_for_unsupported_requests(): void
     {
         $request = new LdapMessageRequest(2, new AbandonRequest(1));
 
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->willReturnSelf();
+        $this->expectException(OperationException::class);
 
         $this->subject->handleRequest($request, $this->mockToken);
     }
@@ -221,128 +191,6 @@ final class ServerDispatchHandlerTest extends TestCase
             ->with(self::isInstanceOf(WriteRequestInterface::class));
 
         $this->subject->handleRequest($delete, $this->mockToken);
-    }
-
-    public function test_matched_dn_from_exception_is_used_in_write_response(): void
-    {
-        $matchedDn = new Dn('dc=bar');
-        $matchedEntry = Entry::create('dc=bar');
-        $delete = new LdapMessageRequest(1, new DeleteRequest('cn=Missing,dc=bar'));
-
-        $this->mockWriteHandler
-            ->method('handle')
-            ->willThrowException(new OperationException(
-                'No such object.',
-                ResultCode::NO_SUCH_OBJECT,
-                null,
-                $matchedDn,
-            ));
-
-        $this->mockBackend
-            ->method('get')
-            ->willReturn($matchedEntry);
-        $this->mockAccessControl
-            ->method('filterEntry')
-            ->willReturn($matchedEntry);
-
-        $captured = null;
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->willReturnCallback(function (LdapMessageResponse $msg) use (&$captured): LdapMessageResponse {
-                $captured = $msg;
-
-                return $msg;
-            });
-
-        $this->subject->handleRequest($delete, $this->mockToken);
-
-        $response = $captured?->getResponse();
-        self::assertInstanceOf(DeleteResponse::class, $response);
-        self::assertSame(
-            'dc=bar',
-            $response->getDn()->toString(),
-        );
-    }
-
-    public function test_matched_dn_is_dropped_when_access_control_hides_ancestor(): void
-    {
-        $matchedDn = new Dn('dc=bar');
-        $matchedEntry = Entry::create('dc=bar');
-        $delete = new LdapMessageRequest(1, new DeleteRequest('cn=Missing,dc=bar'));
-
-        $this->mockWriteHandler
-            ->method('handle')
-            ->willThrowException(new OperationException(
-                'No such object.',
-                ResultCode::NO_SUCH_OBJECT,
-                null,
-                $matchedDn,
-            ));
-
-        $this->mockBackend
-            ->method('get')
-            ->willReturn($matchedEntry);
-        $this->mockAccessControl
-            ->method('filterEntry')
-            ->willReturn(null);
-
-        $captured = null;
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->willReturnCallback(function (LdapMessageResponse $msg) use (&$captured): LdapMessageResponse {
-                $captured = $msg;
-
-                return $msg;
-            });
-
-        $this->subject->handleRequest($delete, $this->mockToken);
-
-        $response = $captured?->getResponse();
-        self::assertInstanceOf(DeleteResponse::class, $response);
-        self::assertSame(
-            '',
-            $response->getDn()->toString(),
-        );
-    }
-
-    public function test_matched_dn_is_dropped_when_backend_returns_no_entry_for_ancestor(): void
-    {
-        $matchedDn = new Dn('dc=bar');
-        $delete = new LdapMessageRequest(1, new DeleteRequest('cn=Missing,dc=bar'));
-
-        $this->mockWriteHandler
-            ->method('handle')
-            ->willThrowException(new OperationException(
-                'No such object.',
-                ResultCode::NO_SUCH_OBJECT,
-                null,
-                $matchedDn,
-            ));
-
-        $this->mockBackend
-            ->method('get')
-            ->willReturn(null);
-
-        $captured = null;
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->willReturnCallback(function (LdapMessageResponse $msg) use (&$captured): LdapMessageResponse {
-                $captured = $msg;
-
-                return $msg;
-            });
-
-        $this->subject->handleRequest($delete, $this->mockToken);
-
-        $response = $captured?->getResponse();
-        self::assertInstanceOf(DeleteResponse::class, $response);
-        self::assertSame(
-            '',
-            $response->getDn()->toString(),
-        );
     }
 
     public function test_non_critical_unsupported_control_does_not_cause_an_error(): void

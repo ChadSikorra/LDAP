@@ -77,26 +77,17 @@ class ServerProtocolHandler
                     break;
                 }
             }
-        } catch (ResponseAlreadySentException $e) {
-            # The handler already sent the response (e.g. SASL, which needs the correct multi-round message ID), so
-            # only the audit log below applies here.
-            $this->logCriticalControlRejection(
-                $e,
-                $message,
-            );
+        } catch (ResponseAlreadySentException) {
+            # The handler already sent the response (e.g. SASL, which needs the correct multi-round message ID),
+            # so there is nothing further to do here.
         } catch (OperationException $e) {
-            # OperationExceptions may be thrown by any handler and will be sent back to the client as the response
-            # specific error code and message associated with the exception.
+            # Bind / authorization runs outside the request pipeline; its failures are turned into the response here.
+            # Pipeline operations are handled by OperationErrorMiddleware instead.
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(
                 $message,
                 $e->getCode(),
                 $e->getMessage(),
             ));
-
-            $this->logCriticalControlRejection(
-                $e,
-                $message,
-            );
         } catch (ConnectionException) {
             # Connection closure is recorded by the runner's lifecycle logging; no audit event for normal client disconnects.
         } catch (EncoderException|ProtocolException) {
@@ -171,25 +162,11 @@ class ServerProtocolHandler
             return;
         }
 
-        # A pipeline gate (critical-control, authorization, assertion) rejects per-operation by throwing
-        # We need to catch here and send the response.
-        try {
-            $this->requestPipeline->handle(new ServerRequestContext(
-                $message,
-                $authorization->token(),
-                $this->connectionContext,
-            ));
-        } catch (OperationException $e) {
-            $this->queue->sendMessage($this->responseFactory->getStandardResponse(
-                $message,
-                $e->getCode(),
-                $e->getMessage(),
-            ));
-            $this->logCriticalControlRejection(
-                $e,
-                $message,
-            );
-        }
+        $this->requestPipeline->handle(new ServerRequestContext(
+            $message,
+            $authorization->token(),
+            $this->connectionContext,
+        ));
     }
 
     /**
@@ -250,27 +227,6 @@ class ServerProtocolHandler
         }
 
         return $this->authenticator->bind($message);
-    }
-
-    /**
-     * Handlers without their own catch (StartTLS, WhoAmI, RootDse, etc.) only reach the audit log via this path.
-     *
-     * Critical-control rejection is the realistic case; other codes are direction-dependent or already covered.
-     */
-    private function logCriticalControlRejection(
-        OperationException $exception,
-        ?LdapMessageRequest $message,
-    ): void {
-        if ($exception->getCode() !== ResultCode::UNAVAILABLE_CRITICAL_EXTENSION) {
-            return;
-        }
-
-        $this->eventLogger->recordFailure(
-            ServerEvent::CriticalControlRejected,
-            $exception,
-            subject: $this->authorizer->getToken(),
-            message: $message,
-        );
     }
 
     /**

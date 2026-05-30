@@ -17,7 +17,6 @@ use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\Sorting\SortKey;
 use FreeDSx\Ldap\Control\Sorting\SortingControl;
 use FreeDSx\Ldap\Control\Sorting\SortingResponseControl;
-use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\LdapResult;
@@ -202,7 +201,7 @@ final class ServerSearchHandlerTest extends TestCase
         ]);
     }
 
-    public function test_it_should_send_a_SearchResultDone_with_an_operation_exception_thrown_from_the_backend(): void
+    public function test_it_lets_an_operation_exception_from_the_backend_bubble(): void
     {
         $search = new LdapMessageRequest(
             2,
@@ -221,25 +220,12 @@ final class ServerSearchHandlerTest extends TestCase
                 ),
             );
 
-        $result = $this->subject->handleRequest(
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::OPERATIONS_ERROR);
+
+        $this->subject->handleRequest(
             $search,
             $this->mockToken,
-        );
-
-        $this->assertSentMessages([
-            new LdapMessageResponse(
-                2,
-                new SearchResultDone(
-                    ResultCode::OPERATIONS_ERROR,
-                    '',
-                    "Fail",
-                ),
-            ),
-        ]);
-        self::assertInstanceOf(SearchOperationResult::class, $result);
-        self::assertSame(
-            OperationOutcome::Failed,
-            $result->outcome(),
         );
     }
 
@@ -674,100 +660,6 @@ final class ServerSearchHandlerTest extends TestCase
             0,
             $sortControl->getResult(),
         );
-    }
-
-    public function test_matched_dn_from_exception_is_used_in_SearchResultDone_on_error(): void
-    {
-        $matchedDn = new Dn('dc=foo,dc=bar');
-        $matchedEntry = Entry::create('dc=foo,dc=bar');
-
-        $search = new LdapMessageRequest(
-            2,
-            (new SearchRequest(Filters::equal('foo', 'bar')))->base('cn=Missing,dc=foo,dc=bar'),
-        );
-
-        $this->mockBackend
-            ->method('search')
-            ->willThrowException(new OperationException(
-                'No such object.',
-                ResultCode::NO_SUCH_OBJECT,
-                null,
-                $matchedDn,
-            ));
-        $this->mockBackend
-            ->method('get')
-            ->willReturn($matchedEntry);
-        $this->mockAccessControl
-            ->method('filterEntry')
-            ->willReturn($matchedEntry);
-
-        $this->subject->handleRequest(
-            $search,
-            $this->mockToken,
-        );
-
-        $this->assertSentMessages([
-            new LdapMessageResponse(
-                2,
-                new SearchResultDone(
-                    ResultCode::NO_SUCH_OBJECT,
-                    'dc=foo,dc=bar',
-                    'No such object.',
-                ),
-            ),
-        ]);
-    }
-
-    public function test_matched_dn_is_dropped_when_access_control_hides_ancestor_on_search(): void
-    {
-        $matchedDn = new Dn('dc=foo,dc=bar');
-        $matchedEntry = Entry::create('dc=foo,dc=bar');
-
-        $search = new LdapMessageRequest(
-            2,
-            (new SearchRequest(Filters::equal('foo', 'bar')))->base('cn=Missing,dc=foo,dc=bar'),
-        );
-
-        $this->mockBackend
-            ->method('search')
-            ->willThrowException(new OperationException(
-                'No such object.',
-                ResultCode::NO_SUCH_OBJECT,
-                null,
-                $matchedDn,
-            ));
-        $this->mockBackend
-            ->method('get')
-            ->willReturn($matchedEntry);
-
-        $mockAccessControl = $this->createMock(AccessControlInterface::class);
-        $mockAccessControl
-            ->method('filterEntry')
-            ->willReturn(null);
-
-        $subject = new ServerSearchHandler(
-            queue: $this->mockQueue,
-            backend: $this->mockBackend,
-            filterEvaluator: $this->mockFilterEvaluator,
-            accessControl: $mockAccessControl,
-            schema: $this->schema,
-        );
-
-        $subject->handleRequest(
-            $search,
-            $this->mockToken,
-        );
-
-        $this->assertSentMessages([
-            new LdapMessageResponse(
-                2,
-                new SearchResultDone(
-                    ResultCode::NO_SUCH_OBJECT,
-                    '',
-                    'No such object.',
-                ),
-            ),
-        ]);
     }
 
     public function test_no_sort_control_does_not_append_sorting_response_control(): void

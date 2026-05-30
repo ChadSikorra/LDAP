@@ -28,8 +28,6 @@ use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\OperationTargetDn;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
-use FreeDSx\Ldap\Server\Logging\EventLogger;
-use FreeDSx\Ldap\Server\Logging\OperationAuditor;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
@@ -44,19 +42,14 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  */
 final readonly class OperationAuthorizationMiddleware implements MiddlewareInterface
 {
-    private OperationAuditor $auditor;
-
     /**
      * @param list<string> $privilegedControls Control OIDs that require an explicit ControlRule grant before use on a write.
      */
     public function __construct(
         private HandlerRouteResolverInterface $routeResolver,
         private AccessControlInterface $accessControl,
-        EventLogger $eventLogger = new EventLogger(null),
         private array $privilegedControls = [Control::OID_RELAX_RULES],
-    ) {
-        $this->auditor = new OperationAuditor($eventLogger);
-    }
+    ) {}
 
     /**
      * @throws OperationException
@@ -104,21 +97,11 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
             return;
         }
 
-        try {
-            $this->accessControl->authorizeOperation(
-                OperationType::Search,
-                $token,
-                $baseDn,
-            );
-        } catch (OperationException $e) {
-            $this->auditor->recordSearchFailure(
-                $message,
-                $e,
-                $token,
-            );
-
-            throw $e;
-        }
+        $this->accessControl->authorizeOperation(
+            OperationType::Search,
+            $token,
+            $baseDn,
+        );
     }
 
     /**
@@ -130,40 +113,30 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
     ): void {
         $request = $message->getRequest();
 
-        try {
-            $this->authorizeRequest(
-                $request,
-                $token,
-            );
-            $this->authorizeWriteAttributes(
-                $request,
-                $token,
-            );
+        $this->authorizeRequest(
+            $request,
+            $token,
+        );
+        $this->authorizeWriteAttributes(
+            $request,
+            $token,
+        );
 
-            if ($request instanceof CompareRequest) {
-                $this->accessControl->authorizeAttribute(
-                    $token,
-                    $request->getDn(),
-                    $request->getFilter()->getAttribute(),
-                );
-
-                return;
-            }
-
-            $this->authorizeControls(
-                $request,
-                $message->controls(),
+        if ($request instanceof CompareRequest) {
+            $this->accessControl->authorizeAttribute(
                 $token,
-            );
-        } catch (OperationException $e) {
-            $this->auditor->recordFailure(
-                $message,
-                $e,
-                $token,
+                $request->getDn(),
+                $request->getFilter()->getAttribute(),
             );
 
-            throw $e;
+            return;
         }
+
+        $this->authorizeControls(
+            $request,
+            $message->controls(),
+            $token,
+        );
     }
 
     /**

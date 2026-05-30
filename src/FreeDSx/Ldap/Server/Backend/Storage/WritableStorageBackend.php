@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Exception\SchemaRuleException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Operation\WriteEntryOperationHandler;
@@ -447,7 +448,10 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         );
 
         if ($disposition === SchemaViolationDisposition::Rejected) {
-            throw $violation;
+            throw new SchemaRuleException(
+                $violation,
+                $context->schemaViolations(),
+            );
         }
     }
 
