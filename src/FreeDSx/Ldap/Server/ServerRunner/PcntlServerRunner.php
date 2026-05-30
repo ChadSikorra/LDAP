@@ -19,7 +19,7 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Server\ChildProcess;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
-use FreeDSx\Ldap\Server\ServerProtocolFactory;
+use FreeDSx\Ldap\Server\ServerProtocolFactoryInterface;
 use FreeDSx\Ldap\Server\SocketServerFactory;
 use FreeDSx\Socket\Socket;
 use FreeDSx\Socket\SocketServer;
@@ -66,7 +66,7 @@ class PcntlServerRunner implements ServerRunnerInterface
      * @throws RuntimeException
      */
     public function __construct(
-        private readonly ServerProtocolFactory $serverProtocolFactory,
+        private readonly ServerProtocolFactoryInterface $serverProtocolFactory,
         private readonly ServerOptions $options,
         private readonly SocketServerFactory $socketServerFactory,
     ) {

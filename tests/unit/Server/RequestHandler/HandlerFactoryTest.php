@@ -13,13 +13,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Server\RequestHandler;
 
-use FreeDSx\Ldap\LdapClient;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticator;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\RequestHandler\HandlerFactory;
-use FreeDSx\Ldap\Server\RequestHandler\ProxyHandler;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\ServerOptions;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -52,7 +50,7 @@ final class HandlerFactoryTest extends TestCase
 
     public function test_it_should_allow_a_rootdse_handler_as_an_object(): void
     {
-        $rootDseHandler = new ProxyHandler(new LdapClient());
+        $rootDseHandler = $this->createMock(RootDseHandlerInterface::class);
         $this->subject = new HandlerFactory((new ServerOptions())->setRootDseHandler($rootDseHandler));
 
         self::assertSame(

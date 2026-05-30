@@ -1,0 +1,58 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * This file is part of the FreeDSx LDAP package.
+ *
+ * (c) Chad Sikorra <Chad.Sikorra@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace FreeDSx\Ldap\Server;
+
+use FreeDSx\Ldap\Protocol\Bind\AnonymousBind;
+use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Logging\ConnectionContext;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\ServerOptions;
+use FreeDSx\Socket\Socket;
+
+/**
+ * Shared per-connection construction used by the directory and proxy protocol factories.
+ *
+ * @author Chad Sikorra <Chad.Sikorra@gmail.com>
+ */
+trait ServerConnectionScaffoldingTrait
+{
+    abstract protected function serverOptions(): ServerOptions;
+
+    private function makeServerQueue(Socket $socket): ServerQueue
+    {
+        return new ServerQueue(
+            $socket,
+            maxReceiveSize: $this->serverOptions()->getMaxRequestSize(),
+        );
+    }
+
+    private function makeEventLogger(ConnectionContext $context): EventLogger
+    {
+        return new EventLogger(
+            $this->serverOptions()->getLogger(),
+            $this->serverOptions()->getEventLogPolicy(),
+            $context->toLogContext(),
+        );
+    }
+
+    private function makeAnonymousBind(
+        ServerQueue $queue,
+        EventLogger $eventLogger,
+    ): AnonymousBind {
+        return new AnonymousBind(
+            $queue,
+            $eventLogger,
+        );
+    }
+}

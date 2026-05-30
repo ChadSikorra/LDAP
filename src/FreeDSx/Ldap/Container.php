@@ -35,7 +35,9 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
 use FreeDSx\Ldap\Server\RequestHandler\HandlerFactory;
+use FreeDSx\Ldap\Server\Proxy\ProxyProtocolFactory;
 use FreeDSx\Ldap\Server\ServerProtocolFactory;
+use FreeDSx\Ldap\Server\ServerProtocolFactoryInterface;
 use FreeDSx\Ldap\Server\ServerRunner\PcntlServerRunner;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use FreeDSx\Ldap\Server\ServerRunner\SwooleServerRunner;
@@ -107,6 +109,15 @@ class Container
     /**
      * @param class-string $className
      */
+    public function has(string $className): bool
+    {
+        return isset($this->instances[$className])
+            || isset($this->instanceFactory[$className]);
+    }
+
+    /**
+     * @param class-string $className
+     */
     private function registerFactory(
         string $className,
         callable $factory,
@@ -159,6 +170,10 @@ class Container
         $this->registerFactory(
             className: ServerProtocolFactory::class,
             factory: $this->makeServerProtocolFactory(...),
+        );
+        $this->registerFactory(
+            className: ServerProtocolFactoryInterface::class,
+            factory: $this->makeServerProtocolFactoryInterface(...),
         );
         $this->registerFactory(
             className: ServerRunnerInterface::class,
@@ -280,6 +295,18 @@ class Container
         );
     }
 
+    private function makeServerProtocolFactoryInterface(): ServerProtocolFactoryInterface
+    {
+        if ($this->has(ProxyOptions::class)) {
+            return new ProxyProtocolFactory(
+                $this->get(ServerOptions::class),
+                $this->get(ProxyOptions::class),
+            );
+        }
+
+        return $this->get(ServerProtocolFactory::class);
+    }
+
     private function makeServerProtocolHandlerFactory(): ServerProtocolHandlerFactory
     {
         return new ServerProtocolHandlerFactory($this->get(ServerOptions::class));
@@ -326,14 +353,14 @@ class Container
 
         if ($options->getUseSwooleRunner()) {
             return new SwooleServerRunner(
-                serverProtocolFactory: $this->get(ServerProtocolFactory::class),
+                serverProtocolFactory: $this->get(ServerProtocolFactoryInterface::class),
                 options: $options,
                 socketServerFactory: $this->get(SocketServerFactory::class),
             );
         }
 
         return new PcntlServerRunner(
-            serverProtocolFactory: $this->get(ServerProtocolFactory::class),
+            serverProtocolFactory: $this->get(ServerProtocolFactoryInterface::class),
             options: $options,
             socketServerFactory: $this->get(SocketServerFactory::class),
         );

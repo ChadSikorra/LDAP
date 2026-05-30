@@ -45,6 +45,13 @@ final class LdapServerCommand extends Command
                 'tcp',
             )
             ->addOption(
+                'port',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Port to listen on',
+                '10389',
+            )
+            ->addOption(
                 'storage',
                 null,
                 InputOption::VALUE_REQUIRED,
@@ -99,6 +106,7 @@ final class LdapServerCommand extends Command
     ): int {
         $io = new SymfonyStyle($input, $output);
         $transport = $this->getStringOption($input, 'transport');
+        $port = (int) $this->getStringOption($input, 'port');
         $storageType = $this->getStringOption($input, 'storage');
         $entryCount = (int) $this->getStringOption($input, 'entries');
         $sasl = $input->getOption('sasl') === true;
@@ -136,7 +144,7 @@ final class LdapServerCommand extends Command
         $storage = $this->createStorage($storageType);
 
         $options = (new ServerOptions())
-            ->setPort(10389)
+            ->setPort($port)
             ->setTransport($transport)
             ->setUnixSocket(sys_get_temp_dir() . '/ldap.socket')
             ->setSslCert(self::SSL_CERT)

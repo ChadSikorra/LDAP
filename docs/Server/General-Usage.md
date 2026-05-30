@@ -15,7 +15,6 @@ General LDAP Server Usage
     * [JsonFileStorage](#jsonfilestorage)
     * [SqliteStorage](#sqlitestorage)
     * [MysqlStorage](#mysqlstorage)
-  * [Proxy Backend](#proxy-backend)
   * [Custom Filter Evaluation](#custom-filter-evaluation)
 * [LDIF Data](#ldif-data)
   * [Seeding Initial Entries](#seeding-initial-entries)
@@ -177,26 +176,44 @@ $server = (new LdapServer())->run();
 
 ## Creating a Proxy Server
 
-The server can act as a transparent proxy to another LDAP server via `LdapServer::makeProxy()`:
+The server can act as a transparent proxy to an upstream LDAP server via `LdapServer::makeProxy()`.
+
+**Note**: Each client connection gets its own upstream connection. Requests (with their controls) are relayed upstream and
+the responses (with their controls) relayed back. So the upstream is the authority. Works on all server runners.
 
 ```php
 use FreeDSx\Ldap\ClientOptions;
+use FreeDSx\Ldap\ProxyOptions;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Ldap\LdapServer;
 
-$server = LdapServer::makeProxy(
-    // The LDAP server to proxy connections to...
-    servers: 'ldap.example.com',
-    // Any additional LdapClient options for the proxy...
-    clientOptions: new ClientOptions(),
-    // Any additional LdapServer options. In this case, run over port 3389
-    serverOptions: (new ServerOptions)->setPort(3389),
+// The upstream connection: servers + TLS live on the ClientOptions.
+$proxyOptions = new ProxyOptions(
+    (new ClientOptions())
+        ->setServers(['ldap.example.com'])
+        // Upstream TLS: LDAPS here, or $proxyOptions->setUseStartTls(true) for StartTLS.
+        ->setUseSsl(true),
 );
 
+// The proxy's own listener: port/transport + downstream TLS cert.
+$serverOptions = (new ServerOptions())
+    ->setPort(3389)
+    ->setSslCert('/path/to/cert.pem')
+    ->setSslCertKey('/path/to/key.pem');
+
+$server = LdapServer::makeProxy(
+    $proxyOptions,
+    $serverOptions,
+);
 $server->run();
 ```
 
-For a customisable proxy, extend `ProxyBackend` directly. See [Proxy Backend](#proxy-backend).
+TLS terminates at each hop: configure the **upstream** hop on the `ClientOptions` (LDAPS via `setUseSsl`,
+or `ProxyOptions::setUseStartTls(true)`), and the **downstream** hop on the `ServerOptions` (LDAPS, or a
+client StartTLS upgrade using the configured server cert).
+
+**Note**: only simple and anonymous binds are proxied (SASL is not), and every request is forwarded to the
+single configured upstream.
 
 ## Providing a Backend
 
@@ -212,7 +229,7 @@ $server = (new LdapServer())->useStorage(new InMemoryStorage($entries));
 $server->run();
 ```
 
-For backends that implement full LDAP semantics themselves (e.g. a proxy), use `useBackend()` with a class
+For backends that implement full LDAP semantics themselves, use `useBackend()` with a class
 implementing `LdapBackendInterface` (read-only) or `WritableLdapBackendInterface` (read + write):
 
 ```php
@@ -606,38 +623,6 @@ final class PostgresStorage implements PdoStorageFactoryInterface
 }
 ```
 
-### Proxy Backend
-
-`ProxyBackend` implements `WritableLdapBackendInterface` by forwarding all operations to an upstream LDAP server.
-Extend it to add custom logic:
-
-```php
-namespace App;
-
-use FreeDSx\Ldap\ClientOptions;
-use FreeDSx\Ldap\Server\RequestHandler\ProxyBackend;
-
-class MyProxyBackend extends ProxyBackend
-{
-    public function __construct()
-    {
-        parent::__construct(
-            (new ClientOptions)
-                ->setServers(['dc1.domain.local', 'dc2.domain.local'])
-                ->setBaseDn('dc=domain,dc=local')
-        );
-    }
-}
-```
-
-```php
-use FreeDSx\Ldap\LdapServer;
-use App\MyProxyBackend;
-
-$server = (new LdapServer())->useBackend(new MyProxyBackend());
-$server->run();
-```
-
 ### Custom Filter Evaluation
 
 By default, a pure-PHP `FilterEvaluator` is applied to entries yielded by `search()` as a correctness
@@ -921,12 +906,9 @@ sufficient. The default entry always advertises:
 - `supportedExtension`: WhoAmI (RFC 4532), Password Modify (RFC 3062), and StartTLS (RFC 4511) if an SSL certificate is configured
 - `supportedLDAPVersion`: `3`
 
-If you need full control — for example to proxy RootDSE requests to an upstream server, or to add custom attributes —
-implement `RootDseHandlerInterface`. Your implementation receives the default-generated entry and returns a (possibly
-modified) entry to send back to the client.
-
-The simplest way to proxy RootDSE requests is `ProxyHandler`, which bundles `ProxyBackend` with `RootDseHandlerInterface`
-in one class and is used by `LdapServer::makeProxy()` automatically.
+If you need full control (for example to add custom attributes) implement `RootDseHandlerInterface`. Your
+implementation receives the default-generated entry and returns a (possibly modified) entry to send back to the
+client. (A `makeProxy()` server forwards RootDSE requests to the upstream automatically, so this is not needed there.)
 
 For a custom handler:
 

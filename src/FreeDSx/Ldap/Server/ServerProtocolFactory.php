@@ -16,7 +16,6 @@ namespace FreeDSx\Ldap\Server;
 use FreeDSx\Ldap\Protocol\Authenticator;
 use FreeDSx\Ldap\Protocol\Authorization\DispatchAuthorizer;
 use FreeDSx\Ldap\Protocol\Authorization\ProxiedAuthorizationResolver;
-use FreeDSx\Ldap\Protocol\Bind\AnonymousBind;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\MechanismOptionsBuilderFactory;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\SaslExchange;
 use FreeDSx\Ldap\Protocol\Bind\SaslBind;
@@ -27,7 +26,6 @@ use FreeDSx\Sasl\Options\SaslOptions;
 use FreeDSx\Sasl\Sasl;
 use FreeDSx\Ldap\Protocol\Factory\ProtocolHandlerProvider;
 use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
@@ -55,8 +53,10 @@ use FreeDSx\Ldap\Server\PasswordPolicy\PasswordResetGate;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\Socket;
 
-class ServerProtocolFactory
+class ServerProtocolFactory implements ServerProtocolFactoryInterface
 {
+    use ServerConnectionScaffoldingTrait;
+
     public function __construct(
         private readonly HandlerFactoryInterface $handlerFactory,
         private readonly ServerOptions $options,
@@ -69,19 +69,17 @@ class ServerProtocolFactory
         private readonly PasswordPolicyComponentFactory $policyComponentFactory,
     ) {}
 
+    protected function serverOptions(): ServerOptions
+    {
+        return $this->options;
+    }
+
     public function make(
         Socket $socket,
         ConnectionContext $context = new ConnectionContext(),
     ): ServerProtocolHandler {
-        $serverQueue = new ServerQueue(
-            $socket,
-            maxReceiveSize: $this->options->getMaxRequestSize(),
-        );
-        $eventLogger = new EventLogger(
-            $this->options->getLogger(),
-            $this->options->getEventLogPolicy(),
-            $context->toLogContext(),
-        );
+        $serverQueue = $this->makeServerQueue($socket);
+        $eventLogger = $this->makeEventLogger($context);
 
         $backend = $this->handlerFactory->makeBackend();
         $passwordAuthenticator = $this->handlerFactory->makePasswordAuthenticator();
@@ -104,7 +102,7 @@ class ServerProtocolFactory
                 eventLogger: $eventLogger,
                 passwordPolicyContext: $policyContext,
             ),
-            new AnonymousBind(
+            $this->makeAnonymousBind(
                 $serverQueue,
                 $eventLogger,
             ),

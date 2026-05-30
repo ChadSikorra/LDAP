@@ -39,7 +39,6 @@ use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteRequestReplayer;
-use FreeDSx\Ldap\Server\RequestHandler\ProxyHandler;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
@@ -353,26 +352,21 @@ class LdapServer
     }
 
     /**
-     * Convenience method for generating an LDAP server instance that will proxy client request's to an LDAP server.
+     * Convenience method for generating an LDAP server instance that forwards client requests to an upstream server.
      *
-     * Note: This is only intended to work with the PCNTL server runner.
-     *
-     * @param string|string[] $servers The LDAP server(s) to proxy the request to.
-     * @param ClientOptions $clientOptions Any additional client options for the proxy connection.
-     * @param ServerOptions $serverOptions Any additional server options for the LDAP server.
+     * @param ProxyOptions $proxyOptions The upstream connection (set servers/TLS on its ClientOptions).
+     * @param ServerOptions $serverOptions Server options for the proxy's own listener (ip/port/transport, downstream TLS).
      */
     public static function makeProxy(
-        array|string $servers,
-        ClientOptions $clientOptions = new ClientOptions(),
+        ProxyOptions $proxyOptions,
         ServerOptions $serverOptions = new ServerOptions(),
     ): LdapServer {
-        $client = new LdapClient(
-            $clientOptions->setServers(array_values((array) $servers)),
+        return new LdapServer(
+            $serverOptions,
+            new Container([
+                ServerOptions::class => $serverOptions,
+                ProxyOptions::class => $proxyOptions,
+            ]),
         );
-
-        $server = new LdapServer($serverOptions);
-        $server->useBackend(new ProxyHandler($client));
-
-        return $server;
     }
 }

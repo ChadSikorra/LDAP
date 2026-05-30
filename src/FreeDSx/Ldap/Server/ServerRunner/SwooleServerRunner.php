@@ -16,7 +16,7 @@ namespace FreeDSx\Ldap\Server\ServerRunner;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
-use FreeDSx\Ldap\Server\ServerProtocolFactory;
+use FreeDSx\Ldap\Server\ServerProtocolFactoryInterface;
 use FreeDSx\Ldap\Server\SocketServerFactory;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\Socket;
@@ -73,7 +73,7 @@ class SwooleServerRunner implements ServerRunnerInterface
     private WaitGroup $waitGroup;
 
     public function __construct(
-        private readonly ServerProtocolFactory $serverProtocolFactory,
+        private readonly ServerProtocolFactoryInterface $serverProtocolFactory,
         private readonly ServerOptions $options,
         private readonly SocketServerFactory $socketServerFactory,
     ) {
