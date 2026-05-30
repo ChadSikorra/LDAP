@@ -13,6 +13,11 @@ declare(strict_types=1);
 
 namespace Tests\Integration\FreeDSx\Ldap;
 
+use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Control\ReadEntry\PostReadResponseControl;
+use FreeDSx\Ldap\Controls;
+use FreeDSx\Ldap\Entry\Change;
+use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Search\Filters;
 
@@ -48,53 +53,108 @@ final class LdapProxyTest extends ServerTestCase
     {
         $this->authenticate();
 
-        $this->assertNotEmpty($this->ldapClient()->whoami());
+        self::assertSame(
+            'dn:cn=user,dc=foo,dc=bar',
+            $this->ldapClient()->whoami(),
+        );
     }
 
     public function testItRetrievesTheRootDse(): void
     {
         $this->authenticate();
-        $rootDse = $this->ldapClient()->readOrFail();
 
-        $this->assertNotEmpty($rootDse->toArray());
+        self::assertNotEmpty($this->ldapClient()->readOrFail()->toArray());
     }
 
-    public function testItCanHandlePaging(): void
+    public function testItForwardsWritesToUpstream(): void
+    {
+        $this->authenticate();
+        $client = $this->ldapClient();
+        $dn = 'cn=written,dc=foo,dc=bar';
+
+        $client->create(Entry::fromArray(
+            $dn,
+            [
+                'cn' => ['written'],
+                'sn' => ['Written'],
+                'objectClass' => ['inetOrgPerson'],
+            ],
+        ));
+        self::assertTrue(
+            $client->compare($dn, 'sn', 'Written'),
+        );
+
+        $client->send(Operations::modify(
+            $dn,
+            Change::replace('sn', 'Changed'),
+        ));
+        self::assertTrue(
+            $client->compare($dn, 'sn', 'Changed'),
+        );
+
+        $client->delete($dn);
+        self::assertNull($client->read($dn));
+    }
+
+    public function testItPagesThroughForwardedResults(): void
     {
         $this->authenticate();
 
-        $search = Operations::search(
-            Filters::equal(
-                'objectClass',
-                'organizationalUnit',
-            ),
-            'ou',
-        );
-        $paging = $this->ldapClient()
-            ->paging($search);
-
-        $entries = $paging->getEntries(4);
-
-        $this->assertCount(
-            4,
-            $entries,
+        $paging = $this->ldapClient()->paging(
+            Operations::search(
+                Filters::equal(
+                    'objectClass',
+                    'inetOrgPerson',
+                ),
+            )->base('dc=foo,dc=bar'),
+            5,
         );
 
+        $entries = $paging->getEntries();
         while ($paging->hasEntries()) {
-            $entries->add(...$paging->getEntries(4)->toArray());
+            $entries->add(...$paging->getEntries()->toArray());
         }
 
-        $this->assertCount(
-            12,
+        self::assertCount(
+            13,
             $entries,
         );
     }
 
-    protected function authenticate(): void
+    public function testItForwardsAResponseControlFromUpstream(): void
     {
-        $this->ldapClient()->bind(
-            (string) getenv('LDAP_USERNAME'),
-            (string) getenv('LDAP_PASSWORD'),
+        $this->authenticate();
+
+        $response = $this->ldapClient()->send(
+            Operations::add(Entry::fromArray(
+                'ou=proxied-ctrl,dc=foo,dc=bar',
+                [
+                    'ou' => ['proxied-ctrl'],
+                    'objectClass' => ['organizationalUnit'],
+                ],
+            )),
+            Controls::postRead('ou'),
+        );
+
+        $postRead = $response?->controls()->get(Control::OID_POST_READ);
+        self::assertInstanceOf(
+            PostReadResponseControl::class,
+            $postRead,
+        );
+        self::assertSame(
+            ['proxied-ctrl'],
+            $postRead->getEntry()->get('ou')?->getValues(),
+        );
+    }
+
+    public function testItUpgradesTheDownstreamConnectionWithStartTls(): void
+    {
+        $this->ldapClient()->startTls();
+        $this->authenticate();
+
+        self::assertSame(
+            'dn:cn=user,dc=foo,dc=bar',
+            $this->ldapClient()->whoami(),
         );
     }
 }

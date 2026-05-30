@@ -25,7 +25,8 @@ use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
-use FreeDSx\Ldap\Server\RequestHandler\ProxyHandler;
+use FreeDSx\Ldap\ClientOptions;
+use FreeDSx\Ldap\ProxyOptions;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use FreeDSx\Ldap\ServerOptions;
@@ -193,14 +194,16 @@ class LdapServerTest extends TestCase
 
     public function test_it_should_make_a_proxy_server(): void
     {
-        $proxyOptions = LdapServer::makeProxy('localhost')->getOptions();
-
-        self::assertInstanceOf(
-            ProxyHandler::class,
-            $proxyOptions->getBackend(),
+        $serverOptions = new ServerOptions();
+        $server = LdapServer::makeProxy(
+            new ProxyOptions(new ClientOptions(['localhost'])),
+            $serverOptions,
         );
 
-        self::assertNull($proxyOptions->getRootDseHandler());
+        self::assertSame(
+            $serverOptions,
+            $server->getOptions(),
+        );
     }
 
     public function test_it_should_seed_entries_into_the_configured_storage(): void
