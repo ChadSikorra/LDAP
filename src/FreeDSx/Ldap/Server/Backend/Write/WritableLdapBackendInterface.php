@@ -13,12 +13,27 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Write;
 
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
 
 /**
- * Marker for full-CRUD backends; pair with WritableBackendTrait for typed add/delete/update/move methods. For partial
- * write support, implement WriteHandlerInterface directly and register via LdapServer::useWriteHandler().
+ * Full-CRUD backend contract (read + write dispatch + subtree delete); implement EntryStorageInterface instead unless you must own all LDAP semantics yourself.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-interface WritableLdapBackendInterface extends LdapBackendInterface, WriteHandlerInterface {}
+interface WritableLdapBackendInterface extends LdapBackendInterface, WriteHandlerInterface
+{
+    /**
+     * Delete the entry and every descendant.
+     *
+     * @param callable(Dn): void $authorize Throws OperationException to deny removal of the given entry.
+     * @throws OperationException
+     */
+    public function deleteSubtree(
+        DeleteCommand $command,
+        WriteContext $context,
+        callable $authorize,
+    ): void;
+}

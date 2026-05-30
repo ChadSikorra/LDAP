@@ -21,7 +21,7 @@ use FreeDSx\Ldap\Ldif\Output\StringLdifOutput;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DumpOptions;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
@@ -77,7 +77,7 @@ class LdapServerTest extends TestCase
 
     public function test_it_should_use_the_backend_specified(): void
     {
-        $backend = $this->createMock(LdapBackendInterface::class);
+        $backend = $this->createMock(WritableLdapBackendInterface::class);
 
         $this->subject->useBackend($backend);
 
@@ -309,10 +309,10 @@ class LdapServerTest extends TestCase
         self::assertNull($storage->find(new Dn('cn=foo,dc=example,dc=com')));
     }
 
-    public function test_it_should_throw_when_applying_changes_without_a_writable_backend(): void
+    public function test_it_should_throw_when_applying_changes_without_a_backend(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('requires a writable backend');
+        $this->expectExceptionMessage('requires a backend');
 
         $this->subject->applyChanges(new StringLdifLoader("dn: cn=x,dc=x\nchangetype: delete\n"));
     }

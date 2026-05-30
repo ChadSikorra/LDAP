@@ -104,7 +104,7 @@ class HandlerFactory implements HandlerFactoryInterface
         $handlers = $this->options->getWriteHandlers();
 
         $backend = $this->options->getBackend();
-        if ($backend instanceof WriteHandlerInterface) {
+        if ($backend !== null) {
             $handlers[] = $backend;
         }
 

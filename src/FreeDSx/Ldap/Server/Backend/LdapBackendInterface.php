@@ -22,7 +22,7 @@ use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 
 /**
- * Read-only LDAP backend contract; implement WritableLdapBackendInterface for full CRUD.
+ * Read-side backend contract that read-only consumers depend on.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
