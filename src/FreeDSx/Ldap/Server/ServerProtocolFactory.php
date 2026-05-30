@@ -40,6 +40,8 @@ use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\OperationAuditor;
+use FreeDSx\Ldap\Protocol\ServerProtocolHandler\AssertionEvaluator;
+use FreeDSx\Ldap\Server\Middleware\AssertionMiddleware;
 use FreeDSx\Ldap\Server\Middleware\CriticalControlMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationAuditMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationAuthorizationMiddleware;
@@ -172,6 +174,10 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
                         $eventLogger,
                         $this->options->getPrivilegedControls(),
                     ),
+                    new AssertionMiddleware(new AssertionEvaluator(
+                        $this->options->getFilterEvaluator(),
+                        $backend,
+                    )),
                     new OperationAuditMiddleware(new OperationAuditor($eventLogger)),
                 ],
                 new HandlerInvoker($handlerProvider),

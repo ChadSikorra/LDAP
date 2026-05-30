@@ -171,11 +171,25 @@ class ServerProtocolHandler
             return;
         }
 
-        $this->requestPipeline->handle(new ServerRequestContext(
-            $message,
-            $authorization->token(),
-            $this->connectionContext,
-        ));
+        # A pipeline gate (critical-control, authorization, assertion) rejects per-operation by throwing
+        # We need to catch here and send the response.
+        try {
+            $this->requestPipeline->handle(new ServerRequestContext(
+                $message,
+                $authorization->token(),
+                $this->connectionContext,
+            ));
+        } catch (OperationException $e) {
+            $this->queue->sendMessage($this->responseFactory->getStandardResponse(
+                $message,
+                $e->getCode(),
+                $e->getMessage(),
+            ));
+            $this->logCriticalControlRejection(
+                $e,
+                $message,
+            );
+        }
     }
 
     /**

@@ -89,6 +89,39 @@ final class ServerControlsTest extends ServerTestCase
         self::assertSame('Smith', $this->readValue($dn, 'sn'));
     }
 
+    public function test_assertion_allows_a_search_when_it_matches(): void
+    {
+        $this->bind();
+
+        $entries = $this->ldapClient()->search(
+            Operations::search(Filters::present('objectClass'))->base('dc=foo,dc=bar'),
+            Controls::assertion(Filters::equal('dc', 'foo')),
+        );
+
+        self::assertGreaterThan(0, $entries->count());
+    }
+
+    public function test_assertion_fails_a_search_when_it_does_not_match(): void
+    {
+        $this->bind();
+
+        try {
+            $this->ldapClient()->search(
+                Operations::search(Filters::present('objectClass'))->base('dc=foo,dc=bar'),
+                Controls::assertion(Filters::equal('dc', 'nope')),
+            );
+            self::fail('Expected an OperationException was not thrown.');
+        } catch (OperationException $e) {
+            self::assertSame(ResultCode::ASSERTION_FAILED, $e->getCode());
+        }
+
+        # The connection survives the per-operation rejection: a follow-up search still succeeds.
+        $entries = $this->ldapClient()->search(
+            Operations::search(Filters::present('objectClass'))->base('dc=foo,dc=bar'),
+        );
+        self::assertGreaterThan(0, $entries->count());
+    }
+
     public function test_pre_read_and_post_read_capture_state_around_a_modify(): void
     {
         $this->bind();

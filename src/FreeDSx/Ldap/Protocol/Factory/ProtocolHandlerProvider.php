@@ -132,7 +132,6 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
                 ? $this->handlerFactory->makeWriteDispatcher($policyWriteHandler)
                 : $this->writeDispatcher,
             accessControl: $this->options->getAccessControl(),
-            filterEvaluator: $this->options->getFilterEvaluator(),
             schema: $this->options->getSchema(),
         );
     }

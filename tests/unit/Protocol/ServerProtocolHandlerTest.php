@@ -380,7 +380,7 @@ final class ServerProtocolHandlerTest extends TestCase
     {
         $this->mockQueue
             ->method('isConnected')
-            ->willReturnOnConsecutiveCalls(true, false);
+            ->willReturn(true);
 
         $messages = [
             new LdapMessageRequest(1, new SimpleBindRequest('foo@bar', 'bar')),
