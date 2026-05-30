@@ -506,51 +506,6 @@ final class ServerProtocolHandlerTest extends TestCase
         self::assertNotEmpty($disconnectRecord['context']['exception_trace']);
     }
 
-    public function test_propagated_critical_control_rejection_emits_structured_event(): void
-    {
-        $recordingLogger = new RecordingLogger();
-        $subject = $this->makeSubjectWithEventLogger(new EventLogger(
-            $recordingLogger,
-            EventLogPolicy::default(),
-        ));
-
-        $messages = [
-            new LdapMessageRequest(7, new ExtendedRequest(ExtendedRequest::OID_START_TLS)),
-        ];
-        $this->mockQueue
-            ->method('getMessage')
-            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
-                if ($messages === []) {
-                    throw new ConnectionException();
-                }
-
-                return array_shift($messages);
-            });
-
-        $this->mockProtocolHandler
-            ->expects(self::once())
-            ->method('handleRequest')
-            ->willThrowException(new OperationException(
-                'Critical control 1.2.3.4 is not supported.',
-                ResultCode::UNAVAILABLE_CRITICAL_EXTENSION,
-            ));
-
-        $subject->handle();
-
-        $record = $this->findRecord(
-            $recordingLogger,
-            'control.critical.rejected',
-        );
-        self::assertSame(
-            7,
-            $record['context']['message_id'],
-        );
-        self::assertSame(
-            ResultCode::UNAVAILABLE_CRITICAL_EXTENSION,
-            $record['context']['result_code'],
-        );
-    }
-
     public function test_a_must_change_token_blocks_other_operations(): void
     {
         $token = BindToken::fromDn(

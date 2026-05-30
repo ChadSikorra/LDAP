@@ -18,6 +18,7 @@ use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
 use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Request\ModifyRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
@@ -81,22 +82,20 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
             [PasswordPolicyOid::NAME_PWD_HISTORY => $this->historyValue('previous-pass')],
         );
 
-        $handler->handleRequest(
-            $this->modify('previous-pass'),
-            $this->token(),
-        );
+        try {
+            $handler->handleRequest(
+                $this->modify('previous-pass'),
+                $this->token(),
+            );
+            self::fail('Expected the reused password to be rejected.');
+        } catch (OperationException $e) {
+            self::assertSame(
+                ResultCode::CONSTRAINT_VIOLATION,
+                $e->getCode(),
+            );
+        }
 
-        $response = $this->response?->getResponse();
-        self::assertInstanceOf(
-            LdapResult::class,
-            $response,
-        );
-        self::assertSame(
-            ResultCode::CONSTRAINT_VIOLATION,
-            $response->getResultCode(),
-        );
-
-        $control = $this->response?->controls()->getByClass(PwdPolicyResponseControl::class);
+        $control = $this->context->buildResponseControl();
         self::assertInstanceOf(
             PwdPolicyResponseControl::class,
             $control,
@@ -153,22 +152,20 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
             )),
         );
 
-        $handler->handleRequest(
-            $this->modify('{SSHA}' . base64_encode('cannot-introspect-this')),
-            $this->token(),
-        );
+        try {
+            $handler->handleRequest(
+                $this->modify('{SSHA}' . base64_encode('cannot-introspect-this')),
+                $this->token(),
+            );
+            self::fail('Expected the prehashed value to be rejected.');
+        } catch (OperationException $e) {
+            self::assertSame(
+                ResultCode::CONSTRAINT_VIOLATION,
+                $e->getCode(),
+            );
+        }
 
-        $response = $this->response?->getResponse();
-        self::assertInstanceOf(
-            LdapResult::class,
-            $response,
-        );
-        self::assertSame(
-            ResultCode::CONSTRAINT_VIOLATION,
-            $response->getResultCode(),
-        );
-
-        $control = $this->response?->controls()->getByClass(PwdPolicyResponseControl::class);
+        $control = $this->context->buildResponseControl();
         self::assertInstanceOf(
             PwdPolicyResponseControl::class,
             $control,
@@ -185,20 +182,18 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
             new PasswordPolicy(change: new PasswordChangeRules(safeModify: true)),
         );
 
-        $handler->handleRequest(
-            $this->modifyWithOld('wrong-old', 'a-fresh-password'),
-            $this->token(),
-        );
-
-        $response = $this->response?->getResponse();
-        self::assertInstanceOf(
-            LdapResult::class,
-            $response,
-        );
-        self::assertSame(
-            ResultCode::INVALID_CREDENTIALS,
-            $response->getResultCode(),
-        );
+        try {
+            $handler->handleRequest(
+                $this->modifyWithOld('wrong-old', 'a-fresh-password'),
+                $this->token(),
+            );
+            self::fail('Expected the safe-modify to be rejected.');
+        } catch (OperationException $e) {
+            self::assertSame(
+                ResultCode::INVALID_CREDENTIALS,
+                $e->getCode(),
+            );
+        }
 
         $entry = $this->backend->get(new Dn(self::USER_DN));
         self::assertSame(

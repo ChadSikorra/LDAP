@@ -45,6 +45,7 @@ use FreeDSx\Ldap\Server\Middleware\AssertionMiddleware;
 use FreeDSx\Ldap\Server\Middleware\CriticalControlMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationAuditMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationAuthorizationMiddleware;
+use FreeDSx\Ldap\Server\Middleware\OperationErrorMiddleware;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\HandlerInvoker;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
@@ -167,18 +168,22 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
             queue: $serverQueue,
             requestPipeline: new MiddlewareChain(
                 [
+                    new OperationErrorMiddleware(
+                        $serverQueue,
+                        $backend,
+                        $this->options->getAccessControl(),
+                    ),
+                    new OperationAuditMiddleware(new OperationAuditor($eventLogger)),
                     new CriticalControlMiddleware($this->routeResolver),
                     new OperationAuthorizationMiddleware(
                         $this->routeResolver,
                         $this->options->getAccessControl(),
-                        $eventLogger,
                         $this->options->getPrivilegedControls(),
                     ),
                     new AssertionMiddleware(new AssertionEvaluator(
                         $this->options->getFilterEvaluator(),
                         $backend,
                     )),
-                    new OperationAuditMiddleware(new OperationAuditor($eventLogger)),
                 ],
                 new HandlerInvoker($handlerProvider),
             ),

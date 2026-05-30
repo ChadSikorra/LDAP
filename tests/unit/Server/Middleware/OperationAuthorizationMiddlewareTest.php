@@ -30,15 +30,12 @@ use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
-use FreeDSx\Ldap\Server\Logging\EventLogger;
-use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\Middleware\OperationAuthorizationMiddleware;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use Tests\Support\FreeDSx\Ldap\Logging\RecordingLogger;
 use Tests\Support\FreeDSx\Ldap\Middleware\CallLog;
 use Tests\Support\FreeDSx\Ldap\Middleware\RecordingMiddlewareHandler;
 
@@ -47,8 +44,6 @@ final class OperationAuthorizationMiddlewareTest extends TestCase
     private HandlerRouteResolverInterface&MockObject $resolver;
 
     private AccessControlInterface&MockObject $accessControl;
-
-    private RecordingLogger $logger;
 
     private TokenInterface&MockObject $token;
 
@@ -60,15 +55,10 @@ final class OperationAuthorizationMiddlewareTest extends TestCase
     {
         $this->resolver = $this->createMock(HandlerRouteResolverInterface::class);
         $this->accessControl = $this->createMock(AccessControlInterface::class);
-        $this->logger = new RecordingLogger();
         $this->token = $this->createMock(TokenInterface::class);
         $this->subject = new OperationAuthorizationMiddleware(
             $this->resolver,
             $this->accessControl,
-            new EventLogger(
-                $this->logger,
-                EventLogPolicy::default(),
-            ),
         );
         $this->next = new RecordingMiddlewareHandler(new CallLog());
     }
@@ -93,7 +83,7 @@ final class OperationAuthorizationMiddlewareTest extends TestCase
         self::assertNotNull($this->next->received);
     }
 
-    public function test_search_route_denial_audits_a_read_denial_and_blocks_dispatch(): void
+    public function test_search_route_denial_blocks_dispatch(): void
     {
         $this->routeResolvesTo(HandlerId::Paging);
         $this->accessControl
@@ -117,7 +107,6 @@ final class OperationAuthorizationMiddlewareTest extends TestCase
             $this->next->received,
             'Dispatch must be blocked on denial.',
         );
-        self::assertTrue($this->wasLogged('authz.denied.read'));
     }
 
     public function test_dispatch_route_authorizes_modify_dn_against_source_only(): void
@@ -160,7 +149,7 @@ final class OperationAuthorizationMiddlewareTest extends TestCase
         self::assertNotNull($this->next->received);
     }
 
-    public function test_dispatch_route_add_attribute_denial_audits_a_write_denial_and_blocks_dispatch(): void
+    public function test_dispatch_route_add_attribute_denial_blocks_dispatch(): void
     {
         $this->routeResolvesTo(HandlerId::Dispatch);
         $this->accessControl
@@ -183,7 +172,6 @@ final class OperationAuthorizationMiddlewareTest extends TestCase
         }
 
         self::assertNull($this->next->received);
-        self::assertTrue($this->wasLogged('authz.denied.write'));
     }
 
     public function test_dispatch_route_compare_attribute_denial_blocks_dispatch(): void
@@ -238,10 +226,6 @@ final class OperationAuthorizationMiddlewareTest extends TestCase
         $subject = new OperationAuthorizationMiddleware(
             $this->resolver,
             $this->accessControl,
-            new EventLogger(
-                $this->logger,
-                EventLogPolicy::default(),
-            ),
             [Control::OID_SUBTREE_DELETE],
         );
         $this->routeResolvesTo(HandlerId::Dispatch);
@@ -339,16 +323,5 @@ final class OperationAuthorizationMiddlewareTest extends TestCase
             'Access denied.',
             ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
         );
-    }
-
-    private function wasLogged(string $event): bool
-    {
-        foreach ($this->logger->records as $record) {
-            if ($record['message'] === $event) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

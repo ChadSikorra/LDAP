@@ -15,7 +15,6 @@ namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Ldap\Control\Sorting\SortingResponseControl;
 use FreeDSx\Ldap\Entry\Entry;
-use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\AbandonRequest;
 use FreeDSx\Ldap\Operation\Request\CancelRequest;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
@@ -41,8 +40,6 @@ use Generator;
 class ServerSearchHandler implements ServerProtocolHandlerInterface
 {
     use ServerSearchTrait;
-    use MatchedDnAccessFilterTrait;
-
 
     private const CANCEL_CHECK_INTERVAL = 50;
 
@@ -64,49 +61,31 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
     ): OperationResult {
         $request = $this->getSearchRequestFromMessage($message);
         $state = new SearchResultState();
-        $failure = null;
 
-        try {
-            $this->assertBaseDnProvided($request);
+        $this->assertBaseDnProvided($request);
 
-            $backendResult = $this->backend->search(
+        $backendResult = $this->backend->search(
+            $request,
+            $this->controlsForBackend($message),
+        );
+
+        $projection = AttributeProjection::forRequest(
+            $request->getAttributes(),
+            $request->getAttributesOnly(),
+            $this->schema,
+        );
+        $searchResult = SearchResult::makeSuccessResult(
+            $this->filteredEntryStream(
+                $backendResult,
                 $request,
-                $this->controlsForBackend($message),
-            );
-
-            $projection = AttributeProjection::forRequest(
-                $request->getAttributes(),
-                $request->getAttributesOnly(),
-                $this->schema,
-            );
-            $searchResult = SearchResult::makeSuccessResult(
-                $this->filteredEntryStream(
-                    $backendResult,
-                    $request,
-                    $state,
-                    $token,
-                    $message->getMessageId(),
-                    $projection,
-                ),
-                (string) $request->getBaseDn(),
                 $state,
-            );
-        } catch (OperationException $e) {
-            $failure = $e;
-            $matchedDn = $this->filterMatchedDn(
-                $e->getMatchedDn(),
                 $token,
-                $this->backend,
-                $this->accessControl,
-            );
-            $searchResult = SearchResult::makeErrorResult(
-                $e->getCode(),
-                $matchedDn !== null
-                    ? $matchedDn->toString()
-                    : '',
-                $e->getMessage(),
-            );
-        }
+                $message->getMessageId(),
+                $projection,
+            ),
+            (string) $request->getBaseDn(),
+            $state,
+        );
 
         $sortControl = $this->sortingControl($message);
         $responseControls = $sortControl !== null
@@ -120,15 +99,10 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
             ...$responseControls,
         );
 
-        return $failure !== null
-            ? SearchOperationResult::failure(
-                $message,
-                $failure,
-            )
-            : SearchOperationResult::success(
-                $message,
-                $state->entriesReturned,
-            );
+        return SearchOperationResult::success(
+            $message,
+            $state->entriesReturned,
+        );
     }
 
     /**
