@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol;
 
 use FreeDSx\Asn1\Exception\EncoderException;
-use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -32,7 +31,6 @@ use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
 use Throwable;
@@ -59,7 +57,6 @@ class ServerProtocolHandler
         private readonly DispatchAuthorizer $dispatchAuthorizer,
         private readonly EventLogger $eventLogger = new EventLogger(null),
         private readonly ResponseFactory $responseFactory = new ResponseFactory(),
-        private readonly ?PasswordPolicyContext $passwordPolicyContext = null,
         private readonly ConnectionContext $connectionContext = new ConnectionContext(),
     ) {}
 
@@ -90,13 +87,10 @@ class ServerProtocolHandler
         } catch (OperationException $e) {
             # OperationExceptions may be thrown by any handler and will be sent back to the client as the response
             # specific error code and message associated with the exception.
-            $control = $this->passwordPolicyControlFor($message);
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(
                 $message,
                 $e->getCode(),
                 $e->getMessage(),
-                null,
-                ...($control === null ? [] : [$control]),
             ));
 
             $this->logCriticalControlRejection(
@@ -242,28 +236,6 @@ class ServerProtocolHandler
         }
 
         return $this->authenticator->bind($message);
-    }
-
-    /**
-     * Password-policy response control for a failed bind; null for non-bind failures or when no policy is in play.
-     */
-    private function passwordPolicyControlFor(?LdapMessageRequest $message): ?Control
-    {
-        if (!$this->shouldAttachPolicyControl($message)) {
-            return null;
-        }
-
-        $control = $this->passwordPolicyContext?->buildResponseControl();
-        $this->passwordPolicyContext?->clear();
-
-        return $control;
-    }
-
-    private function shouldAttachPolicyControl(?LdapMessageRequest $message): bool
-    {
-        return $this->passwordPolicyContext !== null
-            && $message !== null
-            && $this->authorizer->isAuthenticationRequest($message->getRequest());
     }
 
     /**

@@ -64,7 +64,8 @@ final class SaslBindPolicyEnforcerTest extends TestCase
         );
 
         self::assertNull($this->context->getOutcome());
-        self::assertNull($enforcer->responseControl());
+        self::assertNull($this->context->buildResponseControl());
+        self::assertFalse($enforcer->mustChangePassword());
     }
 
     public function test_null_username_failure_is_ignored(): void
@@ -115,7 +116,7 @@ final class SaslBindPolicyEnforcerTest extends TestCase
         );
     }
 
-    public function test_must_change_surfaces_a_response_control(): void
+    public function test_must_change_flags_the_context_and_surfaces_a_control(): void
     {
         $enforcer = $this->enforcer(
             new PasswordPolicy(),
@@ -127,7 +128,9 @@ final class SaslBindPolicyEnforcerTest extends TestCase
             new Dn(self::USER_DN),
         );
 
-        $control = $enforcer->responseControl();
+        self::assertTrue($enforcer->mustChangePassword());
+
+        $control = $this->context->buildResponseControl();
         self::assertInstanceOf(
             PwdPolicyResponseControl::class,
             $control,
@@ -135,10 +138,6 @@ final class SaslBindPolicyEnforcerTest extends TestCase
         self::assertSame(
             PwdPolicyError::CHANGE_AFTER_RESET,
             $control->getError(),
-        );
-        self::assertNull(
-            $this->context->getOutcome(),
-            'responseControl() should clear the context.',
         );
     }
 
@@ -151,7 +150,8 @@ final class SaslBindPolicyEnforcerTest extends TestCase
             new Dn(self::USER_DN),
         );
 
-        self::assertNull($enforcer->responseControl());
+        self::assertNull($this->context->buildResponseControl());
+        self::assertFalse($enforcer->mustChangePassword());
     }
 
     /**

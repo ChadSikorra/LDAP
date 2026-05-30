@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Auth;
 
-use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
@@ -79,19 +78,11 @@ final readonly class SaslBindPolicyEnforcer
     }
 
     /**
-     * Whether the just-enforced bind flagged that the password must be changed; read before {@see responseControl}.
+     * Whether the just-enforced bind flagged that the password must be changed.
      */
     public function mustChangePassword(): bool
     {
         return $this->context->getOutcome()?->errorCode === PwdPolicyError::CHANGE_AFTER_RESET;
-    }
-
-    public function responseControl(): ?Control
-    {
-        $control = $this->context->buildResponseControl();
-        $this->context->clear();
-
-        return $control;
     }
 
     private function attemptFor(

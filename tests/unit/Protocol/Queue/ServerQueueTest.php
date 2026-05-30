@@ -31,6 +31,8 @@ use FreeDSx\Socket\Queue\Buffer;
 use FreeDSx\Socket\Socket;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\FreeDSx\Ldap\Middleware\CallLog;
+use Tests\Support\FreeDSx\Ldap\Protocol\Queue\Response\RecordingInterceptor;
 
 final class ServerQueueTest extends TestCase
 {
@@ -285,6 +287,80 @@ final class ServerQueueTest extends TestCase
         self::assertSame(
             5,
             $queue->getMessage()->getMessageId(),
+        );
+    }
+
+    public function test_it_applies_interceptors_to_a_sent_message(): void
+    {
+        $this->mockEncoder
+            ->method('encode')
+            ->willReturn('foo');
+        $this->mockSocket
+            ->expects($this->once())
+            ->method('write');
+
+        $queue = new ServerQueue(
+            $this->mockSocket,
+            $this->mockEncoder,
+            interceptors: [new RecordingInterceptor(new CallLog(), '1.2.3.4')],
+        );
+
+        $message = new LdapMessageResponse(
+            1,
+            new DeleteResponse(0),
+        );
+        $queue->sendMessage($message);
+
+        self::assertTrue($message->controls()->has('1.2.3.4'));
+    }
+
+    public function test_it_applies_interceptors_to_each_streamed_message(): void
+    {
+        $this->mockEncoder
+            ->method('encode')
+            ->willReturn('foo');
+
+        $queue = new ServerQueue(
+            $this->mockSocket,
+            $this->mockEncoder,
+            interceptors: [new RecordingInterceptor(new CallLog(), '1.2.3.4')],
+        );
+
+        $messages = [
+            new LdapMessageResponse(1, new DeleteResponse(0)),
+            new LdapMessageResponse(2, new DeleteResponse(0)),
+        ];
+        $queue->sendMessages($messages);
+
+        foreach ($messages as $message) {
+            self::assertTrue($message->controls()->has('1.2.3.4'));
+        }
+    }
+
+    public function test_it_runs_interceptors_in_order(): void
+    {
+        $this->mockEncoder
+            ->method('encode')
+            ->willReturn('foo');
+
+        $log = new CallLog();
+        $queue = new ServerQueue(
+            $this->mockSocket,
+            $this->mockEncoder,
+            interceptors: [
+                new RecordingInterceptor($log, 'a'),
+                new RecordingInterceptor($log, 'b'),
+            ],
+        );
+
+        $queue->sendMessage(new LdapMessageResponse(
+            1,
+            new DeleteResponse(0),
+        ));
+
+        self::assertSame(
+            ['a', 'b'],
+            $log->entries,
         );
     }
 

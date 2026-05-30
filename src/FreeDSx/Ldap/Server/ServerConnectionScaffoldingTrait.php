@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server;
 
 use FreeDSx\Ldap\Protocol\Bind\AnonymousBind;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseInterceptor;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
@@ -29,11 +30,17 @@ trait ServerConnectionScaffoldingTrait
 {
     abstract protected function serverOptions(): ServerOptions;
 
-    private function makeServerQueue(Socket $socket): ServerQueue
-    {
+    /**
+     * @param ResponseInterceptor[] $interceptors applied to every outgoing response, in order.
+     */
+    private function makeServerQueue(
+        Socket $socket,
+        array $interceptors = [],
+    ): ServerQueue {
         return new ServerQueue(
             $socket,
             maxReceiveSize: $this->serverOptions()->getMaxRequestSize(),
+            interceptors: $interceptors,
         );
     }
 

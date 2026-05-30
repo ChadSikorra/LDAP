@@ -86,7 +86,6 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
                 ),
                 passwordPolicyContext: $this->passwordPolicyContext,
             ),
-            passwordPolicyContext: $this->passwordPolicyContext,
         );
     }
 
@@ -135,7 +134,6 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
             accessControl: $this->options->getAccessControl(),
             filterEvaluator: $this->options->getFilterEvaluator(),
             schema: $this->options->getSchema(),
-            passwordPolicyContext: $this->passwordPolicyContext,
         );
     }
 

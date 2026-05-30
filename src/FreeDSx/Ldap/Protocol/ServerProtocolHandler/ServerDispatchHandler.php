@@ -38,7 +38,6 @@ use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Operation\CompareOperationResult;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Operation\WriteOperationResult;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -63,7 +62,6 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         Schema $schema,
         private WriteCommandFactory $commandFactory = new WriteCommandFactory(),
         private ResponseFactory $responseFactory = new ResponseFactory(),
-        private ?PasswordPolicyContext $passwordPolicyContext = null,
     ) {
         $this->assertionEvaluator = new AssertionEvaluator(
             $filterEvaluator,
@@ -84,7 +82,6 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         LdapMessageRequest $message,
         TokenInterface $token,
     ): OperationResult {
-        $this->passwordPolicyContext?->clear();
         $schemaViolations = new SchemaViolations();
         $request = $message->getRequest();
         $controls = $message->controls();
@@ -256,7 +253,6 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         TokenInterface $token,
         SchemaViolations $schemaViolations,
     ): OperationResult {
-        $errorControl = $this->passwordPolicyControl();
         $this->queue->sendMessage($this->responseFactory->getStandardResponse(
             $message,
             $e->getCode(),
@@ -267,7 +263,6 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
                 $this->backend,
                 $this->accessControl,
             ),
-            ...($errorControl === null ? [] : [$errorControl]),
         ));
 
         return WriteOperationResult::failure(
@@ -285,17 +280,8 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         ?Control $postRead,
     ): array {
         return array_values(array_filter([
-            $this->passwordPolicyControl(),
             $preRead,
             $postRead,
         ]));
-    }
-
-    private function passwordPolicyControl(): ?Control
-    {
-        $control = $this->passwordPolicyContext?->buildResponseControl();
-        $this->passwordPolicyContext?->clear();
-
-        return $control;
     }
 }
