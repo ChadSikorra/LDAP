@@ -25,10 +25,8 @@ use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
-use FreeDSx\Ldap\Server\AccessControl\OperationTargetDn;
 use FreeDSx\Ldap\Server\AccessControl\OperationType;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
 use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
@@ -49,8 +47,6 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
 {
     use MatchedDnAccessFilterTrait;
 
-    private AssertionEvaluator $assertionEvaluator;
-
     private ReadEntryControlHandler $readEntryControlHandler;
 
     public function __construct(
@@ -58,15 +54,10 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         private LdapBackendInterface $backend,
         private WriteOperationDispatcher $writeDispatcher,
         private AccessControlInterface $accessControl,
-        FilterEvaluatorInterface $filterEvaluator,
         Schema $schema,
         private WriteCommandFactory $commandFactory = new WriteCommandFactory(),
         private ResponseFactory $responseFactory = new ResponseFactory(),
     ) {
-        $this->assertionEvaluator = new AssertionEvaluator(
-            $filterEvaluator,
-            $this->backend,
-        );
         $this->readEntryControlHandler = new ReadEntryControlHandler(
             $this->backend,
             $schema,
@@ -87,14 +78,6 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         $controls = $message->controls();
 
         try {
-            $target = OperationTargetDn::of($request);
-            if ($target !== null) {
-                $this->assertionEvaluator->assertSatisfied(
-                    $target,
-                    $controls,
-                );
-            }
-
             if ($request instanceof Request\CompareRequest) {
                 return $this->handleCompare(
                     $message,

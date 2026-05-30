@@ -31,7 +31,6 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerDispatchHandler;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Search\Filters;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
@@ -79,7 +78,6 @@ final class ServerDispatchHandlerTest extends TestCase
             backend: $this->mockBackend,
             writeDispatcher: new WriteOperationDispatcher($this->mockWriteHandler),
             accessControl: $this->mockAccessControl,
-            filterEvaluator: new FilterEvaluator(),
             schema: new Schema(),
         );
     }
@@ -184,7 +182,6 @@ final class ServerDispatchHandlerTest extends TestCase
             backend: $this->mockBackend,
             writeDispatcher: new WriteOperationDispatcher(),
             accessControl: $this->mockAccessControl,
-            filterEvaluator: new FilterEvaluator(),
             schema: new Schema(),
         );
 
