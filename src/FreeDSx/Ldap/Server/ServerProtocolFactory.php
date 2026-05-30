@@ -46,6 +46,7 @@ use FreeDSx\Ldap\Server\Middleware\OperationAuthorizationMiddleware;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\HandlerInvoker;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
+use FreeDSx\Ldap\Protocol\Queue\Response\PasswordPolicyResponseInterceptor;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
@@ -78,15 +79,16 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
         Socket $socket,
         ConnectionContext $context = new ConnectionContext(),
     ): ServerProtocolHandler {
-        $serverQueue = $this->makeServerQueue($socket);
         $eventLogger = $this->makeEventLogger($context);
 
         $backend = $this->handlerFactory->makeBackend();
         $passwordAuthenticator = $this->handlerFactory->makePasswordAuthenticator();
 
         $policyContext = null;
+        $interceptors = [];
         if ($this->options->isPasswordPolicyEnabled()) {
             $policyContext = new PasswordPolicyContext();
+            $interceptors[] = new PasswordPolicyResponseInterceptor($policyContext);
             $passwordAuthenticator = $this->decoratePasswordAuthenticator(
                 $passwordAuthenticator,
                 $backend,
@@ -95,12 +97,16 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
             );
         }
 
+        $serverQueue = $this->makeServerQueue(
+            $socket,
+            $interceptors,
+        );
+
         $authenticators = [
             new SimpleBind(
                 queue: $serverQueue,
                 authenticator: $passwordAuthenticator,
                 eventLogger: $eventLogger,
-                passwordPolicyContext: $policyContext,
             ),
             $this->makeAnonymousBind(
                 $serverQueue,
@@ -174,7 +180,6 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
             authenticator: new Authenticator($authenticators),
             dispatchAuthorizer: $dispatchAuthorizer,
             eventLogger: $eventLogger,
-            passwordPolicyContext: $policyContext,
             connectionContext: $context,
         );
     }

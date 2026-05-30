@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\Queue;
 
+use FreeDSx\Asn1\Encoder\EncoderInterface;
 use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Asn1\Exception\PartialPduException;
 use FreeDSx\Asn1\Type\AbstractType;
@@ -25,8 +26,11 @@ use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\LdapQueue;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseInterceptor;
 use FreeDSx\Socket\Exception\ConnectionException;
 use FreeDSx\Socket\Queue\Message;
+use FreeDSx\Socket\Socket;
+use Generator;
 
 /**
  * The LDAP Queue class for sending and receiving messages for servers.
@@ -39,6 +43,28 @@ class ServerQueue extends LdapQueue
      * @var LdapMessageRequest[]
      */
     private array $pendingMessages = [];
+
+    /**
+     * @var ResponseInterceptor[]
+     */
+    private readonly array $interceptors;
+
+    /**
+     * @param ResponseInterceptor[] $interceptors applied to every outgoing response, in order.
+     */
+    public function __construct(
+        Socket $socket,
+        ?EncoderInterface $encoder = null,
+        int $maxReceiveSize = 0,
+        array $interceptors = [],
+    ) {
+        parent::__construct(
+            $socket,
+            $encoder,
+            $maxReceiveSize,
+        );
+        $this->interceptors = $interceptors;
+    }
 
     /**
      * @throws ProtocolException
@@ -91,7 +117,10 @@ class ServerQueue extends LdapQueue
      */
     public function sendMessage(LdapMessageResponse ...$response): self
     {
-        $this->sendLdapMessage($response);
+        $this->sendLdapMessage(array_map(
+            $this->applyInterceptors(...),
+            $response,
+        ));
 
         return $this;
     }
@@ -104,9 +133,31 @@ class ServerQueue extends LdapQueue
      */
     public function sendMessages(iterable $responses): self
     {
-        $this->sendLdapMessage($responses);
+        $this->sendLdapMessage($this->interceptLazily($responses));
 
         return $this;
+    }
+
+    /**
+     * Apply each interceptor to a response one message at a time, preserving lazy streaming.
+     *
+     * @param iterable<LdapMessageResponse> $responses
+     * @return Generator<LdapMessageResponse>
+     */
+    private function interceptLazily(iterable $responses): Generator
+    {
+        foreach ($responses as $response) {
+            yield $this->applyInterceptors($response);
+        }
+    }
+
+    private function applyInterceptors(LdapMessageResponse $response): LdapMessageResponse
+    {
+        foreach ($this->interceptors as $interceptor) {
+            $response = $interceptor->intercept($response);
+        }
+
+        return $response;
     }
 
     /**

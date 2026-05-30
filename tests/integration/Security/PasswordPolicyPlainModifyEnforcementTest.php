@@ -23,6 +23,7 @@ use FreeDSx\Ldap\Operation\Request\ModifyRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
+use FreeDSx\Ldap\Protocol\Queue\Response\PasswordPolicyResponseInterceptor;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
@@ -321,17 +322,17 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
             accessControl: $this->createMock(AccessControlInterface::class),
             filterEvaluator: new FilterEvaluator(),
             schema: new Schema(),
-            passwordPolicyContext: $this->context,
         );
     }
 
     private function capturingQueue(): ServerQueue
     {
+        $interceptor = new PasswordPolicyResponseInterceptor($this->context);
         $queue = $this->createMock(ServerQueue::class);
         $queue
             ->method('sendMessage')
-            ->willReturnCallback(function (LdapMessageResponse $response) use ($queue): ServerQueue {
-                $this->response = $response;
+            ->willReturnCallback(function (LdapMessageResponse $response) use ($queue, $interceptor): ServerQueue {
+                $this->response = $interceptor->intercept($response);
 
                 return $queue;
             });

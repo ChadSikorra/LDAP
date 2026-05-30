@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Asn1\Exception\EncoderException;
-use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
@@ -29,7 +28,6 @@ use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Operation\PasswordModifyOperationResult;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyResult;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyService;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
@@ -44,7 +42,6 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
         private ServerQueue $queue,
         private PasswordModifyService $service,
         private ResponseFactory $responseFactory = new ResponseFactory(),
-        private ?PasswordPolicyContext $passwordPolicyContext = null,
     ) {}
 
     /**
@@ -56,7 +53,6 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
         LdapMessageRequest $message,
         TokenInterface $token,
     ): OperationResult {
-        $this->passwordPolicyContext?->clear();
         $targetDn = null;
 
         try {
@@ -70,13 +66,10 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
                 $result,
             );
         } catch (OperationException $e) {
-            $control = $this->passwordPolicyControl();
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(
                 $message,
                 $e->getCode(),
                 $e->getMessage(),
-                null,
-                ...($control === null ? [] : [$control]),
             ));
 
             return PasswordModifyOperationResult::failure(
@@ -120,22 +113,12 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
         LdapMessageRequest $message,
         PasswordModifyResult $result,
     ): void {
-        $control = $this->passwordPolicyControl();
         $this->queue->sendMessage(new LdapMessageResponse(
             $message->getMessageId(),
             new PasswordModifyResponse(
                 new LdapResult(ResultCode::SUCCESS),
                 $result->generatedPassword,
             ),
-            ...($control === null ? [] : [$control]),
         ));
-    }
-
-    private function passwordPolicyControl(): ?Control
-    {
-        $control = $this->passwordPolicyContext?->buildResponseControl();
-        $this->passwordPolicyContext?->clear();
-
-        return $control;
     }
 }

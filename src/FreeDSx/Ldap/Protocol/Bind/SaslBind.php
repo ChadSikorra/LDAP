@@ -180,7 +180,6 @@ class SaslBind implements BindInterface
 
         if (!$context->isAuthenticated()) {
             $this->policyEnforcer?->recordFailure($result->getUsername());
-            $control = $this->policyEnforcer?->responseControl();
 
             // Send the failure response directly using the current $message, which reflects
             // the latest message consumed from the queue (correct ID for multi-round exchanges).
@@ -190,8 +189,6 @@ class SaslBind implements BindInterface
                 $message,
                 ResultCode::INVALID_CREDENTIALS,
                 'Invalid credentials.',
-                null,
-                ...($control === null ? [] : [$control]),
             ));
 
             // The response was sent here, so signal the dispatcher not to send a second one.
@@ -225,30 +222,20 @@ class SaslBind implements BindInterface
                 $resolvedDn,
             );
         } catch (OperationException $e) {
-            $control = $this->policyEnforcer?->responseControl();
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(
                 $message,
                 $e->getCode(),
                 $e->getMessage(),
-                null,
-                ...($control === null ? [] : [$control]),
             ));
 
             throw $e;
         }
 
-        // Captured before responseControl() clears the policy context.
+        // Captured before the queue interceptor clears the policy context on send.
         $mustChangePassword = $this->policyEnforcer?->mustChangePassword() ?? false;
 
         // The success response must be sent before activating the security layer.
-        $control = $this->policyEnforcer?->responseControl();
-        $this->queue->sendMessage($this->responseFactory->getStandardResponse(
-            $message,
-            ResultCode::SUCCESS,
-            '',
-            null,
-            ...($control === null ? [] : [$control]),
-        ));
+        $this->queue->sendMessage($this->responseFactory->getStandardResponse($message));
 
         if ($context->hasSecurityLayer()) {
             $mech = $this->sasl->get($mechName);
