@@ -26,7 +26,7 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashScheme;
 use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\DefaultPasswordQualityChecker;
 use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\PasswordQualityCheckerInterface;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
@@ -125,7 +125,7 @@ final class ServerOptions
 
     private ?string $dseVendorVersion = null;
 
-    private ?LdapBackendInterface $backend = null;
+    private ?WritableLdapBackendInterface $backend = null;
 
     private ?PasswordAuthenticatableInterface $passwordAuthenticator = null;
 
@@ -380,12 +380,12 @@ final class ServerOptions
         return $this;
     }
 
-    public function getBackend(): ?LdapBackendInterface
+    public function getBackend(): ?WritableLdapBackendInterface
     {
         return $this->backend;
     }
 
-    public function setBackend(?LdapBackendInterface $backend): self
+    public function setBackend(?WritableLdapBackendInterface $backend): self
     {
         $this->backend = $backend;
 
@@ -788,7 +788,7 @@ final class ServerOptions
     }
 
     /**
-     * @return array{ip: string, port: int, unix_socket: string, transport: string, idle_timeout: int, require_authentication: bool, allow_anonymous: bool, backend: ?LdapBackendInterface, rootdse_handler: ?RootDseHandlerInterface, logger: ?LoggerInterface, use_ssl: bool, ssl_cert: ?string, ssl_cert_key: ?string, ssl_cert_passphrase: ?string, dse_alt_server: ?string, dse_vendor_name: string, dse_vendor_version: ?string, sasl_mechanisms: string[]}
+     * @return array{ip: string, port: int, unix_socket: string, transport: string, idle_timeout: int, require_authentication: bool, allow_anonymous: bool, backend: ?WritableLdapBackendInterface, rootdse_handler: ?RootDseHandlerInterface, logger: ?LoggerInterface, use_ssl: bool, ssl_cert: ?string, ssl_cert_key: ?string, ssl_cert_passphrase: ?string, dse_alt_server: ?string, dse_vendor_name: string, dse_vendor_version: ?string, sasl_mechanisms: string[]}
      */
     public function toArray(): array
     {

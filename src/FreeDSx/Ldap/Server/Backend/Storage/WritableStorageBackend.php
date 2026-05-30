@@ -34,10 +34,9 @@ use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Write\SchemaViolationDisposition;
-use FreeDSx\Ldap\Server\Backend\Write\SubtreeDeleteCapableInterface;
-use FreeDSx\Ldap\Server\Backend\Write\WritableBackendTrait;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
+use FreeDSx\Ldap\Server\Backend\Write\WriteRequestInterface;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
 use FreeDSx\Ldap\Server\SearchLimits;
 use Generator;
@@ -47,10 +46,8 @@ use Generator;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class WritableStorageBackend implements WritableLdapBackendInterface, ResettableInterface, SubtreeDeleteCapableInterface
+final class WritableStorageBackend implements WritableLdapBackendInterface, ResettableInterface
 {
-    use WritableBackendTrait;
-
     /**
      * Entries removed per transaction during a subtree delete; bounds per-transaction work for large subtrees.
      */
@@ -203,6 +200,44 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             $stream,
             $request,
         );
+    }
+
+    public function supports(WriteRequestInterface $request): bool
+    {
+        return $request instanceof AddCommand
+            || $request instanceof DeleteCommand
+            || $request instanceof UpdateCommand
+            || $request instanceof MoveCommand;
+    }
+
+    /**
+     * @throws OperationException
+     */
+    public function handle(
+        WriteRequestInterface $request,
+        WriteContext $context,
+    ): void {
+        if ($request instanceof AddCommand) {
+            $this->add(
+                $request,
+                $context,
+            );
+        } elseif ($request instanceof DeleteCommand) {
+            $this->delete(
+                $request,
+                $context,
+            );
+        } elseif ($request instanceof UpdateCommand) {
+            $this->update(
+                $request,
+                $context,
+            );
+        } elseif ($request instanceof MoveCommand) {
+            $this->move(
+                $request,
+                $context,
+            );
+        }
     }
 
     /**

@@ -23,7 +23,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\PasswordQualityCheckerInterf
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
@@ -343,7 +343,7 @@ final class ServerOptionsTest extends TestCase
 
     public function test_it_can_set_backend(): void
     {
-        $backend = $this->createMock(LdapBackendInterface::class);
+        $backend = $this->createMock(WritableLdapBackendInterface::class);
 
         $this->subject->setBackend($backend);
 

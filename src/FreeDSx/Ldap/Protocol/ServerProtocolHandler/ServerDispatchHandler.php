@@ -31,7 +31,7 @@ use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
 use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
-use FreeDSx\Ldap\Server\Backend\Write\SubtreeDeleteCapableInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteCommandFactory;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
@@ -222,7 +222,7 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         TokenInterface $token,
         SchemaViolations $schemaViolations,
     ): void {
-        if (!$this->backend instanceof SubtreeDeleteCapableInterface) {
+        if (!$this->backend instanceof WritableLdapBackendInterface) {
             throw new OperationException(
                 'The backend does not support subtree deletion.',
                 ResultCode::UNWILLING_TO_PERFORM,

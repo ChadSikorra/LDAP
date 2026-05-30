@@ -15,7 +15,7 @@ namespace Tests\Unit\FreeDSx\Ldap\Server\RequestHandler;
 
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticator;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\RequestHandler\HandlerFactory;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
@@ -39,7 +39,7 @@ final class HandlerFactoryTest extends TestCase
 
     public function test_it_should_allow_a_backend_as_an_object(): void
     {
-        $backend = $this->createMock(LdapBackendInterface::class);
+        $backend = $this->createMock(WritableLdapBackendInterface::class);
         $this->subject = new HandlerFactory((new ServerOptions())->setBackend($backend));
 
         self::assertSame(
@@ -70,9 +70,9 @@ final class HandlerFactoryTest extends TestCase
 
     public function test_it_should_return_the_backend_as_rootdse_handler_if_it_implements_the_interface(): void
     {
-        /** @var LdapBackendInterface&RootDseHandlerInterface&MockObject $backend */
+        /** @var WritableLdapBackendInterface&RootDseHandlerInterface&MockObject $backend */
         $backend = $this->createMockForIntersectionOfInterfaces([
-            LdapBackendInterface::class,
+            WritableLdapBackendInterface::class,
             RootDseHandlerInterface::class,
         ]);
 
@@ -86,9 +86,9 @@ final class HandlerFactoryTest extends TestCase
 
     public function test_it_returns_explicit_root_dse_handler_over_backend(): void
     {
-        /** @var LdapBackendInterface&RootDseHandlerInterface&MockObject $backend */
+        /** @var WritableLdapBackendInterface&RootDseHandlerInterface&MockObject $backend */
         $backend = $this->createMockForIntersectionOfInterfaces([
-            LdapBackendInterface::class,
+            WritableLdapBackendInterface::class,
             RootDseHandlerInterface::class,
         ]);
         $explicit = $this->createMock(RootDseHandlerInterface::class);
@@ -122,9 +122,9 @@ final class HandlerFactoryTest extends TestCase
 
     public function test_it_returns_backend_as_password_authenticator_if_it_implements_the_interface(): void
     {
-        /** @var LdapBackendInterface&PasswordAuthenticatableInterface&MockObject $backend */
+        /** @var WritableLdapBackendInterface&PasswordAuthenticatableInterface&MockObject $backend */
         $backend = $this->createMockForIntersectionOfInterfaces([
-            LdapBackendInterface::class,
+            WritableLdapBackendInterface::class,
             PasswordAuthenticatableInterface::class,
         ]);
 
@@ -137,9 +137,9 @@ final class HandlerFactoryTest extends TestCase
     {
         $authenticator = $this->createMock(PasswordAuthenticatableInterface::class);
 
-        /** @var LdapBackendInterface&PasswordAuthenticatableInterface&MockObject $backend */
+        /** @var WritableLdapBackendInterface&PasswordAuthenticatableInterface&MockObject $backend */
         $backend = $this->createMockForIntersectionOfInterfaces([
-            LdapBackendInterface::class,
+            WritableLdapBackendInterface::class,
             PasswordAuthenticatableInterface::class,
         ]);
 

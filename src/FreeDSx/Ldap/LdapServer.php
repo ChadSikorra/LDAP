@@ -31,7 +31,7 @@ use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\OperationalAttributeGenerator;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DirectoryDumper;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DumpOptions;
@@ -207,15 +207,15 @@ class LdapServer
      * Use {@see seed()} instead for bulk initial provisioning of content records straight to storage.
      *
      * @throws LdifParseException when the LDIF cannot be parsed
-     * @throws RuntimeException when no writable backend is configured
+     * @throws RuntimeException when no backend is configured
      * @throws OperationException when a write fails (no such entry, schema violation, etc.)
      */
     public function applyChanges(LdifLoaderInterface $loader): self
     {
         $backend = $this->options->getBackend();
 
-        if (!$backend instanceof WriteHandlerInterface) {
-            throw new RuntimeException('applyChanges() requires a writable backend.');
+        if ($backend === null) {
+            throw new RuntimeException('applyChanges() requires a backend configured via useStorage() or useBackend().');
         }
 
         (new WriteRequestReplayer(
@@ -270,7 +270,7 @@ class LdapServer
     /**
      * Specify a backend to use for incoming LDAP requests.
      */
-    public function useBackend(LdapBackendInterface $backend): self
+    public function useBackend(WritableLdapBackendInterface $backend): self
     {
         $this->options->setBackend($backend);
 

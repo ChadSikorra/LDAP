@@ -8,8 +8,6 @@ General LDAP Server Usage
 * [Running the Server](#running-the-server)
 * [Creating a Proxy Server](#creating-a-proxy-server)
 * [Providing a Backend](#providing-a-backend)
-  * [Read-Only Backend](#read-only-backend)
-  * [Writable Backend](#writable-backend)
   * [Built-In Storage Implementations](#built-in-storage-implementations)
     * [InMemoryStorage](#inmemorystorage)
     * [JsonFileStorage](#jsonfilestorage)
@@ -229,8 +227,10 @@ $server = (new LdapServer())->useStorage(new InMemoryStorage($entries));
 $server->run();
 ```
 
-For backends that implement full LDAP semantics themselves, use `useBackend()` with a class
-implementing `LdapBackendInterface` (read-only) or `WritableLdapBackendInterface` (read + write):
+For advanced cases where storage cannot model your source, implement a backend directly with `useBackend()`.
+This is a low-level path: you take on **all** LDAP semantics yourself (validation, error codes, scope and
+DN handling, operational attributes) with no help from `WritableStorageBackend`. Prefer `EntryStorageInterface`
+whenever possible.
 
 ```php
 use FreeDSx\Ldap\LdapServer;
@@ -245,185 +245,8 @@ request. Your `search()` implementation simply yields entries.
 
 Authentication is a **separate concern** handled by `PasswordAuthenticatableInterface`. See [Authentication](#authentication).
 
-### Read-Only Backend
-
-`LdapBackendInterface` requires two methods:
-
-```php
-namespace App;
-
-use FreeDSx\Ldap\Control\ControlBag;
-use FreeDSx\Ldap\Entry\Dn;
-use FreeDSx\Ldap\Entry\Entry;
-use FreeDSx\Ldap\Exception\OperationException;
-use FreeDSx\Ldap\Operation\Request\SearchRequest;
-use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Ldap\Search\Filter\EqualityFilter;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
-use Generator;
-
-class MyReadOnlyBackend implements LdapBackendInterface
-{
-    /**
-     * Return an EntryStream of candidate entries for the search.
-     *
-     * The FilterEvaluator runs as a final pass, so you may pre-filter for efficiency or
-     * yield all entries in scope for simplicity.
-     */
-    public function search(
-        SearchRequest $request,
-        ControlBag $controls = new ControlBag(),
-    ): EntryStream {
-        // $request->getBaseDn()         — ?Dn: the search base
-        // $request->getScope()          — int: SearchRequest::SCOPE_BASE_OBJECT | SCOPE_SINGLE_LEVEL | SCOPE_WHOLE_SUBTREE
-        // $request->getFilter()         — FilterInterface: the requested LDAP filter
-        // $request->getAttributes()     — Attribute[]: requested attributes (empty = all)
-        // $request->getAttributesOnly() — bool: return only attribute names, not values
-
-        return new EntryStream($this->yieldEntries());
-    }
-
-    private function yieldEntries(): Generator
-    {
-        yield Entry::fromArray('cn=Foo,dc=example,dc=com', ['cn' => 'Foo', 'sn' => 'Bar']);
-        yield Entry::fromArray('cn=Bar,dc=example,dc=com', ['cn' => 'Bar', 'sn' => 'Baz']);
-    }
-
-    /**
-     * Return a single entry by DN, or null if it does not exist.
-     * Used for compare operations and bind name resolution.
-     */
-    public function get(Dn $dn): ?Entry
-    {
-        // ...
-        return null;
-    }
-
-    /**
-     * Return true if the attribute-value assertion matches the entry, false if not.
-     * Throw OperationException(NO_SUCH_OBJECT) if the entry does not exist.
-     */
-    public function compare(
-        Dn $dn,
-        EqualityFilter $filter,
-    ): bool {
-        $entry = $this->get($dn);
-
-        if ($entry === null) {
-            throw new OperationException(
-                sprintf('No such object: %s', $dn->toString()),
-                ResultCode::NO_SUCH_OBJECT,
-            );
-        }
-
-        $attribute = $entry->get($filter->getAttribute());
-
-        return $attribute !== null && $attribute->has($filter->getValue());
-    }
-}
-```
-
-### Writable Backend
-
-`WritableLdapBackendInterface` extends `LdapBackendInterface` with write operations. Use `WritableBackendTrait`
-to implement the write dispatch — it routes each operation to a dedicated method receiving a typed command object:
-
-```php
-namespace App;
-
-use FreeDSx\Ldap\Control\ControlBag;
-use FreeDSx\Ldap\Entry\Dn;
-use FreeDSx\Ldap\Entry\Entry;
-use FreeDSx\Ldap\Exception\OperationException;
-use FreeDSx\Ldap\Operation\Request\SearchRequest;
-use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Ldap\Search\Filter\EqualityFilter;
-use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
-use FreeDSx\Ldap\Server\Backend\Write\Command\AddCommand;
-use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
-use FreeDSx\Ldap\Server\Backend\Write\Command\MoveCommand;
-use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
-use FreeDSx\Ldap\Server\Backend\Write\WritableBackendTrait;
-use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
-use Generator;
-
-class MyBackend implements WritableLdapBackendInterface
-{
-    use WritableBackendTrait;
-
-    public function search(
-        SearchRequest $request,
-        ControlBag $controls = new ControlBag(),
-    ): EntryStream {
-        // Return an EntryStream wrapping a generator of matching entries...
-        return new EntryStream($this->yieldNothing());
-    }
-
-    private function yieldNothing(): Generator
-    {
-        yield from [];
-    }
-
-    public function get(Dn $dn): ?Entry
-    {
-        // ...
-        return null;
-    }
-
-    public function compare(
-        Dn $dn,
-        EqualityFilter $filter,
-    ): bool {
-        $entry = $this->get($dn);
-
-        if ($entry === null) {
-            throw new OperationException(
-                sprintf('No such object: %s', $dn->toString()),
-                ResultCode::NO_SUCH_OBJECT,
-            );
-        }
-
-        $attribute = $entry->get($filter->getAttribute());
-
-        return $attribute !== null && $attribute->has($filter->getValue());
-    }
-
-    public function add(
-        AddCommand $command,
-        WriteContext $context,
-    ): void {
-        // $command->entry        — Entry to persist
-        // $context->getBoundDn() — ?string: DN of the authenticated user, or null for anonymous
-    }
-
-    public function delete(
-        DeleteCommand $command,
-        WriteContext $context,
-    ): void {
-        // $command->dn — Dn of the entry to remove
-    }
-
-    public function update(
-        UpdateCommand $command,
-        WriteContext $context,
-    ): void {
-        // $command->dn      — Dn of the entry to modify
-        // $command->changes — Change[] of attribute changes to apply
-    }
-
-    public function move(
-        MoveCommand $command,
-        WriteContext $context,
-    ): void {
-        // $command->dn           — Dn: current entry DN
-        // $command->newRdn       — Rdn: new relative DN
-        // $command->deleteOldRdn — bool: whether to remove the old RDN attribute value
-        // $command->newParent    — ?Dn: new parent DN (null = same parent)
-    }
-}
-```
+A custom backend implements `WritableLdapBackendInterface`: the read operations (`search()`, `get()`,
+`compare()`), the `WriteHandlerInterface` dispatch pair (`supports()`/`handle()`), and `deleteSubtree()`.
 
 ### Built-In Storage Implementations
 
