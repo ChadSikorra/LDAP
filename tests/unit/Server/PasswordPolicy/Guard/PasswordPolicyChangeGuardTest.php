@@ -143,7 +143,7 @@ final class PasswordPolicyChangeGuardTest extends TestCase
         ))->enforce($this->attempt(
             $this->entry([PasswordPolicyOid::NAME_PWD_RESET => 'TRUE']),
             'a-fresh-password',
-            '{BCRYPT}' . password_hash('a-fresh-password', PASSWORD_BCRYPT),
+            '{BCRYPT}' . password_hash('a-fresh-password', PASSWORD_BCRYPT, ['cost' => 4]),
         ));
 
         self::assertNull($this->context->getOutcome());
@@ -234,7 +234,7 @@ final class PasswordPolicyChangeGuardTest extends TestCase
                 new SafeModifyConstraint(),
                 new MinAgeConstraint($this->clock),
                 new QualityConstraint(new DefaultPasswordQualityChecker()),
-                new HistoryConstraint(new PasswordHashService()),
+                new HistoryConstraint(new PasswordHashService(hashCost: 4)),
             ]),
         );
 
@@ -280,7 +280,7 @@ final class PasswordPolicyChangeGuardTest extends TestCase
     {
         return HistoryEntry::forStoredPassword(
             $this->clock->now(),
-            '{BCRYPT}' . password_hash($plaintext, PASSWORD_BCRYPT),
+            '{BCRYPT}' . password_hash($plaintext, PASSWORD_BCRYPT, ['cost' => 4]),
         )->encode();
     }
 

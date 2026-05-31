@@ -23,6 +23,7 @@ use FreeDSx\Ldap\Operation\Request\PasswordModifyRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
@@ -76,6 +77,7 @@ final class PasswordModifyServiceTest extends TestCase
             ),
             accessControl: $this->accessControl,
             writeDispatcher: new WriteOperationDispatcher($writeHandler),
+            hashService: new PasswordHashService(hashCost: 4),
             passwordPolicyContext: $this->context,
         );
     }

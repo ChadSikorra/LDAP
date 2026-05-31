@@ -31,7 +31,7 @@ final class HistoryConstraintTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->subject = new HistoryConstraint(new PasswordHashService());
+        $this->subject = new HistoryConstraint(new PasswordHashService(hashCost: 4));
     }
 
     public function test_zero_depth_skips(): void
@@ -130,7 +130,7 @@ final class HistoryConstraintTest extends TestCase
                     '2026-05-15T00:00:00Z',
                     new DateTimeZone('UTC'),
                 ),
-                '{BCRYPT}' . password_hash($plain, PASSWORD_BCRYPT),
+                '{BCRYPT}' . password_hash($plain, PASSWORD_BCRYPT, ['cost' => 4]),
             ),
             $historyPlaintexts,
         ));

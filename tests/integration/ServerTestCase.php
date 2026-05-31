@@ -25,6 +25,11 @@ class ServerTestCase extends LdapTestCase
     private const SERVER_POLL_INTERVAL_US = 15_000; // 15ms
 
     /**
+     * Caps the SIGTERM grace period so a lingering client connection can't stall teardown for Symfony's default 10s.
+     */
+    private const SERVER_STOP_TIMEOUT_SECONDS = 0.5;
+
+    /**
      * Shared server process — started once per test class via setUpBeforeClass.
      */
     private static ?Process $sharedProcess = null;
@@ -86,7 +91,7 @@ class ServerTestCase extends LdapTestCase
         $this->client = null;
 
         if ($this->overrideProcess !== null) {
-            $this->overrideProcess->stop();
+            $this->overrideProcess->stop(self::SERVER_STOP_TIMEOUT_SECONDS);
             $this->overrideProcess = null;
         }
 
@@ -120,7 +125,7 @@ class ServerTestCase extends LdapTestCase
 
     protected static function tearDownSharedServer(): void
     {
-        self::$sharedProcess?->stop();
+        self::$sharedProcess?->stop(self::SERVER_STOP_TIMEOUT_SECONDS);
         self::$sharedProcess = null;
     }
 
@@ -159,10 +164,10 @@ class ServerTestCase extends LdapTestCase
         $this->client = null;
 
         if ($this->overrideProcess !== null) {
-            $this->overrideProcess->stop();
+            $this->overrideProcess->stop(self::SERVER_STOP_TIMEOUT_SECONDS);
             $this->overrideProcess = null;
         } elseif (self::$sharedProcess !== null) {
-            self::$sharedProcess->stop();
+            self::$sharedProcess->stop(self::SERVER_STOP_TIMEOUT_SECONDS);
             self::$sharedProcess = null;
             $this->needsSharedRestart = true;
         }

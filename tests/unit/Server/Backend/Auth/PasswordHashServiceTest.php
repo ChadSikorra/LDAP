@@ -24,7 +24,7 @@ final class PasswordHashServiceTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->subject = new PasswordHashService();
+        $this->subject = new PasswordHashService(hashCost: 4);
     }
 
     public function test_default_scheme_is_bcrypt(): void
@@ -55,7 +55,7 @@ final class PasswordHashServiceTest extends TestCase
         PasswordHashScheme $scheme,
         string $expectedPrefix,
     ): void {
-        $hashed = (new PasswordHashService($scheme))->hash('secret');
+        $hashed = (new PasswordHashService($scheme, hashCost: 4))->hash('secret');
 
         self::assertStringStartsWith(
             $expectedPrefix,
@@ -67,7 +67,7 @@ final class PasswordHashServiceTest extends TestCase
     public function test_each_scheme_round_trips(
         PasswordHashScheme $scheme,
     ): void {
-        $hashed = (new PasswordHashService($scheme))->hash('mypassword');
+        $hashed = (new PasswordHashService($scheme, hashCost: 4))->hash('mypassword');
 
         self::assertTrue($this->subject->verify(
             'mypassword',
@@ -79,7 +79,7 @@ final class PasswordHashServiceTest extends TestCase
     public function test_wrong_password_does_not_verify_a_freshly_hashed_value(
         PasswordHashScheme $scheme,
     ): void {
-        $hashed = (new PasswordHashService($scheme))->hash('mypassword');
+        $hashed = (new PasswordHashService($scheme, hashCost: 4))->hash('mypassword');
 
         self::assertFalse($this->subject->verify(
             'wrong',
@@ -91,7 +91,7 @@ final class PasswordHashServiceTest extends TestCase
     public function test_two_hashes_of_same_input_differ_due_to_random_salt(
         PasswordHashScheme $scheme,
     ): void {
-        $hasher = new PasswordHashService($scheme);
+        $hasher = new PasswordHashService($scheme, hashCost: 4);
 
         self::assertNotSame(
             $hasher->hash('password'),
@@ -175,7 +175,7 @@ final class PasswordHashServiceTest extends TestCase
 
     public function test_bcrypt_format_verifies(): void
     {
-        $hashed = '{BCRYPT}' . password_hash('mypassword', PASSWORD_BCRYPT);
+        $hashed = '{BCRYPT}' . password_hash('mypassword', PASSWORD_BCRYPT, ['cost' => 4]);
 
         self::assertTrue($this->subject->verify(
             'mypassword',
@@ -201,7 +201,7 @@ final class PasswordHashServiceTest extends TestCase
         return [
             '{SHA}'    => ['{SHA}' . base64_encode(sha1('mypassword', true))],
             '{MD5}'    => ['{MD5}' . base64_encode(md5('mypassword', true))],
-            '{BCRYPT}' => ['{BCRYPT}' . password_hash('mypassword', PASSWORD_BCRYPT)],
+            '{BCRYPT}' => ['{BCRYPT}' . password_hash('mypassword', PASSWORD_BCRYPT, ['cost' => 4])],
             '{ARGON2}' => ['{ARGON2}' . password_hash('mypassword', PASSWORD_ARGON2ID)],
         ];
     }

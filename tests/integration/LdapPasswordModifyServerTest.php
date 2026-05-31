@@ -65,6 +65,7 @@ final class LdapPasswordModifyServerTest extends ServerTestCase
             self::USER_DN,
             ['userPassword'],
         );
+        $verifyClient->unbind();
 
         $this->assertNotNull($entry);
         $this->assertStringStartsWith(
@@ -108,6 +109,7 @@ final class LdapPasswordModifyServerTest extends ServerTestCase
             self::USER_DN,
             ['userPassword'],
         );
+        $verifyClient->unbind();
 
         $this->assertNotNull($entry);
         $this->assertStringStartsWith(
@@ -137,6 +139,7 @@ final class LdapPasswordModifyServerTest extends ServerTestCase
             self::USER_DN,
             ['userPassword'],
         );
+        $verifyClient->unbind();
 
         $this->assertNotNull($entry);
         $this->assertStringStartsWith(

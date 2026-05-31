@@ -321,7 +321,7 @@ final class PasswordPolicyWriteHandlerTest extends TestCase
                     new SafeModifyConstraint(),
                     new MinAgeConstraint($this->clock),
                     new QualityConstraint(new DefaultPasswordQualityChecker()),
-                    new HistoryConstraint(new PasswordHashService()),
+                    new HistoryConstraint(new PasswordHashService(hashCost: 4)),
                 ]),
             ),
             new PasswordPolicyResolver(
@@ -355,7 +355,7 @@ final class PasswordPolicyWriteHandlerTest extends TestCase
     {
         return HistoryEntry::forStoredPassword(
             $this->clock->now(),
-            '{BCRYPT}' . password_hash($plaintext, PASSWORD_BCRYPT),
+            '{BCRYPT}' . password_hash($plaintext, PASSWORD_BCRYPT, ['cost' => 4]),
         )->encode();
     }
 }
