@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap;
 
+use Closure;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\ClientProtocolHandler;
 use FreeDSx\Ldap\Protocol\Factory\ClientProtocolHandlerFactory;
@@ -350,20 +351,45 @@ class Container
     private function makeServerRunner(): ServerRunnerInterface
     {
         $options = $this->get(ServerOptions::class);
+        $protocolFactoryProvider = $this->makeProtocolFactoryProvider();
 
         if ($options->getUseSwooleRunner()) {
             return new SwooleServerRunner(
-                serverProtocolFactory: $this->get(ServerProtocolFactoryInterface::class),
+                serverProtocolFactory: $protocolFactoryProvider($options),
                 options: $options,
                 socketServerFactory: $this->get(SocketServerFactory::class),
+                protocolFactoryProvider: $protocolFactoryProvider,
             );
         }
 
         return new PcntlServerRunner(
-            serverProtocolFactory: $this->get(ServerProtocolFactoryInterface::class),
+            serverProtocolFactory: $protocolFactoryProvider($options),
             options: $options,
             socketServerFactory: $this->get(SocketServerFactory::class),
+            protocolFactoryProvider: $protocolFactoryProvider,
         );
+    }
+
+    /**
+     * Builds a protocol factory from a (possibly reloaded) set of options via a fresh container.
+     *
+     * @return Closure(ServerOptions): ServerProtocolFactoryInterface
+     */
+    private function makeProtocolFactoryProvider(): Closure
+    {
+        $proxyOptions = $this->has(ProxyOptions::class)
+            ? $this->get(ProxyOptions::class)
+            : null;
+
+        return static function (ServerOptions $options) use ($proxyOptions): ServerProtocolFactoryInterface {
+            $instances = [ServerOptions::class => $options];
+
+            if ($proxyOptions !== null) {
+                $instances[ProxyOptions::class] = $proxyOptions;
+            }
+
+            return (new Container($instances))->get(ServerProtocolFactoryInterface::class);
+        };
     }
 
     private function makeSocketServerFactory(): SocketServerFactory

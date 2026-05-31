@@ -6,6 +6,7 @@ General LDAP Server Usage
   * [File-Backed Server with Custom Bind Names](#file-backed-server-with-custom-bind-names)
   * [Challenge SASL with a Custom Authenticator](#challenge-sasl-with-a-custom-authenticator)
 * [Running the Server](#running-the-server)
+* [Reloading Configuration on SIGHUP](#reloading-configuration-on-sighup)
 * [Creating a Proxy Server](#creating-a-proxy-server)
 * [Providing a Backend](#providing-a-backend)
   * [Built-In Storage Implementations](#built-in-storage-implementations)
@@ -171,6 +172,70 @@ use FreeDSx\Ldap\LdapServer;
 
 $server = (new LdapServer())->run();
 ```
+
+## Reloading Configuration on SIGHUP
+
+A running server can reload its configuration on a `SIGHUP` signal without dropping connections. New connections
+accepted after the reload use the updated configuration. Connections already in flight keep the configuration they
+started with. This works on both the PCNTL and Swoole runners.
+
+By default `SIGHUP` is a logged no-op. To opt in, register a reloader via `LdapServer::onReload()`. The reloader is
+invoked on each `SIGHUP` and returns the `ServerOptions` the server should adopt going forward:
+
+```php
+use FreeDSx\Ldap\Server\Configuration\ConfigReloaderInterface;
+use FreeDSx\Ldap\ServerOptions;
+
+final class FileConfigReloader implements ConfigReloaderInterface
+{
+    public function __construct(private readonly string $configFile)
+    {
+    }
+
+    public function reload(ServerOptions $current): ServerOptions
+    {
+        $config = json_decode((string) file_get_contents($this->configFile), true);
+
+        // Clone the current options so the backend and other wiring carry forward,
+        // then apply just the settings your config file controls.
+        return (clone $current)
+            ->setAllowAnonymous($config['allow_anonymous'] ?? false)
+            ->setMaxSearchSize($config['max_search_size'] ?? 1000);
+    }
+}
+```
+
+```php
+use FreeDSx\Ldap\LdapServer;
+
+$server = (new LdapServer())
+    ->useStorage($storage)
+    ->onReload(new FileConfigReloader('/etc/myapp/ldap.json'));
+
+$server->run();
+```
+
+Trigger a reload by sending a signal to the server process, e.g. `kill -HUP <pid>`.
+
+**Cloning the current options** (`clone $current`) is the simplest way to write a reloader. It preserves the backend
+and everything else already configured while you change only the settings you care about. Returning a brand-new
+`ServerOptions` would drop that wiring.
+
+**What reloads.** Anything resolved per connection:
+
+* **Authorization:** access control rules and privileged controls
+* **Schema and validation:** schema, validation mode, and password policy
+* **Limits and logging:** search limits, logger, and event-log policy
+* **Session and capabilities:** SASL mechanisms, RootDSE settings, and the authentication flags (require-authentication, allow-anonymous)
+
+**What does not reload.** The listening socket is fixed once the server is running:
+
+* Bind IP, port, transport, and unix socket path
+* The choice of runner (PCNTL vs Swoole)
+* A StartTLS certificate change applies to new connections only
+
+**On failure:** if the reloader throws, the error is logged and the server keeps its current configuration. The bad
+reload is discarded rather than taking the server down.
 
 ## Creating a Proxy Server
 

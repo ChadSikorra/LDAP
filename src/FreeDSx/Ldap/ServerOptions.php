@@ -33,6 +33,7 @@ use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\AclRules;
 use FreeDSx\Ldap\Server\AccessControl\SimpleAccessControl;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
+use FreeDSx\Ldap\Server\Configuration\ConfigReloaderInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\SearchLimits;
@@ -178,6 +179,8 @@ final class ServerOptions
     private int $maxSearchPageSize = 1000;
 
     private ?Closure $onServerReady = null;
+
+    private ?ConfigReloaderInterface $configReloader = null;
 
     private int $shutdownTimeout = 15;
 
@@ -783,6 +786,18 @@ final class ServerOptions
     public function setOnServerReady(?Closure $onServerReady): self
     {
         $this->onServerReady = $onServerReady;
+
+        return $this;
+    }
+
+    public function getConfigReloader(): ?ConfigReloaderInterface
+    {
+        return $this->configReloader;
+    }
+
+    public function setConfigReloader(?ConfigReloaderInterface $configReloader): self
+    {
+        $this->configReloader = $configReloader;
 
         return $this;
     }
