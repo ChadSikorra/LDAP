@@ -66,12 +66,12 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
         if ($routeId === HandlerId::Search || $routeId === HandlerId::Paging) {
             $this->authorizeSearch(
                 $context->message,
-                $context->token,
+                $context->tokenOrFail(),
             );
         } elseif ($routeId === HandlerId::Dispatch) {
             $this->authorizeDispatch(
                 $context->message,
-                $context->token,
+                $context->tokenOrFail(),
             );
         }
 

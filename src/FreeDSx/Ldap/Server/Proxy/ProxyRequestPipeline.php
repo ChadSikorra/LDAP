@@ -41,7 +41,7 @@ final readonly class ProxyRequestPipeline implements MiddlewareHandlerInterface
         if ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_START_TLS) {
             return $this->startTlsHandler->handleRequest(
                 $context->message,
-                $context->token,
+                $context->tokenOrFail(),
             );
         }
 

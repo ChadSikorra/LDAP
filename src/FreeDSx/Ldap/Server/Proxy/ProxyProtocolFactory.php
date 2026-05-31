@@ -22,6 +22,10 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerStartTlsHandler;
 use FreeDSx\Ldap\ProxyOptions;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
+use FreeDSx\Ldap\Server\Middleware\AuthorizationResolutionMiddleware;
+use FreeDSx\Ldap\Server\Middleware\BindMiddleware;
+use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareChain;
+use FreeDSx\Ldap\Server\Middleware\RequestValidationMiddleware;
 use FreeDSx\Ldap\Server\ServerConnectionScaffoldingTrait;
 use FreeDSx\Ldap\Server\ServerProtocolFactoryInterface;
 use FreeDSx\Ldap\ServerOptions;
@@ -70,24 +74,33 @@ final class ProxyProtocolFactory implements ServerProtocolFactoryInterface
             ),
         ];
 
-        $pipeline = new ProxyRequestPipeline(
-            new ServerStartTlsHandler(
-                $this->options,
-                $queue,
-                $eventLogger,
-            ),
-            new ProxyRequestForwarder(
-                $upstream,
-                $queue,
+        $pipeline = new MiddlewareChain(
+            [
+                new RequestValidationMiddleware(),
+                new BindMiddleware(
+                    $serverAuthorization,
+                    new Authenticator($authenticators),
+                ),
+                new AuthorizationResolutionMiddleware(
+                    new DispatchAuthorizer($serverAuthorization),
+                ),
+            ],
+            new ProxyRequestPipeline(
+                new ServerStartTlsHandler(
+                    $this->options,
+                    $queue,
+                    $eventLogger,
+                ),
+                new ProxyRequestForwarder(
+                    $upstream,
+                    $queue,
+                ),
             ),
         );
 
         return new ServerProtocolHandler(
             queue: $queue,
             requestPipeline: $pipeline,
-            authorizer: $serverAuthorization,
-            authenticator: new Authenticator($authenticators),
-            dispatchAuthorizer: new DispatchAuthorizer($serverAuthorization),
             eventLogger: $eventLogger,
             connectionContext: $context,
         );

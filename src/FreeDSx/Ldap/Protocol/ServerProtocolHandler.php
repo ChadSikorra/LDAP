@@ -14,15 +14,12 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol;
 
 use FreeDSx\Asn1\Exception\EncoderException;
-use FreeDSx\Ldap\Control\PwdPolicyError;
-use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\ProtocolException;
+use FreeDSx\Ldap\Exception\RequestValidationException;
 use FreeDSx\Ldap\Exception\ResponseAlreadySentException;
-use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Ldap\Protocol\Authorization\DispatchAuthorizer;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
@@ -31,33 +28,22 @@ use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
-use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
 use Throwable;
-
-use function in_array;
 
 /**
  * Handles server-client specific protocol interactions.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class ServerProtocolHandler
+readonly class ServerProtocolHandler
 {
-    /**
-     * @var int[]
-     */
-    private array $messageIds = [];
-
     public function __construct(
-        private readonly ServerQueue $queue,
-        private readonly MiddlewareHandlerInterface $requestPipeline,
-        private readonly ServerAuthorization $authorizer,
-        private readonly Authenticator $authenticator,
-        private readonly DispatchAuthorizer $dispatchAuthorizer,
-        private readonly EventLogger $eventLogger = new EventLogger(null),
-        private readonly ResponseFactory $responseFactory = new ResponseFactory(),
-        private readonly ConnectionContext $connectionContext = new ConnectionContext(),
+        private ServerQueue $queue,
+        private MiddlewareHandlerInterface $requestPipeline,
+        private EventLogger $eventLogger = new EventLogger(null),
+        private ResponseFactory $responseFactory = new ResponseFactory(),
+        private ConnectionContext $connectionContext = new ConnectionContext(),
     ) {}
 
     /**
@@ -67,8 +53,6 @@ class ServerProtocolHandler
      */
     public function handle(): void
     {
-        $message = null;
-
         try {
             while ($message = $this->queue->getMessage()) {
                 $this->dispatchRequest($message);
@@ -77,17 +61,10 @@ class ServerProtocolHandler
                     break;
                 }
             }
-        } catch (ResponseAlreadySentException) {
-            # The handler already sent the response (e.g. SASL, which needs the correct multi-round message ID),
-            # so there is nothing further to do here.
-        } catch (OperationException $e) {
-            # Bind / authorization runs outside the request pipeline; its failures are turned into the response here.
-            # Pipeline operations are handled by OperationErrorMiddleware instead.
-            $this->queue->sendMessage($this->responseFactory->getStandardResponse(
-                $message,
-                $e->getCode(),
-                $e->getMessage(),
-            ));
+        } catch (RequestValidationException $e) {
+            # The message ID could not be used (zero or reused). Per RFC 4511 §4.1.1 the server cannot frame a
+            # solicited response, so it sends a Notice of Disconnection and terminates the session.
+            $this->sendNoticeOfDisconnect($e->getMessage());
         } catch (ConnectionException) {
             # Connection closure is recorded by the runner's lifecycle logging; no audit event for normal client disconnects.
         } catch (EncoderException|ProtocolException) {
@@ -121,112 +98,30 @@ class ServerProtocolHandler
     }
 
     /**
-     * Routes requests from the message queue based off the current authorization state and what protocol handler the
-     * request is mapped to.
+     * Runs a single request through the pipeline, answering recoverable failures while keeping the session open.
      *
-     * @throws OperationException
      * @throws EncoderException
-     * @throws RuntimeException
-     * @throws ConnectionException
      */
     private function dispatchRequest(LdapMessageRequest $message): void
     {
-        if (!$this->isValidRequest($message)) {
-            return;
-        }
-
-        $this->messageIds[] = $message->getMessageId();
-
-        # Send auth requests to the specific handler for it...
-        if ($this->authorizer->isAuthenticationRequest($message->getRequest())) {
-            $this->authorizer->setToken($this->handleAuthRequest($message));
-
-            return;
-        }
-
-        $authorization = $this->dispatchAuthorizer->authorize($message);
-
-        if ($authorization->requiresAuthentication()) {
+        try {
+            $this->requestPipeline->handle(new ServerRequestContext(
+                $message,
+                null,
+                $this->connectionContext,
+            ));
+        } catch (ResponseAlreadySentException) {
+            # A handler already sent the response (e.g. SASL, which needs the correct multi-round message ID), so
+            # there is nothing further to do for this message.
+        } catch (OperationException $e) {
+            # A pre-pipeline bind/authorization failure. Answer it and keep the session open — a failed bind does not
+            # terminate the connection (RFC 4511 §4.2.1). Operation failures are handled by OperationErrorMiddleware.
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(
                 $message,
-                ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
-                'Authentication required.',
+                $e->getCode(),
+                $e->getMessage(),
             ));
-
-            return;
         }
-
-        if ($authorization->requiresPasswordChange()) {
-            $this->rejectUntilPasswordChanged($message);
-
-            return;
-        }
-
-        $this->requestPipeline->handle(new ServerRequestContext(
-            $message,
-            $authorization->token(),
-            $this->connectionContext,
-        ));
-    }
-
-    /**
-     * @throws EncoderException
-     */
-    private function rejectUntilPasswordChanged(LdapMessageRequest $message): void
-    {
-        $this->queue->sendMessage($this->responseFactory->getStandardResponse(
-            $message,
-            ResultCode::UNWILLING_TO_PERFORM,
-            'The password must be changed before any other operation is permitted.',
-            null,
-            new PwdPolicyResponseControl(error: PwdPolicyError::CHANGE_AFTER_RESET),
-        ));
-    }
-
-    /**
-     * Checks that the message ID is valid. It cannot be zero or a message ID that was already used.
-     *
-     * @throws EncoderException
-     * @throws EncoderException
-     */
-    private function isValidRequest(LdapMessageRequest $message): bool
-    {
-        if ($message->getMessageId() === 0) {
-            $this->queue->sendMessage($this->responseFactory->getExtendedError(
-                'The message ID 0 cannot be used in a client request.',
-                ResultCode::PROTOCOL_ERROR,
-            ));
-
-            return false;
-        }
-        if (in_array($message->getMessageId(), $this->messageIds, true)) {
-            $this->queue->sendMessage($this->responseFactory->getExtendedError(
-                sprintf('The message ID %s is not valid.', $message->getMessageId()),
-                ResultCode::PROTOCOL_ERROR,
-            ));
-
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Sends a bind request to the bind handler and returns the token.
-     *
-     * @throws OperationException
-     * @throws RuntimeException
-     */
-    private function handleAuthRequest(LdapMessageRequest $message): TokenInterface
-    {
-        if (!$this->authorizer->isAuthenticationTypeSupported($message->getRequest())) {
-            throw new OperationException(
-                'The requested authentication type is not supported.',
-                ResultCode::AUTH_METHOD_UNSUPPORTED,
-            );
-        }
-
-        return $this->authenticator->bind($message);
     }
 
     /**

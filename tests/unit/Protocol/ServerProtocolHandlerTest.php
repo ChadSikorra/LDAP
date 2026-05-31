@@ -14,605 +14,259 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Protocol;
 
 use FreeDSx\Asn1\Exception\EncoderException;
-use FreeDSx\Ldap\Control\PwdPolicyError;
-use FreeDSx\Ldap\Control\PwdPolicyResponseControl;
-use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Exception\RequestSizeExceededException;
+use FreeDSx\Ldap\Exception\RequestValidationException;
 use FreeDSx\Ldap\Exception\ResponseAlreadySentException;
 use FreeDSx\Ldap\Operation\LdapResult;
-use FreeDSx\Ldap\Operation\Request\AnonBindRequest;
-use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
-use FreeDSx\Ldap\Operation\Request\ModifyRequest;
-use FreeDSx\Ldap\Operation\Request\SimpleBindRequest;
-use FreeDSx\Ldap\Operation\Response\BindResponse;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\Response\ModifyDnResponse;
-use FreeDSx\Ldap\Operation\Response\ModifyResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Ldap\Protocol\Authenticator;
-use FreeDSx\Ldap\Protocol\Authorization\DispatchAuthorizer;
-use FreeDSx\Ldap\Protocol\Factory\ProtocolHandlerProviderInterface;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
-use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
-use FreeDSx\Ldap\Server\Middleware\Pipeline\HandlerInvoker;
-use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareChain;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
-use FreeDSx\Ldap\Server\Token\BindToken;
-use FreeDSx\Ldap\ServerOptions;
+use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
 use FreeDSx\Socket\Exception\ConnectionException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Tests\Support\FreeDSx\Ldap\Logging\RecordingLogger;
+use Tests\Support\FreeDSx\Ldap\Middleware\StubMiddlewareHandler;
+use Tests\Support\FreeDSx\Ldap\Middleware\ThrowingMiddlewareHandler;
 
 final class ServerProtocolHandlerTest extends TestCase
 {
-    private ServerProtocolHandler $subject;
-
     private ServerQueue&MockObject $mockQueue;
-
-    private ProtocolHandlerProviderInterface&MockObject $mockProtocolHandlerProvider;
-
-    private MiddlewareHandlerInterface $requestPipeline;
-
-    private Authenticator&MockObject $mockAuthenticator;
-
-    private ServerProtocolHandler\ServerProtocolHandlerInterface&MockObject $mockProtocolHandler;
 
     protected function setUp(): void
     {
         $this->mockQueue = $this->createMock(ServerQueue::class);
-        $this->mockProtocolHandlerProvider = $this->createMock(ProtocolHandlerProviderInterface::class);
-        $this->mockAuthenticator = $this->createMock(Authenticator::class);
-        $this->mockProtocolHandler = $this->createMock(ServerProtocolHandler\ServerProtocolHandlerInterface::class);
-
         $this->mockQueue
             ->method('isConnected')
             ->willReturn(true);
         $this->mockQueue
-            ->method('isEncrypted')
-            ->willReturn(false);
-
-        $this->mockQueue
             ->method('sendMessage')
             ->willReturnSelf();
-
-        $this->mockProtocolHandlerProvider
-            ->method('get')
-            ->willReturn($this->mockProtocolHandler);
-
-        $this->requestPipeline = new MiddlewareChain(
-            [],
-            new HandlerInvoker($this->mockProtocolHandlerProvider),
-        );
-
-        $authorizer = new ServerAuthorization(new ServerOptions());
-        $this->subject = new ServerProtocolHandler(
-            $this->mockQueue,
-            $this->requestPipeline,
-            $authorizer,
-            $this->mockAuthenticator,
-            new DispatchAuthorizer($authorizer),
-        );
     }
 
-    public function test_it_should_enforce_anonymous_bind_requirements(): void
+    public function test_it_delegates_each_message_to_the_request_pipeline(): void
     {
-        $messages = [new LdapMessageRequest(1, new AnonBindRequest('foo'))];
-        $this->mockQueue
-            ->method('getMessage')
-            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
-                if ($messages === []) {
-                    throw new ConnectionException();
-                }
+        $this->queueReturns([
+            new LdapMessageRequest(1, new ModifyDnRequest('cn=foo,dc=bar', 'cn=bar', true)),
+        ]);
 
-                return array_shift($messages);
-            });
+        $this->mockQueue
+            ->expects(self::never())
+            ->method('sendMessage');
+
+        $this->handlerWith(new StubMiddlewareHandler(OperationOutcomeResult::succeeded()))
+            ->handle();
+    }
+
+    public function test_a_request_validation_failure_sends_a_notice_of_disconnect(): void
+    {
+        $this->queueReturns([
+            new LdapMessageRequest(1, new ModifyDnRequest('cn=foo,dc=bar', 'cn=bar', true)),
+        ]);
 
         $this->mockQueue
             ->expects(self::once())
             ->method('sendMessage')
-            ->with($this->equalTo(
-                new LdapMessageResponse(
-                    1,
-                    new BindResponse(new LdapResult(
-                        ResultCode::AUTH_METHOD_UNSUPPORTED,
-                        '',
-                        'The requested authentication type is not supported.',
-                    )),
-                ),
-            ));
-
-        $this->mockProtocolHandlerProvider
-            ->expects(self::never())
-            ->method('get');
-
-        $this->subject->handle();
-    }
-
-    public function test_it_should_not_allow_a_previous_message_ID_from_a_new_request(): void
-    {
-        $messages = [
-            new LdapMessageRequest(1, new SimpleBindRequest('foo', 'bar')),
-            new LdapMessageRequest(1, new ExtendedRequest(ExtendedRequest::OID_WHOAMI)),
-        ];
-        $this->mockQueue
-            ->method('getMessage')
-            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
-                if ($messages === []) {
-                    throw new ConnectionException();
-                }
-
-                return array_shift($messages);
-            });
-
-        $this->mockAuthenticator
-            ->method('bind')
-            ->willReturn(BindToken::fromDn(
-                'foo',
-                'bar',
-            ));
-
-        $this->mockProtocolHandler
-            ->expects($this->never())
-            ->method('handleRequest');
-
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with($this->equalTo(new LdapMessageResponse(
+            ->with(self::equalTo(new LdapMessageResponse(
                 0,
-                new ExtendedResponse(new LdapResult(
-                    ResultCode::PROTOCOL_ERROR,
-                    '',
-                    'The message ID 1 is not valid.',
-                )),
+                new ExtendedResponse(
+                    new LdapResult(
+                        ResultCode::PROTOCOL_ERROR,
+                        '',
+                        'The message ID 1 is not valid.',
+                    ),
+                    ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
+                ),
             )));
 
-        $this->subject->handle();
+        $this->handlerWith(new ThrowingMiddlewareHandler(
+            new RequestValidationException('The message ID 1 is not valid.'),
+        ))->handle();
     }
 
-    public function test_it_should_enforce_authentication_requirements(): void
+    public function test_a_pre_pipeline_operation_error_is_answered_and_the_session_stays_open(): void
     {
+        $captured = [];
         $this->mockQueue
-            ->method('isConnected')
-            ->willReturn(true);
-        $messages = [
-            new LdapMessageRequest(1, new ModifyDnRequest('cn=foo,dc=bar', 'cn=bar', true)),
-        ];
-        $this->mockQueue
-            ->method('getMessage')
-            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
-                if ($messages === []) {
-                    throw new ConnectionException();
-                }
-
-                return array_shift($messages);
-            });
-
-        $this->mockQueue
-            ->expects($this->atLeast(1))
             ->method('sendMessage')
-            ->with($this->equalTo(new LdapMessageResponse(
-                1,
-                new ModifyDnResponse(
+            ->willReturnCallback(function (LdapMessageResponse $response) use (&$captured): ServerQueue {
+                $captured[] = $response;
+
+                return $this->mockQueue;
+            });
+        $this->queueReturns([
+            new LdapMessageRequest(1, new ModifyDnRequest('cn=a,dc=bar', 'cn=b', true)),
+            new LdapMessageRequest(2, new ModifyDnRequest('cn=c,dc=bar', 'cn=d', true)),
+        ]);
+
+        $this->handlerWith(new ThrowingMiddlewareHandler(new OperationException(
+            'Authentication required.',
+            ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+        )))->handle();
+
+        // Both messages were answered — the connection was not torn down after the first failure.
+        self::assertEquals(
+            [
+                new LdapMessageResponse(1, new ModifyDnResponse(
                     ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
                     '',
                     'Authentication required.',
-                ),
-            )))
-            ->willReturnSelf();
-
-        $this->mockProtocolHandler
-            ->expects($this->never())
-            ->method('handleRequest');
-
-        $this->subject->handle();
+                )),
+                new LdapMessageResponse(2, new ModifyDnResponse(
+                    ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+                    '',
+                    'Authentication required.',
+                )),
+            ],
+            $captured,
+        );
     }
 
-    public function test_it_should_send_a_notice_of_disconnect_on_a_protocol_exception_from_the_message_queue(): void
+    public function test_it_does_not_resend_when_a_handler_already_sent_the_response(): void
+    {
+        $this->queueReturns([
+            new LdapMessageRequest(1, new ModifyDnRequest('cn=foo,dc=bar', 'cn=bar', true)),
+        ]);
+
+        $this->mockQueue
+            ->expects(self::never())
+            ->method('sendMessage');
+
+        $this->handlerWith(new ThrowingMiddlewareHandler(new ResponseAlreadySentException()))
+            ->handle();
+    }
+
+    public function test_it_sends_a_notice_of_disconnect_on_a_protocol_exception_from_the_message_queue(): void
     {
         $this->mockQueue
             ->method('getMessage')
             ->willThrowException(new ProtocolException());
 
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with($this->equalTo(
-                new LdapMessageResponse(0, new ExtendedResponse(
-                    new LdapResult(ResultCode::PROTOCOL_ERROR, '', 'The message could not be processed.'),
-                    ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
-                )),
-            ));
+        $this->expectNoticeOfDisconnect('The message could not be processed.');
 
-        $this->subject->handle();
+        $this->handlerWith(new StubMiddlewareHandler(OperationOutcomeResult::succeeded()))
+            ->handle();
     }
 
-    public function test_it_should_send_a_notice_of_disconnect_when_a_request_exceeds_the_max_size(): void
+    public function test_it_sends_a_notice_of_disconnect_when_a_request_exceeds_the_max_size(): void
     {
         $this->mockQueue
             ->method('getMessage')
             ->willThrowException(new RequestSizeExceededException('too big'));
 
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with($this->equalTo(
-                new LdapMessageResponse(0, new ExtendedResponse(
-                    new LdapResult(ResultCode::PROTOCOL_ERROR, '', 'The message could not be processed.'),
-                    ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
-                )),
-            ));
+        $this->expectNoticeOfDisconnect('The message could not be processed.');
 
-        $this->subject->handle();
+        $this->handlerWith(new StubMiddlewareHandler(OperationOutcomeResult::succeeded()))
+            ->handle();
     }
 
-    public function test_it_should_handle_a_socket_exception_from_the_message_queue_and_end_normally(): void
-    {
-        $this->mockQueue
-            ->method('getMessage')
-            ->willThrowException(new ConnectionException("Foo"));
-
-        $this->mockQueue
-            ->expects($this->never())
-            ->method('sendMessage');
-
-        $this->subject->handle();
-    }
-
-    public function test_it_should_send_a_notice_of_disconnect_on_an_encoder_exception_from_the_message_queue(): void
+    public function test_it_sends_a_notice_of_disconnect_on_an_encoder_exception_from_the_message_queue(): void
     {
         $this->mockQueue
             ->method('getMessage')
             ->willThrowException(new EncoderException());
 
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with($this->equalTo(
-                new LdapMessageResponse(0, new ExtendedResponse(
-                    new LdapResult(ResultCode::PROTOCOL_ERROR, '', 'The message could not be processed.'),
-                    ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
-                )),
-            ));
+        $this->expectNoticeOfDisconnect('The message could not be processed.');
 
-        $this->subject->handle();
+        $this->handlerWith(new StubMiddlewareHandler(OperationOutcomeResult::succeeded()))
+            ->handle();
     }
 
-    public function test_it_should_not_allow_a_message_with_an_ID_of_zero(): void
+    public function test_it_ends_normally_on_a_socket_exception_from_the_message_queue(): void
     {
-        $messages = [
-            new LdapMessageRequest(0, new ExtendedRequest(ExtendedRequest::OID_START_TLS)),
-        ];
         $this->mockQueue
             ->method('getMessage')
-            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
-                if ($messages === []) {
-                    throw new ConnectionException();
-                }
-
-                return array_shift($messages);
-            });
-
-        $this->mockQueue
-            ->expects($this->atLeast(1))
-            ->method('sendMessage')
-            ->with($this->equalTo(
-                new LdapMessageResponse(0, new ExtendedResponse(new LdapResult(
-                    ResultCode::PROTOCOL_ERROR,
-                    '',
-                    'The message ID 0 cannot be used in a client request.',
-                ))),
-            ));
-
-        $this->subject->handle();
-    }
-
-    public function test_it_should_send_a_bind_request_to_the_bind_request_handler(): void
-    {
-        $messages = [
-            new LdapMessageRequest(1, new SimpleBindRequest('foo@bar', 'bar')),
-        ];
-        $this->mockQueue
-            ->method('getMessage')
-            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
-                if ($messages === []) {
-                    throw new ConnectionException();
-                }
-
-                return array_shift($messages);
-            });
-
-        $this->mockAuthenticator
-            ->expects($this->once())
-            ->method('bind')
-            ->willReturn(BindToken::fromDn(
-                'foo@bar',
-                'bar',
-            ));
-
-        $this->mockProtocolHandler
-            ->expects($this->never())
-            ->method('handleRequest');
-
-        $this->subject->handle();
-    }
-
-    public function test_it_does_not_resend_when_a_handler_already_sent_the_response(): void
-    {
-        $messages = [
-            new LdapMessageRequest(1, new SimpleBindRequest('foo@bar', 'bar')),
-        ];
-        $this->mockQueue
-            ->method('getMessage')
-            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
-                if ($messages === []) {
-                    throw new ConnectionException();
-                }
-
-                return array_shift($messages);
-            });
-
-        $this->mockAuthenticator
-            ->method('bind')
-            ->willThrowException(new ResponseAlreadySentException(
-                'Invalid credentials.',
-                ResultCode::INVALID_CREDENTIALS,
-            ));
+            ->willThrowException(new ConnectionException('Foo'));
 
         $this->mockQueue
             ->expects(self::never())
             ->method('sendMessage');
 
-        $this->subject->handle();
+        $this->handlerWith(new StubMiddlewareHandler(OperationOutcomeResult::succeeded()))
+            ->handle();
     }
 
-    public function test_it_should_handle_operation_errors_thrown_from_the_request_handlers(): void
+    public function test_it_sends_a_notice_of_disconnect_and_closes_the_queue_on_shutdown(): void
     {
         $this->mockQueue
-            ->method('isConnected')
-            ->willReturn(true);
-
-        $messages = [
-            new LdapMessageRequest(1, new SimpleBindRequest('foo@bar', 'bar')),
-            new LdapMessageRequest(2, new ModifyRequest('cn=foo,dc=bar')),
-        ];
-        $this->mockQueue
-            ->method('getMessage')
-            ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
-                if ($messages === []) {
-                    throw new ConnectionException();
-                }
-
-                return array_shift($messages);
-            });
-
-        $this->mockAuthenticator
-            ->expects($this->once())
-            ->method('bind')
-            ->willReturn(BindToken::fromDn(
-                'foo@bar',
-                'bar',
-            ));
-
-        $this->mockProtocolHandler
-            ->expects($this->once())
-            ->method('handleRequest')
-            ->willThrowException(new OperationException(
-                'Foo.',
-                ResultCode::CONFIDENTIALITY_REQUIRED,
-            ));
-
-        $this->mockQueue
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('sendMessage')
-            ->with($this->equalTo(
-                new LdapMessageResponse(
-                    2,
-                    new ModifyResponse(
-                        ResultCode::CONFIDENTIALITY_REQUIRED,
-                        '',
-                        'Foo.',
-                    ),
-                ),
-            ));
-
-        $this->subject->handle();
-    }
-
-    public function test_it_should_send_a_notice_of_disconnect_and_close_the_queue_on_shutdown(): void
-    {
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with($this->equalTo(
-                new LdapMessageResponse(0, new ExtendedResponse(
+            ->with(self::equalTo(new LdapMessageResponse(
+                0,
+                new ExtendedResponse(
                     new LdapResult(ResultCode::UNAVAILABLE, '', 'The server is shutting down.'),
                     ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
-                )),
-            ));
-
+                ),
+            )));
         $this->mockQueue
-            ->expects($this->once())
+            ->expects(self::once())
             ->method('close');
 
-        $this->subject->shutdown();
+        $this->handlerWith(new StubMiddlewareHandler(OperationOutcomeResult::succeeded()))
+            ->shutdown();
     }
 
-    public function test_unexpected_throwable_emits_notice_of_disconnect_with_exception_context(): void
+    public function test_an_unexpected_throwable_emits_a_notice_of_disconnect_with_exception_context(): void
     {
         $recordingLogger = new RecordingLogger();
-        $subject = $this->makeSubjectWithEventLogger(new EventLogger(
-            $recordingLogger,
-            EventLogPolicy::default(),
-        ));
-
         $this->mockQueue
             ->method('getMessage')
             ->willThrowException(new RuntimeException('boom'));
 
-        $subject->handle();
+        $this->handlerWith(
+            new StubMiddlewareHandler(OperationOutcomeResult::succeeded()),
+            new EventLogger($recordingLogger, EventLogPolicy::default()),
+        )->handle();
 
-        $disconnectRecord = $this->findRecord(
-            $recordingLogger,
-            'session.disconnect_notice',
-        );
+        $record = $this->findRecord($recordingLogger, 'session.disconnect_notice');
         self::assertSame(
             RuntimeException::class,
-            $disconnectRecord['context']['exception_class'],
+            $record['context']['exception_class'],
         );
         self::assertSame(
             'boom',
-            $disconnectRecord['context']['exception_message'],
-        );
-        self::assertArrayHasKey(
-            'exception_origin',
-            $disconnectRecord['context'],
+            $record['context']['exception_message'],
         );
         self::assertArrayNotHasKey(
             'exception_trace',
-            $disconnectRecord['context'],
+            $record['context'],
             'Trace must not appear with the default policy.',
         );
     }
 
-    public function test_unexpected_throwable_includes_trace_when_policy_opts_in(): void
+    public function test_an_unexpected_throwable_includes_the_trace_when_policy_opts_in(): void
     {
         $recordingLogger = new RecordingLogger();
-        $subject = $this->makeSubjectWithEventLogger(new EventLogger(
-            $recordingLogger,
-            EventLogPolicy::default()->withExceptionTraces(),
-        ));
-
         $this->mockQueue
             ->method('getMessage')
             ->willThrowException(new RuntimeException('boom'));
 
-        $subject->handle();
+        $this->handlerWith(
+            new StubMiddlewareHandler(OperationOutcomeResult::succeeded()),
+            new EventLogger($recordingLogger, EventLogPolicy::default()->withExceptionTraces()),
+        )->handle();
 
-        $disconnectRecord = $this->findRecord(
-            $recordingLogger,
-            'session.disconnect_notice',
-        );
-        self::assertNotEmpty($disconnectRecord['context']['exception_trace']);
-    }
-
-    public function test_a_must_change_token_blocks_other_operations(): void
-    {
-        $token = BindToken::fromDn(
-            'cn=user,dc=foo,dc=bar',
-            'secret',
-        );
-        $token->markMustChangePassword();
-
-        $this->mockProtocolHandler
-            ->expects(self::never())
-            ->method('handleRequest');
-
-        $captured = $this->runWithToken(
-            $token,
-            [
-                new LdapMessageRequest(1, new SimpleBindRequest('cn=user,dc=foo,dc=bar', 'secret')),
-                new LdapMessageRequest(2, new ModifyRequest(
-                    'cn=user,dc=foo,dc=bar',
-                    Change::replace('description', 'nope'),
-                )),
-            ],
-        );
-
-        self::assertCount(
-            1,
-            $captured,
-        );
-        $response = $captured[0]->getResponse();
-        self::assertInstanceOf(
-            LdapResult::class,
-            $response,
-        );
-        self::assertSame(
-            ResultCode::UNWILLING_TO_PERFORM,
-            $response->getResultCode(),
-        );
-
-        $control = $captured[0]->controls()->getByClass(PwdPolicyResponseControl::class);
-        self::assertInstanceOf(
-            PwdPolicyResponseControl::class,
-            $control,
-        );
-        self::assertSame(
-            PwdPolicyError::CHANGE_AFTER_RESET,
-            $control->getError(),
-        );
-    }
-
-    public function test_a_must_change_token_allows_the_password_modify_operation(): void
-    {
-        $token = BindToken::fromDn(
-            'cn=user,dc=foo,dc=bar',
-            'secret',
-        );
-        $token->markMustChangePassword();
-
-        $this->mockProtocolHandler
-            ->expects(self::once())
-            ->method('handleRequest');
-
-        $this->runWithToken(
-            $token,
-            [
-                new LdapMessageRequest(1, new SimpleBindRequest('cn=user,dc=foo,dc=bar', 'secret')),
-                new LdapMessageRequest(2, new ExtendedRequest(ExtendedRequest::OID_PWD_MODIFY)),
-            ],
-        );
-    }
-
-    public function test_a_must_change_token_allows_a_self_password_modify(): void
-    {
-        $token = BindToken::fromDn(
-            'cn=user,dc=foo,dc=bar',
-            'secret',
-        );
-        $token->markMustChangePassword();
-
-        $this->mockProtocolHandler
-            ->expects(self::once())
-            ->method('handleRequest');
-
-        $this->runWithToken(
-            $token,
-            [
-                new LdapMessageRequest(1, new SimpleBindRequest('cn=user,dc=foo,dc=bar', 'secret')),
-                new LdapMessageRequest(2, new ModifyRequest(
-                    'cn=user,dc=foo,dc=bar',
-                    Change::replace('userPassword', 'a-fresh-password'),
-                )),
-            ],
-        );
+        $record = $this->findRecord($recordingLogger, 'session.disconnect_notice');
+        self::assertNotEmpty($record['context']['exception_trace']);
     }
 
     /**
      * @param list<LdapMessageRequest> $messages
-     * @return list<LdapMessageResponse>
      */
-    private function runWithToken(
-        BindToken $token,
-        array $messages,
-    ): array {
-        $captured = [];
-        $queue = $this->createMock(ServerQueue::class);
-        $queue
-            ->method('isConnected')
-            ->willReturn(true);
-        $queue
+    private function queueReturns(array $messages): void
+    {
+        $this->mockQueue
             ->method('getMessage')
             ->willReturnCallback(static function () use (&$messages): LdapMessageRequest {
                 if ($messages === []) {
@@ -621,43 +275,31 @@ final class ServerProtocolHandlerTest extends TestCase
 
                 return array_shift($messages);
             });
-        $queue
-            ->method('sendMessage')
-            ->willReturnCallback(function (LdapMessageResponse $response) use (&$captured, $queue): ServerQueue {
-                $captured[] = $response;
-
-                return $queue;
-            });
-
-        $this->mockAuthenticator
-            ->method('bind')
-            ->willReturn($token);
-
-        $authorizer = new ServerAuthorization(new ServerOptions());
-        $subject = new ServerProtocolHandler(
-            $queue,
-            $this->requestPipeline,
-            $authorizer,
-            $this->mockAuthenticator,
-            new DispatchAuthorizer($authorizer),
-        );
-        $subject->handle();
-
-        return $captured;
     }
 
-    private function makeSubjectWithEventLogger(EventLogger $eventLogger): ServerProtocolHandler
-    {
-        $authorizer = new ServerAuthorization(new ServerOptions());
-
+    private function handlerWith(
+        MiddlewareHandlerInterface $pipeline,
+        ?EventLogger $eventLogger = null,
+    ): ServerProtocolHandler {
         return new ServerProtocolHandler(
             $this->mockQueue,
-            $this->requestPipeline,
-            $authorizer,
-            $this->mockAuthenticator,
-            new DispatchAuthorizer($authorizer),
-            $eventLogger,
+            $pipeline,
+            $eventLogger ?? new EventLogger(null),
         );
+    }
+
+    private function expectNoticeOfDisconnect(string $message): void
+    {
+        $this->mockQueue
+            ->expects(self::once())
+            ->method('sendMessage')
+            ->with(self::equalTo(new LdapMessageResponse(
+                0,
+                new ExtendedResponse(
+                    new LdapResult(ResultCode::PROTOCOL_ERROR, '', $message),
+                    ExtendedResponse::OID_NOTICE_OF_DISCONNECTION,
+                ),
+            )));
     }
 
     /**

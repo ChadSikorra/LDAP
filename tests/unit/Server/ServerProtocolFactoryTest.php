@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Server;
 
 use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
-use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
@@ -41,12 +40,9 @@ final class ServerProtocolFactoryTest extends TestCase
 
     private HandlerFactoryInterface&MockObject $mockHandlerFactory;
 
-    private ServerAuthorization&MockObject $mockServerAuthorization;
-
     protected function setUp(): void
     {
         $this->mockHandlerFactory = $this->createMock(HandlerFactoryInterface::class);
-        $this->mockServerAuthorization = $this->createMock(ServerAuthorization::class);
 
         $this->mockHandlerFactory
             ->method('makeBackend')
@@ -58,7 +54,6 @@ final class ServerProtocolFactoryTest extends TestCase
         $this->subject = new ServerProtocolFactory(
             $this->mockHandlerFactory,
             $options,
-            $this->mockServerAuthorization,
             $this->passwordPolicyEngine(),
             new ServerProtocolHandlerFactory($options),
             new PasswordModifyTargetResolver(
@@ -107,7 +102,6 @@ final class ServerProtocolFactoryTest extends TestCase
         $subject = new ServerProtocolFactory(
             $this->mockHandlerFactory,
             $options,
-            $this->mockServerAuthorization,
             $this->passwordPolicyEngine(),
             new ServerProtocolHandlerFactory($options),
             new PasswordModifyTargetResolver(
@@ -148,7 +142,6 @@ final class ServerProtocolFactoryTest extends TestCase
         $subject = new ServerProtocolFactory(
             $this->mockHandlerFactory,
             $options,
-            $this->mockServerAuthorization,
             $this->passwordPolicyEngine(),
             new ServerProtocolHandlerFactory($options),
             new PasswordModifyTargetResolver(
