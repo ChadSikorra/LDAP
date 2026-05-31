@@ -59,7 +59,7 @@ final readonly class OperationErrorMiddleware implements MiddlewareInterface
                 $e->getMessage(),
                 $this->filterMatchedDn(
                     $e->getMatchedDn(),
-                    $context->token,
+                    $context->tokenOrFail(),
                     $this->backend,
                     $this->accessControl,
                 ),

@@ -54,7 +54,7 @@ final readonly class OperationAuditMiddleware implements MiddlewareInterface
         if ($result instanceof AuditableResult) {
             $result->record(
                 $this->auditor,
-                $context->token,
+                $context->tokenOrFail(),
             );
         }
 
@@ -69,7 +69,7 @@ final readonly class OperationAuditMiddleware implements MiddlewareInterface
             $this->auditor->recordSchemaViolations(
                 $e->getViolations(),
                 $context->message,
-                $context->token,
+                $context->tokenOrFail(),
             );
         }
 
@@ -77,7 +77,7 @@ final readonly class OperationAuditMiddleware implements MiddlewareInterface
             $this->auditor->recordSearchFailure(
                 $context->message,
                 $e,
-                $context->token,
+                $context->tokenOrFail(),
             );
 
             return;
@@ -86,7 +86,7 @@ final readonly class OperationAuditMiddleware implements MiddlewareInterface
         $this->auditor->recordFailure(
             $context->message,
             $e,
-            $context->token,
+            $context->tokenOrFail(),
         );
     }
 }

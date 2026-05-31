@@ -42,10 +42,13 @@ use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\OperationAuditor;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\AssertionEvaluator;
 use FreeDSx\Ldap\Server\Middleware\AssertionMiddleware;
+use FreeDSx\Ldap\Server\Middleware\AuthorizationResolutionMiddleware;
+use FreeDSx\Ldap\Server\Middleware\BindMiddleware;
 use FreeDSx\Ldap\Server\Middleware\CriticalControlMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationAuditMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationAuthorizationMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationErrorMiddleware;
+use FreeDSx\Ldap\Server\Middleware\RequestValidationMiddleware;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\HandlerInvoker;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
@@ -64,7 +67,6 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
     public function __construct(
         private readonly HandlerFactoryInterface $handlerFactory,
         private readonly ServerOptions $options,
-        private readonly ServerAuthorization $serverAuthorization,
         private readonly PasswordPolicyEngine $passwordPolicyEngine,
         private readonly ServerProtocolHandlerFactory $routeResolver,
         private readonly PasswordModifyTargetResolver $targetResolver,
@@ -139,8 +141,11 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
             );
         }
 
+        // Per connection: the bound-token state must not be shared across connections (e.g., coroutines).
+        $authorization = new ServerAuthorization($this->options);
+
         $dispatchAuthorizer = new DispatchAuthorizer(
-            $this->serverAuthorization,
+            $authorization,
             new PasswordResetGate(),
             new ProxiedAuthorizationResolver(
                 $this->options->getAccessControl(),
@@ -168,6 +173,17 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
             queue: $serverQueue,
             requestPipeline: new MiddlewareChain(
                 [
+                    // Order matters: AuthorizationResolutionMiddleware injects the token via withToken(), so
+                    // every middleware after it may rely on tokenOrFail(). Keep token consumers below it.
+                    new RequestValidationMiddleware(),
+                    new BindMiddleware(
+                        $authorization,
+                        new Authenticator($authenticators),
+                    ),
+                    new AuthorizationResolutionMiddleware(
+                        $dispatchAuthorizer,
+                        $policyContext,
+                    ),
                     new OperationErrorMiddleware(
                         $serverQueue,
                         $backend,
@@ -187,9 +203,6 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
                 ],
                 new HandlerInvoker($handlerProvider),
             ),
-            authorizer: $this->serverAuthorization,
-            authenticator: new Authenticator($authenticators),
-            dispatchAuthorizer: $dispatchAuthorizer,
             eventLogger: $eventLogger,
             connectionContext: $context,
         );

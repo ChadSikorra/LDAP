@@ -286,7 +286,6 @@ class Container
         return new ServerProtocolFactory(
             handlerFactory: $this->get(HandlerFactoryInterface::class),
             options: $this->get(ServerOptions::class),
-            serverAuthorization: $this->get(ServerAuthorization::class),
             passwordPolicyEngine: $this->get(PasswordPolicyEngine::class),
             routeResolver: $this->get(ServerProtocolHandlerFactory::class),
             targetResolver: $this->get(PasswordModifyTargetResolver::class),

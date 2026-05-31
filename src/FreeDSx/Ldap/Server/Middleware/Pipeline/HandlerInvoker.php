@@ -35,7 +35,7 @@ final readonly class HandlerInvoker implements MiddlewareHandlerInterface
 
         return $handler->handleRequest(
             $context->message,
-            $context->token,
+            $context->tokenOrFail(),
         );
     }
 }
