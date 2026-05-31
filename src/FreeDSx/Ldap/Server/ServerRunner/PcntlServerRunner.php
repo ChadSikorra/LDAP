@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Server\SocketServerFactory;
 use FreeDSx\Socket\Socket;
 use FreeDSx\Socket\SocketServer;
 use FreeDSx\Ldap\ServerOptions;
+use Closure;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Throwable;
@@ -36,6 +37,7 @@ use Throwable;
 class PcntlServerRunner implements ServerRunnerInterface
 {
     use ServerRunnerLoggerTrait;
+    use ReloadsConfigurationTrait;
 
     private SocketServer $server;
 
@@ -53,8 +55,6 @@ class PcntlServerRunner implements ServerRunnerInterface
 
     private bool $isPosixExtLoaded;
 
-    private bool $isServerSignalsInstalled = false;
-
     private bool $isShuttingDown = false;
 
     /**
@@ -66,15 +66,20 @@ class PcntlServerRunner implements ServerRunnerInterface
      * @throws RuntimeException
      */
     public function __construct(
-        private readonly ServerProtocolFactoryInterface $serverProtocolFactory,
-        private readonly ServerOptions $options,
+        ServerProtocolFactoryInterface $serverProtocolFactory,
+        ServerOptions $options,
         private readonly SocketServerFactory $socketServerFactory,
+        Closure $protocolFactoryProvider,
     ) {
         if (!extension_loaded('pcntl')) {
             throw new RuntimeException(
                 'The PCNTL extension is needed to fork incoming requests, which is only available on Linux.',
             );
         }
+
+        $this->serverProtocolFactory = $serverProtocolFactory;
+        $this->options = $options;
+        $this->protocolFactoryProvider = $protocolFactoryProvider;
 
         // posix_kill needs this...we cannot clean up child processes without it on shutdown...
         $this->isPosixExtLoaded = extension_loaded('posix');
@@ -148,6 +153,7 @@ class PcntlServerRunner implements ServerRunnerInterface
      */
     private function acceptClients(): void
     {
+        $this->installServerSignalHandlers();
         $this->logServerStarted($this->defaultContext);
         $this->options->getOnServerReady()?->__invoke();
 
@@ -251,7 +257,7 @@ class PcntlServerRunner implements ServerRunnerInterface
     private function installServerSignalHandlers(): void
     {
         foreach ($this->handledSignals as $signal) {
-            $this->isServerSignalsInstalled = pcntl_signal(
+            pcntl_signal(
                 $signal,
                 function () {
                     $this->handleServerShutdown();
@@ -261,10 +267,7 @@ class PcntlServerRunner implements ServerRunnerInterface
         pcntl_signal(
             SIGHUP,
             function () {
-                $this->logInfo(
-                    'Received SIGHUP. Configuration reload is not yet implemented.',
-                    $this->defaultContext,
-                );
+                $this->reloadConfiguration($this->defaultContext);
             },
         );
     }
@@ -396,17 +399,13 @@ class PcntlServerRunner implements ServerRunnerInterface
     /**
      * When a new Socket is received, we do the following:
      *
-     *     1. If the server has not installed its signal handlers, do that first.
-     *     2. Add the ChildProcess to the list of running child processes.
-     *     3. Clean-up any currently running child processes.
+     *     1. Add the ChildProcess to the list of running child processes.
+     *     2. Clean-up any currently running child processes.
      */
     private function runAfterChildStarted(
         int $pid,
         Socket $socket,
     ): void {
-        if (!$this->isServerSignalsInstalled) {
-            $this->installServerSignalHandlers();
-        }
         $this->childProcesses[] = new ChildProcess(
             $pid,
             $socket,

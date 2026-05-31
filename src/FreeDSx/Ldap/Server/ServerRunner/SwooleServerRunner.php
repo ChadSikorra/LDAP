@@ -21,6 +21,7 @@ use FreeDSx\Ldap\Server\SocketServerFactory;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\Socket;
 use FreeDSx\Socket\SocketServer;
+use Closure;
 use Psr\Log\LoggerInterface;
 use Swoole\Coroutine;
 use Swoole\Coroutine\WaitGroup;
@@ -47,6 +48,7 @@ use Throwable;
 class SwooleServerRunner implements ServerRunnerInterface
 {
     use ServerRunnerLoggerTrait;
+    use ReloadsConfigurationTrait;
 
     private SocketServer $server;
 
@@ -73,9 +75,10 @@ class SwooleServerRunner implements ServerRunnerInterface
     private WaitGroup $waitGroup;
 
     public function __construct(
-        private readonly ServerProtocolFactoryInterface $serverProtocolFactory,
-        private readonly ServerOptions $options,
+        ServerProtocolFactoryInterface $serverProtocolFactory,
+        ServerOptions $options,
         private readonly SocketServerFactory $socketServerFactory,
+        Closure $protocolFactoryProvider,
     ) {
         if (!extension_loaded('swoole')) {
             throw new RuntimeException(
@@ -84,6 +87,10 @@ class SwooleServerRunner implements ServerRunnerInterface
                 . '(^5.1 for PHP 8.3/8.4, ^6.0 for PHP 8.5+)',
             );
         }
+
+        $this->serverProtocolFactory = $serverProtocolFactory;
+        $this->options = $options;
+        $this->protocolFactoryProvider = $protocolFactoryProvider;
 
         Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
         $this->waitGroup = new WaitGroup();
@@ -110,7 +117,6 @@ class SwooleServerRunner implements ServerRunnerInterface
         Process::signal(SIGTERM, $this->handleShutdownSignal(...));
         Process::signal(SIGINT, $this->handleShutdownSignal(...));
         Process::signal(SIGQUIT, $this->handleShutdownSignal(...));
-        // SIGHUP is reserved for configuration reload, not shutdown. Stub it.
         Process::signal(
             SIGHUP,
             $this->handleReloadSignal(...),
@@ -119,10 +125,7 @@ class SwooleServerRunner implements ServerRunnerInterface
 
     private function handleReloadSignal(int $signal): void
     {
-        $this->getRunnerLogger()?->info(
-            'Received SIGHUP. Configuration reload is not yet implemented.',
-            ['signal' => $signal],
-        );
+        $this->reloadConfiguration(['signal' => $signal]);
     }
 
     private function handleShutdownSignal(int $signal): void

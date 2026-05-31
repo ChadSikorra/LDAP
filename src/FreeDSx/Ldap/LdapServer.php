@@ -33,6 +33,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\OperationalAttributeGenerator;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
+use FreeDSx\Ldap\Server\Configuration\ConfigReloaderInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DirectoryDumper;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DumpOptions;
 use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
@@ -334,6 +335,16 @@ class LdapServer
     public function useLogger(LoggerInterface $logger): self
     {
         $this->options->setLogger($logger);
+
+        return $this;
+    }
+
+    /**
+     * Register a reloader that supplies fresh ServerOptions on a SIGHUP reload. New connections use the result.
+     */
+    public function onReload(ConfigReloaderInterface $configReloader): self
+    {
+        $this->options->setConfigReloader($configReloader);
 
         return $this;
     }

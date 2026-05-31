@@ -31,10 +31,13 @@ final class SwooleServerRunnerTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/Swoole extension/');
 
+        $factory = $this->createMock(ServerProtocolFactory::class);
+
         new SwooleServerRunner(
-            serverProtocolFactory: $this->createMock(ServerProtocolFactory::class),
+            serverProtocolFactory: $factory,
             options: new ServerOptions(),
             socketServerFactory: $this->createMock(SocketServerFactory::class),
+            protocolFactoryProvider: static fn(ServerOptions $options) => $factory,
         );
     }
 }

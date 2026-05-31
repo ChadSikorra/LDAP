@@ -15,6 +15,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
 use FreeDSx\Ldap\ServerOptions;
+use Tests\Support\FreeDSx\Ldap\Server\Configuration\FileFlagConfigReloader;
 use PDO;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -97,6 +98,13 @@ final class LdapServerCommand extends Command
                 InputOption::VALUE_REQUIRED,
                 'After seeding/applying changes, dump the directory to an LDIF file via LdapServer::dump()',
                 '',
+            )
+            ->addOption(
+                'reload-flag-file',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'On SIGHUP, re-read this file and enable anonymous bind when it contains "allow-anonymous"',
+                '',
             );
     }
 
@@ -114,6 +122,7 @@ final class LdapServerCommand extends Command
         $seedFile = $this->getStringOption($input, 'seed');
         $changesFile = $this->getStringOption($input, 'changes');
         $dumpFile = $this->getStringOption($input, 'dump');
+        $reloadFlagFile = $this->getStringOption($input, 'reload-flag-file');
         $useSsl = false;
 
         if (!in_array($storageType, self::VALID_STORAGE, true)) {
@@ -153,6 +162,10 @@ final class LdapServerCommand extends Command
             ->setAllowAnonymous($allowAnonymous)
             ->setSocketAcceptTimeout(0.1)
             ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL));
+
+        if ($reloadFlagFile !== '') {
+            $options->setConfigReloader(new FileFlagConfigReloader($reloadFlagFile));
+        }
 
         $server = new LdapServer($options);
 
