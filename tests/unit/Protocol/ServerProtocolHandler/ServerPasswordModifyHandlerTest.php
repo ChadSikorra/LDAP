@@ -25,6 +25,7 @@ use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerPasswordModifyHandler;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
@@ -80,6 +81,7 @@ final class ServerPasswordModifyHandlerTest extends TestCase
                 ),
                 accessControl: $this->createMock(AccessControlInterface::class),
                 writeDispatcher: new WriteOperationDispatcher($mockWriteHandler),
+                hashService: new PasswordHashService(hashCost: 4),
             ),
         );
     }

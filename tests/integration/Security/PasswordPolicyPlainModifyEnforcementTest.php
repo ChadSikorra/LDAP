@@ -131,7 +131,7 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
         $entry = $this->backend->get(new Dn(self::USER_DN));
         self::assertNotNull($entry);
         self::assertTrue(
-            (new PasswordHashService())->verify(
+            (new PasswordHashService(hashCost: 4))->verify(
                 'a-fresh-password',
                 (string) $entry->get('userPassword')?->firstValue(),
             ),
@@ -289,7 +289,7 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
                     new SafeModifyConstraint(),
                     new MinAgeConstraint($this->clock),
                     new QualityConstraint(new DefaultPasswordQualityChecker()),
-                    new HistoryConstraint(new PasswordHashService()),
+                    new HistoryConstraint(new PasswordHashService(hashCost: 4)),
                 ]),
             ),
             new PasswordPolicyResolver(
@@ -370,7 +370,7 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
     {
         return HistoryEntry::forStoredPassword(
             $this->clock->now(),
-            '{BCRYPT}' . password_hash($plaintext, PASSWORD_BCRYPT),
+            '{BCRYPT}' . password_hash($plaintext, PASSWORD_BCRYPT, ['cost' => 4]),
         )->encode();
     }
 }

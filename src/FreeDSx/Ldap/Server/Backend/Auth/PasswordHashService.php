@@ -34,8 +34,12 @@ final readonly class PasswordHashService
         '{SMD5}',
     ];
 
+    /**
+     * @param int|null $hashCost bcrypt cost forwarded to password_hash(); null uses the PHP default (10). Does not apply to argon2.
+     */
     public function __construct(
         private PasswordHashScheme $scheme = PasswordHashScheme::Bcrypt,
+        private ?int $hashCost = null,
     ) {}
 
     /**
@@ -154,6 +158,9 @@ final readonly class PasswordHashService
         $hash = password_hash(
             $plain,
             $algo,
+            $this->hashCost !== null
+                ? ['cost' => $this->hashCost]
+                : [],
         );
 
         return $scheme->value . $hash;
