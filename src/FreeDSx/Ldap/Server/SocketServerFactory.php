@@ -17,6 +17,8 @@ use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\SocketServer;
 use FreeDSx\Socket\SocketServerOptions;
+use FreeDSx\Socket\Timeout\BlockingSelectEnforcer;
+use FreeDSx\Socket\Timeout\SwooleTimerEnforcer;
 use FreeDSx\Socket\Transport;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
@@ -39,16 +41,15 @@ class SocketServerFactory
             $this->removeExistingSocketIfNeeded($resource);
         }
 
-        // The write timeout uses a non-blocking stream_select loop, which causes performance issues on swoole.
-        // so no available there until a proper solution is designed.
-        $writeTimeout = $this->options->getUseSwooleRunner()
-            ? 0
-            : $this->options->getWriteTimeout();
+        $writeTimeoutEnforcer = $this->options->getUseSwooleRunner()
+            ? new SwooleTimerEnforcer()
+            : new BlockingSelectEnforcer();
 
         $socketServerOptions = (new SocketServerOptions())
             ->setTransport(Transport::from($this->options->getTransport()))
             ->setIdleTimeout($this->options->getIdleTimeout())
-            ->setWriteTimeout($writeTimeout)
+            ->setWriteTimeout($this->options->getWriteTimeout())
+            ->setWriteTimeoutEnforcer($writeTimeoutEnforcer)
             ->setUseSsl($this->options->isUseSsl())
             ->setSslCert($this->options->getSslCert())
             ->setSslCertKey($this->options->getSslCertKey())

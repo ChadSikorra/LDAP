@@ -15,6 +15,8 @@ namespace Tests\Unit\FreeDSx\Ldap\Server;
 
 use FreeDSx\Ldap\Server\SocketServerFactory;
 use FreeDSx\Ldap\ServerOptions;
+use FreeDSx\Socket\Timeout\BlockingSelectEnforcer;
+use FreeDSx\Socket\Timeout\SwooleTimerEnforcer;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -59,7 +61,7 @@ final class SocketServerFactoryTest extends TestCase
         $this->subject->makeAndBind();
     }
 
-    public function test_it_flows_the_write_timeout_to_the_socket_server_for_the_pcntl_runner(): void
+    public function test_it_uses_the_blocking_select_enforcer_for_the_pcntl_runner(): void
     {
         $subject = new SocketServerFactory(
             (new ServerOptions())
@@ -68,13 +70,19 @@ final class SocketServerFactoryTest extends TestCase
             $this->mockLogger,
         );
 
+        $options = $subject->makeAndBind()->getOptions();
+
         self::assertSame(
             45,
-            $subject->makeAndBind()->getOptions()->getWriteTimeout(),
+            $options->getWriteTimeout(),
+        );
+        self::assertInstanceOf(
+            BlockingSelectEnforcer::class,
+            $options->getWriteTimeoutEnforcer(),
         );
     }
 
-    public function test_it_disables_the_write_timeout_for_the_swoole_runner(): void
+    public function test_it_uses_the_swoole_timer_enforcer_for_the_swoole_runner(): void
     {
         $subject = new SocketServerFactory(
             (new ServerOptions())
@@ -84,9 +92,15 @@ final class SocketServerFactoryTest extends TestCase
             $this->mockLogger,
         );
 
+        $options = $subject->makeAndBind()->getOptions();
+
         self::assertSame(
-            0,
-            $subject->makeAndBind()->getOptions()->getWriteTimeout(),
+            45,
+            $options->getWriteTimeout(),
+        );
+        self::assertInstanceOf(
+            SwooleTimerEnforcer::class,
+            $options->getWriteTimeoutEnforcer(),
         );
     }
 
