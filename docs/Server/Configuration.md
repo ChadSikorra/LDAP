@@ -149,8 +149,6 @@ Consider an idle client to timeout after this period of time (in seconds) and di
 Disconnect a client whose response send makes no progress for this many seconds (a reader that has stopped draining).
 Set to `0` to disable.
 
-**Note**: This applies to the PCNTL runner only.
-
 **Default**: `600`
 
 ------------------
