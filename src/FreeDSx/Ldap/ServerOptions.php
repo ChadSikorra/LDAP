@@ -38,6 +38,7 @@ use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
+use FreeDSx\Ldap\Server\TlsVersion;
 use Psr\Log\LoggerInterface;
 use Closure;
 
@@ -122,6 +123,16 @@ final class ServerOptions
     private ?string $sslCertKey = null;
 
     private ?string $sslCertPassphrase = null;
+
+    private TlsVersion $minTlsVersion = TlsVersion::Tls1_2;
+
+    private string $sslCiphers = 'DEFAULT';
+
+    private bool $sslValidateCert = false;
+
+    private ?bool $sslAllowSelfSigned = null;
+
+    private ?string $sslCaCert = null;
 
     private ?string $dseAltServer = null;
 
@@ -348,6 +359,66 @@ final class ServerOptions
     public function setSslCertPassphrase(?string $sslCertPassphrase): self
     {
         $this->sslCertPassphrase = $sslCertPassphrase;
+
+        return $this;
+    }
+
+    public function getMinTlsVersion(): TlsVersion
+    {
+        return $this->minTlsVersion;
+    }
+
+    public function setMinTlsVersion(TlsVersion $minTlsVersion): self
+    {
+        $this->minTlsVersion = $minTlsVersion;
+
+        return $this;
+    }
+
+    public function getSslCiphers(): string
+    {
+        return $this->sslCiphers;
+    }
+
+    public function setSslCiphers(string $sslCiphers): self
+    {
+        $this->sslCiphers = $sslCiphers;
+
+        return $this;
+    }
+
+    public function isSslValidateCert(): bool
+    {
+        return $this->sslValidateCert;
+    }
+
+    public function setSslValidateCert(bool $sslValidateCert): self
+    {
+        $this->sslValidateCert = $sslValidateCert;
+
+        return $this;
+    }
+
+    public function getSslAllowSelfSigned(): ?bool
+    {
+        return $this->sslAllowSelfSigned;
+    }
+
+    public function setSslAllowSelfSigned(?bool $sslAllowSelfSigned): self
+    {
+        $this->sslAllowSelfSigned = $sslAllowSelfSigned;
+
+        return $this;
+    }
+
+    public function getSslCaCert(): ?string
+    {
+        return $this->sslCaCert;
+    }
+
+    public function setSslCaCert(?string $sslCaCert): self
+    {
+        $this->sslCaCert = $sslCaCert;
 
         return $this;
     }
@@ -820,7 +891,7 @@ final class ServerOptions
     }
 
     /**
-     * @return array{ip: string, port: int, unix_socket: string, transport: string, idle_timeout: int, require_authentication: bool, allow_anonymous: bool, backend: ?WritableLdapBackendInterface, rootdse_handler: ?RootDseHandlerInterface, logger: ?LoggerInterface, use_ssl: bool, ssl_cert: ?string, ssl_cert_key: ?string, ssl_cert_passphrase: ?string, dse_alt_server: ?string, dse_vendor_name: string, dse_vendor_version: ?string, sasl_mechanisms: string[]}
+     * @return array{ip: string, port: int, unix_socket: string, transport: string, idle_timeout: int, require_authentication: bool, allow_anonymous: bool, backend: ?WritableLdapBackendInterface, rootdse_handler: ?RootDseHandlerInterface, logger: ?LoggerInterface, use_ssl: bool, ssl_cert: ?string, ssl_cert_key: ?string, ssl_cert_passphrase: ?string, min_tls_version: string, ssl_ciphers: string, ssl_validate_cert: bool, ssl_allow_self_signed: ?bool, ssl_ca_cert: ?string, dse_alt_server: ?string, dse_vendor_name: string, dse_vendor_version: ?string, sasl_mechanisms: string[]}
      */
     public function toArray(): array
     {
@@ -839,6 +910,11 @@ final class ServerOptions
             'ssl_cert' => $this->getSslCert(),
             'ssl_cert_key' => $this->getSslCertKey(),
             'ssl_cert_passphrase' => $this->getSslCertPassphrase(),
+            'min_tls_version' => $this->getMinTlsVersion()->value,
+            'ssl_ciphers' => $this->getSslCiphers(),
+            'ssl_validate_cert' => $this->isSslValidateCert(),
+            'ssl_allow_self_signed' => $this->getSslAllowSelfSigned(),
+            'ssl_ca_cert' => $this->getSslCaCert(),
             'dse_alt_server' => $this->getDseAltServer(),
             'dse_vendor_name' => $this->getDseVendorName(),
             'dse_vendor_version' => $this->getDseVendorVersion(),

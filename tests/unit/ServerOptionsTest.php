@@ -30,6 +30,7 @@ use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use FreeDSx\Ldap\Server\SearchLimits;
+use FreeDSx\Ldap\Server\TlsVersion;
 use FreeDSx\Ldap\ServerOptions;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -285,6 +286,81 @@ final class ServerOptionsTest extends TestCase
         self::assertSame(
             'secret',
             $this->subject->getSslCertPassphrase(),
+        );
+    }
+
+    public function test_min_tls_version_defaults_to_1_2(): void
+    {
+        self::assertSame(
+            TlsVersion::Tls1_2,
+            $this->subject->getMinTlsVersion(),
+        );
+    }
+
+    public function test_it_can_set_min_tls_version(): void
+    {
+        $this->subject->setMinTlsVersion(TlsVersion::Tls1_3);
+
+        self::assertSame(
+            TlsVersion::Tls1_3,
+            $this->subject->getMinTlsVersion(),
+        );
+    }
+
+    public function test_ssl_ciphers_default_to_default(): void
+    {
+        self::assertSame(
+            'DEFAULT',
+            $this->subject->getSslCiphers(),
+        );
+    }
+
+    public function test_it_can_set_ssl_ciphers(): void
+    {
+        $this->subject->setSslCiphers('ECDHE-RSA-AES128-GCM-SHA256');
+
+        self::assertSame(
+            'ECDHE-RSA-AES128-GCM-SHA256',
+            $this->subject->getSslCiphers(),
+        );
+    }
+
+    public function test_ssl_validate_cert_is_disabled_by_default(): void
+    {
+        self::assertFalse($this->subject->isSslValidateCert());
+    }
+
+    public function test_it_can_enable_ssl_validate_cert(): void
+    {
+        $this->subject->setSslValidateCert(true);
+
+        self::assertTrue($this->subject->isSslValidateCert());
+    }
+
+    public function test_ssl_allow_self_signed_is_null_by_default(): void
+    {
+        self::assertNull($this->subject->getSslAllowSelfSigned());
+    }
+
+    public function test_it_can_set_ssl_allow_self_signed(): void
+    {
+        $this->subject->setSslAllowSelfSigned(true);
+
+        self::assertTrue($this->subject->getSslAllowSelfSigned());
+    }
+
+    public function test_ssl_ca_cert_is_null_by_default(): void
+    {
+        self::assertNull($this->subject->getSslCaCert());
+    }
+
+    public function test_it_can_set_ssl_ca_cert(): void
+    {
+        $this->subject->setSslCaCert('/path/to/ca.pem');
+
+        self::assertSame(
+            '/path/to/ca.pem',
+            $this->subject->getSslCaCert(),
         );
     }
 

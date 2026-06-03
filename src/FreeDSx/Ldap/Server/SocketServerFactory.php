@@ -53,7 +53,12 @@ class SocketServerFactory
             ->setUseSsl($this->options->isUseSsl())
             ->setSslCert($this->options->getSslCert())
             ->setSslCertKey($this->options->getSslCertKey())
-            ->setSslCertPassphrase($this->options->getSslCertPassphrase());
+            ->setSslCertPassphrase($this->options->getSslCertPassphrase())
+            ->setSslCryptoMethod($this->options->getMinTlsVersion()->toServerCryptoMethod())
+            ->setSslCiphers($this->options->getSslCiphers())
+            ->setSslValidateCert($this->options->isSslValidateCert())
+            ->setSslAllowSelfSigned($this->options->getSslAllowSelfSigned())
+            ->setSslCaCert($this->options->getSslCaCert());
 
         return SocketServer::bind(
             $resource,

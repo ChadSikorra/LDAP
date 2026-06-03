@@ -32,6 +32,11 @@ LDAP Server Configuration
     * [ServerOptions:setSslCert](#setsslcert)
     * [ServerOptions:setSslCertKey](#setsslcertkey)
     * [ServerOptions:setSslCertPassphrase](#setsslcertpassphrase)
+    * [ServerOptions:setMinTlsVersion](#setmintlsversion)
+    * [ServerOptions:setSslCiphers](#setsslciphers)
+    * [ServerOptions:setSslValidateCert](#setsslvalidatecert)
+    * [ServerOptions:setSslAllowSelfSigned](#setsslallowselfsigned)
+    * [ServerOptions:setSslCaCert](#setsslcacert)
 * [Search Limits](#search-limits)
     * [ServerOptions:setMaxSearchSize](#setmaxsearchsize)
     * [ServerOptions:setMaxSearchTimeLimit](#setmaxsearchtimelimit)
@@ -487,6 +492,53 @@ to use an encrypted stream only for communication to the server.
 **Note**: LDAP over SSL, commonly referred to as LDAPS, is not an official LDAP standard. Support is dependent on the client / server specific implementations.
 
 **Default**: `false`
+
+------------------
+#### setMinTlsVersion
+
+The minimum TLS protocol version the server will negotiate for StartTLS and LDAPS sessions. Provide a
+`FreeDSx\Ldap\Server\TlsVersion` case (`Tls1_0`, `Tls1_1`, `Tls1_2`, `Tls1_3`); the server accepts that version and any
+higher one. The default rejects the deprecated TLS 1.0 and 1.1 (RFC 8996); lower it explicitly only for legacy clients.
+
+```php
+use FreeDSx\Ldap\ServerOptions;
+use FreeDSx\Ldap\Server\TlsVersion;
+
+$options = (new ServerOptions())
+    ->setMinTlsVersion(TlsVersion::Tls1_3);
+```
+
+**Default**: `TlsVersion::Tls1_2`
+
+------------------
+#### setSslCiphers
+
+The OpenSSL cipher list (in OpenSSL cipher-string format) offered during the TLS handshake.
+
+**Default**: `DEFAULT`
+
+------------------
+#### setSslValidateCert
+
+Whether the server requires and verifies a client certificate (mutual TLS). When enabled, provide the trust anchors via
+`setSslCaCert` so client certificates can be validated.
+
+**Default**: `false`
+
+------------------
+#### setSslAllowSelfSigned
+
+Whether a self-signed client certificate is accepted when `setSslValidateCert` is enabled. `null` leaves the underlying
+default (not allowed).
+
+**Default**: `(null)`
+
+------------------
+#### setSslCaCert
+
+Path to a CA certificate bundle used to verify client certificates when `setSslValidateCert` is enabled.
+
+**Default**: `(null)`
 
 ## Search Limits
 
