@@ -22,6 +22,8 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
+use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyService;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyComponentFactory;
@@ -49,6 +51,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
         private EventLogger $eventLogger,
         private RequestHistory $requestHistory,
         private ?PasswordPolicyContext $passwordPolicyContext = null,
+        private MetricsSnapshotProvider $metricsSnapshots = new InMemoryMetricsRecorder(),
     ) {}
 
     public function get(
@@ -64,6 +67,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
             HandlerId::UnsupportedExtended => new ServerProtocolHandler\ServerUnsupportedExtendedHandler($this->queue),
             HandlerId::RootDse => $this->getRootDseHandler(),
             HandlerId::Subschema => $this->getSubschemaHandler(),
+            HandlerId::Monitor => $this->getMonitorHandler(),
             HandlerId::Paging => $this->getPagingHandler(),
             HandlerId::Search => $this->getSearchHandler(),
             HandlerId::Unbind => new ServerProtocolHandler\ServerUnbindHandler($this->queue),
@@ -103,6 +107,15 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
         return new ServerProtocolHandler\ServerSubschemaHandler(
             options: $this->options,
             queue: $this->queue,
+        );
+    }
+
+    private function getMonitorHandler(): ServerProtocolHandler\ServerMonitorHandler
+    {
+        return new ServerProtocolHandler\ServerMonitorHandler(
+            options: $this->options,
+            queue: $this->queue,
+            snapshots: $this->metricsSnapshots,
         );
     }
 

@@ -29,6 +29,7 @@ enum HandlerId: string
     case UnsupportedExtended = 'unsupported_extended';
     case RootDse = 'root_dse';
     case Subschema = 'subschema';
+    case Monitor = 'monitor';
     case Paging = 'paging';
     case Search = 'search';
     case Unbind = 'unbind';

@@ -51,6 +51,21 @@ final class ServerProtocolHandlerFactoryTest extends TestCase
         );
     }
 
+    public function test_a_base_scope_monitor_search_routes_to_monitor_when_enabled(): void
+    {
+        $factory = new ServerProtocolHandlerFactory(
+            (new ServerOptions())->setMonitorEnabled(true),
+        );
+
+        self::assertSame(
+            HandlerId::Monitor,
+            $factory->routeIdFor(
+                Operations::read('cn=monitor'),
+                new ControlBag(),
+            ),
+        );
+    }
+
     /**
      * @return iterable<string, array{RequestInterface, ControlBag, HandlerId}>
      */
@@ -64,6 +79,7 @@ final class ServerProtocolHandlerFactoryTest extends TestCase
         yield 'unsupported extended' => [Operations::extended('1.2.3.4.5.6.7.8.9'), new ControlBag(), HandlerId::UnsupportedExtended];
         yield 'root dse' => [Operations::read(''), new ControlBag(), HandlerId::RootDse];
         yield 'subschema' => [Operations::read('cn=Subschema'), new ControlBag(), HandlerId::Subschema];
+        yield 'monitor disabled routes to search' => [Operations::read('cn=monitor'), new ControlBag(), HandlerId::Search];
         yield 'paging' => [Operations::list(new EqualityFilter('foo', 'bar'), 'cn=foo'), new ControlBag(new PagingControl(10)), HandlerId::Paging];
         yield 'search' => [Operations::list(new EqualityFilter('foo', 'bar'), 'cn=foo'), new ControlBag(), HandlerId::Search];
         yield 'unbind' => [Operations::unbind(), new ControlBag(), HandlerId::Unbind];

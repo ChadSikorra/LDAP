@@ -28,6 +28,8 @@ use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
+use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
+use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\TlsVersion;
@@ -89,6 +91,52 @@ final class ServerOptionsTest extends TestCase
         $this->subject->setMaxConnections(500);
 
         self::assertSame(500, $this->subject->getMaxConnections());
+    }
+
+    public function test_monitor_is_disabled_by_default(): void
+    {
+        self::assertFalse($this->subject->isMonitorEnabled());
+    }
+
+    public function test_it_can_enable_the_monitor(): void
+    {
+        $this->subject->setMonitorEnabled(true);
+
+        self::assertTrue($this->subject->isMonitorEnabled());
+    }
+
+    public function test_monitor_snapshot_path_is_null_by_default(): void
+    {
+        self::assertNull($this->subject->getMonitorSnapshotPath());
+    }
+
+    public function test_it_can_set_the_monitor_snapshot_path(): void
+    {
+        $this->subject->setMonitorSnapshotPath('/tmp/monitor.json');
+
+        self::assertSame(
+            '/tmp/monitor.json',
+            $this->subject->getMonitorSnapshotPath(),
+        );
+    }
+
+    public function test_the_metrics_recorder_defaults_to_a_no_op(): void
+    {
+        self::assertInstanceOf(
+            NullMetricsRecorder::class,
+            $this->subject->getMetricsRecorder(),
+        );
+    }
+
+    public function test_it_can_set_the_metrics_recorder(): void
+    {
+        $recorder = new InMemoryMetricsRecorder();
+        $this->subject->setMetricsRecorder($recorder);
+
+        self::assertSame(
+            $recorder,
+            $this->subject->getMetricsRecorder(),
+        );
     }
 
     public function test_shutdown_timeout_defaults_to_fifteen_seconds(): void

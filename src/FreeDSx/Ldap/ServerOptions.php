@@ -35,6 +35,8 @@ use FreeDSx\Ldap\Server\AccessControl\SimpleAccessControl;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Configuration\ConfigReloaderInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
+use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
+use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
@@ -185,6 +187,12 @@ final class ServerOptions
     private ?ServerRunnerInterface $serverRunner = null;
 
     private bool $useSwooleRunner = false;
+
+    private bool $monitorEnabled = false;
+
+    private ?string $monitorSnapshotPath = null;
+
+    private ?MetricsRecorderInterface $metricsRecorder = null;
 
     private int $maxConnections = 0;
 
@@ -777,6 +785,42 @@ final class ServerOptions
         return $this;
     }
 
+    public function isMonitorEnabled(): bool
+    {
+        return $this->monitorEnabled;
+    }
+
+    public function setMonitorEnabled(bool $monitorEnabled): self
+    {
+        $this->monitorEnabled = $monitorEnabled;
+
+        return $this;
+    }
+
+    public function getMonitorSnapshotPath(): ?string
+    {
+        return $this->monitorSnapshotPath;
+    }
+
+    public function setMonitorSnapshotPath(?string $monitorSnapshotPath): self
+    {
+        $this->monitorSnapshotPath = $monitorSnapshotPath;
+
+        return $this;
+    }
+
+    public function getMetricsRecorder(): MetricsRecorderInterface
+    {
+        return $this->metricsRecorder ??= new NullMetricsRecorder();
+    }
+
+    public function setMetricsRecorder(MetricsRecorderInterface $metricsRecorder): self
+    {
+        $this->metricsRecorder = $metricsRecorder;
+
+        return $this;
+    }
+
     /**
      * Maximum entries returned per search (default 1000). Zero means no server-side limit.
      */
@@ -891,7 +935,7 @@ final class ServerOptions
     }
 
     /**
-     * @return array{ip: string, port: int, unix_socket: string, transport: string, idle_timeout: int, require_authentication: bool, allow_anonymous: bool, backend: ?WritableLdapBackendInterface, rootdse_handler: ?RootDseHandlerInterface, logger: ?LoggerInterface, use_ssl: bool, ssl_cert: ?string, ssl_cert_key: ?string, ssl_cert_passphrase: ?string, min_tls_version: string, ssl_ciphers: string, ssl_validate_cert: bool, ssl_allow_self_signed: ?bool, ssl_ca_cert: ?string, dse_alt_server: ?string, dse_vendor_name: string, dse_vendor_version: ?string, sasl_mechanisms: string[]}
+     * @return array{ip: string, port: int, unix_socket: string, transport: string, idle_timeout: int, require_authentication: bool, allow_anonymous: bool, backend: ?WritableLdapBackendInterface, rootdse_handler: ?RootDseHandlerInterface, logger: ?LoggerInterface, use_ssl: bool, ssl_cert: ?string, ssl_cert_key: ?string, ssl_cert_passphrase: ?string, min_tls_version: string, ssl_ciphers: string, ssl_validate_cert: bool, ssl_allow_self_signed: ?bool, ssl_ca_cert: ?string, monitor_enabled: bool, monitor_snapshot_path: ?string, dse_alt_server: ?string, dse_vendor_name: string, dse_vendor_version: ?string, sasl_mechanisms: string[]}
      */
     public function toArray(): array
     {
@@ -915,6 +959,8 @@ final class ServerOptions
             'ssl_validate_cert' => $this->isSslValidateCert(),
             'ssl_allow_self_signed' => $this->getSslAllowSelfSigned(),
             'ssl_ca_cert' => $this->getSslCaCert(),
+            'monitor_enabled' => $this->isMonitorEnabled(),
+            'monitor_snapshot_path' => $this->getMonitorSnapshotPath(),
             'dse_alt_server' => $this->getDseAltServer(),
             'dse_vendor_name' => $this->getDseVendorName(),
             'dse_vendor_version' => $this->getDseVendorVersion(),

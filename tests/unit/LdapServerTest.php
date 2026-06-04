@@ -134,6 +134,8 @@ class LdapServerTest extends TestCase
                 'ssl_validate_cert' => false,
                 'ssl_allow_self_signed' => null,
                 'ssl_ca_cert' => null,
+                'monitor_enabled' => false,
+                'monitor_snapshot_path' => null,
                 'dse_alt_server' => null,
                 'dse_vendor_name' => 'FreeDSx',
                 'dse_vendor_version' => null,
