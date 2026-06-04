@@ -41,8 +41,13 @@ use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\OperationAuditor;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\AssertionEvaluator;
+use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
+use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
+use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
+use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\Server\Middleware\AssertionMiddleware;
 use FreeDSx\Ldap\Server\Middleware\AuthorizationResolutionMiddleware;
+use FreeDSx\Ldap\Server\Middleware\MetricsMiddleware;
 use FreeDSx\Ldap\Server\Middleware\BindMiddleware;
 use FreeDSx\Ldap\Server\Middleware\CriticalControlMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationAuditMiddleware;
@@ -73,6 +78,8 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
         private readonly PasswordHashService $hashService,
         private readonly WriteOperationDispatcher $writeDispatcher,
         private readonly PasswordPolicyComponentFactory $policyComponentFactory,
+        private readonly MetricsRecorderInterface $metricsRecorder = new NullMetricsRecorder(),
+        private readonly MetricsSnapshotProvider $metricsSnapshots = new InMemoryMetricsRecorder(),
     ) {}
 
     protected function serverOptions(): ServerOptions
@@ -167,12 +174,15 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
             eventLogger: $eventLogger,
             requestHistory: new RequestHistory(),
             passwordPolicyContext: $policyContext,
+            metricsSnapshots: $this->metricsSnapshots,
         );
 
         return new ServerProtocolHandler(
             queue: $serverQueue,
             requestPipeline: new MiddlewareChain(
                 [
+                    // First, so it times and records every message (including binds) regardless of outcome.
+                    new MetricsMiddleware($this->metricsRecorder),
                     // Order matters: AuthorizationResolutionMiddleware injects the token via withToken(), so
                     // every middleware after it may rely on tokenOrFail(). Keep token consumers below it.
                     new RequestValidationMiddleware(),

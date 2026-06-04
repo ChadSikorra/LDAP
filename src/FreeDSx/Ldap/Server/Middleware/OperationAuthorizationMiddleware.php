@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Server\Middleware;
 
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ControlBag;
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Operation\Request\CompareRequest;
@@ -25,6 +26,7 @@ use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Protocol\Factory\HandlerId;
 use FreeDSx\Ldap\Protocol\Factory\HandlerRouteResolverInterface;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
+use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerMonitorHandler;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\OperationTargetDn;
 use FreeDSx\Ldap\Operation\OperationType;
@@ -67,6 +69,12 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
             $this->authorizeSearch(
                 $context->message,
                 $context->tokenOrFail(),
+            );
+        } elseif ($routeId === HandlerId::Monitor) {
+            $this->accessControl->authorizeOperation(
+                OperationType::Search,
+                $context->tokenOrFail(),
+                new Dn(ServerMonitorHandler::DN),
             );
         } elseif ($routeId === HandlerId::Dispatch) {
             $this->authorizeDispatch(

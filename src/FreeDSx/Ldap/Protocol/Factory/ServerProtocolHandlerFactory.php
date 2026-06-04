@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\Request\UnbindRequest;
+use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerMonitorHandler;
 use FreeDSx\Ldap\ServerOptions;
 
 /**
@@ -44,6 +45,7 @@ readonly class ServerProtocolHandlerFactory implements HandlerRouteResolverInter
             $request instanceof ExtendedRequest => HandlerId::UnsupportedExtended,
             $this->isRootDseSearch($request) => HandlerId::RootDse,
             $this->isSubschemaSearch($request) => HandlerId::Subschema,
+            $this->isMonitorSearch($request) => HandlerId::Monitor,
             $this->isPagingSearch($request, $controls) => HandlerId::Paging,
             $request instanceof SearchRequest => HandlerId::Search,
             $request instanceof UnbindRequest => HandlerId::Unbind,
@@ -60,6 +62,16 @@ readonly class ServerProtocolHandlerFactory implements HandlerRouteResolverInter
 
         return $request->getScope() === SearchRequest::SCOPE_BASE_OBJECT
             && strtolower((string) $request->getBaseDn()) === strtolower($subschemaEntry);
+    }
+
+    private function isMonitorSearch(RequestInterface $request): bool
+    {
+        if (!$this->options->isMonitorEnabled() || !$request instanceof SearchRequest) {
+            return false;
+        }
+
+        return $request->getScope() === SearchRequest::SCOPE_BASE_OBJECT
+            && strtolower((string) $request->getBaseDn()) === ServerMonitorHandler::DN;
     }
 
     private function isRootDseSearch(RequestInterface $request): bool

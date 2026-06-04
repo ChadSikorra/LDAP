@@ -109,6 +109,45 @@ final class OperationAuthorizationMiddlewareTest extends TestCase
         );
     }
 
+    public function test_monitor_route_authorizes_a_search_against_the_monitor_dn(): void
+    {
+        $this->routeResolvesTo(HandlerId::Monitor);
+        $this->accessControl
+            ->expects(self::once())
+            ->method('authorizeOperation')
+            ->with(
+                OperationType::Search,
+                $this->token,
+                self::isInstanceOf(Dn::class),
+            );
+
+        $this->subject->process(
+            $this->contextFor((new SearchRequest(Filters::present('cn')))->base('cn=monitor')),
+            $this->next,
+        );
+
+        self::assertNotNull($this->next->received);
+    }
+
+    public function test_monitor_route_denial_blocks_dispatch(): void
+    {
+        $this->routeResolvesTo(HandlerId::Monitor);
+        $this->accessControl
+            ->method('authorizeOperation')
+            ->willThrowException($this->denied());
+
+        try {
+            $this->subject->process(
+                $this->contextFor((new SearchRequest(Filters::present('cn')))->base('cn=monitor')),
+                $this->next,
+            );
+            self::fail('Expected an OperationException.');
+        } catch (OperationException) {
+        }
+
+        self::assertNull($this->next->received);
+    }
+
     public function test_dispatch_route_authorizes_modify_dn_against_source_only(): void
     {
         $this->routeResolvesTo(HandlerId::Dispatch);

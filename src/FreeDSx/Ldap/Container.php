@@ -24,6 +24,12 @@ use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Server\Clock\ClockInterface;
 use FreeDSx\Ldap\Server\Clock\SystemClock;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
+use FreeDSx\Ldap\Server\Metrics\File\FileSnapshotProvider;
+use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
+use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
+use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
+use FreeDSx\Ldap\Server\Metrics\Recorder\MetricsRecorderChain;
+use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\AllowUserChangeConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\HistoryConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\MinAgeConstraint;
@@ -212,6 +218,64 @@ class Container
             className: PasswordPolicyComponentFactory::class,
             factory: $this->makePasswordPolicyComponentFactory(...),
         );
+        $this->registerFactory(
+            className: InMemoryMetricsRecorder::class,
+            factory: static fn(): InMemoryMetricsRecorder => new InMemoryMetricsRecorder(),
+        );
+        $this->registerFactory(
+            className: MetricsRecorderInterface::class,
+            factory: $this->makeMetricsRecorder(...),
+        );
+        $this->registerFactory(
+            className: MetricsSnapshotProvider::class,
+            factory: $this->makeMetricsSnapshotProvider(...),
+        );
+    }
+
+    /**
+     * The process metrics recorder: an in-memory recorder when cn=monitor is enabled (chained with a user recorder if
+     * set), otherwise just the user recorder (a no-op by default).
+     */
+    private function makeMetricsRecorder(): MetricsRecorderInterface
+    {
+        $options = $this->get(ServerOptions::class);
+        $userRecorder = $options->getMetricsRecorder();
+
+        if (!$options->isMonitorEnabled()) {
+            return $userRecorder;
+        }
+
+        $inMemory = $this->get(InMemoryMetricsRecorder::class);
+
+        if ($userRecorder instanceof NullMetricsRecorder) {
+            return $inMemory;
+        }
+
+        return new MetricsRecorderChain(
+            $inMemory,
+            $userRecorder,
+        );
+    }
+
+    /**
+     * The snapshot source for cn=monitor: the live in-memory recorder under Swoole, or the parent-published file under
+     * the forking PCNTL runner.
+     */
+    private function makeMetricsSnapshotProvider(): MetricsSnapshotProvider
+    {
+        $options = $this->get(ServerOptions::class);
+
+        if (!$options->getUseSwooleRunner()) {
+            return new FileSnapshotProvider($this->monitorSnapshotPath($options));
+        }
+
+        return $this->get(InMemoryMetricsRecorder::class);
+    }
+
+    private function monitorSnapshotPath(ServerOptions $options): string
+    {
+        return $options->getMonitorSnapshotPath()
+            ?? sys_get_temp_dir() . '/freedsx_ldap_monitor_' . $options->getPort() . '.json';
     }
 
     private function makePasswordPolicyEngine(): PasswordPolicyEngine
@@ -292,6 +356,8 @@ class Container
             hashService: $this->get(PasswordHashService::class),
             writeDispatcher: $this->get(WriteOperationDispatcher::class),
             policyComponentFactory: $this->get(PasswordPolicyComponentFactory::class),
+            metricsRecorder: $this->get(MetricsRecorderInterface::class),
+            metricsSnapshots: $this->get(MetricsSnapshotProvider::class),
         );
     }
 
@@ -380,8 +446,23 @@ class Container
             ? $this->get(ProxyOptions::class)
             : null;
 
-        return static function (ServerOptions $options) use ($proxyOptions): ServerProtocolFactoryInterface {
-            $instances = [ServerOptions::class => $options];
+        // Share the metrics state across reloads so SIGHUP does not reset the counters or detach cn=monitor.
+        $metricsRecorder = $this->get(MetricsRecorderInterface::class);
+        $metricsSnapshots = $this->get(MetricsSnapshotProvider::class);
+        $inMemoryMetrics = $this->get(InMemoryMetricsRecorder::class);
+
+        return static function (ServerOptions $options) use (
+            $proxyOptions,
+            $metricsRecorder,
+            $metricsSnapshots,
+            $inMemoryMetrics,
+        ): ServerProtocolFactoryInterface {
+            $instances = [
+                ServerOptions::class => $options,
+                MetricsRecorderInterface::class => $metricsRecorder,
+                MetricsSnapshotProvider::class => $metricsSnapshots,
+                InMemoryMetricsRecorder::class => $inMemoryMetrics,
+            ];
 
             if ($proxyOptions !== null) {
                 $instances[ProxyOptions::class] = $proxyOptions;

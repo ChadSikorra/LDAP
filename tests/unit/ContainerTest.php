@@ -22,6 +22,12 @@ use FreeDSx\Ldap\Protocol\Queue\ClientQueueInstantiator;
 use FreeDSx\Ldap\Protocol\RootDseLoader;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
+use FreeDSx\Ldap\Server\Metrics\File\FileSnapshotProvider;
+use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
+use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
+use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
+use FreeDSx\Ldap\Server\Metrics\Recorder\MetricsRecorderChain;
+use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\Server\ServerProtocolFactory;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use FreeDSx\Ldap\Server\SocketServerFactory;
@@ -64,6 +70,9 @@ class ContainerTest extends TestCase
             [HandlerFactoryInterface::class],
             [ServerAuthorization::class],
             [SocketServerFactory::class],
+            [MetricsRecorderInterface::class],
+            [MetricsSnapshotProvider::class],
+            [InMemoryMetricsRecorder::class],
         ];
     }
 
@@ -90,5 +99,66 @@ class ContainerTest extends TestCase
             ServerRunnerInterface::class,
             $this->subject->get(ServerRunnerInterface::class),
         );
+    }
+
+    public function test_the_metrics_recorder_is_a_no_op_when_monitor_is_disabled(): void
+    {
+        self::assertInstanceOf(
+            NullMetricsRecorder::class,
+            $this->subject->get(MetricsRecorderInterface::class),
+        );
+    }
+
+    public function test_the_metrics_recorder_is_in_memory_when_monitor_is_enabled(): void
+    {
+        $container = $this->containerFor((new ServerOptions())->setMonitorEnabled(true));
+
+        self::assertInstanceOf(
+            InMemoryMetricsRecorder::class,
+            $container->get(MetricsRecorderInterface::class),
+        );
+    }
+
+    public function test_the_metrics_recorder_chains_a_user_recorder_when_one_is_set(): void
+    {
+        $container = $this->containerFor(
+            (new ServerOptions())
+                ->setMonitorEnabled(true)
+                ->setMetricsRecorder(new InMemoryMetricsRecorder()),
+        );
+
+        self::assertInstanceOf(
+            MetricsRecorderChain::class,
+            $container->get(MetricsRecorderInterface::class),
+        );
+    }
+
+    public function test_the_snapshot_provider_is_the_live_recorder_under_swoole(): void
+    {
+        $container = $this->containerFor(
+            (new ServerOptions())
+                ->setMonitorEnabled(true)
+                ->setUseSwooleRunner(true),
+        );
+
+        self::assertSame(
+            $container->get(MetricsRecorderInterface::class),
+            $container->get(MetricsSnapshotProvider::class),
+        );
+    }
+
+    public function test_the_snapshot_provider_is_file_based_under_pcntl(): void
+    {
+        $container = $this->containerFor((new ServerOptions())->setMonitorEnabled(true));
+
+        self::assertInstanceOf(
+            FileSnapshotProvider::class,
+            $container->get(MetricsSnapshotProvider::class),
+        );
+    }
+
+    private function containerFor(ServerOptions $options): Container
+    {
+        return new Container([ServerOptions::class => $options]);
     }
 }
