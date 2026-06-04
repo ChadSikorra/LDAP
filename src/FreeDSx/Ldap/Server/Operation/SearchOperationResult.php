@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Operation;
 
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Server\Logging\OperationAuditor;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
@@ -57,6 +58,11 @@ final readonly class SearchOperationResult implements AuditableResult
         return $this->failure === null
             ? OperationOutcome::Succeeded
             : OperationOutcome::Failed;
+    }
+
+    public function resultCode(): int
+    {
+        return $this->failure?->getCode() ?? ResultCode::SUCCESS;
     }
 
     public function record(

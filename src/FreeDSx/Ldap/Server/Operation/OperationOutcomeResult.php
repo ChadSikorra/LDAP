@@ -13,28 +13,44 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Operation;
 
+use FreeDSx\Ldap\Operation\ResultCode;
+
 /**
- * A result conveying only its outcome, with no further detail to carry.
+ * A result conveying only its outcome and result code, with no further detail to carry.
  *
  * @internal
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final readonly class OperationOutcomeResult implements OperationResult
 {
-    private function __construct(private OperationOutcome $outcome) {}
+    private function __construct(
+        private OperationOutcome $outcome,
+        private int $resultCode,
+    ) {}
 
     public static function succeeded(): self
     {
-        return new self(OperationOutcome::Succeeded);
+        return new self(
+            OperationOutcome::Succeeded,
+            ResultCode::SUCCESS,
+        );
     }
 
-    public static function failed(): self
+    public static function failed(int $resultCode = ResultCode::OPERATIONS_ERROR): self
     {
-        return new self(OperationOutcome::Failed);
+        return new self(
+            OperationOutcome::Failed,
+            $resultCode,
+        );
     }
 
     public function outcome(): OperationOutcome
     {
         return $this->outcome;
+    }
+
+    public function resultCode(): int
+    {
+        return $this->resultCode;
     }
 }

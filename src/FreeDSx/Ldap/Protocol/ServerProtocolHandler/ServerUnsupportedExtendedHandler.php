@@ -65,6 +65,6 @@ final readonly class ServerUnsupportedExtendedHandler implements ServerProtocolH
             ),
         ));
 
-        return OperationOutcomeResult::failed();
+        return OperationOutcomeResult::failed(ResultCode::PROTOCOL_ERROR);
     }
 }

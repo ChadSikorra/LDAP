@@ -46,6 +46,6 @@ readonly class ServerCancelHandler implements ServerProtocolHandlerInterface
             new ExtendedResponse(new LdapResult(ResultCode::NO_SUCH_OPERATION)),
         ));
 
-        return OperationOutcomeResult::failed();
+        return OperationOutcomeResult::failed(ResultCode::NO_SUCH_OPERATION);
     }
 }

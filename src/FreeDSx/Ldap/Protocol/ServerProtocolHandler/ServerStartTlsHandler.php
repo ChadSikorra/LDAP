@@ -79,7 +79,7 @@ class ServerStartTlsHandler implements ServerProtocolHandlerInterface
                 message: $message,
             );
 
-            return OperationOutcomeResult::failed();
+            return OperationOutcomeResult::failed(ResultCode::UNAVAILABLE);
         }
         # If we are already encrypted, then consider this an operations error...
         if ($this->queue->isEncrypted()) {
@@ -96,7 +96,7 @@ class ServerStartTlsHandler implements ServerProtocolHandlerInterface
                 message: $message,
             );
 
-            return OperationOutcomeResult::failed();
+            return OperationOutcomeResult::failed(ResultCode::OPERATIONS_ERROR);
         }
 
         $this->queue->sendMessage(new LdapMessageResponse($message->getMessageId(), new ExtendedResponse(

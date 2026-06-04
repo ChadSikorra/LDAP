@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Metrics\Observation;
 
+use FreeDSx\Ldap\Operation\OperationType;
+
 /**
  * A single observed operation, with its low-cardinality metric dimensions.
  *
@@ -21,11 +23,10 @@ namespace FreeDSx\Ldap\Server\Metrics\Observation;
 final readonly class OperationObservation
 {
     /**
-     * @param string $operation The operation label (matches the audit log's operation values).
      * @param int $resultCode The LDAP result code the operation produced.
      */
     public function __construct(
-        public string $operation,
+        public OperationType $operation,
         public bool $succeeded,
         public float $durationSeconds,
         public int $resultCode,

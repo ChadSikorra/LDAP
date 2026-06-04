@@ -80,7 +80,7 @@ final readonly class ProxyRequestForwarder implements MiddlewareHandlerInterface
                 $e->getMatchedDn(),
             ));
 
-            return OperationOutcomeResult::failed();
+            return OperationOutcomeResult::failed($e->getCode());
         }
 
         if ($request instanceof SearchRequest) {

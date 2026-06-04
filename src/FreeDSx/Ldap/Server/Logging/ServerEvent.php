@@ -15,7 +15,7 @@ namespace FreeDSx\Ldap\Server\Logging;
 
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Ldap\Server\AccessControl\OperationType;
+use FreeDSx\Ldap\Operation\OperationType;
 use Psr\Log\LogLevel;
 
 /**

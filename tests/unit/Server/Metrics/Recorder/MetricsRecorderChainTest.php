@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Server\Metrics\Recorder;
 
+use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
@@ -43,7 +44,7 @@ final class MetricsRecorderChainTest extends TestCase
         $this->subject->serverStarted(1_000);
         $this->subject->connectionObserved(ConnectionObservation::Opened);
         $this->subject->operationObserved(new OperationObservation(
-            'bind',
+            OperationType::Bind,
             true,
             0.1,
             ResultCode::SUCCESS,

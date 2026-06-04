@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Operation;
 
+use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Server\Logging\OperationAuditor;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
@@ -43,6 +44,13 @@ final readonly class CompareOperationResult implements AuditableResult
     public function outcome(): OperationOutcome
     {
         return OperationOutcome::Succeeded;
+    }
+
+    public function resultCode(): int
+    {
+        return $this->match
+            ? ResultCode::COMPARE_TRUE
+            : ResultCode::COMPARE_FALSE;
     }
 
     public function record(
