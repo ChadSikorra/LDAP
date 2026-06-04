@@ -19,6 +19,10 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Server\ChildProcess;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
+use FreeDSx\Ldap\Server\Metrics\File\SnapshotPublisher;
+use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
+use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
+use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\Server\ServerProtocolFactoryInterface;
 use FreeDSx\Ldap\Server\SocketServerFactory;
 use FreeDSx\Socket\Socket;
@@ -70,6 +74,8 @@ class PcntlServerRunner implements ServerRunnerInterface
         ServerOptions $options,
         private readonly SocketServerFactory $socketServerFactory,
         Closure $protocolFactoryProvider,
+        private readonly MetricsRecorderInterface $metricsRecorder = new NullMetricsRecorder(),
+        private readonly ?SnapshotPublisher $snapshotPublisher = null,
     ) {
         if (!extension_loaded('pcntl')) {
             throw new RuntimeException(
@@ -136,6 +142,7 @@ class PcntlServerRunner implements ServerRunnerInterface
                 $socket = $childProcess->getSocket();
                 $this->server->removeClient($socket);
                 $socket->close();
+                $this->metricsRecorder->connectionObserved(ConnectionObservation::Closed);
                 $this->logInfo(
                     'The child process has ended.',
                     array_merge(
@@ -145,6 +152,13 @@ class PcntlServerRunner implements ServerRunnerInterface
                 );
             }
         }
+
+        $this->publishMetricsSnapshot();
+    }
+
+    private function publishMetricsSnapshot(): void
+    {
+        $this->snapshotPublisher?->publish();
     }
 
     /**
@@ -155,6 +169,8 @@ class PcntlServerRunner implements ServerRunnerInterface
     {
         $this->installServerSignalHandlers();
         $this->logServerStarted($this->defaultContext);
+        $this->metricsRecorder->serverStarted(time());
+        $this->publishMetricsSnapshot();
         $this->options->getOnServerReady()?->__invoke();
 
         do {
@@ -179,6 +195,8 @@ class PcntlServerRunner implements ServerRunnerInterface
             $maxConnections = $this->options->getMaxConnections();
             if ($maxConnections > 0 && count($this->childProcesses) >= $maxConnections) {
                 $this->logConnectionLimitReached($this->defaultContext);
+                $this->metricsRecorder->connectionObserved(ConnectionObservation::Rejected);
+                $this->publishMetricsSnapshot();
 
                 $this->server->removeClient($socket);
                 $socket->close();
@@ -267,7 +285,9 @@ class PcntlServerRunner implements ServerRunnerInterface
         pcntl_signal(
             SIGHUP,
             function () {
+                $this->metricsRecorder->serverReloaded(time());
                 $this->reloadConfiguration($this->defaultContext);
+                $this->publishMetricsSnapshot();
             },
         );
     }
@@ -318,6 +338,7 @@ class PcntlServerRunner implements ServerRunnerInterface
         }
 
         $this->server->close();
+        $this->snapshotPublisher?->remove();
         $this->logShutdownCompleted($this->defaultContext);
     }
 
@@ -410,6 +431,7 @@ class PcntlServerRunner implements ServerRunnerInterface
             $pid,
             $socket,
         );
+        $this->metricsRecorder->connectionObserved(ConnectionObservation::Opened);
         $this->logClientConnected(
             array_merge(
                 ['child_pid' => $pid],

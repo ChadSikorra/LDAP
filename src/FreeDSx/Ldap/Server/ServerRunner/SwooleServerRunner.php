@@ -16,6 +16,9 @@ namespace FreeDSx\Ldap\Server\ServerRunner;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
+use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
+use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
+use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\Server\ServerProtocolFactoryInterface;
 use FreeDSx\Ldap\Server\SocketServerFactory;
 use FreeDSx\Ldap\ServerOptions;
@@ -79,6 +82,7 @@ class SwooleServerRunner implements ServerRunnerInterface
         ServerOptions $options,
         private readonly SocketServerFactory $socketServerFactory,
         Closure $protocolFactoryProvider,
+        private readonly MetricsRecorderInterface $metricsRecorder = new NullMetricsRecorder(),
     ) {
         if (!extension_loaded('swoole')) {
             throw new RuntimeException(
@@ -125,6 +129,7 @@ class SwooleServerRunner implements ServerRunnerInterface
 
     private function handleReloadSignal(int $signal): void
     {
+        $this->metricsRecorder->serverReloaded(time());
         $this->reloadConfiguration(['signal' => $signal]);
     }
 
@@ -175,6 +180,7 @@ class SwooleServerRunner implements ServerRunnerInterface
     private function acceptClients(): void
     {
         $this->logServerStarted();
+        $this->metricsRecorder->serverStarted(time());
         $this->options->getOnServerReady()?->__invoke();
 
         while (!$this->isShuttingDown) {
@@ -193,6 +199,7 @@ class SwooleServerRunner implements ServerRunnerInterface
             $maxConnections = $this->options->getMaxConnections();
             if ($maxConnections > 0 && count($this->activeSockets) >= $maxConnections) {
                 $this->logConnectionLimitReached(['max_connections' => $maxConnections]);
+                $this->metricsRecorder->connectionObserved(ConnectionObservation::Rejected);
                 $socket->close();
                 continue;
             }
@@ -201,12 +208,14 @@ class SwooleServerRunner implements ServerRunnerInterface
             Coroutine::create(function () use ($socket): void {
                 $socketId = spl_object_id($socket);
                 $this->activeSockets[$socketId] = $socket;
+                $this->metricsRecorder->connectionObserved(ConnectionObservation::Opened);
                 try {
                     $this->handleClient($socket, $socketId);
                 } finally {
                     $this->server->removeClient($socket);
                     unset($this->activeSockets[$socketId]);
                     unset($this->activeHandlers[$socketId]);
+                    $this->metricsRecorder->connectionObserved(ConnectionObservation::Closed);
                     $this->waitGroup->done();
                 }
             });
