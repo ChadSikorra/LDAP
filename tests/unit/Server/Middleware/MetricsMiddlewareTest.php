@@ -1,0 +1,125 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * This file is part of the FreeDSx LDAP package.
+ *
+ * (c) Chad Sikorra <Chad.Sikorra@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Tests\Unit\FreeDSx\Ldap\Server\Middleware;
+
+use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\Request\RequestInterface;
+use FreeDSx\Ldap\Operation\Request\SearchRequest;
+use FreeDSx\Ldap\Operation\Request\SimpleBindRequest;
+use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Protocol\LdapMessageRequest;
+use FreeDSx\Ldap\Search\Filters;
+use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
+use FreeDSx\Ldap\Server\Middleware\MetricsMiddleware;
+use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
+use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
+use PHPUnit\Framework\TestCase;
+use Tests\Support\FreeDSx\Ldap\Middleware\StubMiddlewareHandler;
+use Tests\Support\FreeDSx\Ldap\Middleware\ThrowingMiddlewareHandler;
+
+final class MetricsMiddlewareTest extends TestCase
+{
+    private InMemoryMetricsRecorder $recorder;
+
+    private MetricsMiddleware $subject;
+
+    protected function setUp(): void
+    {
+        $this->recorder = new InMemoryMetricsRecorder();
+        $this->subject = new MetricsMiddleware($this->recorder);
+    }
+
+    public function test_it_records_a_successful_operation(): void
+    {
+        $this->subject->process(
+            $this->contextFor(new SearchRequest(Filters::present('objectClass'))),
+            new StubMiddlewareHandler(OperationOutcomeResult::succeeded()),
+        );
+
+        $operations = $this->recorder->snapshot()->operations;
+
+        self::assertSame(
+            ['search' => 1],
+            $operations->counts,
+        );
+        self::assertSame(
+            [],
+            $operations->errors,
+        );
+        self::assertSame(
+            [ResultCode::SUCCESS => 1],
+            $operations->resultCodeCounts,
+        );
+    }
+
+    public function test_it_records_a_returned_failure_with_its_result_code(): void
+    {
+        $this->subject->process(
+            $this->contextFor(new SearchRequest(Filters::present('objectClass'))),
+            new StubMiddlewareHandler(OperationOutcomeResult::failed(ResultCode::NO_SUCH_OBJECT)),
+        );
+
+        $operations = $this->recorder->snapshot()->operations;
+
+        self::assertSame(
+            ['search' => 1],
+            $operations->errors,
+        );
+        self::assertSame(
+            [ResultCode::NO_SUCH_OBJECT => 1],
+            $operations->resultCodeCounts,
+        );
+    }
+
+    public function test_a_thrown_operation_exception_is_recorded_and_rethrown(): void
+    {
+        $caught = null;
+
+        try {
+            $this->subject->process(
+                $this->contextFor(new SimpleBindRequest('cn=user,dc=foo,dc=bar', 'secret')),
+                new ThrowingMiddlewareHandler(new OperationException(
+                    'Denied.',
+                    ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+                )),
+            );
+        } catch (OperationException $e) {
+            $caught = $e;
+        }
+
+        self::assertInstanceOf(
+            OperationException::class,
+            $caught,
+        );
+
+        $operations = $this->recorder->snapshot()->operations;
+
+        self::assertSame(
+            ['bind' => 1],
+            $operations->errors,
+        );
+        self::assertSame(
+            [ResultCode::INSUFFICIENT_ACCESS_RIGHTS => 1],
+            $operations->resultCodeCounts,
+        );
+    }
+
+    private function contextFor(RequestInterface $request): ServerRequestContext
+    {
+        return new ServerRequestContext(new LdapMessageRequest(
+            1,
+            $request,
+        ));
+    }
+}

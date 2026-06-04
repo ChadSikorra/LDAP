@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Operation;
 
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
 use FreeDSx\Ldap\Server\Logging\OperationAuditor;
@@ -60,6 +61,11 @@ final readonly class WriteOperationResult implements AuditableResult
         return $this->failure === null
             ? OperationOutcome::Succeeded
             : OperationOutcome::Failed;
+    }
+
+    public function resultCode(): int
+    {
+        return $this->failure?->getCode() ?? ResultCode::SUCCESS;
     }
 
     public function record(

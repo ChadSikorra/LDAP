@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Server\Metrics\Recorder;
 
+use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
@@ -31,13 +32,13 @@ final class InMemoryMetricsRecorderTest extends TestCase
     public function test_it_records_operations_with_counts_errors_and_durations(): void
     {
         $this->subject->operationObserved(new OperationObservation(
-            'search',
+            OperationType::Search,
             true,
             0.5,
             ResultCode::SUCCESS,
         ));
         $this->subject->operationObserved(new OperationObservation(
-            'search',
+            OperationType::Search,
             false,
             0.25,
             ResultCode::NO_SUCH_OBJECT,

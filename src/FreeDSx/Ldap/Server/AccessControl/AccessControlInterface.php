@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Server\AccessControl;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**

@@ -22,4 +22,9 @@ namespace FreeDSx\Ldap\Server\Operation;
 interface OperationResult
 {
     public function outcome(): OperationOutcome;
+
+    /**
+     * The LDAP result code the operation produced (e.g. for metrics).
+     */
+    public function resultCode(): int;
 }

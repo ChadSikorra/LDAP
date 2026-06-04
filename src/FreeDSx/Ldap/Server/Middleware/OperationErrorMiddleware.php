@@ -65,7 +65,7 @@ final readonly class OperationErrorMiddleware implements MiddlewareInterface
                 ),
             ));
 
-            return OperationOutcomeResult::failed();
+            return OperationOutcomeResult::failed($e->getCode());
         }
     }
 }

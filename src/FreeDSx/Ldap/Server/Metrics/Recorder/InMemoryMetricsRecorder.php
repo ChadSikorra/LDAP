@@ -87,7 +87,7 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
 
     public function operationObserved(OperationObservation $observation): void
     {
-        $operation = $observation->operation;
+        $operation = $observation->operation->value;
         $this->operationCounts[$operation] = ($this->operationCounts[$operation] ?? 0) + 1;
         $this->operationDurationSeconds[$operation] = ($this->operationDurationSeconds[$operation] ?? 0.0)
             + $observation->durationSeconds;
