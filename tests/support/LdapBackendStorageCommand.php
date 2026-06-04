@@ -90,6 +90,12 @@ final class LdapBackendStorageCommand extends Command
                 null,
                 InputOption::VALUE_NONE,
                 'Grant cn=user the Proxied Authorization control for identities under ou=people',
+            )
+            ->addOption(
+                'monitor',
+                null,
+                InputOption::VALUE_NONE,
+                'Enable the cn=monitor entry',
             );
     }
 
@@ -188,6 +194,7 @@ final class LdapBackendStorageCommand extends Command
             ->setTransport($transport)
             ->setSocketAcceptTimeout(0.1)
             ->setSchemaValidationMode($validationMode)
+            ->setMonitorEnabled((bool) $input->getOption('monitor'))
             ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL));
 
         if ($input->getOption('allow-relax')) {

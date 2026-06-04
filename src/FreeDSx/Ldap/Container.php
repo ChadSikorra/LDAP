@@ -25,6 +25,8 @@ use FreeDSx\Ldap\Server\Clock\ClockInterface;
 use FreeDSx\Ldap\Server\Clock\SystemClock;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Metrics\File\FileSnapshotProvider;
+use FreeDSx\Ldap\Server\Metrics\File\FileSnapshotWriter;
+use FreeDSx\Ldap\Server\Metrics\File\SnapshotPublisher;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
 use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
@@ -417,6 +419,7 @@ class Container
     {
         $options = $this->get(ServerOptions::class);
         $protocolFactoryProvider = $this->makeProtocolFactoryProvider();
+        $metricsRecorder = $this->get(MetricsRecorderInterface::class);
 
         if ($options->getUseSwooleRunner()) {
             return new SwooleServerRunner(
@@ -424,6 +427,7 @@ class Container
                 options: $options,
                 socketServerFactory: $this->get(SocketServerFactory::class),
                 protocolFactoryProvider: $protocolFactoryProvider,
+                metricsRecorder: $metricsRecorder,
             );
         }
 
@@ -432,6 +436,26 @@ class Container
             options: $options,
             socketServerFactory: $this->get(SocketServerFactory::class),
             protocolFactoryProvider: $protocolFactoryProvider,
+            metricsRecorder: $metricsRecorder,
+            snapshotPublisher: $this->makeSnapshotPublisher(),
+        );
+    }
+
+    /**
+     * The PCNTL parent publishes connection metrics to a file for forked children (serving cn=monitor) to read; built
+     * only when cn=monitor is enabled.
+     */
+    private function makeSnapshotPublisher(): ?SnapshotPublisher
+    {
+        $options = $this->get(ServerOptions::class);
+
+        if (!$options->isMonitorEnabled()) {
+            return null;
+        }
+
+        return new SnapshotPublisher(
+            $this->get(InMemoryMetricsRecorder::class),
+            new FileSnapshotWriter($this->monitorSnapshotPath($options)),
         );
     }
 
