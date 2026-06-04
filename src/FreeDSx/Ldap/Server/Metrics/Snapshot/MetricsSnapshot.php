@@ -1,0 +1,76 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * This file is part of the FreeDSx LDAP package.
+ *
+ * (c) Chad Sikorra <Chad.Sikorra@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace FreeDSx\Ldap\Server\Metrics\Snapshot;
+
+/**
+ * An immutable point-in-time view of the collected server metrics, grouped by area.
+ *
+ * @author Chad Sikorra <Chad.Sikorra@gmail.com>
+ */
+final readonly class MetricsSnapshot
+{
+    public function __construct(
+        public LifecycleMetrics $lifecycle = new LifecycleMetrics(),
+        public ConnectionMetrics $connections = new ConnectionMetrics(),
+        public OperationMetrics $operations = new OperationMetrics(),
+    ) {}
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return [
+            'lifecycle' => $this->lifecycle->toArray(),
+            'connections' => $this->connections->toArray(),
+            'operations' => $this->operations->toArray(),
+        ];
+    }
+
+    /**
+     * @param array<array-key, mixed> $data
+     */
+    public static function fromArray(array $data): self
+    {
+        return new self(
+            lifecycle: LifecycleMetrics::fromArray(self::section(
+                $data,
+                'lifecycle',
+            )),
+            connections: ConnectionMetrics::fromArray(self::section(
+                $data,
+                'connections',
+            )),
+            operations: OperationMetrics::fromArray(self::section(
+                $data,
+                'operations',
+            )),
+        );
+    }
+
+    /**
+     * @param array<array-key, mixed> $data
+     * @return array<array-key, mixed>
+     */
+    private static function section(
+        array $data,
+        string $key,
+    ): array {
+        $section = $data[$key] ?? [];
+
+        return is_array($section)
+            ? $section
+            : [];
+    }
+}
