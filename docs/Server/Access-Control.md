@@ -21,8 +21,9 @@ Access control operates at three levels:
 - **Attribute level**: Checked for each attribute involved in Compare, Add, and Modify operations. Also applied to
   each Search result entry: disallowed attributes are stripped before the entry is sent; if the entry itself is
   denied at operation level, it is suppressed entirely from results (not sent to the client).
-- **Control level**: Checked for *privileged* request controls (currently the Relax Rules control). The control is
-  inert unless an explicit grant permits the bound identity to use it. See [Control Rules](#control-rules).
+- **Control level**: Checked for *privileged* request controls (Relax Rules by default; configurable via
+  `ServerOptions::setPrivilegedControls()`). The control is inert unless an explicit grant permits the bound identity to
+  use it. See [Control Rules](#control-rules).
 
 Rules are bundled in an `AclRules` object configured via `ServerOptions::setAclRules()`. See
 [Configuration](Configuration.md).
@@ -208,6 +209,10 @@ rule grants it. `SimpleAccessControl` denies all controls, so this requires `Rul
 The gated controls are:
 
 * Relax Rules control** (`Control::OID_RELAX_RULES`). With it, an authorized client (see [Schema Validation](Schema.md#validation-mode)).
+
+This set defaults to the Relax Rules control and is configurable with `ServerOptions::setPrivilegedControls()`. For
+example, add `Control::OID_SUBTREE_DELETE` to gate the Tree-Delete control the same way. See
+[Configuration](Configuration.md#setprivilegedcontrols).
 
 ```php
 use FreeDSx\Ldap\Control\Control;
