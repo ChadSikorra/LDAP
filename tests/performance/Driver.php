@@ -37,8 +37,13 @@ final class Driver
         private readonly Config $config,
     ) {}
 
-    public function run(OutputInterface $output): StatsSnapshot
-    {
+    /**
+     * @param (callable(): void)|null $afterRun Invoked once the run completes but before the server is torn down.
+     */
+    public function run(
+        OutputInterface $output,
+        ?callable $afterRun = null,
+    ): StatsSnapshot {
         $this->assertSwooleAvailable();
 
         if ($this->config->rngSeed !== null) {
@@ -67,10 +72,16 @@ final class Driver
         $progress->writeln($this->describeRunStart());
 
         try {
-            return $this->runCoroutinePool(
+            $snapshot = $this->runCoroutinePool(
                 $mix,
                 $stats,
             );
+            // While the server is still up, let the caller read cn=monitor for an apples-to-apples cross-check.
+            if ($afterRun !== null) {
+                $afterRun();
+            }
+
+            return $snapshot;
         } finally {
             $serverManager?->stop();
         }
