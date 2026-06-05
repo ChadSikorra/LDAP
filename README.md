@@ -33,6 +33,7 @@ It supports encryption of the LDAP connection through TLS via the OpenSSL extens
   * [General Usage](/docs/Server/General-Usage.md)
   * [Schema](/docs/Server/Schema.md)
   * [Logging](/docs/Server/Logging.md)
+  * [Monitoring](/docs/Server/Monitoring.md)
   * [Access Control](/docs/Server/Access-Control.md)
   * [Password Policy](/docs/Server/Password-Policy.md)
 
