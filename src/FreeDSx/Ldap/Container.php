@@ -233,6 +233,12 @@ class Container
             className: MetricsSnapshotProvider::class,
             factory: $this->makeMetricsSnapshotProvider(...),
         );
+        $this->registerFactory(
+            className: OperationRollupCoordinator::class,
+            factory: fn(): OperationRollupCoordinator => new OperationRollupCoordinator(
+                $this->get(InMemoryMetricsRecorder::class),
+            ),
+        );
     }
 
     /**
@@ -361,6 +367,7 @@ class Container
             policyComponentFactory: $this->get(PasswordPolicyComponentFactory::class),
             metricsRecorder: $this->get(MetricsRecorderInterface::class),
             metricsSnapshots: $this->get(MetricsSnapshotProvider::class),
+            operationRollup: $this->makeOperationRollup(),
         );
     }
 
@@ -453,7 +460,7 @@ class Container
             return null;
         }
 
-        return new OperationRollupCoordinator($this->get(InMemoryMetricsRecorder::class));
+        return $this->get(OperationRollupCoordinator::class);
     }
 
     /**
@@ -485,16 +492,19 @@ class Container
             ? $this->get(ProxyOptions::class)
             : null;
 
-        // Share the metrics state across reloads so SIGHUP does not reset the counters or detach cn=monitor.
+        // Share the metrics state across reloads so SIGHUP does not reset the counters or detach cn=monitor. The rollup
+        // coordinator is shared so a reloaded middleware streams to the same channel the (persistent) runner bound.
         $metricsRecorder = $this->get(MetricsRecorderInterface::class);
         $metricsSnapshots = $this->get(MetricsSnapshotProvider::class);
         $inMemoryMetrics = $this->get(InMemoryMetricsRecorder::class);
+        $operationRollup = $this->makeOperationRollup();
 
         return static function (ServerOptions $options) use (
             $proxyOptions,
             $metricsRecorder,
             $metricsSnapshots,
             $inMemoryMetrics,
+            $operationRollup,
         ): ServerProtocolFactoryInterface {
             $instances = [
                 ServerOptions::class => $options,
@@ -505,6 +515,10 @@ class Container
 
             if ($proxyOptions !== null) {
                 $instances[ProxyOptions::class] = $proxyOptions;
+            }
+
+            if ($operationRollup !== null) {
+                $instances[OperationRollupCoordinator::class] = $operationRollup;
             }
 
             return (new Container($instances))->get(ServerProtocolFactoryInterface::class);

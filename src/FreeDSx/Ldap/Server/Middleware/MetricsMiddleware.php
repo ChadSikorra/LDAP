@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
+use FreeDSx\Ldap\Server\Metrics\Rollup\OperationRollupCoordinator;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
@@ -33,8 +34,13 @@ use function microtime;
  */
 final readonly class MetricsMiddleware implements MiddlewareInterface
 {
+    /**
+     * @param OperationRollupCoordinator|null $rollup Streams each op to the parent so cn=monitor stays fresh on
+     *                                                long-lived connections (null under Swoole and when monitor is off).
+     */
     public function __construct(
         private MetricsRecorderInterface $recorder,
+        private ?OperationRollupCoordinator $rollup = null,
     ) {}
 
     public function process(
@@ -79,5 +85,6 @@ final readonly class MetricsMiddleware implements MiddlewareInterface
             $durationSeconds,
             $resultCode,
         ));
+        $this->rollup?->flush();
     }
 }

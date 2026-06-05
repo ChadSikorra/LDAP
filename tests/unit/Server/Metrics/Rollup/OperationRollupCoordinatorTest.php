@@ -38,9 +38,10 @@ final class OperationRollupCoordinatorTest extends TestCase
         $this->parent = new OperationRollupCoordinator($this->parentRecorder);
     }
 
-    public function test_a_child_delta_is_reported_and_collected_into_the_parent(): void
+    public function test_a_flushed_delta_is_collected_into_the_parent(): void
     {
         $channel = $this->child->openChannel();
+        $this->child->enterChild($channel);
 
         $this->childRecorder->operationObserved(new OperationObservation(
             OperationType::Search,
@@ -48,8 +49,7 @@ final class OperationRollupCoordinatorTest extends TestCase
             0.5,
             ResultCode::SUCCESS,
         ));
-
-        $this->child->reportChild($channel);
+        $this->child->flush();
         $this->parent->collect($channel);
 
         self::assertSame(
@@ -58,7 +58,29 @@ final class OperationRollupCoordinatorTest extends TestCase
         );
     }
 
-    public function test_starting_a_child_clears_inherited_operations_before_it_reports(): void
+    public function test_incremental_flushes_accumulate_in_the_parent(): void
+    {
+        $channel = $this->child->openChannel();
+        $this->child->enterChild($channel);
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->childRecorder->operationObserved(new OperationObservation(
+                OperationType::Search,
+                true,
+                0.1,
+                ResultCode::SUCCESS,
+            ));
+            $this->child->flush();
+            $this->parent->collect($channel);
+        }
+
+        self::assertSame(
+            ['search' => 3],
+            $this->parentRecorder->snapshot()->operations->counts,
+        );
+    }
+
+    public function test_entering_a_child_clears_operations_inherited_from_the_parent(): void
     {
         $channel = $this->child->openChannel();
 
@@ -68,13 +90,37 @@ final class OperationRollupCoordinatorTest extends TestCase
             0.5,
             ResultCode::SUCCESS,
         ));
-        $this->child->startChild();
-        $this->child->reportChild($channel);
+        $this->child->enterChild($channel);
+        $this->child->flush();
         $this->parent->collect($channel);
 
         self::assertSame(
             [],
             $this->parentRecorder->snapshot()->operations->counts,
+        );
+    }
+
+    public function test_finishing_flushes_remaining_operations_and_signals_eof(): void
+    {
+        $channel = $this->child->openChannel();
+        $this->child->enterChild($channel);
+
+        $this->childRecorder->operationObserved(new OperationObservation(
+            OperationType::Bind,
+            true,
+            0.1,
+            ResultCode::SUCCESS,
+        ));
+        $this->child->finish();
+        $this->parent->collect($channel);
+
+        self::assertSame(
+            ['bind' => 1],
+            $this->parentRecorder->snapshot()->operations->counts,
+        );
+        self::assertSame(
+            [],
+            $channel->receive(),
         );
     }
 }
