@@ -45,6 +45,7 @@ use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
 use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
 use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
+use FreeDSx\Ldap\Server\Metrics\Rollup\OperationRollupCoordinator;
 use FreeDSx\Ldap\Server\Middleware\AssertionMiddleware;
 use FreeDSx\Ldap\Server\Middleware\AuthorizationResolutionMiddleware;
 use FreeDSx\Ldap\Server\Middleware\MetricsMiddleware;
@@ -80,6 +81,7 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
         private readonly PasswordPolicyComponentFactory $policyComponentFactory,
         private readonly MetricsRecorderInterface $metricsRecorder = new NullMetricsRecorder(),
         private readonly MetricsSnapshotProvider $metricsSnapshots = new InMemoryMetricsRecorder(),
+        private readonly ?OperationRollupCoordinator $operationRollup = null,
     ) {}
 
     protected function serverOptions(): ServerOptions
@@ -182,7 +184,10 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
             requestPipeline: new MiddlewareChain(
                 [
                     // First, so it times and records every message (including binds) regardless of outcome.
-                    new MetricsMiddleware($this->metricsRecorder),
+                    new MetricsMiddleware(
+                        $this->metricsRecorder,
+                        $this->operationRollup,
+                    ),
                     // Order matters: AuthorizationResolutionMiddleware injects the token via withToken(), so
                     // every middleware after it may rely on tokenOrFail(). Keep token consumers below it.
                     new RequestValidationMiddleware(),

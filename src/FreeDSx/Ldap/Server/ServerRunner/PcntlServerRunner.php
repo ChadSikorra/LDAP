@@ -154,7 +154,12 @@ class PcntlServerRunner implements ServerRunnerInterface
                         ['child_pid' => $childProcess->getPid()],
                     ),
                 );
+
+                continue;
             }
+
+            // update cn=monitor with fresh stats.
+            $this->collectOperationDelta($childProcess);
         }
 
         $this->publishMetricsSnapshot();
@@ -166,9 +171,9 @@ class PcntlServerRunner implements ServerRunnerInterface
     }
 
     /**
-     * Fold a reaped child's final operation metrics into the parent totals, then close its channel.
+     * Fold the operation deltas available on a live child's channel into the parent totals.
      */
-    private function drainOperationDelta(ChildProcess $childProcess): void
+    private function collectOperationDelta(ChildProcess $childProcess): void
     {
         $channel = $childProcess->getChannel();
 
@@ -177,7 +182,15 @@ class PcntlServerRunner implements ServerRunnerInterface
         }
 
         $this->operationRollup->collect($channel);
-        $channel->close();
+    }
+
+    /**
+     * Fold a reaped child's final operation metrics into the parent totals, then close its channel.
+     */
+    private function drainOperationDelta(ChildProcess $childProcess): void
+    {
+        $this->collectOperationDelta($childProcess);
+        $childProcess->getChannel()?->close();
     }
 
     /**
@@ -412,7 +425,9 @@ class PcntlServerRunner implements ServerRunnerInterface
         $this->server->close(shutdown: false);
         $this->closeInheritedChannels();
         $channel?->childKeepWrite();
-        $this->operationRollup?->startChild();
+        if ($channel !== null) {
+            $this->operationRollup?->enterChild($channel);
+        }
 
         $context = ['pid' => $pid];
         $this->isMainProcess = false;
@@ -440,7 +455,7 @@ class PcntlServerRunner implements ServerRunnerInterface
         try {
             $serverProtocolHandler->handle();
         } finally {
-            $this->flushOperationDelta($channel);
+            $this->operationRollup?->finish();
         }
 
         $this->logInfo(
@@ -459,18 +474,6 @@ class PcntlServerRunner implements ServerRunnerInterface
         foreach ($this->childProcesses as $childProcess) {
             $childProcess->getChannel()?->close();
         }
-    }
-
-    /**
-     * Report this child's operation metrics to the parent, then close the write end so the parent reads EOF.
-     */
-    private function flushOperationDelta(?ChildChannel $channel): void
-    {
-        if ($channel === null || $this->operationRollup === null) {
-            return;
-        }
-
-        $this->operationRollup->reportChild($channel);
     }
 
     private function makeChildChannel(): ?ChildChannel

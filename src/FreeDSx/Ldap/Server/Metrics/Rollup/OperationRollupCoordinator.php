@@ -21,11 +21,13 @@ use FreeDSx\Ldap\Server\Process\ChildChannel;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final readonly class OperationRollupCoordinator
+final class OperationRollupCoordinator
 {
+    private ?ChildChannel $boundChannel = null;
+
     public function __construct(
-        private OperationRollupInterface $recorder,
-        private ChannelMessageFactory $messageFactory = new OperationDeltaMessageFactory(),
+        private readonly OperationRollupInterface $recorder,
+        private readonly ChannelMessageFactory $messageFactory = new OperationDeltaMessageFactory(),
     ) {}
 
     public function openChannel(): ChildChannel
@@ -34,24 +36,33 @@ final readonly class OperationRollupCoordinator
     }
 
     /**
-     * Clear the operations inherited from the parent so a fresh child reports only its own.
+     * In the child: clear operations inherited from the parent and bind the channel this child reports on.
      */
-    public function startChild(): void
+    public function enterChild(ChildChannel $channel): void
     {
         $this->recorder->resetOperations();
+        $this->boundChannel = $channel;
     }
 
     /**
-     * Send this child's operation delta to the parent, then close the write end so the parent reads EOF.
+     * In the child: report the operations recorded since the last flush.
      */
-    public function reportChild(ChildChannel $channel): void
+    public function flush(): void
     {
-        $channel->send(new OperationDeltaMessage($this->recorder->takeOperationDelta()));
-        $channel->closeWrite();
+        $this->boundChannel?->send(new OperationDeltaMessage($this->recorder->takeOperationDelta()));
     }
 
     /**
-     * Fold any operation deltas a reaped child reported into the parent totals.
+     * In the child: send a final flush, then close the write end so the parent reads EOF.
+     */
+    public function finish(): void
+    {
+        $this->flush();
+        $this->boundChannel?->closeWrite();
+    }
+
+    /**
+     * In the parent: fold any operation deltas available on a child's channel into the totals.
      */
     public function collect(ChildChannel $channel): void
     {

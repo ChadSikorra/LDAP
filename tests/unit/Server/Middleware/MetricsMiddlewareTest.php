@@ -21,6 +21,7 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
+use FreeDSx\Ldap\Server\Metrics\Rollup\OperationRollupCoordinator;
 use FreeDSx\Ldap\Server\Middleware\MetricsMiddleware;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
@@ -112,6 +113,30 @@ final class MetricsMiddlewareTest extends TestCase
         self::assertSame(
             [ResultCode::INSUFFICIENT_ACCESS_RIGHTS => 1],
             $operations->resultCodeCounts,
+        );
+    }
+
+    public function test_it_streams_each_recorded_operation_to_the_rollup_coordinator(): void
+    {
+        $coordinator = new OperationRollupCoordinator($this->recorder);
+        $channel = $coordinator->openChannel();
+        $coordinator->enterChild($channel);
+        $subject = new MetricsMiddleware(
+            $this->recorder,
+            $coordinator,
+        );
+
+        $subject->process(
+            $this->contextFor(new SearchRequest(Filters::present('objectClass'))),
+            new StubMiddlewareHandler(OperationOutcomeResult::succeeded()),
+        );
+
+        $parentRecorder = new InMemoryMetricsRecorder();
+        (new OperationRollupCoordinator($parentRecorder))->collect($channel);
+
+        self::assertSame(
+            ['search' => 1],
+            $parentRecorder->snapshot()->operations->counts,
         );
     }
 
