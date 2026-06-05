@@ -569,6 +569,34 @@ The maximum number of entries the server will return per page in a paged search.
 
 **Default**: `1000`
 
+## Monitoring
+
+Opt-in observability. See [Server Monitoring](Monitoring.md) for the full guide, the `cn=monitor` attributes, and the
+push-exporter contract.
+
+------------------
+#### setMonitorEnabled
+
+Whether to serve the server-generated `cn=monitor` entry. When off, the route is not registered.
+
+**Default**: `false`
+
+------------------
+#### setMonitorSnapshotPath
+
+PCNTL only. Path to the JSON file the parent publishes for `cn=monitor` to read. When unset, a path under the system temp
+directory keyed by listen port is used. Set this to avoid collisions when running several instances on one host.
+
+**Default**: `null`
+
+------------------
+#### setMetricsRecorder
+
+An out-of-band `MetricsRecorderInterface` sink (Prometheus, StatsD, logs) notified of every operation and connection
+event. Independent of `cn=monitor`; either or both can be enabled.
+
+**Default**: a no-op recorder
+
 ## SASL Options
 
 ------------------
