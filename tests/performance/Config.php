@@ -86,6 +86,7 @@ final class Config
         public readonly string $writeBase = self::DEFAULT_WRITE_BASE,
         public readonly bool $jit = true,
         public readonly int $searchSubSizeLimit = self::DEFAULT_SEARCH_SUB_SIZE_LIMIT,
+        public readonly bool $monitor = false,
     ) {
         $this->assertEnum('backend', $backend, self::BACKENDS);
         $this->assertEnum('runner', $runner, self::RUNNERS);

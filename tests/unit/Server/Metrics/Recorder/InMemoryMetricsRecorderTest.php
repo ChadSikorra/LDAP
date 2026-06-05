@@ -18,6 +18,7 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
 use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
+use FreeDSx\Ldap\Server\Metrics\Snapshot\OperationMetrics;
 use PHPUnit\Framework\TestCase;
 
 final class InMemoryMetricsRecorderTest extends TestCase
@@ -115,6 +116,90 @@ final class InMemoryMetricsRecorderTest extends TestCase
         self::assertSame(
             1,
             $connections->idleTimeouts,
+        );
+    }
+
+    public function test_taking_the_operation_delta_returns_the_metrics_and_resets_them(): void
+    {
+        $this->subject->operationObserved(new OperationObservation(
+            OperationType::Search,
+            true,
+            0.5,
+            ResultCode::SUCCESS,
+        ));
+
+        $delta = $this->subject->takeOperationDelta();
+
+        self::assertSame(
+            ['search' => 1],
+            $delta->counts,
+        );
+        self::assertSame(
+            [ResultCode::SUCCESS => 1],
+            $delta->resultCodeCounts,
+        );
+        self::assertSame(
+            [],
+            $this->subject->takeOperationDelta()->counts,
+        );
+    }
+
+    public function test_resetting_operations_clears_the_accumulators_but_keeps_connections(): void
+    {
+        $this->subject->operationObserved(new OperationObservation(
+            OperationType::Search,
+            true,
+            0.5,
+            ResultCode::SUCCESS,
+        ));
+        $this->subject->connectionObserved(ConnectionObservation::Opened);
+
+        $this->subject->resetOperations();
+
+        $snapshot = $this->subject->snapshot();
+        self::assertSame(
+            [],
+            $snapshot->operations->counts,
+        );
+        self::assertSame(
+            1,
+            $snapshot->connections->active,
+        );
+    }
+
+    public function test_merging_an_operation_delta_sums_into_the_totals(): void
+    {
+        $this->subject->operationObserved(new OperationObservation(
+            OperationType::Search,
+            true,
+            0.5,
+            ResultCode::SUCCESS,
+        ));
+
+        $this->subject->mergeOperations(new OperationMetrics(
+            counts: ['search' => 2, 'bind' => 1],
+            errors: ['search' => 1],
+            durationSeconds: ['search' => 0.25],
+            resultCodeCounts: [ResultCode::SUCCESS => 2],
+        ));
+
+        $operations = $this->subject->snapshot()->operations;
+
+        self::assertSame(
+            ['search' => 3, 'bind' => 1],
+            $operations->counts,
+        );
+        self::assertSame(
+            ['search' => 1],
+            $operations->errors,
+        );
+        self::assertSame(
+            ['search' => 0.75],
+            $operations->durationSeconds,
+        );
+        self::assertSame(
+            [ResultCode::SUCCESS => 3],
+            $operations->resultCodeCounts,
         );
     }
 

@@ -193,7 +193,13 @@ final class LoadTestCommand extends Command
                 'no-jit',
                 null,
                 InputOption::VALUE_NONE,
-                'Disable opcache + tracing JIT on the spawned FreeDSx server (default: enabled).',
+                'Disable opcache + tracing JIT on the spawned FreeDSx server (default: enabled for swoole, off for pcntl).',
+            )
+            ->addOption(
+                'monitor',
+                null,
+                InputOption::VALUE_NONE,
+                'Enable cn=monitor (and the PCNTL operation rollup) on the spawned server to measure its overhead.',
             )
             ->addOption(
                 'search-sub-size-limit',
@@ -293,8 +299,11 @@ final class LoadTestCommand extends Command
             bindPassword: $this->requireString($input, 'bind-password'),
             baseDn: $this->requireString($input, 'base-dn'),
             writeBase: $this->requireString($input, 'write-base'),
-            jit: !(bool) $input->getOption('no-jit'),
+            // The spawned server defaults JIT off for pcntl (tracing JIT can crash forked workers under load)
+            // Swoole keeps it. --no-jit forces it off either way.
+            jit: !(bool) $input->getOption('no-jit') && $runner !== 'pcntl',
             searchSubSizeLimit: $this->requireInt($input, 'search-sub-size-limit'),
+            monitor: (bool) $input->getOption('monitor'),
         );
     }
 

@@ -59,6 +59,10 @@ final class ServerManager
         $command[] = '--port=' . $this->config->port;
         $command[] = '--seed-entries=' . $this->config->seedEntries;
 
+        if ($this->config->monitor) {
+            $command[] = '--monitor';
+        }
+
         $this->process = new Process($command);
 
         $this->process->start();
@@ -89,8 +93,8 @@ final class ServerManager
     }
 
     /**
-     * Avoids Symfony Process::stop()'s SIGTERM/wait/SIGKILL dance, which segfaults under
-     * tracing JIT when stopping a pcntl-runner backend.
+     * Avoids Symfony Process::stop()'s SIGTERM/wait/SIGKILL dance, which has been observed to segfault a pcntl-runner
+     * backend under tracing JIT (the JIT instability is load-related; stopping is just where it tended to surface).
      */
     private function signalAndReap(int $pid): void
     {

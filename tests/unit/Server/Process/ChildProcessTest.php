@@ -11,12 +11,14 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Tests\Unit\FreeDSx\Ldap\Server;
+namespace Tests\Unit\FreeDSx\Ldap\Server\Process;
 
-use FreeDSx\Ldap\Server\ChildProcess;
+use FreeDSx\Ldap\Server\Process\ChildChannel;
+use FreeDSx\Ldap\Server\Process\ChildProcess;
 use FreeDSx\Socket\Socket;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\FreeDSx\Ldap\Server\Process\FakeChannelMessageFactory;
 
 final class ChildProcessTest extends TestCase
 {
@@ -57,5 +59,26 @@ final class ChildProcessTest extends TestCase
             ->method('close');
 
         $this->subject->closeSocket();
+    }
+
+    public function test_the_channel_is_null_by_default(): void
+    {
+        self::assertNull($this->subject->getChannel());
+    }
+
+    public function test_it_should_get_the_channel_when_present(): void
+    {
+        $channel = ChildChannel::create(new FakeChannelMessageFactory());
+
+        $subject = new ChildProcess(
+            9002,
+            $this->mockSocket,
+            $channel,
+        );
+
+        self::assertSame(
+            $channel,
+            $subject->getChannel(),
+        );
     }
 }

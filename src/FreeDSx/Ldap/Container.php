@@ -32,6 +32,7 @@ use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
 use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
 use FreeDSx\Ldap\Server\Metrics\Recorder\MetricsRecorderChain;
 use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
+use FreeDSx\Ldap\Server\Metrics\Rollup\OperationRollupCoordinator;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\AllowUserChangeConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\HistoryConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\MinAgeConstraint;
@@ -438,7 +439,21 @@ class Container
             protocolFactoryProvider: $protocolFactoryProvider,
             metricsRecorder: $metricsRecorder,
             snapshotPublisher: $this->makeSnapshotPublisher(),
+            operationRollup: $this->makeOperationRollup(),
         );
+    }
+
+    /**
+     * The child-to-parent operation rollup for the forking runner, over the shared in-memory recorder; built only when
+     * cn=monitor is enabled.
+     */
+    private function makeOperationRollup(): ?OperationRollupCoordinator
+    {
+        if (!$this->get(ServerOptions::class)->isMonitorEnabled()) {
+            return null;
+        }
+
+        return new OperationRollupCoordinator($this->get(InMemoryMetricsRecorder::class));
     }
 
     /**

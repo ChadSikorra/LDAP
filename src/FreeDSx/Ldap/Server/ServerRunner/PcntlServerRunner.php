@@ -16,13 +16,15 @@ namespace FreeDSx\Ldap\Server\ServerRunner;
 use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
-use FreeDSx\Ldap\Server\ChildProcess;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Metrics\File\SnapshotPublisher;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
+use FreeDSx\Ldap\Server\Metrics\Rollup\OperationRollupCoordinator;
+use FreeDSx\Ldap\Server\Process\ChildChannel;
+use FreeDSx\Ldap\Server\Process\ChildProcess;
 use FreeDSx\Ldap\Server\ServerProtocolFactoryInterface;
 use FreeDSx\Ldap\Server\SocketServerFactory;
 use FreeDSx\Socket\Socket;
@@ -76,6 +78,7 @@ class PcntlServerRunner implements ServerRunnerInterface
         Closure $protocolFactoryProvider,
         private readonly MetricsRecorderInterface $metricsRecorder = new NullMetricsRecorder(),
         private readonly ?SnapshotPublisher $snapshotPublisher = null,
+        private readonly ?OperationRollupCoordinator $operationRollup = null,
     ) {
         if (!extension_loaded('pcntl')) {
             throw new RuntimeException(
@@ -139,6 +142,7 @@ class PcntlServerRunner implements ServerRunnerInterface
 
             if ($result === -1 || $result > 0) {
                 unset($this->childProcesses[$index]);
+                $this->drainOperationDelta($childProcess);
                 $socket = $childProcess->getSocket();
                 $this->server->removeClient($socket);
                 $socket->close();
@@ -159,6 +163,21 @@ class PcntlServerRunner implements ServerRunnerInterface
     private function publishMetricsSnapshot(): void
     {
         $this->snapshotPublisher?->publish();
+    }
+
+    /**
+     * Fold a reaped child's final operation metrics into the parent totals, then close its channel.
+     */
+    private function drainOperationDelta(ChildProcess $childProcess): void
+    {
+        $channel = $childProcess->getChannel();
+
+        if ($channel === null || $this->operationRollup === null) {
+            return;
+        }
+
+        $this->operationRollup->collect($channel);
+        $channel->close();
     }
 
     /**
@@ -204,9 +223,12 @@ class PcntlServerRunner implements ServerRunnerInterface
                 continue;
             }
 
+            $channel = $this->makeChildChannel();
+
             $pid = pcntl_fork();
             if ($pid == -1) {
                 // In parent process, but could not fork...
+                $channel?->close();
                 $this->logAndThrow(
                     'Unable to fork process.',
                     $this->defaultContext,
@@ -216,12 +238,14 @@ class PcntlServerRunner implements ServerRunnerInterface
                 $this->runChildProcessThenExit(
                     $socket,
                     posix_getpid(),
+                    $channel,
                 );
             } else {
                 // We are in the parent; the PID is the child process.
                 $this->runAfterChildStarted(
                     $pid,
                     $socket,
+                    $channel,
                 );
             }
             // Use the shutdown flag, not the socket state (not reliable after forking)
@@ -382,9 +406,13 @@ class PcntlServerRunner implements ServerRunnerInterface
     private function runChildProcessThenExit(
         Socket $socket,
         int $pid,
+        ?ChildChannel $channel,
     ): never {
         // Cleanup the child's inherited FD copy without shutting down the parent accept loop.
         $this->server->close(shutdown: false);
+        $this->closeInheritedChannels();
+        $channel?->childKeepWrite();
+        $this->operationRollup?->startChild();
 
         $context = ['pid' => $pid];
         $this->isMainProcess = false;
@@ -408,13 +436,62 @@ class PcntlServerRunner implements ServerRunnerInterface
             'Handling LDAP connection in new child process.',
             $context,
         );
-        $serverProtocolHandler->handle();
+
+        try {
+            $serverProtocolHandler->handle();
+        } finally {
+            $this->flushOperationDelta($channel);
+        }
+
         $this->logInfo(
             'The child process is ending.',
             $context,
         );
 
         exit(0);
+    }
+
+    /**
+     * Close the parent's channel read ends inherited by this fork so they do not leak in the child.
+     */
+    private function closeInheritedChannels(): void
+    {
+        foreach ($this->childProcesses as $childProcess) {
+            $childProcess->getChannel()?->close();
+        }
+    }
+
+    /**
+     * Report this child's operation metrics to the parent, then close the write end so the parent reads EOF.
+     */
+    private function flushOperationDelta(?ChildChannel $channel): void
+    {
+        if ($channel === null || $this->operationRollup === null) {
+            return;
+        }
+
+        $this->operationRollup->reportChild($channel);
+    }
+
+    private function makeChildChannel(): ?ChildChannel
+    {
+        if ($this->operationRollup === null) {
+            return null;
+        }
+
+        try {
+            return $this->operationRollup->openChannel();
+        } catch (RuntimeException $e) {
+            $this->logInfo(
+                'Unable to create a child metrics channel; continuing without operation rollup.',
+                array_merge(
+                    $this->defaultContext,
+                    ['error' => $e->getMessage()],
+                ),
+            );
+
+            return null;
+        }
     }
 
     /**
@@ -426,10 +503,13 @@ class PcntlServerRunner implements ServerRunnerInterface
     private function runAfterChildStarted(
         int $pid,
         Socket $socket,
+        ?ChildChannel $channel,
     ): void {
+        $channel?->parentKeepRead();
         $this->childProcesses[] = new ChildProcess(
             $pid,
             $socket,
+            $channel,
         );
         $this->metricsRecorder->connectionObserved(ConnectionObservation::Opened);
         $this->logClientConnected(
