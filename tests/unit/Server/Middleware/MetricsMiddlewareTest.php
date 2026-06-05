@@ -118,6 +118,10 @@ final class MetricsMiddlewareTest extends TestCase
 
     public function test_it_streams_each_recorded_operation_to_the_rollup_coordinator(): void
     {
+        if (str_starts_with(strtoupper(PHP_OS), 'WIN')) {
+            self::markTestSkipped('The rollup uses a UNIX socket pair, unavailable on Windows; it is Linux/PCNTL-only.');
+        }
+
         $coordinator = new OperationRollupCoordinator($this->recorder);
         $channel = $coordinator->openChannel();
         $coordinator->enterChild($channel);
