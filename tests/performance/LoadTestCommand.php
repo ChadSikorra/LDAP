@@ -13,6 +13,10 @@ declare(strict_types=1);
 
 namespace Tests\Performance\FreeDSx\Ldap;
 
+use FreeDSx\Ldap\ClientOptions;
+use FreeDSx\Ldap\LdapClient;
+use FreeDSx\Ldap\Operations;
+use FreeDSx\Ldap\Search\Filters;
 use InvalidArgumentException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -199,7 +203,7 @@ final class LoadTestCommand extends Command
                 'monitor',
                 null,
                 InputOption::VALUE_NONE,
-                'Enable cn=monitor (and the PCNTL operation rollup) on the spawned server to measure its overhead.',
+                'Enable cn=monitor on the spawned server and print its counters after the run for cross-checking.',
             )
             ->addOption(
                 'search-sub-size-limit',
@@ -227,8 +231,18 @@ final class LoadTestCommand extends Command
             return Command::INVALID;
         }
 
+        $monitorEntry = null;
+        $afterRun = $config->monitor
+            ? function () use ($config, &$monitorEntry, $errorOutput): void {
+                $monitorEntry = $this->readMonitorEntry($config, $errorOutput);
+            }
+        : null;
+
         try {
-            $snapshot = (new Driver($config))->run($output);
+            $snapshot = (new Driver($config))->run(
+                $output,
+                $afterRun,
+            );
         } catch (Throwable $e) {
             $errorOutput->writeln('<error>Load test failed: ' . $e->getMessage() . '</error>');
 
@@ -237,6 +251,13 @@ final class LoadTestCommand extends Command
 
         $mix = new WorkloadMix($config->mix);
         (new Report($config, $mix, $snapshot))->render($output);
+
+        if ($monitorEntry !== null) {
+            $this->renderMonitorEntry(
+                $output,
+                $monitorEntry,
+            );
+        }
 
         if ($thresholds->isEmpty()) {
             return Command::SUCCESS;
@@ -262,6 +283,84 @@ final class LoadTestCommand extends Command
         );
 
         return Command::FAILURE;
+    }
+
+    /**
+     * Read the cn=monitor entry from the still-running server for cross-checking against the load-test totals.
+     *
+     * @return array<string, list<string>>|null
+     */
+    private function readMonitorEntry(
+        Config $config,
+        OutputInterface $errorOutput,
+    ): ?array {
+        // Let the forking parent reap the just-closed worker connections and fold their final deltas first.
+        usleep(500_000);
+
+        try {
+            $client = new LdapClient(
+                (new ClientOptions())
+                    ->setServers([$config->host])
+                    ->setPort($config->port),
+            );
+            $client->bind(
+                $config->bindDn,
+                $config->bindPassword,
+            );
+            $entries = $client->search(
+                Operations::search(Filters::present('objectClass'))
+                    ->base('cn=monitor')
+                    ->useBaseScope(),
+            );
+            $client->unbind();
+        } catch (Throwable $e) {
+            $errorOutput->writeln('<comment>Could not read cn=monitor: ' . $e->getMessage() . '</comment>');
+
+            return null;
+        }
+
+        foreach ($entries as $entry) {
+            $values = [];
+            foreach ($entry->getAttributes() as $attribute) {
+                $values[$attribute->getName()] = array_values($attribute->getValues());
+            }
+
+            return $values;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, list<string>> $entry
+     */
+    private function renderMonitorEntry(
+        OutputInterface $output,
+        array $entry,
+    ): void {
+        $output->writeln('');
+        $output->writeln(
+            'cn=monitor (monotonic since start; includes warmup, per-connection binds/unbinds, and this query):',
+        );
+
+        $attributes = [
+            'connectionsTotal',
+            'connectionsActive',
+            'operationsCompleted',
+            'operationsFailed',
+            'operationsByType',
+        ];
+        foreach ($attributes as $name) {
+            if (!isset($entry[$name])) {
+                continue;
+            }
+
+            $output->writeln(sprintf(
+                '  %s: %s',
+                $name,
+                implode(', ', $entry[$name]),
+            ));
+        }
     }
 
     private function buildConfig(InputInterface $input): Config
