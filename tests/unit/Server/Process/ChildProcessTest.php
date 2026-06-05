@@ -68,6 +68,10 @@ final class ChildProcessTest extends TestCase
 
     public function test_it_should_get_the_channel_when_present(): void
     {
+        if (str_starts_with(strtoupper(PHP_OS), 'WIN')) {
+            self::markTestSkipped('UNIX socket pairs are unavailable on Windows; the channel is Linux/PCNTL-only.');
+        }
+
         $channel = ChildChannel::create(new FakeChannelMessageFactory());
 
         $subject = new ChildProcess(

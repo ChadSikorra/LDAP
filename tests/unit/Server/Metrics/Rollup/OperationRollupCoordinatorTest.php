@@ -32,6 +32,10 @@ final class OperationRollupCoordinatorTest extends TestCase
 
     protected function setUp(): void
     {
+        if (str_starts_with(strtoupper(PHP_OS), 'WIN')) {
+            self::markTestSkipped('The rollup uses a UNIX socket pair, unavailable on Windows; it is Linux/PCNTL-only.');
+        }
+
         $this->childRecorder = new InMemoryMetricsRecorder();
         $this->parentRecorder = new InMemoryMetricsRecorder();
         $this->child = new OperationRollupCoordinator($this->childRecorder);

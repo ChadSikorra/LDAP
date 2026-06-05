@@ -24,6 +24,10 @@ final class ChildChannelTest extends TestCase
 
     protected function setUp(): void
     {
+        if (str_starts_with(strtoupper(PHP_OS), 'WIN')) {
+            self::markTestSkipped('UNIX socket pairs are unavailable on Windows; the channel is Linux/PCNTL-only.');
+        }
+
         $this->subject = ChildChannel::create(new FakeChannelMessageFactory());
     }
 
