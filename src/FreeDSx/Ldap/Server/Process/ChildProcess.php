@@ -11,23 +11,17 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace FreeDSx\Ldap\Server;
+namespace FreeDSx\Ldap\Server\Process;
 
 use FreeDSx\Socket\Socket;
 
-class ChildProcess
+readonly class ChildProcess
 {
-    private int $pid;
-
-    private Socket $socket;
-
     public function __construct(
-        int $pid,
-        Socket $socket,
-    ) {
-        $this->pid = $pid;
-        $this->socket = $socket;
-    }
+        private int $pid,
+        private Socket $socket,
+        private ?ChildChannel $channel = null,
+    ) {}
 
     public function getPid(): int
     {
@@ -37,6 +31,11 @@ class ChildProcess
     public function getSocket(): Socket
     {
         return $this->socket;
+    }
+
+    public function getChannel(): ?ChildChannel
+    {
+        return $this->channel;
     }
 
     public function closeSocket(): void

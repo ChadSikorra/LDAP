@@ -35,6 +35,13 @@ General LDAP Server Usage
 The LdapServer class runs an LDAP server process that accepts client requests and sends back responses. It defaults to
 using a forking method (PCNTL) for handling client connections, which is only available on Linux.
 
+> **⚠️ PCNTL runner and the JIT**
+>
+> Under the PCNTL runner with high server load, PHP's JIT has been observed to cause instability in forked workers
+> (tracing JIT crashing, function JIT failing to serve). This appears related to current upstream JIT instability rather
+> than a FreeDSx issue. If you hit it, try running with `opcache.jit=off`. The single-process Swoole runner has not shown
+> this.
+
 The server has no built-in entry persistence. You provide a backend that implements the storage logic for your use
 case. Authentication is a separate, independently configurable concern. See [Providing a Backend](#providing-a-backend)
 and [Authentication](#authentication) for details.

@@ -1,0 +1,20 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Support\FreeDSx\Ldap\Server\Process;
+
+use FreeDSx\Ldap\Server\Process\ChannelMessage;
+use FreeDSx\Ldap\Server\Process\ChannelMessageFactory;
+
+final class FakeChannelMessageFactory implements ChannelMessageFactory
+{
+    /**
+     * @param array<array-key, mixed> $data
+     */
+    public function fromArray(array $data): ChannelMessage
+    {
+        /** @var array<string, mixed> $data */
+        return new FakeChannelMessage($data);
+    }
+}

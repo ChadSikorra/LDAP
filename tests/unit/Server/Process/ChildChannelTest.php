@@ -1,0 +1,104 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * This file is part of the FreeDSx LDAP package.
+ *
+ * (c) Chad Sikorra <Chad.Sikorra@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Tests\Unit\FreeDSx\Ldap\Server\Process;
+
+use FreeDSx\Ldap\Server\Process\ChildChannel;
+use PHPUnit\Framework\TestCase;
+use Tests\Support\FreeDSx\Ldap\Server\Process\FakeChannelMessage;
+use Tests\Support\FreeDSx\Ldap\Server\Process\FakeChannelMessageFactory;
+
+final class ChildChannelTest extends TestCase
+{
+    private ChildChannel $subject;
+
+    protected function setUp(): void
+    {
+        $this->subject = ChildChannel::create(new FakeChannelMessageFactory());
+    }
+
+    public function test_a_sent_message_is_received_round_trip(): void
+    {
+        $this->subject->send(new FakeChannelMessage(['op' => 'search', 'n' => 2]));
+
+        $received = $this->subject->receive();
+
+        self::assertCount(
+            1,
+            $received,
+        );
+        self::assertSame(
+            ['op' => 'search', 'n' => 2],
+            $received[0]->toArray(),
+        );
+    }
+
+    public function test_multiple_messages_are_received_in_order(): void
+    {
+        $this->subject->send(new FakeChannelMessage(['seq' => 1]));
+        $this->subject->send(new FakeChannelMessage(['seq' => 2]));
+        $this->subject->send(new FakeChannelMessage(['seq' => 3]));
+
+        $received = $this->subject->receive();
+
+        self::assertSame(
+            [['seq' => 1], ['seq' => 2], ['seq' => 3]],
+            array_map(
+                static fn($message): array => $message->toArray(),
+                $received,
+            ),
+        );
+    }
+
+    public function test_receiving_with_nothing_sent_returns_empty(): void
+    {
+        self::assertSame(
+            [],
+            $this->subject->receive(),
+        );
+    }
+
+    public function test_the_read_buffer_persists_across_receive_calls(): void
+    {
+        $this->subject->send(new FakeChannelMessage(['seq' => 1]));
+        self::assertCount(
+            1,
+            $this->subject->receive(),
+        );
+
+        $this->subject->send(new FakeChannelMessage(['seq' => 2]));
+        $second = $this->subject->receive();
+
+        self::assertSame(
+            ['seq' => 2],
+            $second[0]->toArray(),
+        );
+    }
+
+    public function test_remaining_messages_are_drained_after_the_write_end_closes(): void
+    {
+        $this->subject->send(new FakeChannelMessage(['final' => true]));
+        $this->subject->closeWrite();
+
+        $received = $this->subject->receive();
+
+        self::assertSame(
+            ['final' => true],
+            $received[0]->toArray(),
+        );
+        self::assertSame(
+            [],
+            $this->subject->receive(),
+        );
+    }
+}

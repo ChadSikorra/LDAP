@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
+use FreeDSx\Ldap\Server\Metrics\Rollup\OperationRollupInterface;
 use FreeDSx\Ldap\Server\Metrics\Snapshot\ConnectionMetrics;
 use FreeDSx\Ldap\Server\Metrics\Snapshot\LifecycleMetrics;
 use FreeDSx\Ldap\Server\Metrics\Snapshot\MetricsSnapshot;
@@ -29,7 +30,7 @@ use function max;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class InMemoryMetricsRecorder implements MetricsRecorderInterface, MetricsSnapshotProvider
+final class InMemoryMetricsRecorder implements MetricsRecorderInterface, MetricsSnapshotProvider, OperationRollupInterface
 {
     private int $startedAt = 0;
 
@@ -142,6 +143,47 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
                 $this->resultCodeCounts,
             ),
         );
+    }
+
+    public function takeOperationDelta(): OperationMetrics
+    {
+        $delta = new OperationMetrics(
+            $this->operationCounts,
+            $this->operationErrors,
+            $this->operationDurationSeconds,
+            $this->resultCodeCounts,
+        );
+
+        $this->resetOperations();
+
+        return $delta;
+    }
+
+    public function resetOperations(): void
+    {
+        $this->operationCounts = [];
+        $this->operationErrors = [];
+        $this->operationDurationSeconds = [];
+        $this->resultCodeCounts = [];
+    }
+
+    public function mergeOperations(OperationMetrics $delta): void
+    {
+        foreach ($delta->counts as $operation => $count) {
+            $this->operationCounts[$operation] = max(0, ($this->operationCounts[$operation] ?? 0) + $count);
+        }
+
+        foreach ($delta->errors as $operation => $count) {
+            $this->operationErrors[$operation] = max(0, ($this->operationErrors[$operation] ?? 0) + $count);
+        }
+
+        foreach ($delta->durationSeconds as $operation => $seconds) {
+            $this->operationDurationSeconds[$operation] = ($this->operationDurationSeconds[$operation] ?? 0.0) + $seconds;
+        }
+
+        foreach ($delta->resultCodeCounts as $code => $count) {
+            $this->resultCodeCounts[$code] = max(0, ($this->resultCodeCounts[$code] ?? 0) + $count);
+        }
     }
 
     private function onOpened(): void
