@@ -26,6 +26,7 @@ final readonly class ConnectionMetrics
         public int $rejected = 0,
         public int $writeTimeouts = 0,
         public int $idleTimeouts = 0,
+        public int $requestSizeExceeded = 0,
     ) {}
 
     /**
@@ -39,6 +40,7 @@ final readonly class ConnectionMetrics
             'rejected' => $this->rejected,
             'write_timeouts' => $this->writeTimeouts,
             'idle_timeouts' => $this->idleTimeouts,
+            'request_size_exceeded' => $this->requestSizeExceeded,
         ];
     }
 
@@ -53,6 +55,7 @@ final readonly class ConnectionMetrics
             rejected: SnapshotValue::toInt($data['rejected'] ?? null),
             writeTimeouts: SnapshotValue::toInt($data['write_timeouts'] ?? null),
             idleTimeouts: SnapshotValue::toInt($data['idle_timeouts'] ?? null),
+            requestSizeExceeded: SnapshotValue::toInt($data['request_size_exceeded'] ?? null),
         );
     }
 }

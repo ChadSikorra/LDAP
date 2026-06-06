@@ -46,11 +46,13 @@ class PcntlServerRunner implements ServerRunnerInterface
     use ReloadsConfigurationTrait;
 
     /**
-     * Child exit codes that tell the parent a connection ended on a timeout.
+     * Child exit codes that tell the parent why a connection ended, so it can record the metric.
      */
     private const EXIT_CODE_WRITE_TIMEOUT = 10;
 
     private const EXIT_CODE_IDLE_TIMEOUT = 11;
+
+    private const EXIT_CODE_REQUEST_SIZE_EXCEEDED = 12;
 
     private SocketServer $server;
 
@@ -153,7 +155,7 @@ class PcntlServerRunner implements ServerRunnerInterface
                 $this->server->removeClient($socket);
                 $socket->close();
                 $this->metricsRecorder->connectionObserved(ConnectionObservation::Closed);
-                $this->recordChildTimeoutClose(
+                $this->recordChildCloseReason(
                     $result,
                     $status,
                 );
@@ -204,21 +206,22 @@ class PcntlServerRunner implements ServerRunnerInterface
     }
 
     /**
-     * The exit code a child uses to tell the parent which timeout, if any, ended the connection.
+     * The exit code a child uses to tell the parent which close reason, if any, ended the connection.
      */
     private function childExitCodeFor(?ConnectionObservation $closeReason): int
     {
         return match ($closeReason) {
             ConnectionObservation::WriteTimeout => self::EXIT_CODE_WRITE_TIMEOUT,
             ConnectionObservation::IdleTimeout => self::EXIT_CODE_IDLE_TIMEOUT,
+            ConnectionObservation::RequestSizeExceeded => self::EXIT_CODE_REQUEST_SIZE_EXCEEDED,
             default => 0,
         };
     }
 
     /**
-     * Record a timeout close from a reaped child's exit status, alongside the connection-closed gauge update.
+     * Record a reaped child's close reason from its exit status, alongside the connection-closed gauge update.
      */
-    private function recordChildTimeoutClose(
+    private function recordChildCloseReason(
         int $result,
         int $status,
     ): void {
@@ -229,6 +232,7 @@ class PcntlServerRunner implements ServerRunnerInterface
         $observation = match (pcntl_wexitstatus($status)) {
             self::EXIT_CODE_WRITE_TIMEOUT => ConnectionObservation::WriteTimeout,
             self::EXIT_CODE_IDLE_TIMEOUT => ConnectionObservation::IdleTimeout,
+            self::EXIT_CODE_REQUEST_SIZE_EXCEEDED => ConnectionObservation::RequestSizeExceeded,
             default => null,
         };
 

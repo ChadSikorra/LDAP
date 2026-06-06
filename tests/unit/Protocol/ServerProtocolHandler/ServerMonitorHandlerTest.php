@@ -245,6 +245,19 @@ final class ServerMonitorHandlerTest extends TestCase
         self::assertNull($entry->get('serverUptimeSeconds'));
     }
 
+    public function test_it_reports_connections_closed_by_an_oversized_request(): void
+    {
+        $this->metrics->connectionObserved(ConnectionObservation::RequestSizeExceeded);
+        $this->metrics->connectionObserved(ConnectionObservation::RequestSizeExceeded);
+
+        $entry = $this->handleAndCaptureEntry();
+
+        self::assertSame(
+            ['2'],
+            $entry->get('connectionsRequestSizeExceeded')?->getValues(),
+        );
+    }
+
     public function test_it_reports_traffic_totals(): void
     {
         $this->metrics->trafficObserved(new TrafficObservation(
