@@ -349,6 +349,13 @@ final class LoadTestCommand extends Command
             'operationsCompleted',
             'operationsFailed',
             'operationsByType',
+            'operationsByResultCode',
+            'bindsByMethod',
+            'searchesByScope',
+            'operationsInProgressByType',
+            'trafficBytesSent',
+            'trafficBytesReceived',
+            'trafficEntriesReturned',
         ];
         foreach ($attributes as $name) {
             if (!isset($entry[$name])) {
