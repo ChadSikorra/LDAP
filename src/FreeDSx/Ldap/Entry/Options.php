@@ -42,6 +42,11 @@ class Options implements Countable, IteratorAggregate, Stringable
         $this->set(...$options);
     }
 
+    public function __toString(): string
+    {
+        return $this->toString();
+    }
+
     public function add(string|Option ...$options): self
     {
         foreach ($options as $option) {
@@ -137,11 +142,6 @@ class Options implements Countable, IteratorAggregate, Stringable
     public function toArray(): array
     {
         return $this->options;
-    }
-
-    public function __toString(): string
-    {
-        return $this->toString();
     }
 
     /**

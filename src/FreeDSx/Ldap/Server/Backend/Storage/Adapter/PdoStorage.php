@@ -154,25 +154,6 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
         );
     }
 
-    /**
-     * @return Generator<Entry>
-     */
-    private function generateRows(
-        PooledStatement $stmt,
-        ?float $deadline,
-    ): Generator {
-        while (($row = $stmt->fetch()) !== false) {
-            if ($deadline !== null && microtime(true) >= $deadline) {
-                throw new TimeLimitExceededException();
-            }
-
-            $entry = $this->rowToEntry($row);
-            if ($entry !== null) {
-                yield $entry;
-            }
-        }
-    }
-
     public function store(Entry $entry): void
     {
         $normDn = $entry->getDn()->normalize();
@@ -200,6 +181,104 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
                 $entry,
             );
         });
+    }
+
+    public function remove(Dn $dn): void
+    {
+        $this->prepareAndExecute(
+            $this->dialect->queryDelete(),
+            [$dn->toString()],
+        );
+    }
+
+    public function hasChildren(Dn $dn): bool
+    {
+        $stmt = $this->prepareAndExecute(
+            $this->dialect->queryHasChildren(),
+            [$dn->toString()],
+        );
+
+        return $stmt->fetch() !== false;
+    }
+
+    public function namingContexts(): array
+    {
+        $stmt = $this->prepareAndExecute($this->dialect->queryNamingContexts());
+
+        $contexts = [];
+        while (($row = $stmt->fetch()) !== false) {
+            if (!is_array($row) || !isset($row['dn']) || !is_string($row['dn'])) {
+                continue;
+            }
+            $contexts[] = (new Dn($row['dn']))->normalize();
+        }
+
+        return $contexts;
+    }
+
+    public function atomic(callable $operation): void
+    {
+        $pdo = $this->provider->get();
+        $txState = $this->provider->txState();
+
+        $depth = $txState->depth++;
+        $savepointCreated = false;
+        $transactionStarted = false;
+
+        try {
+            if ($depth === 0) {
+                $this->dialect->beginTransaction($pdo);
+                $transactionStarted = true;
+            } else {
+                $pdo->exec("SAVEPOINT {$this->savepointName($depth)}");
+                $savepointCreated = true;
+            }
+
+            $operation($this);
+
+            if ($depth === 0 && $txState->broken) {
+                $this->dialect->rollBack($pdo);
+            } elseif ($depth === 0) {
+                $this->dialect->commit($pdo);
+            } else {
+                $pdo->exec("RELEASE SAVEPOINT {$this->savepointName($depth)}");
+            }
+        } catch (Throwable $e) {
+            if ($transactionStarted) {
+                $this->dialect->rollBack($pdo);
+            } elseif ($savepointCreated) {
+                $pdo->exec("ROLLBACK TO SAVEPOINT {$this->savepointName($depth)}");
+            } elseif ($depth > 0) {
+                // Savepoint creation itself failed; the outer transaction is now in an unknown state and must not be committed.
+                $txState->broken = true;
+            }
+
+            throw $e;
+        } finally {
+            $txState->depth--;
+            if ($txState->depth === 0) {
+                $txState->broken = false;
+            }
+        }
+    }
+
+    /**
+     * @return Generator<Entry>
+     */
+    private function generateRows(
+        PooledStatement $stmt,
+        ?float $deadline,
+    ): Generator {
+        while (($row = $stmt->fetch()) !== false) {
+            if ($deadline !== null && microtime(true) >= $deadline) {
+                throw new TimeLimitExceededException();
+            }
+
+            $entry = $this->rowToEntry($row);
+            if ($entry !== null) {
+                yield $entry;
+            }
+        }
     }
 
     private function insertSidecarRows(
@@ -291,85 +370,6 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
                 $max,
             ),
         );
-    }
-
-    public function remove(Dn $dn): void
-    {
-        $this->prepareAndExecute(
-            $this->dialect->queryDelete(),
-            [$dn->toString()],
-        );
-    }
-
-    public function hasChildren(Dn $dn): bool
-    {
-        $stmt = $this->prepareAndExecute(
-            $this->dialect->queryHasChildren(),
-            [$dn->toString()],
-        );
-
-        return $stmt->fetch() !== false;
-    }
-
-    public function namingContexts(): array
-    {
-        $stmt = $this->prepareAndExecute($this->dialect->queryNamingContexts());
-
-        $contexts = [];
-        while (($row = $stmt->fetch()) !== false) {
-            if (!is_array($row) || !isset($row['dn']) || !is_string($row['dn'])) {
-                continue;
-            }
-            $contexts[] = (new Dn($row['dn']))->normalize();
-        }
-
-        return $contexts;
-    }
-
-    public function atomic(callable $operation): void
-    {
-        $pdo = $this->provider->get();
-        $txState = $this->provider->txState();
-
-        $depth = $txState->depth++;
-        $savepointCreated = false;
-        $transactionStarted = false;
-
-        try {
-            if ($depth === 0) {
-                $this->dialect->beginTransaction($pdo);
-                $transactionStarted = true;
-            } else {
-                $pdo->exec("SAVEPOINT {$this->savepointName($depth)}");
-                $savepointCreated = true;
-            }
-
-            $operation($this);
-
-            if ($depth === 0 && $txState->broken) {
-                $this->dialect->rollBack($pdo);
-            } elseif ($depth === 0) {
-                $this->dialect->commit($pdo);
-            } else {
-                $pdo->exec("RELEASE SAVEPOINT {$this->savepointName($depth)}");
-            }
-        } catch (Throwable $e) {
-            if ($transactionStarted) {
-                $this->dialect->rollBack($pdo);
-            } elseif ($savepointCreated) {
-                $pdo->exec("ROLLBACK TO SAVEPOINT {$this->savepointName($depth)}");
-            } elseif ($depth > 0) {
-                // Savepoint creation itself failed; the outer transaction is now in an unknown state and must not be committed.
-                $txState->broken = true;
-            }
-
-            throw $e;
-        } finally {
-            $txState->depth--;
-            if ($txState->depth === 0) {
-                $txState->broken = false;
-            }
-        }
     }
 
     private function encodeAttributes(Entry $entry): string

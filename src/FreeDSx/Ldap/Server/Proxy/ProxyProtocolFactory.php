@@ -45,11 +45,6 @@ final class ProxyProtocolFactory implements ServerProtocolFactoryInterface
         private readonly ProxyOptions $proxyOptions,
     ) {}
 
-    protected function serverOptions(): ServerOptions
-    {
-        return $this->options;
-    }
-
     public function make(
         Socket $socket,
         ConnectionContext $context = new ConnectionContext(),
@@ -104,5 +99,10 @@ final class ProxyProtocolFactory implements ServerProtocolFactoryInterface
             eventLogger: $eventLogger,
             connectionContext: $context,
         );
+    }
+
+    protected function serverOptions(): ServerOptions
+    {
+        return $this->options;
     }
 }

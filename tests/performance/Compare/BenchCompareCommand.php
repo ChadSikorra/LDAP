@@ -36,10 +36,6 @@ use Throwable;
  */
 final class BenchCompareCommand extends Command
 {
-    protected static $defaultName = 'load-compare';
-
-    protected static $defaultDescription = 'Benchmark FreeDSx vs an external LDAP target under identical workload parameters.';
-
     private const DEFAULT_TARGET_BASE_DN = 'dc=example,dc=com';
 
     private const DEFAULT_TARGET_BIND_DN = 'cn=admin,dc=example,dc=com';
@@ -47,6 +43,10 @@ final class BenchCompareCommand extends Command
     private const DEFAULT_TARGET_BIND_PASSWORD = 'P@ssword12345';
 
     private const DEFAULT_FREEDSX_PORT = 10389;
+
+    protected static $defaultName = 'load-compare';
+
+    protected static $defaultDescription = 'Benchmark FreeDSx vs an external LDAP target under identical workload parameters.';
 
     protected function configure(): void
     {

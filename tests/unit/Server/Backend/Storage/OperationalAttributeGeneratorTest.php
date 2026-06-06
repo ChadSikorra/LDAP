@@ -41,25 +41,6 @@ final class OperationalAttributeGeneratorTest extends TestCase
         );
     }
 
-    private function anonymousContext(): WriteContext
-    {
-        return new WriteContext(
-            new AnonToken(),
-            new ControlBag(),
-        );
-    }
-
-    private function boundContext(string $dn): WriteContext
-    {
-        return new WriteContext(
-            BindToken::fromDn(
-                $dn,
-                '',
-            ),
-            new ControlBag(),
-        );
-    }
-
     public function test_apply_for_add_sets_create_timestamp(): void
     {
         $this->subject->applyForAdd(
@@ -443,6 +424,25 @@ final class OperationalAttributeGeneratorTest extends TestCase
         self::assertSame(
             'person',
             $entry->get('structuralObjectClass')?->getValues()[0],
+        );
+    }
+
+    private function anonymousContext(): WriteContext
+    {
+        return new WriteContext(
+            new AnonToken(),
+            new ControlBag(),
+        );
+    }
+
+    private function boundContext(string $dn): WriteContext
+    {
+        return new WriteContext(
+            BindToken::fromDn(
+                $dn,
+                '',
+            ),
+            new ControlBag(),
         );
     }
 }

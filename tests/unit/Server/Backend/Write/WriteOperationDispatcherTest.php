@@ -39,14 +39,6 @@ final class WriteOperationDispatcherTest extends TestCase
         );
     }
 
-    private function handler(bool $supports): WriteHandlerInterface&MockObject
-    {
-        $handler = $this->createMock(WriteHandlerInterface::class);
-        $handler->method('supports')->willReturn($supports);
-
-        return $handler;
-    }
-
     public function test_throws_unwilling_to_perform_when_no_handlers_registered(): void
     {
         self::expectException(OperationException::class);
@@ -115,5 +107,13 @@ final class WriteOperationDispatcherTest extends TestCase
             $this->mockRequest,
             $this->context,
         );
+    }
+
+    private function handler(bool $supports): WriteHandlerInterface&MockObject
+    {
+        $handler = $this->createMock(WriteHandlerInterface::class);
+        $handler->method('supports')->willReturn($supports);
+
+        return $handler;
     }
 }

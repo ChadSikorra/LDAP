@@ -26,6 +26,11 @@ final class StringLdifOutput implements LdifOutputInterface, Stringable
 {
     private string $ldif = '';
 
+    public function __toString(): string
+    {
+        return $this->ldif;
+    }
+
     /**
      * @param iterable<string> $chunks
      */
@@ -37,11 +42,6 @@ final class StringLdifOutput implements LdifOutputInterface, Stringable
     }
 
     public function getLdif(): string
-    {
-        return $this->ldif;
-    }
-
-    public function __toString(): string
     {
         return $this->ldif;
     }

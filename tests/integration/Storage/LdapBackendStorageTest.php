@@ -40,16 +40,6 @@ class LdapBackendStorageTest extends ServerTestCase
         );
     }
 
-    /**
-     * Hook for subclasses to route the shared server through a different backend.
-     *
-     * @return list<string>
-     */
-    protected static function storageExtraArgs(): array
-    {
-        return [];
-    }
-
     public static function tearDownAfterClass(): void
     {
         parent::tearDownAfterClass();
@@ -61,11 +51,6 @@ class LdapBackendStorageTest extends ServerTestCase
         $this->setServerMode('ldap-backend-storage');
 
         parent::setUp();
-    }
-
-    protected function authenticateUser(): void
-    {
-        $this->ldapClient()->bind('cn=user,dc=foo,dc=bar', '12345');
     }
 
     public function testBindWithCorrectCredentials(): void
@@ -532,5 +517,20 @@ class LdapBackendStorageTest extends ServerTestCase
             'nosn',
             $first->get('cn')?->getValues()[0],
         );
+    }
+
+    /**
+     * Hook for subclasses to route the shared server through a different backend.
+     *
+     * @return list<string>
+     */
+    protected static function storageExtraArgs(): array
+    {
+        return [];
+    }
+
+    protected function authenticateUser(): void
+    {
+        $this->ldapClient()->bind('cn=user,dc=foo,dc=bar', '12345');
     }
 }

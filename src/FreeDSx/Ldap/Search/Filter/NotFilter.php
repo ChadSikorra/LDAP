@@ -42,6 +42,11 @@ class NotFilter implements FilterInterface, Stringable
         $this->filter = $filter;
     }
 
+    public function __toString(): string
+    {
+        return $this->toString();
+    }
+
     public function get(): FilterInterface
     {
         return $this->filter;
@@ -71,11 +76,6 @@ class NotFilter implements FilterInterface, Stringable
             . self::OPERATOR_NOT
             . $this->filter->toString()
             . self::PAREN_RIGHT;
-    }
-
-    public function __toString(): string
-    {
-        return $this->toString();
     }
 
     /**

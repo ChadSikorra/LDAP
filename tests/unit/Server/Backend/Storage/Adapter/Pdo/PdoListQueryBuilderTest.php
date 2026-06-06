@@ -22,25 +22,6 @@ use PHPUnit\Framework\TestCase;
 
 final class PdoListQueryBuilderTest extends TestCase
 {
-    /**
-     * @return array{0: string, 1: list<string>}
-     */
-    private function rootQuery(
-        PdoListQueryBuilder $builder,
-        ?SqlFilterResult $filter,
-        SortKey ...$sortKeys,
-    ): array {
-        $query = $builder->build(
-            '',
-            true,
-            $filter,
-            null,
-            $sortKeys,
-        );
-
-        return [$query->sql, $query->params];
-    }
-
     public function test_no_sort_keys_appends_no_order_by(): void
     {
         [$sql, $params] = $this->rootQuery(
@@ -128,5 +109,24 @@ final class PdoListQueryBuilderTest extends TestCase
             ['smith', 'sn'],
             $params,
         );
+    }
+
+    /**
+     * @return array{0: string, 1: list<string>}
+     */
+    private function rootQuery(
+        PdoListQueryBuilder $builder,
+        ?SqlFilterResult $filter,
+        SortKey ...$sortKeys,
+    ): array {
+        $query = $builder->build(
+            '',
+            true,
+            $filter,
+            null,
+            $sortKeys,
+        );
+
+        return [$query->sql, $query->params];
     }
 }

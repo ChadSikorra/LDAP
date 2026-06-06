@@ -339,23 +339,6 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     }
 
     /**
-     * @return Dn[] base entry and all descendants, deepest-first so children precede their parents.
-     */
-    private function collectSubtreeDnsDeepestFirst(Dn $base): array
-    {
-        $dns = [];
-        foreach ($this->storage->list(StorageListOptions::matchAll($base, subtree: true))->entries as $entry) {
-            $dns[] = $entry->getDn()->normalize();
-        }
-        usort(
-            $dns,
-            static fn(Dn $a, Dn $b): int => $b->count() <=> $a->count(),
-        );
-
-        return $dns;
-    }
-
-    /**
      * @throws OperationException
      */
     public function update(
@@ -377,6 +360,64 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             );
             $storage->store($updated);
         });
+    }
+
+    /**
+     * @throws OperationException
+     */
+    public function move(
+        MoveCommand $command,
+        WriteContext $context,
+    ): void {
+        $this->writeAtomic(function (EntryStorageInterface $storage) use ($command, $context): void {
+            $normOld = $command->dn->normalize();
+            $entry = $this->findOrFail($storage, $normOld);
+
+            if ($storage->hasChildren($normOld)) {
+                throw new OperationException(
+                    sprintf('Entry "%s" has subordinate entries and cannot be moved.', $command->dn->toString()),
+                    ResultCode::NOT_ALLOWED_ON_NON_LEAF,
+                );
+            }
+
+            $this->assertNotNamingContext(
+                $storage,
+                $command->dn,
+            );
+
+            $this->assertNewSuperiorExists($storage, $command);
+
+            $newEntry = $this->entryHandler->apply($entry, $command);
+            $normNew = $newEntry->getDn()->normalize();
+
+            if ($storage->exists($normNew)) {
+                $this->throwEntryAlreadyExists($newEntry->getDn());
+            }
+
+            $this->operationalAttrs->applyForModify(
+                $newEntry,
+                $context,
+            );
+            $storage->remove($normOld);
+            $storage->store($newEntry);
+        });
+    }
+
+    /**
+     * @return Dn[] base entry and all descendants, deepest-first so children precede their parents.
+     */
+    private function collectSubtreeDnsDeepestFirst(Dn $base): array
+    {
+        $dns = [];
+        foreach ($this->storage->list(StorageListOptions::matchAll($base, subtree: true))->entries as $entry) {
+            $dns[] = $entry->getDn()->normalize();
+        }
+        usort(
+            $dns,
+            static fn(Dn $a, Dn $b): int => $b->count() <=> $a->count(),
+        );
+
+        return $dns;
     }
 
     /**
@@ -470,47 +511,6 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         return $this->validator?->mode() === SchemaValidationMode::Lenient
             ? SchemaViolationDisposition::RelaxedByPolicy
             : SchemaViolationDisposition::Rejected;
-    }
-
-    /**
-     * @throws OperationException
-     */
-    public function move(
-        MoveCommand $command,
-        WriteContext $context,
-    ): void {
-        $this->writeAtomic(function (EntryStorageInterface $storage) use ($command, $context): void {
-            $normOld = $command->dn->normalize();
-            $entry = $this->findOrFail($storage, $normOld);
-
-            if ($storage->hasChildren($normOld)) {
-                throw new OperationException(
-                    sprintf('Entry "%s" has subordinate entries and cannot be moved.', $command->dn->toString()),
-                    ResultCode::NOT_ALLOWED_ON_NON_LEAF,
-                );
-            }
-
-            $this->assertNotNamingContext(
-                $storage,
-                $command->dn,
-            );
-
-            $this->assertNewSuperiorExists($storage, $command);
-
-            $newEntry = $this->entryHandler->apply($entry, $command);
-            $normNew = $newEntry->getDn()->normalize();
-
-            if ($storage->exists($normNew)) {
-                $this->throwEntryAlreadyExists($newEntry->getDn());
-            }
-
-            $this->operationalAttrs->applyForModify(
-                $newEntry,
-                $context,
-            );
-            $storage->remove($normOld);
-            $storage->store($newEntry);
-        });
     }
 
     /**

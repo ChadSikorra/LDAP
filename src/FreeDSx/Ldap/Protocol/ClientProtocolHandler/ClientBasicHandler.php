@@ -35,8 +35,6 @@ use function in_array;
  */
 class ClientBasicHandler implements RequestHandlerInterface, ResponseHandlerInterface
 {
-    public function __construct(private readonly ClientQueue $queue) {}
-
     /**
      * RFC 4511, A.1. These are considered result codes that do not indicate an error condition.
      */
@@ -48,6 +46,8 @@ class ClientBasicHandler implements RequestHandlerInterface, ResponseHandlerInte
         ResultCode::SASL_BIND_IN_PROGRESS,
         ResultCode::CANCELED,
     ];
+
+    public function __construct(private readonly ClientQueue $queue) {}
 
     /**
      * @throws ProtocolException

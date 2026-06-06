@@ -29,28 +29,6 @@ final class SortKeyComparatorTest extends TestCase
         $this->subject = new SortKeyComparator();
     }
 
-    private function entry(
-        string $dn,
-        string ...$cnValues,
-    ): Entry {
-        return new Entry(
-            new Dn($dn),
-            new Attribute('cn', ...$cnValues),
-        );
-    }
-
-    /**
-     * @param list<Entry> $sorted
-     * @return list<string>
-     */
-    private function cnValues(array $sorted): array
-    {
-        return array_map(
-            static fn(Entry $e): string => $e->get('cn')?->getValues()[0] ?? '',
-            $sorted,
-        );
-    }
-
     public function test_sort_ascending_by_single_key(): void
     {
         $alice = $this->entry('cn=Alice,dc=example,dc=com', 'Alice');
@@ -227,6 +205,28 @@ final class SortKeyComparatorTest extends TestCase
         self::assertSame(
             $bob,
             $original[0],
+        );
+    }
+
+    private function entry(
+        string $dn,
+        string ...$cnValues,
+    ): Entry {
+        return new Entry(
+            new Dn($dn),
+            new Attribute('cn', ...$cnValues),
+        );
+    }
+
+    /**
+     * @param list<Entry> $sorted
+     * @return list<string>
+     */
+    private function cnValues(array $sorted): array
+    {
+        return array_map(
+            static fn(Entry $e): string => $e->get('cn')?->getValues()[0] ?? '',
+            $sorted,
         );
     }
 }

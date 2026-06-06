@@ -35,9 +35,9 @@ final class ServerManager
         private readonly int $maxWaitSeconds = 10,
     ) {}
 
-    private function readyDeadlineSeconds(): int
+    public function __destruct()
     {
-        return $this->maxWaitSeconds + (int) ceil($this->config->seedEntries / 100);
+        $this->stop();
     }
 
     public function start(): void
@@ -92,6 +92,11 @@ final class ServerManager
         }
     }
 
+    private function readyDeadlineSeconds(): int
+    {
+        return $this->maxWaitSeconds + (int) ceil($this->config->seedEntries / 100);
+    }
+
     /**
      * Avoids Symfony Process::stop()'s SIGTERM/wait/SIGKILL dance, which has been observed to segfault a pcntl-runner
      * backend under tracing JIT (the JIT instability is load-related; stopping is just where it tended to surface).
@@ -117,11 +122,6 @@ final class ServerManager
 
         @posix_kill($pid, SIGKILL);
         @pcntl_waitpid($pid, $status);
-    }
-
-    public function __destruct()
-    {
-        $this->stop();
     }
 
     private function awaitReady(Process $process): void

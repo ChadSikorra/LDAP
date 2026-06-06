@@ -33,21 +33,6 @@ use FreeDSx\Ldap\Search\Filter\SubstringFilter;
  */
 trait SqlFilterTranslatorTrait
 {
-    /**
-     * @param string $attribute Pre-validated; safe to embed in SQL.
-     */
-    abstract private function buildPresenceCheck(string $attribute): string;
-
-    /**
-     * @param string $attribute Pre-validated; safe to embed in SQL.
-     */
-    abstract private function buildValueExists(
-        string $attribute,
-        string $innerCondition,
-    ): string;
-
-    abstract private function valueAlias(): string;
-
     public function translate(FilterInterface $filter): ?SqlFilterResult
     {
         return match (true) {
@@ -63,6 +48,21 @@ trait SqlFilterTranslatorTrait
             default => null,
         };
     }
+
+    /**
+     * @param string $attribute Pre-validated; safe to embed in SQL.
+     */
+    abstract private function buildPresenceCheck(string $attribute): string;
+
+    /**
+     * @param string $attribute Pre-validated; safe to embed in SQL.
+     */
+    abstract private function buildValueExists(
+        string $attribute,
+        string $innerCondition,
+    ): string;
+
+    abstract private function valueAlias(): string;
 
     private function translatePresent(PresentFilter $filter): ?SqlFilterResult
     {

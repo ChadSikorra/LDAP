@@ -33,11 +33,6 @@ final class PooledStatement
         $this->release = $release;
     }
 
-    public function fetch(): mixed
-    {
-        return $this->statement->fetch();
-    }
-
     public function __destruct()
     {
         if ($this->release === null) {
@@ -52,5 +47,10 @@ final class PooledStatement
         } catch (Throwable) {
             // Drop the statement rather than recycling a poisoned one into the pool.
         }
+    }
+
+    public function fetch(): mixed
+    {
+        return $this->statement->fetch();
     }
 }

@@ -71,22 +71,6 @@ final class SqliteStorageTest extends TestCase
         );
     }
 
-    private function context(): WriteContext
-    {
-        return new WriteContext(
-            new AnonToken(),
-            new ControlBag(),
-        );
-    }
-
-    private function systemContext(): WriteContext
-    {
-        return WriteContext::system(
-            new AnonToken(),
-            new ControlBag(),
-        );
-    }
-
     public function test_get_returns_entry_by_dn(): void
     {
         $entry = $this->subject->get(new Dn('cn=Alice,dc=example,dc=com'));
@@ -680,40 +664,6 @@ final class SqliteStorageTest extends TestCase
         self::assertNotNull($this->storage->find(new Dn($longDn)));
     }
 
-    private function createPdoStorageWithMaxDnLength(int $max): PdoStorage
-    {
-        $pdo = new PDO('sqlite::memory:');
-
-        $sqlite = new SqliteDialect();
-        $dialect = $this->createMock(PdoDialectInterface::class);
-        $dialect->method('ddlCreateTable')
-            ->willReturn($sqlite->ddlCreateTable());
-        $dialect->method('ddlCreateIndex')
-            ->willReturn($sqlite->ddlCreateIndex());
-        $dialect->method('ddlCreateSidecarTable')
-            ->willReturn($sqlite->ddlCreateSidecarTable());
-        $dialect->method('ddlCreateSidecarIndexes')
-            ->willReturn($sqlite->ddlCreateSidecarIndexes());
-        $dialect->method('queryUpsert')
-            ->willReturn($sqlite->queryUpsert());
-        $dialect->method('queryExists')
-            ->willReturn($sqlite->queryExists());
-        $dialect->method('queryFetchEntry')
-            ->willReturn($sqlite->queryFetchEntry());
-        $dialect->method('queryFetchChildren')
-            ->willReturn($sqlite->queryFetchChildren());
-        $dialect->method('maxDnLength')
-            ->willReturn($max);
-
-        PdoStorage::initialize($pdo, $dialect);
-
-        return new PdoStorage(
-            new SharedPdoConnectionProvider($pdo),
-            $this->createMock(FilterTranslatorInterface::class),
-            $dialect,
-        );
-    }
-
     public function test_nested_atomic_rolls_back_inner_on_exception(): void
     {
         $threw = false;
@@ -768,6 +718,56 @@ final class SqliteStorageTest extends TestCase
         self::assertSame(
             [],
             $emptyStorage->namingContexts(),
+        );
+    }
+
+    private function context(): WriteContext
+    {
+        return new WriteContext(
+            new AnonToken(),
+            new ControlBag(),
+        );
+    }
+
+    private function systemContext(): WriteContext
+    {
+        return WriteContext::system(
+            new AnonToken(),
+            new ControlBag(),
+        );
+    }
+
+    private function createPdoStorageWithMaxDnLength(int $max): PdoStorage
+    {
+        $pdo = new PDO('sqlite::memory:');
+
+        $sqlite = new SqliteDialect();
+        $dialect = $this->createMock(PdoDialectInterface::class);
+        $dialect->method('ddlCreateTable')
+            ->willReturn($sqlite->ddlCreateTable());
+        $dialect->method('ddlCreateIndex')
+            ->willReturn($sqlite->ddlCreateIndex());
+        $dialect->method('ddlCreateSidecarTable')
+            ->willReturn($sqlite->ddlCreateSidecarTable());
+        $dialect->method('ddlCreateSidecarIndexes')
+            ->willReturn($sqlite->ddlCreateSidecarIndexes());
+        $dialect->method('queryUpsert')
+            ->willReturn($sqlite->queryUpsert());
+        $dialect->method('queryExists')
+            ->willReturn($sqlite->queryExists());
+        $dialect->method('queryFetchEntry')
+            ->willReturn($sqlite->queryFetchEntry());
+        $dialect->method('queryFetchChildren')
+            ->willReturn($sqlite->queryFetchChildren());
+        $dialect->method('maxDnLength')
+            ->willReturn($max);
+
+        PdoStorage::initialize($pdo, $dialect);
+
+        return new PdoStorage(
+            new SharedPdoConnectionProvider($pdo),
+            $this->createMock(FilterTranslatorInterface::class),
+            $dialect,
         );
     }
 }

@@ -129,29 +129,6 @@ class ExtendedResponse extends LdapResult
 
     /**
      * @param AbstractType<mixed> $type
-     * @return array{0: ?string, 1: ?string}
-     */
-    private static function parseExtendedResponse(AbstractType $type): array
-    {
-        $info = [0 => null, 1 => null];
-
-        foreach ($type->getChildren() as $child) {
-            $tagNumber = $child->getTagNumber();
-            if ($tagNumber !== 10 && $tagNumber !== 11) {
-                continue;
-            }
-            $value = $child->getValue();
-            if ($value !== null && !is_string($value)) {
-                continue;
-            }
-            $info[$tagNumber === 10 ? 0 : 1] = $value;
-        }
-
-        return $info;
-    }
-
-    /**
-     * @param AbstractType<mixed> $type
      * @throws ProtocolException
      * @throws EncoderException
      */
@@ -184,5 +161,28 @@ class ExtendedResponse extends LdapResult
         return $value === null
             ? null
             : (new LdapEncoder())->decode($value);
+    }
+
+    /**
+     * @param AbstractType<mixed> $type
+     * @return array{0: ?string, 1: ?string}
+     */
+    private static function parseExtendedResponse(AbstractType $type): array
+    {
+        $info = [0 => null, 1 => null];
+
+        foreach ($type->getChildren() as $child) {
+            $tagNumber = $child->getTagNumber();
+            if ($tagNumber !== 10 && $tagNumber !== 11) {
+                continue;
+            }
+            $value = $child->getValue();
+            if ($value !== null && !is_string($value)) {
+                continue;
+            }
+            $info[$tagNumber === 10 ? 0 : 1] = $value;
+        }
+
+        return $info;
     }
 }

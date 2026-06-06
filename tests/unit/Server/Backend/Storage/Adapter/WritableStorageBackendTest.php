@@ -688,31 +688,6 @@ final class WritableStorageBackendTest extends TestCase
         iterator_to_array($subject->search($request)->entries);
     }
 
-    private function context(): WriteContext
-    {
-        return new WriteContext(
-            new AnonToken(),
-            new ControlBag(),
-        );
-    }
-
-    private function systemContext(): WriteContext
-    {
-        return WriteContext::system(
-            new AnonToken(),
-            new ControlBag(),
-        );
-    }
-
-    /**
-     * @return Generator<Entry>
-     */
-    private function makeTimeLimitStream(): Generator
-    {
-        yield new Entry(new Dn('dc=example,dc=com'));
-        throw new TimeLimitExceededException();
-    }
-
     public function test_add_converts_storage_io_exception_to_unavailable_operation_exception(): void
     {
         $ioException = new StorageIoException('Unable to publish the storage update.');
@@ -1686,6 +1661,31 @@ final class WritableStorageBackendTest extends TestCase
             $this->context(),
             static function (Dn $dn): void {},
         );
+    }
+
+    private function context(): WriteContext
+    {
+        return new WriteContext(
+            new AnonToken(),
+            new ControlBag(),
+        );
+    }
+
+    private function systemContext(): WriteContext
+    {
+        return WriteContext::system(
+            new AnonToken(),
+            new ControlBag(),
+        );
+    }
+
+    /**
+     * @return Generator<Entry>
+     */
+    private function makeTimeLimitStream(): Generator
+    {
+        yield new Entry(new Dn('dc=example,dc=com'));
+        throw new TimeLimitExceededException();
     }
 
     private function subtreeBackend(): WritableStorageBackend

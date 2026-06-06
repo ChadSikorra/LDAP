@@ -202,7 +202,6 @@ final class ClientOptions
         return $this->sslCaCert;
     }
 
-
     public function setSslCaCert(?string $sslCaCert): self
     {
         $this->sslCaCert = $sslCaCert;

@@ -71,14 +71,6 @@ final class ServerProtocolFactoryTest extends TestCase
         );
     }
 
-    private function passwordPolicyEngine(): PasswordPolicyEngine
-    {
-        return new PasswordPolicyEngine(
-            new SystemClock(),
-            new PasswordChangeConstraintChain([]),
-        );
-    }
-
     public function test_it_should_make_a_ServerProtocolInstance(): void
     {
         $mockSocket = $this->createMock(Socket::class);
@@ -159,5 +151,13 @@ final class ServerProtocolFactoryTest extends TestCase
         );
 
         $subject->make($mockSocket);
+    }
+
+    private function passwordPolicyEngine(): PasswordPolicyEngine
+    {
+        return new PasswordPolicyEngine(
+            new SystemClock(),
+            new PasswordChangeConstraintChain([]),
+        );
     }
 }

@@ -38,8 +38,6 @@ use function is_string;
  */
 class ExtendedRequest implements RequestInterface
 {
-    protected const APP_TAG = 23;
-
     /**
      * Represents a request to cancel an operation. RFC 3909.
      */
@@ -60,12 +58,14 @@ class ExtendedRequest implements RequestInterface
      */
     public const OID_PWD_MODIFY = '1.3.6.1.4.1.4203.1.11.1';
 
-    private string $requestName;
+    protected const APP_TAG = 23;
 
     /**
      * @var null|string|AbstractType<mixed>|ProtocolElementInterface
      */
     protected string|AbstractType|ProtocolElementInterface|null $requestValue;
+
+    private string $requestName;
 
     /**
      * @param null|string|AbstractType<mixed>|ProtocolElementInterface $requestValue

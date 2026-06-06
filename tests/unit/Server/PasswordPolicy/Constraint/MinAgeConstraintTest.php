@@ -29,6 +29,7 @@ final class MinAgeConstraintTest extends TestCase
     private const NOW = '2026-05-20T12:00:00Z';
 
     private FrozenClock $clock;
+
     private MinAgeConstraint $subject;
 
     protected function setUp(): void

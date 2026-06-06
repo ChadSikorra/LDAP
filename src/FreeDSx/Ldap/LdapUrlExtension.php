@@ -48,6 +48,11 @@ class LdapUrlExtension implements Stringable
         $this->isCritical = $isCritical;
     }
 
+    public function __toString(): string
+    {
+        return $this->toString();
+    }
+
     public function getName(): string
     {
         return $this->name;
@@ -97,11 +102,6 @@ class LdapUrlExtension implements Stringable
         }
 
         return $ext;
-    }
-
-    public function __toString(): string
-    {
-        return $this->toString();
     }
 
     /**

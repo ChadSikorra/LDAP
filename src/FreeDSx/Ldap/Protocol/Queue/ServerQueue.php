@@ -73,26 +73,6 @@ class ServerQueue extends LdapQueue
     }
 
     /**
-     * Count the LDAP bytes sent for each outgoing response.
-     */
-    protected function onMessageEncoded(string $encoded): void
-    {
-        $this->metricsRecorder->trafficObserved(new TrafficObservation(
-            bytesSent: strlen($encoded),
-        ));
-    }
-
-    /**
-     * Count the LDAP bytes received for each decoded request.
-     */
-    protected function onMessageDecoded(Message $message): void
-    {
-        $this->metricsRecorder->trafficObserved(new TrafficObservation(
-            bytesReceived: (int) $message->getLastPosition(),
-        ));
-    }
-
-    /**
      * @throws ProtocolException
      * @throws UnsolicitedNotificationException
      * @throws ConnectionException
@@ -165,6 +145,44 @@ class ServerQueue extends LdapQueue
     }
 
     /**
+     * Count the LDAP bytes sent for each outgoing response.
+     */
+    protected function onMessageEncoded(string $encoded): void
+    {
+        $this->metricsRecorder->trafficObserved(new TrafficObservation(
+            bytesSent: strlen($encoded),
+        ));
+    }
+
+    /**
+     * Count the LDAP bytes received for each decoded request.
+     */
+    protected function onMessageDecoded(Message $message): void
+    {
+        $this->metricsRecorder->trafficObserved(new TrafficObservation(
+            bytesReceived: (int) $message->getLastPosition(),
+        ));
+    }
+
+    /**
+     * {@inheritDoc}
+     * @throws ProtocolException
+     * @throws EncoderException
+     * @throws PartialPduException
+     * @throws RuntimeException
+     */
+    protected function constructMessage(Message $message, ?int $id = null): LdapMessageRequest
+    {
+        $type = $message->getMessage();
+
+        if (!$type instanceof AbstractType) {
+            throw new ProtocolException('The message received is invalid.');
+        }
+
+        return LdapMessageRequest::fromAsn1($type);
+    }
+
+    /**
      * Apply each interceptor to a response one message at a time, preserving lazy streaming.
      *
      * @param iterable<LdapMessageResponse> $responses
@@ -197,23 +215,5 @@ class ServerQueue extends LdapQueue
     ): bool {
         return ($request instanceof AbandonRequest || $request instanceof CancelRequest)
             && $request->getMessageId() === $inFlightMessageId;
-    }
-
-    /**
-     * {@inheritDoc}
-     * @throws ProtocolException
-     * @throws EncoderException
-     * @throws PartialPduException
-     * @throws RuntimeException
-     */
-    protected function constructMessage(Message $message, ?int $id = null): LdapMessageRequest
-    {
-        $type = $message->getMessage();
-
-        if (!$type instanceof AbstractType) {
-            throw new ProtocolException('The message received is invalid.');
-        }
-
-        return LdapMessageRequest::fromAsn1($type);
     }
 }

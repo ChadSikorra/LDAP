@@ -25,12 +25,6 @@ use PDO;
  */
 trait PdoStorageFactoryTrait
 {
-    abstract protected function dialect(): PdoDialectInterface;
-
-    abstract protected function translator(): FilterTranslatorInterface;
-
-    abstract protected function openConnection(PdoDialectInterface $dialect): PDO;
-
     /**
      * @api
      */
@@ -38,6 +32,12 @@ trait PdoStorageFactoryTrait
     {
         return $this->createShared();
     }
+
+    abstract protected function dialect(): PdoDialectInterface;
+
+    abstract protected function translator(): FilterTranslatorInterface;
+
+    abstract protected function openConnection(PdoDialectInterface $dialect): PDO;
 
     protected function createShared(): PdoStorage
     {

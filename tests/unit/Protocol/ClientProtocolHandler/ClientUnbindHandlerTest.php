@@ -25,6 +25,7 @@ final class ClientUnbindHandlerTest extends TestCase
     private ClientUnbindHandler $subject;
 
     private ClientQueue&MockObject $mockQueue;
+
     protected function setUp(): void
     {
         $this->mockQueue = $this->createMock(ClientQueue::class);

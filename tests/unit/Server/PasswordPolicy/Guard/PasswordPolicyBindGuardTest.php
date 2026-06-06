@@ -43,12 +43,17 @@ use Tests\Support\FreeDSx\Ldap\Logging\RecordingLogger;
 final class PasswordPolicyBindGuardTest extends TestCase
 {
     private const NOW = '2026-05-20T12:00:00Z';
+
     private const DN = 'cn=foo,dc=example,dc=com';
 
     private FrozenClock $clock;
+
     private RecordingWriteHandler $writeHandler;
+
     private RecordingLogger $logger;
+
     private PasswordPolicyContext $context;
+
     private PasswordPolicyBindGuard $subject;
 
     protected function setUp(): void

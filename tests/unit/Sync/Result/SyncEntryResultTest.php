@@ -87,7 +87,6 @@ final class SyncEntryResultTest extends TestCase
         );
     }
 
-
     public function test_it_should_tell_if_it_is_for_a_present_state(): void
     {
         $this->subject = new SyncEntryResult(

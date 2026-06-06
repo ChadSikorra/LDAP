@@ -39,6 +39,17 @@ final class ReferralResult implements Countable, IteratorAggregate, Stringable
     public function __construct(private readonly LdapMessageResponse $response) {}
 
     /**
+     * {@inheritDoc}
+     */
+    public function __toString(): string
+    {
+        return implode(
+            separator: ',',
+            array: $this->getReferrals(),
+        );
+    }
+
+    /**
      * The raw message response returned from the server, which contains any controls
      */
     public function getMessage(): LdapMessageResponse
@@ -87,16 +98,5 @@ final class ReferralResult implements Countable, IteratorAggregate, Stringable
     public function getIterator(): Traversable
     {
         return new ArrayIterator($this->getReferrals());
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function __toString(): string
-    {
-        return implode(
-            separator: ',',
-            array: $this->getReferrals(),
-        );
     }
 }

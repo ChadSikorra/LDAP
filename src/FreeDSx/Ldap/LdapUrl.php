@@ -78,6 +78,11 @@ class LdapUrl implements Stringable
         $this->host = $host;
     }
 
+    public function __toString(): string
+    {
+        return $this->toString();
+    }
+
     public function setDn(Dn|string|null $dn): self
     {
         $this->dn = $dn === null
@@ -216,11 +221,6 @@ class LdapUrl implements Stringable
             . '/'
             . ($this->dn !== null ? self::encode($this->dn->toString()) : '')
             . $this->getQueryString();
-    }
-
-    public function __toString(): string
-    {
-        return $this->toString();
     }
 
     /**

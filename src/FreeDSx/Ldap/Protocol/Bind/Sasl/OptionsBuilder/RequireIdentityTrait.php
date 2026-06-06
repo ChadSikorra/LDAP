@@ -27,6 +27,11 @@ trait RequireIdentityTrait
 {
     private ?Dn $resolvedDn = null;
 
+    public function getResolvedDn(): ?Dn
+    {
+        return $this->resolvedDn;
+    }
+
     /**
      * Validates the identity, stores its resolved DN, and returns it.
      *
@@ -44,10 +49,5 @@ trait RequireIdentityTrait
         $this->resolvedDn = $identity->resolvedDn;
 
         return $identity;
-    }
-
-    public function getResolvedDn(): ?Dn
-    {
-        return $this->resolvedDn;
     }
 }

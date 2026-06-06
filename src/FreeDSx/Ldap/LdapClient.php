@@ -75,6 +75,17 @@ class LdapClient
     }
 
     /**
+     * Try to clean-up if needed.
+     *
+     * @throws Exception\ConnectionException
+     * @throws OperationException
+     */
+    public function __destruct()
+    {
+        $this->unbindIfConnected();
+    }
+
+    /**
      * A Simple Bind to LDAP with a username and password.
      *
      * @throws Exception\BindException
@@ -486,17 +497,6 @@ class LdapClient
         return $this->container
             ->get(ClientQueueInstantiator::class)
             ->isInstantiatedAndConnected();
-    }
-
-    /**
-     * Try to clean-up if needed.
-     *
-     * @throws Exception\ConnectionException
-     * @throws OperationException
-     */
-    public function __destruct()
-    {
-        $this->unbindIfConnected();
     }
 
     private function handler(): ClientProtocolHandler

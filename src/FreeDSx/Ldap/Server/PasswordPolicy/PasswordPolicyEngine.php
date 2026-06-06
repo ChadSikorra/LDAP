@@ -52,6 +52,167 @@ final readonly class PasswordPolicyEngine
     }
 
     /**
+     * Record a failed bind: append the current time to pwdFailureTime, and trip the lockout if the retained failure count meets pwdMaxFailure.
+     *
+     * Note: pwdFailureTime accumulates regardless of pwdLockout. Only the lock transition requires pwdLockout=TRUE (draft-behera-10 §5.2.9, §5.3.2).
+     */
+    public function recordBindFailure(
+        UserPasswordState $state,
+        PasswordPolicy $policy,
+    ): RecordedOutcome {
+        $now = $this->clock->now();
+        $expired = $this->hasExpiredLock($state, $policy);
+        $priorFailures = $expired ? [] : $state->failureTimes;
+
+        $retained = $this->trimFailuresToInterval(
+            $priorFailures,
+            $policy,
+        );
+        $retained[] = $now;
+
+        $changes = [Change::replace(
+            PasswordPolicyOid::NAME_PWD_FAILURE_TIME,
+            ...self::formatTimes($retained),
+        )];
+
+        $outcome = PasswordPolicyOutcome::allow();
+
+        if ($this->shouldTripLockout($state, $policy, $retained)) {
+            $changes[] = Change::replace(
+                PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME,
+                GeneralizedTime::format($now),
+            );
+            $outcome = self::denyLocked();
+        } elseif ($expired) {
+            $changes[] = Change::reset(PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME);
+        }
+
+        return new RecordedOutcome(
+            $outcome,
+            OperationalChanges::of(...$changes),
+        );
+    }
+
+    /**
+     * May deny if the password is expired and no grace remains; otherwise clears failures / lockout and surfaces any
+     * warning (expiration, grace, reset).
+     */
+    public function recordBindSuccess(
+        UserPasswordState $state,
+        PasswordPolicy $policy,
+    ): RecordedOutcome {
+        $now = $this->clock->now();
+        $secondsRemaining = $this->secondsUntilExpiration(
+            $state,
+            $policy,
+        );
+        $isExpired = $secondsRemaining !== null && $secondsRemaining <= 0;
+
+        if ($isExpired && !$this->graceAvailable($state, $policy, $secondsRemaining)) {
+            return new RecordedOutcome(
+                PasswordPolicyOutcome::deny(
+                    PwdPolicyError::PASSWORD_EXPIRED,
+                    ResultCode::INVALID_CREDENTIALS,
+                    'Password has expired.',
+                ),
+                OperationalChanges::none(),
+            );
+        }
+
+        $changes = $this->buildSuccessChanges(
+            $state,
+            $now,
+            $isExpired,
+        );
+        $outcome = $this->composeSuccessOutcome(
+            $state,
+            $policy,
+            $secondsRemaining,
+            $isExpired,
+        );
+
+        return new RecordedOutcome(
+            $outcome,
+            OperationalChanges::of(...$changes),
+        );
+    }
+
+    /**
+     * Evaluate a password change against the configured constraint chain.
+     */
+    public function evaluatePasswordChange(
+        #[SensitiveParameter]
+        string $newPassword,
+        #[SensitiveParameter]
+        ?string $oldPassword,
+        UserPasswordState $state,
+        PasswordPolicy $policy,
+        bool $isSelf,
+        bool $passwordIsCleartext = true,
+    ): PasswordPolicyOutcome {
+        $attempt = new PasswordChangeAttempt(
+            newPassword: $newPassword,
+            oldPassword: $oldPassword,
+            state: $state,
+            policy: $policy,
+            isSelf: $isSelf,
+            passwordIsCleartext: $passwordIsCleartext,
+        );
+
+        return $this->changeConstraints->evaluate($attempt)
+            ?? PasswordPolicyOutcome::allow();
+    }
+
+    /**
+     * Stamp pwdChangedTime, rotate pwdHistory, set/clear pwdReset, and clear pwdFailureTime / pwdAccountLockedTime /
+     * pwdGraceUseTime.
+     *
+     * @param non-empty-list<string> $hashedNewPasswords stored values being set (newest first - one per password value)
+     */
+    public function recordPasswordChange(
+        array $hashedNewPasswords,
+        UserPasswordState $state,
+        PasswordPolicy $policy,
+        bool $isSelf = true,
+    ): OperationalChanges {
+        $now = $this->clock->now();
+        $changes = [Change::replace(
+            PasswordPolicyOid::NAME_PWD_CHANGED_TIME,
+            GeneralizedTime::format($now),
+        )];
+
+        $historyChange = $this->buildHistoryChange(
+            $hashedNewPasswords,
+            $state,
+            $policy,
+            $now,
+        );
+        if ($historyChange !== null) {
+            $changes[] = $historyChange;
+        }
+
+        $resetChange = $this->buildResetChange(
+            $state,
+            $policy,
+            $isSelf,
+        );
+        if ($resetChange !== null) {
+            $changes[] = $resetChange;
+        }
+        if ($state->failureTimes !== []) {
+            $changes[] = Change::reset(PasswordPolicyOid::NAME_PWD_FAILURE_TIME);
+        }
+        if ($state->isLocked()) {
+            $changes[] = Change::reset(PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME);
+        }
+        if ($state->graceUseTimes !== []) {
+            $changes[] = Change::reset(PasswordPolicyOid::NAME_PWD_GRACE_USE_TIME);
+        }
+
+        return OperationalChanges::of(...$changes);
+    }
+
+    /**
      * Lock an account that has had no successful bind within pwdMaxIdle seconds (draft-behera-10 §5.2.19, §5.3.x).
      */
     private function evaluateIdleLockout(
@@ -140,48 +301,6 @@ final readonly class PasswordPolicyEngine
     }
 
     /**
-     * Record a failed bind: append the current time to pwdFailureTime, and trip the lockout if the retained failure count meets pwdMaxFailure.
-     *
-     * Note: pwdFailureTime accumulates regardless of pwdLockout. Only the lock transition requires pwdLockout=TRUE (draft-behera-10 §5.2.9, §5.3.2).
-     */
-    public function recordBindFailure(
-        UserPasswordState $state,
-        PasswordPolicy $policy,
-    ): RecordedOutcome {
-        $now = $this->clock->now();
-        $expired = $this->hasExpiredLock($state, $policy);
-        $priorFailures = $expired ? [] : $state->failureTimes;
-
-        $retained = $this->trimFailuresToInterval(
-            $priorFailures,
-            $policy,
-        );
-        $retained[] = $now;
-
-        $changes = [Change::replace(
-            PasswordPolicyOid::NAME_PWD_FAILURE_TIME,
-            ...self::formatTimes($retained),
-        )];
-
-        $outcome = PasswordPolicyOutcome::allow();
-
-        if ($this->shouldTripLockout($state, $policy, $retained)) {
-            $changes[] = Change::replace(
-                PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME,
-                GeneralizedTime::format($now),
-            );
-            $outcome = self::denyLocked();
-        } elseif ($expired) {
-            $changes[] = Change::reset(PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME);
-        }
-
-        return new RecordedOutcome(
-            $outcome,
-            OperationalChanges::of(...$changes),
-        );
-    }
-
-    /**
      * @param list<DateTimeImmutable> $failures
      * @return list<DateTimeImmutable>
      */
@@ -217,50 +336,6 @@ final readonly class PasswordPolicyEngine
             $this->isLockoutEffective($state, $policy) => false,
             default => count($retained) >= $policy->lockout->maxFailure,
         };
-    }
-
-    /**
-     * May deny if the password is expired and no grace remains; otherwise clears failures / lockout and surfaces any
-     * warning (expiration, grace, reset).
-     */
-    public function recordBindSuccess(
-        UserPasswordState $state,
-        PasswordPolicy $policy,
-    ): RecordedOutcome {
-        $now = $this->clock->now();
-        $secondsRemaining = $this->secondsUntilExpiration(
-            $state,
-            $policy,
-        );
-        $isExpired = $secondsRemaining !== null && $secondsRemaining <= 0;
-
-        if ($isExpired && !$this->graceAvailable($state, $policy, $secondsRemaining)) {
-            return new RecordedOutcome(
-                PasswordPolicyOutcome::deny(
-                    PwdPolicyError::PASSWORD_EXPIRED,
-                    ResultCode::INVALID_CREDENTIALS,
-                    'Password has expired.',
-                ),
-                OperationalChanges::none(),
-            );
-        }
-
-        $changes = $this->buildSuccessChanges(
-            $state,
-            $now,
-            $isExpired,
-        );
-        $outcome = $this->composeSuccessOutcome(
-            $state,
-            $policy,
-            $secondsRemaining,
-            $isExpired,
-        );
-
-        return new RecordedOutcome(
-            $outcome,
-            OperationalChanges::of(...$changes),
-        );
     }
 
     /**
@@ -389,81 +464,6 @@ final readonly class PasswordPolicyEngine
         }
 
         return $secondsRemaining;
-    }
-
-    /**
-     * Evaluate a password change against the configured constraint chain.
-     */
-    public function evaluatePasswordChange(
-        #[SensitiveParameter]
-        string $newPassword,
-        #[SensitiveParameter]
-        ?string $oldPassword,
-        UserPasswordState $state,
-        PasswordPolicy $policy,
-        bool $isSelf,
-        bool $passwordIsCleartext = true,
-    ): PasswordPolicyOutcome {
-        $attempt = new PasswordChangeAttempt(
-            newPassword: $newPassword,
-            oldPassword: $oldPassword,
-            state: $state,
-            policy: $policy,
-            isSelf: $isSelf,
-            passwordIsCleartext: $passwordIsCleartext,
-        );
-
-        return $this->changeConstraints->evaluate($attempt)
-            ?? PasswordPolicyOutcome::allow();
-    }
-
-    /**
-     * Stamp pwdChangedTime, rotate pwdHistory, set/clear pwdReset, and clear pwdFailureTime / pwdAccountLockedTime /
-     * pwdGraceUseTime.
-     *
-     * @param non-empty-list<string> $hashedNewPasswords stored values being set (newest first - one per password value)
-     */
-    public function recordPasswordChange(
-        array $hashedNewPasswords,
-        UserPasswordState $state,
-        PasswordPolicy $policy,
-        bool $isSelf = true,
-    ): OperationalChanges {
-        $now = $this->clock->now();
-        $changes = [Change::replace(
-            PasswordPolicyOid::NAME_PWD_CHANGED_TIME,
-            GeneralizedTime::format($now),
-        )];
-
-        $historyChange = $this->buildHistoryChange(
-            $hashedNewPasswords,
-            $state,
-            $policy,
-            $now,
-        );
-        if ($historyChange !== null) {
-            $changes[] = $historyChange;
-        }
-
-        $resetChange = $this->buildResetChange(
-            $state,
-            $policy,
-            $isSelf,
-        );
-        if ($resetChange !== null) {
-            $changes[] = $resetChange;
-        }
-        if ($state->failureTimes !== []) {
-            $changes[] = Change::reset(PasswordPolicyOid::NAME_PWD_FAILURE_TIME);
-        }
-        if ($state->isLocked()) {
-            $changes[] = Change::reset(PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME);
-        }
-        if ($state->graceUseTimes !== []) {
-            $changes[] = Change::reset(PasswordPolicyOid::NAME_PWD_GRACE_USE_TIME);
-        }
-
-        return OperationalChanges::of(...$changes);
     }
 
     /**

@@ -124,7 +124,6 @@ class Controls
         );
     }
 
-
     /**
      * Create a paging control with a specific size.
      */

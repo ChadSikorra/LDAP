@@ -34,6 +34,11 @@ class Option implements Stringable
 
     public function __construct(private readonly string $option) {}
 
+    public function __toString(): string
+    {
+        return $this->option;
+    }
+
     public function isLanguageTag(): bool
     {
         return $this->startsWith('lang-');
@@ -112,11 +117,6 @@ class Option implements Stringable
             return $this->lcOption;
         }
 
-        return $this->option;
-    }
-
-    public function __toString(): string
-    {
         return $this->option;
     }
 

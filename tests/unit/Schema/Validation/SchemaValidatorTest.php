@@ -42,58 +42,6 @@ final class SchemaValidatorTest extends TestCase
         );
     }
 
-    private function personEntry(string $dn = 'cn=Alice,dc=example,dc=com'): Entry
-    {
-        return new Entry(
-            new Dn($dn),
-            new Attribute('objectClass', 'top', 'person'),
-            new Attribute('cn', 'Alice'),
-            new Attribute('sn', 'Smith'),
-        );
-    }
-
-    private function syntaxValidator(): SchemaValidator
-    {
-        $schema = (new Schema())
-            ->addAttributeType(new AttributeType(
-                '1.5',
-                ['objectClass'],
-                syntaxOid: SyntaxOid::OID_OID,
-            ))
-            ->addAttributeType(new AttributeType(
-                '1.10',
-                ['widgetCount'],
-                syntaxOid: SyntaxOid::OID_INTEGER,
-            ))
-            ->addAttributeType(new AttributeType(
-                '1.11',
-                ['widgetOwner'],
-                syntaxOid: SyntaxOid::OID_DISTINGUISHED_NAME,
-            ))
-            ->addAttributeType(new AttributeType(
-                '1.12',
-                ['widgetSeenAt'],
-                syntaxOid: SyntaxOid::OID_GENERALIZED_TIME,
-            ))
-            ->addAttributeType(new AttributeType(
-                '1.13',
-                ['widgetActive'],
-                syntaxOid: SyntaxOid::OID_BOOLEAN,
-            ))
-            ->addObjectClass(new ObjectClass(
-                '2.10',
-                ['widget'],
-                ObjectClassType::StructuralClass,
-                must: ['objectClass'],
-                may: ['widgetCount', 'widgetOwner', 'widgetSeenAt', 'widgetActive'],
-            ));
-
-        return new SchemaValidator(
-            $schema,
-            SchemaValidationMode::Strict,
-        );
-    }
-
     public function test_mode_returns_configured_mode(): void
     {
         self::assertSame(
@@ -432,6 +380,82 @@ final class SchemaValidatorTest extends TestCase
         );
     }
 
+    public function test_add_structural_chain_passes(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=Thing,dc=example,dc=com'),
+            new Attribute('objectClass', 'top', 'alpha', 'alphaChild'),
+        );
+
+        $this->expectNotToPerformAssertions();
+        $this->structuralChainValidator()->validateAdd($entry);
+    }
+
+    public function test_add_two_unrelated_structural_classes_throws_object_class_violation(): void
+    {
+        $entry = new Entry(
+            new Dn('cn=Thing,dc=example,dc=com'),
+            new Attribute('objectClass', 'top', 'alpha', 'beta'),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::OBJECT_CLASS_VIOLATION);
+
+        $this->structuralChainValidator()->validateAdd($entry);
+    }
+
+    private function personEntry(string $dn = 'cn=Alice,dc=example,dc=com'): Entry
+    {
+        return new Entry(
+            new Dn($dn),
+            new Attribute('objectClass', 'top', 'person'),
+            new Attribute('cn', 'Alice'),
+            new Attribute('sn', 'Smith'),
+        );
+    }
+
+    private function syntaxValidator(): SchemaValidator
+    {
+        $schema = (new Schema())
+            ->addAttributeType(new AttributeType(
+                '1.5',
+                ['objectClass'],
+                syntaxOid: SyntaxOid::OID_OID,
+            ))
+            ->addAttributeType(new AttributeType(
+                '1.10',
+                ['widgetCount'],
+                syntaxOid: SyntaxOid::OID_INTEGER,
+            ))
+            ->addAttributeType(new AttributeType(
+                '1.11',
+                ['widgetOwner'],
+                syntaxOid: SyntaxOid::OID_DISTINGUISHED_NAME,
+            ))
+            ->addAttributeType(new AttributeType(
+                '1.12',
+                ['widgetSeenAt'],
+                syntaxOid: SyntaxOid::OID_GENERALIZED_TIME,
+            ))
+            ->addAttributeType(new AttributeType(
+                '1.13',
+                ['widgetActive'],
+                syntaxOid: SyntaxOid::OID_BOOLEAN,
+            ))
+            ->addObjectClass(new ObjectClass(
+                '2.10',
+                ['widget'],
+                ObjectClassType::StructuralClass,
+                must: ['objectClass'],
+                may: ['widgetCount', 'widgetOwner', 'widgetSeenAt', 'widgetActive'],
+            ));
+
+        return new SchemaValidator(
+            $schema,
+            SchemaValidationMode::Strict,
+        );
+    }
+
     private function structuralChainValidator(): SchemaValidator
     {
         $schema = (new Schema())
@@ -468,29 +492,5 @@ final class SchemaValidatorTest extends TestCase
             $schema,
             SchemaValidationMode::Strict,
         );
-    }
-
-    public function test_add_structural_chain_passes(): void
-    {
-        $entry = new Entry(
-            new Dn('cn=Thing,dc=example,dc=com'),
-            new Attribute('objectClass', 'top', 'alpha', 'alphaChild'),
-        );
-
-        $this->expectNotToPerformAssertions();
-        $this->structuralChainValidator()->validateAdd($entry);
-    }
-
-    public function test_add_two_unrelated_structural_classes_throws_object_class_violation(): void
-    {
-        $entry = new Entry(
-            new Dn('cn=Thing,dc=example,dc=com'),
-            new Attribute('objectClass', 'top', 'alpha', 'beta'),
-        );
-
-        $this->expectException(OperationException::class);
-        $this->expectExceptionCode(ResultCode::OBJECT_CLASS_VIOLATION);
-
-        $this->structuralChainValidator()->validateAdd($entry);
     }
 }

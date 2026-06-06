@@ -55,14 +55,6 @@ class IntermediateResponse implements ResponseInterface
         $this->responseValue = $responseValue;
     }
 
-    /**
-     * @param AbstractType<mixed> $valueToEncode
-     */
-    protected function setResponseValueToEncode(AbstractType $valueToEncode): void
-    {
-        $this->responseValueToEncode = $valueToEncode;
-    }
-
     public function getName(): ?string
     {
         return $this->responseName;
@@ -111,24 +103,6 @@ class IntermediateResponse implements ResponseInterface
         );
     }
 
-    /**
-     * @param AbstractType<mixed> $responseName
-     */
-    private static function isNotValidResponseName(AbstractType $responseName): bool
-    {
-        return $responseName->getTagNumber() !== 0
-            || $responseName->getTagClass() !== AbstractType::TAG_CLASS_CONTEXT_SPECIFIC;
-    }
-
-    /**
-     * @param AbstractType<mixed> $responseValue
-     */
-    private static function isNotValidResponseValue(AbstractType $responseValue): bool
-    {
-        return $responseValue->getTagNumber() !== 1
-            || $responseValue->getTagClass() !== AbstractType::TAG_CLASS_CONTEXT_SPECIFIC;
-    }
-
     public function toAsn1(): SequenceType
     {
         $response = Asn1::sequence();
@@ -155,6 +129,14 @@ class IntermediateResponse implements ResponseInterface
             tagNumber: self::TAG_NUMBER,
             type: $response,
         );
+    }
+
+    /**
+     * @param AbstractType<mixed> $valueToEncode
+     */
+    protected function setResponseValueToEncode(AbstractType $valueToEncode): void
+    {
+        $this->responseValueToEncode = $valueToEncode;
     }
 
     /**
@@ -211,5 +193,23 @@ class IntermediateResponse implements ResponseInterface
         }
 
         return $rawValue;
+    }
+
+    /**
+     * @param AbstractType<mixed> $responseName
+     */
+    private static function isNotValidResponseName(AbstractType $responseName): bool
+    {
+        return $responseName->getTagNumber() !== 0
+            || $responseName->getTagClass() !== AbstractType::TAG_CLASS_CONTEXT_SPECIFIC;
+    }
+
+    /**
+     * @param AbstractType<mixed> $responseValue
+     */
+    private static function isNotValidResponseValue(AbstractType $responseValue): bool
+    {
+        return $responseValue->getTagNumber() !== 1
+            || $responseValue->getTagClass() !== AbstractType::TAG_CLASS_CONTEXT_SPECIFIC;
     }
 }

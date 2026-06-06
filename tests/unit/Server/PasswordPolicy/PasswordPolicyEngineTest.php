@@ -40,6 +40,7 @@ final class PasswordPolicyEngineTest extends TestCase
     private const NOW = '2026-05-20T12:00:00Z';
 
     private FrozenClock $clock;
+
     private PasswordPolicyEngine $subject;
 
     protected function setUp(): void

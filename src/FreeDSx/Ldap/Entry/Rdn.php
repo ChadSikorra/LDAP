@@ -56,6 +56,11 @@ class Rdn implements Stringable
         private readonly string $value,
     ) {}
 
+    public function __toString(): string
+    {
+        return $this->toString();
+    }
+
     public function getName(): string
     {
         return $this->name;
@@ -115,11 +120,6 @@ class Rdn implements Stringable
         }
 
         return $rdn;
-    }
-
-    public function __toString(): string
-    {
-        return $this->toString();
     }
 
     /**

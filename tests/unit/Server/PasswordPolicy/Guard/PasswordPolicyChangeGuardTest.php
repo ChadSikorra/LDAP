@@ -48,10 +48,13 @@ use Tests\Support\FreeDSx\Ldap\Logging\RecordingLogger;
 final class PasswordPolicyChangeGuardTest extends TestCase
 {
     private const NOW = '2026-05-20T12:00:00Z';
+
     private const DN = 'cn=user,dc=foo,dc=bar';
 
     private FrozenClock $clock;
+
     private PasswordPolicyContext $context;
+
     private RecordingLogger $logger;
 
     protected function setUp(): void
