@@ -50,6 +50,10 @@ final class Worker
 
     private int $addSeq = 0;
 
+    /**
+     * @param Channel<bool> $readyBarrier
+     * @param Channel<float|false|null> $startSignal
+     */
     public function __construct(
         private readonly int $workerId,
         private readonly Config $config,

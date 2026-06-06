@@ -134,7 +134,11 @@ final class Driver
 
         Coroutine\run(function () use ($mix, $stats, &$elapsedSeconds, &$workerErrors): void {
             $clients = $this->config->clients;
+
+            /** @var Channel<bool> $readyBarrier */
             $readyBarrier = new Channel($clients);
+
+            /** @var Channel<float|false|null> $startSignal */
             $startSignal = new Channel($clients);
             $waitGroup = new WaitGroup();
 
@@ -191,6 +195,9 @@ final class Driver
         return $stats->snapshot($elapsedSeconds);
     }
 
+    /**
+     * @param Channel<bool> $readyBarrier
+     */
     private function awaitReady(Channel $readyBarrier, int $expected): bool
     {
         $allReady = true;

@@ -157,7 +157,7 @@ class PcntlServerRunner implements ServerRunnerInterface
                 $this->metricsRecorder->connectionObserved(ConnectionObservation::Closed);
                 $this->recordChildCloseReason(
                     $result,
-                    $status,
+                    is_int($status) ? $status : 0,
                 );
                 $this->logInfo(
                     'The child process has ended.',

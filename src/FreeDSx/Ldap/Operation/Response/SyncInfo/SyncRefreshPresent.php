@@ -29,5 +29,9 @@ use FreeDSx\Ldap\Operation\Response\SyncInfoMessage;
 class SyncRefreshPresent extends SyncInfoMessage
 {
     use SyncRefreshDoneTrait;
-    protected const VALUE_TAG = 2;
+
+    protected static function valueTag(): int
+    {
+        return 2;
+    }
 }

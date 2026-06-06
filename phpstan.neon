@@ -5,9 +5,10 @@ services:
             - shipmonk.deadCode.memberUsageProvider
 
 parameters:
-    level: 9
+    level: 10
     paths:
         - %currentWorkingDirectory%/src
+        - %currentWorkingDirectory%/tests
     scanDirectories:
         - %currentWorkingDirectory%/vendor/swoole/ide-helper/src
     treatPhpDocTypesAsCertain: false
@@ -15,6 +16,6 @@ parameters:
     ignoreErrors:
         - '#Unsafe usage of new static\(\).#'
     shipmonkDeadCode:
-        usageExcluders:
-            tests:
+        usageProviders:
+            phpunit:
                 enabled: true

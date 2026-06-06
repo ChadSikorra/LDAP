@@ -30,6 +30,8 @@ trait SyncRefreshDoneTrait
 {
     private bool $refreshDone;
 
+    abstract protected static function valueTag(): int;
+
     public function __construct(
         bool $refreshDone = true,
         ?string $cookie = null,
@@ -54,7 +56,7 @@ trait SyncRefreshDoneTrait
     public function toAsn1(): SequenceType
     {
         $asn1 = Asn1::context(
-            static::VALUE_TAG,
+            static::valueTag(),
             Asn1::sequence(),
         );
 
@@ -85,7 +87,7 @@ trait SyncRefreshDoneTrait
             $type,
             [
                 AbstractType::TAG_CLASS_CONTEXT_SPECIFIC => [
-                    self::VALUE_TAG => AbstractType::TAG_TYPE_SEQUENCE,
+                    static::valueTag() => AbstractType::TAG_TYPE_SEQUENCE,
                 ],
             ],
         );
