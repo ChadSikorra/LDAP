@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Tests\Support\FreeDSx\Ldap\Clock;
 
-use DateInterval;
 use DateTimeImmutable;
 use DateTimeZone;
 use FreeDSx\Ldap\Server\Clock\ClockInterface;
@@ -46,10 +45,5 @@ final class FrozenClock implements ClockInterface
     public function setTo(DateTimeImmutable $instant): void
     {
         $this->instant = $instant->setTimezone(new DateTimeZone('UTC'));
-    }
-
-    public function advance(string $interval): void
-    {
-        $this->instant = $this->instant->add(new DateInterval($interval));
     }
 }

@@ -42,9 +42,4 @@ final class RecordingLogger extends AbstractLogger
             'context' => $context,
         ];
     }
-
-    public function clear(): void
-    {
-        $this->records = [];
-    }
 }

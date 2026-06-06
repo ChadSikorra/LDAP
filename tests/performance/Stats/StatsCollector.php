@@ -60,11 +60,6 @@ final class StatsCollector
         $this->recording = false;
     }
 
-    public function isRecording(): bool
-    {
-        return $this->recording;
-    }
-
     public function recordSuccess(string $op, int $nanos): void
     {
         if (!$this->recording) {
