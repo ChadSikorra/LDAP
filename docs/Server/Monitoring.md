@@ -56,6 +56,13 @@ off rather than returned empty.
 | `connectionsMax` | The configured connection limit (`0` is unlimited). |
 | `operationsCompleted`, `operationsFailed` | Total operations and the failed subset. |
 | `operationsByType` | Per-type counts, e.g. `search=1402, bind=210, add=8`. |
+| `operationsByResultCode` | Per-result-code counts, e.g. `0=1610, 49=3, 32=5`. |
+| `operationsAvgLatencyMsByType` | Mean latency in milliseconds per type, e.g. `search=1.83, bind=0.42`. |
+| `bindsByMethod` | Bind counts split by method, e.g. `anonymous=12, simple=200, sasl=8`. |
+| `searchesByScope` | Search counts split by scope, e.g. `base=4, one=10, sub=1388`. |
+| `operationsInProgressByType` | Operations currently executing, per type. Coroutine runner only (see [Runner Differences](#runner-differences)). |
+| `trafficBytesSent`, `trafficBytesReceived` | LDAP protocol bytes written to and read from clients. |
+| `trafficEntriesReturned` | Search-result entries returned to clients. |
 
 Counters are monotonic since start and are never reset, so sample and diff them to get rates. A restart starts them over.
 
@@ -67,13 +74,17 @@ authenticated-only. To restrict it further, add `RuleBasedAccessControl` rules t
 
 ## Runner Differences
 
-* **Swoole** runs in one process, so `cn=monitor` is fully live.
-* **PCNTL** forks per connection. Connection gauges are authoritative, and operation counts stay current to within about
-  one accept cycle (`setSocketAcceptTimeout`), including on long-lived connections. They are best-effort: a forcibly
-  killed worker may lose its most recent operations.
+**Swoole** (single process):
 
-Under PCNTL the monitor data is published to a JSON file, by default under the system temp directory keyed by port. Set
-`setMonitorSnapshotPath()` to relocate it or to avoid collisions when running several instances on one host.
+* `cn=monitor` is fully live.
+* `operationsInProgressByType` is reported.
+
+**PCNTL** (forks per connection):
+
+* Connection gauges are authoritative.
+* Operation counts, traffic totals, and breakdowns are best-effort and current to within about one accept cycle.
+* `operationsInProgressByType` is omitted: it is a per-child gauge the parent serving `cn=monitor` cannot aggregate.
+* Monitor data is published to a JSON file, by default under the system temp directory keyed by port; set `setMonitorSnapshotPath()` to relocate it or avoid collisions across instances.
 
 For per-operation aggregation that survives saturation or spans instances, prefer a push exporter.
 
@@ -85,8 +96,9 @@ Provide any `MetricsRecorderInterface` to receive events out-of-band:
 $options->setMetricsRecorder($myRecorder);
 ```
 
-It is notified of each operation (`operationObserved`), connection lifecycle event (`connectionObserved`), server start,
-and config reload. The recorder and `cn=monitor` are independent, so the two options compose:
+It is notified of each operation start (`operationStarted`) and completion (`operationObserved`), transport traffic
+(`trafficObserved`), connection lifecycle event (`connectionObserved`), server start, and config reload. The recorder and
+`cn=monitor` are independent, so the two options compose:
 
 | `setMonitorEnabled` | `setMetricsRecorder` | Result |
 | --- | --- | --- |
