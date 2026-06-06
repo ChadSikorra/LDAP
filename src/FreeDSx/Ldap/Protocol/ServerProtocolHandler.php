@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Protocol;
 use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\ProtocolException;
+use FreeDSx\Ldap\Exception\RequestSizeExceededException;
 use FreeDSx\Ldap\Exception\RequestValidationException;
 use FreeDSx\Ldap\Exception\ResponseAlreadySentException;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
@@ -88,10 +89,17 @@ readonly class ServerProtocolHandler
             $closeReason = ConnectionObservation::IdleTimeout;
         } catch (ConnectionException) {
             # Connection closure is recorded by the runner's lifecycle logging; no audit event for normal client disconnects.
+        } catch (RequestSizeExceededException $e) {
+            # The client sent a PDU larger than the configured maximum. Per RFC 4511 §4.1.1 answer with a Notice of
+            # Disconnection, passing the cause so the log identifies the size violation, then record it and close.
+            $this->sendNoticeOfDisconnect(
+                $e->getMessage(),
+                cause: $e,
+            );
+            $closeReason = ConnectionObservation::RequestSizeExceeded;
         } catch (EncoderException|ProtocolException) {
-            # Per RFC 4511 §4.1.1, a PDU that cannot be processed — malformed, or rejected for exceeding the configured
-            # size cap (RequestSizeExceededException) — warrants a disconnect with a protocol error. The
-            # NoticeOfDisconnectSent event records the specific reason.
+            # Per RFC 4511 §4.1.1, a PDU that cannot be processed (malformed) warrants a disconnect with a protocol
+            # error. The NoticeOfDisconnectSent event records the specific reason.
             $this->sendNoticeOfDisconnect('The message could not be processed.');
         } catch (Throwable $e) {
             if ($this->queue->isConnected()) {

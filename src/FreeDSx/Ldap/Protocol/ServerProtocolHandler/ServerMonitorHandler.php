@@ -99,6 +99,7 @@ class ServerMonitorHandler implements ServerProtocolHandlerInterface
             'connectionsRejected' => [(string) $connections->rejected],
             'connectionsWriteTimeouts' => [(string) $connections->writeTimeouts],
             'connectionsIdleTimeouts' => [(string) $connections->idleTimeouts],
+            'connectionsRequestSizeExceeded' => [(string) $connections->requestSizeExceeded],
             'connectionsMax' => [(string) $this->options->getMaxConnections()],
             'operationsCompleted' => [(string) $operations->total()],
             'operationsFailed' => [(string) $operations->totalErrors()],

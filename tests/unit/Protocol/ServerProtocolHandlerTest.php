@@ -163,16 +163,29 @@ final class ServerProtocolHandlerTest extends TestCase
             ->handle();
     }
 
-    public function test_it_sends_a_notice_of_disconnect_when_a_request_exceeds_the_max_size(): void
+    public function test_a_request_size_exceeded_is_recorded_and_sends_a_notice_of_disconnect(): void
     {
+        $recordingLogger = new RecordingLogger();
         $this->mockQueue
             ->method('getMessage')
             ->willThrowException(new RequestSizeExceededException('too big'));
 
-        $this->expectNoticeOfDisconnect('The message could not be processed.');
+        $this->expectNoticeOfDisconnect('too big');
 
-        $this->handlerWith(new StubMiddlewareHandler(OperationOutcomeResult::succeeded()))
-            ->handle();
+        $closeReason = $this->handlerWith(
+            new StubMiddlewareHandler(OperationOutcomeResult::succeeded()),
+            new EventLogger($recordingLogger, EventLogPolicy::default()),
+        )->handle();
+
+        self::assertSame(
+            ConnectionObservation::RequestSizeExceeded,
+            $closeReason,
+        );
+        $record = $this->findRecord($recordingLogger, 'session.disconnect_notice');
+        self::assertSame(
+            RequestSizeExceededException::class,
+            $record['context']['exception_class'],
+        );
     }
 
     public function test_it_sends_a_notice_of_disconnect_on_an_encoder_exception_from_the_message_queue(): void

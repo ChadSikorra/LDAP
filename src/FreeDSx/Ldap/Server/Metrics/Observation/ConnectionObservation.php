@@ -29,4 +29,6 @@ enum ConnectionObservation: string
     case WriteTimeout = 'write_timeout';
 
     case IdleTimeout = 'idle_timeout';
+
+    case RequestSizeExceeded = 'request_size_exceeded';
 }
