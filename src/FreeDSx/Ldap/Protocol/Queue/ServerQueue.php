@@ -73,28 +73,22 @@ class ServerQueue extends LdapQueue
     }
 
     /**
-     * Count the LDAP bytes received for a decoded request.
-     *
-     * @throws ProtocolException
-     */
-    protected function decode(string $bytes): Message
-    {
-        $message = parent::decode($bytes);
-
-        $this->metricsRecorder->trafficObserved(new TrafficObservation(
-            bytesReceived: (int) $message->getLastPosition(),
-        ));
-
-        return $message;
-    }
-
-    /**
      * Count the LDAP bytes sent for each outgoing response.
      */
     protected function onMessageEncoded(string $encoded): void
     {
         $this->metricsRecorder->trafficObserved(new TrafficObservation(
             bytesSent: strlen($encoded),
+        ));
+    }
+
+    /**
+     * Count the LDAP bytes received for each decoded request.
+     */
+    protected function onMessageDecoded(Message $message): void
+    {
+        $this->metricsRecorder->trafficObserved(new TrafficObservation(
+            bytesReceived: (int) $message->getLastPosition(),
         ));
     }
 
