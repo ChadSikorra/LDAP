@@ -20,10 +20,14 @@ namespace FreeDSx\Ldap\Server\Metrics\Snapshot;
  */
 final readonly class MetricsSnapshot
 {
+    /**
+     * @param array<string, int> $operationsInProgress In-flight count per operation type (a live gauge, not a counter).
+     */
     public function __construct(
         public LifecycleMetrics $lifecycle = new LifecycleMetrics(),
         public ConnectionMetrics $connections = new ConnectionMetrics(),
         public OperationMetrics $operations = new OperationMetrics(),
+        public array $operationsInProgress = [],
     ) {}
 
     /**
@@ -35,6 +39,7 @@ final readonly class MetricsSnapshot
             'lifecycle' => $this->lifecycle->toArray(),
             'connections' => $this->connections->toArray(),
             'operations' => $this->operations->toArray(),
+            'operations_in_progress' => $this->operationsInProgress,
         ];
     }
 
@@ -56,6 +61,7 @@ final readonly class MetricsSnapshot
                 $data,
                 'operations',
             )),
+            operationsInProgress: SnapshotValue::toIntMap($data['operations_in_progress'] ?? null),
         );
     }
 

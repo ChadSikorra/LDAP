@@ -27,6 +27,8 @@ use FreeDSx\Ldap\Server\Middleware\MetricsMiddleware;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
+use Tests\Support\FreeDSx\Ldap\Middleware\CallbackMiddlewareHandler;
 use Tests\Support\FreeDSx\Ldap\Middleware\StubMiddlewareHandler;
 use Tests\Support\FreeDSx\Ldap\Middleware\ThrowingMiddlewareHandler;
 
@@ -114,6 +116,63 @@ final class MetricsMiddlewareTest extends TestCase
         self::assertSame(
             [ResultCode::INSUFFICIENT_ACCESS_RIGHTS => 1],
             $operations->resultCodeCounts,
+        );
+    }
+
+    public function test_it_raises_the_in_flight_gauge_during_handling_and_clears_it_after(): void
+    {
+        $inFlightDuring = [];
+
+        $this->subject->process(
+            $this->contextFor(new SearchRequest(Filters::present('objectClass'))),
+            new CallbackMiddlewareHandler(function () use (&$inFlightDuring) {
+                $inFlightDuring = $this->recorder->snapshot()->operationsInProgress;
+
+                return OperationOutcomeResult::succeeded();
+            }),
+        );
+
+        self::assertSame(
+            ['search' => 1],
+            $inFlightDuring,
+        );
+        self::assertSame(
+            [],
+            $this->recorder->snapshot()->operationsInProgress,
+        );
+    }
+
+    public function test_an_unexpected_throwable_is_recorded_and_clears_the_in_flight_gauge(): void
+    {
+        $caught = null;
+
+        try {
+            $this->subject->process(
+                $this->contextFor(new SearchRequest(Filters::present('objectClass'))),
+                new ThrowingMiddlewareHandler(new RuntimeException('boom')),
+            );
+        } catch (RuntimeException $e) {
+            $caught = $e;
+        }
+
+        self::assertInstanceOf(
+            RuntimeException::class,
+            $caught,
+        );
+
+        $operations = $this->recorder->snapshot()->operations;
+
+        self::assertSame(
+            ['search' => 1],
+            $operations->errors,
+        );
+        self::assertSame(
+            [ResultCode::OPERATIONS_ERROR => 1],
+            $operations->resultCodeCounts,
+        );
+        self::assertSame(
+            [],
+            $this->recorder->snapshot()->operationsInProgress,
         );
     }
 

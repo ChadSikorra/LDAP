@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Metrics\Recorder;
 
+use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
@@ -96,8 +97,19 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
      */
     private array $searchScopeCounts = [];
 
+    /**
+     * @var array<string, int<1, max>> In-flight count per operation type; entries are pruned when they reach zero.
+     */
+    private array $operationsInProgress = [];
+
+    public function operationStarted(OperationType $operation): void
+    {
+        $this->operationsInProgress[$operation->value] = ($this->operationsInProgress[$operation->value] ?? 0) + 1;
+    }
+
     public function operationObserved(OperationObservation $observation): void
     {
+        $this->clearInProgress($observation->operation);
         $operation = $observation->operation->value;
         $this->operationCounts[$operation] = ($this->operationCounts[$operation] ?? 0) + 1;
         $this->operationDurationSeconds[$operation] = ($this->operationDurationSeconds[$operation] ?? 0.0)
@@ -162,7 +174,30 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
                 $this->bindCounts,
                 $this->searchScopeCounts,
             ),
+            $this->operationsInProgress,
         );
+    }
+
+    /**
+     * Decrement, and prune at zero, the in-flight gauge for a completed operation type.
+     */
+    private function clearInProgress(OperationType $operation): void
+    {
+        $key = $operation->value;
+
+        if (!isset($this->operationsInProgress[$key])) {
+            return;
+        }
+
+        $remaining = $this->operationsInProgress[$key] - 1;
+
+        if ($remaining <= 0) {
+            unset($this->operationsInProgress[$key]);
+
+            return;
+        }
+
+        $this->operationsInProgress[$key] = $remaining;
     }
 
     public function takeOperationDelta(): OperationMetrics
@@ -172,6 +207,8 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
             $this->operationErrors,
             $this->operationDurationSeconds,
             $this->resultCodeCounts,
+            $this->bindCounts,
+            $this->searchScopeCounts,
         );
 
         $this->resetOperations();

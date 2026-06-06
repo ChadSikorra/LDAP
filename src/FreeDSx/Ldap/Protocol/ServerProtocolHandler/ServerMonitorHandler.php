@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
 use FreeDSx\Ldap\Server\Metrics\Snapshot\MetricsSnapshot;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
+use FreeDSx\Ldap\Server\ServerRunner\CoroutineServerRunnerInterface;
 use FreeDSx\Ldap\Server\ServerRunner\PcntlServerRunner;
 use FreeDSx\Ldap\Server\ServerRunner\SwooleServerRunner;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
@@ -108,7 +109,34 @@ class ServerMonitorHandler implements ServerProtocolHandlerInterface
                 $operations->counts,
                 $operations->durationSeconds,
             ),
+            'operationsInProgressByType' => $this->operationsInProgress($snapshot->operationsInProgress),
         ]);
+    }
+
+    /**
+     * The in-flight gauge is only meaningful under the single-process Swoole runner.
+     *
+     * @param array<string, int> $inProgress
+     * @return list<string>
+     */
+    private function operationsInProgress(array $inProgress): array
+    {
+        if (!$this->isCoroutineRunner()) {
+            return [];
+        }
+
+        return $this->formatCounts($inProgress);
+    }
+
+    private function isCoroutineRunner(): bool
+    {
+        $runner = $this->options->getServerRunner();
+
+        if ($runner !== null) {
+            return $runner instanceof CoroutineServerRunnerInterface;
+        }
+
+        return $this->options->getUseSwooleRunner();
     }
 
     /**

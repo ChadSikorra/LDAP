@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Operation\Request\SaslBindRequest;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\Request\SimpleBindRequest;
+use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
 use FreeDSx\Ldap\Server\Metrics\Rollup\OperationRollupCoordinator;
@@ -28,6 +29,7 @@ use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
 use FreeDSx\Ldap\Server\Operation\OperationOutcome;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
+use Throwable;
 
 use function microtime;
 
@@ -54,6 +56,7 @@ final readonly class MetricsMiddleware implements MiddlewareInterface
     ): OperationResult {
         $request = $context->message->getRequest();
         $operation = OperationType::classify($request);
+        $this->recorder->operationStarted($operation);
         $startedAt = microtime(true);
 
         try {
@@ -65,6 +68,17 @@ final readonly class MetricsMiddleware implements MiddlewareInterface
                 false,
                 microtime(true) - $startedAt,
                 $e->getCode(),
+            );
+
+            throw $e;
+        } catch (Throwable $e) {
+            // An unexpected failure still has to clear the in-flight gauge and be counted as a failed op.
+            $this->record(
+                $request,
+                $operation,
+                false,
+                microtime(true) - $startedAt,
+                ResultCode::OPERATIONS_ERROR,
             );
 
             throw $e;

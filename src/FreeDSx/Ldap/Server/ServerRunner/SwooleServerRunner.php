@@ -48,7 +48,7 @@ use Throwable;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class SwooleServerRunner implements ServerRunnerInterface
+class SwooleServerRunner implements CoroutineServerRunnerInterface
 {
     use ServerRunnerLoggerTrait;
     use ReloadsConfigurationTrait;

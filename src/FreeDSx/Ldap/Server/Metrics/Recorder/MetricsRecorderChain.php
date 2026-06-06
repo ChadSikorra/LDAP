@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Metrics\Recorder;
 
+use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
@@ -40,6 +41,13 @@ final readonly class MetricsRecorderChain implements MetricsRecorderInterface
     {
         foreach ($this->recorders as $recorder) {
             $recorder->operationObserved($observation);
+        }
+    }
+
+    public function operationStarted(OperationType $operation): void
+    {
+        foreach ($this->recorders as $recorder) {
+            $recorder->operationStarted($operation);
         }
     }
 

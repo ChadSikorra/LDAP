@@ -244,6 +244,33 @@ final class ServerMonitorHandlerTest extends TestCase
         self::assertNull($entry->get('serverUptimeSeconds'));
     }
 
+    public function test_it_omits_in_flight_operations_under_the_forking_runner(): void
+    {
+        $this->metrics->operationStarted(OperationType::Search);
+
+        $entry = $this->handleAndCaptureEntry();
+
+        self::assertNull($entry->get('operationsInProgressByType'));
+    }
+
+    public function test_it_reports_in_flight_operations_under_a_coroutine_runner(): void
+    {
+        $this->metrics->operationStarted(OperationType::Search);
+
+        $subject = new ServerMonitorHandler(
+            options: (new ServerOptions())->setUseSwooleRunner(true),
+            queue: $this->mockQueue,
+            snapshots: $this->metrics,
+        );
+
+        $entry = $this->handleAndCaptureEntry($subject);
+
+        self::assertSame(
+            ['search=1'],
+            $entry->get('operationsInProgressByType')?->getValues(),
+        );
+    }
+
     private function makeMessage(): LdapMessageRequest
     {
         return new LdapMessageRequest(
@@ -254,7 +281,7 @@ final class ServerMonitorHandlerTest extends TestCase
         );
     }
 
-    private function handleAndCaptureEntry(): Entry
+    private function handleAndCaptureEntry(?ServerMonitorHandler $subject = null): Entry
     {
         $captured = null;
 
@@ -272,7 +299,7 @@ final class ServerMonitorHandlerTest extends TestCase
                 self::anything(),
             );
 
-        $this->subject->handleRequest(
+        ($subject ?? $this->subject)->handleRequest(
             $this->makeMessage(),
             $this->mockToken,
         );

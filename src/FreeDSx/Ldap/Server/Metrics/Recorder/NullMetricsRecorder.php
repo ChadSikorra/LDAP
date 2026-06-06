@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Metrics\Recorder;
 
+use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
@@ -25,6 +26,8 @@ use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
 final class NullMetricsRecorder implements MetricsRecorderInterface
 {
     public function operationObserved(OperationObservation $observation): void {}
+
+    public function operationStarted(OperationType $operation): void {}
 
     public function connectionObserved(ConnectionObservation $observation): void {}
 

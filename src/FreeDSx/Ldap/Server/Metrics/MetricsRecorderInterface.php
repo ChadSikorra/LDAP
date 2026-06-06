@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Metrics;
 
+use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
 
@@ -23,7 +24,15 @@ use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
  */
 interface MetricsRecorderInterface
 {
+    /**
+     * Records a completed operation, also clearing the in-light counter.
+     */
     public function operationObserved(OperationObservation $observation): void;
+
+    /**
+     * Marks an operation as entering the handler.
+     */
+    public function operationStarted(OperationType $operation): void;
 
     public function connectionObserved(ConnectionObservation $observation): void;
 
