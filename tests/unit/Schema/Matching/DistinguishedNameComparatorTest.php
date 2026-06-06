@@ -46,6 +46,26 @@ final class DistinguishedNameComparatorTest extends TestCase
         self::assertTrue($result);
     }
 
+    public function test_equals_ignores_insignificant_whitespace(): void
+    {
+        $result = $this->subject->equals(
+            'cn=John  Smith , dc=example , dc=com',
+            'cn=john smith,dc=example,dc=com',
+        );
+
+        self::assertTrue($result);
+    }
+
+    public function test_equals_ignores_multivalued_rdn_order(): void
+    {
+        $result = $this->subject->equals(
+            'cn=a+uid=b,dc=com',
+            'uid=b+cn=a,dc=com',
+        );
+
+        self::assertTrue($result);
+    }
+
     public function test_equals_different_dn(): void
     {
         $result = $this->subject->equals(

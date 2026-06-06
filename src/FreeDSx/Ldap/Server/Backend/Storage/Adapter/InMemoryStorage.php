@@ -46,12 +46,12 @@ final class InMemoryStorage implements EntryStorageInterface
 
     public function find(Dn $dn): ?Entry
     {
-        return $this->entries[$dn->toString()] ?? null;
+        return $this->entries[$dn->normalize()->toString()] ?? null;
     }
 
     public function exists(Dn $dn): bool
     {
-        return isset($this->entries[$dn->toString()]);
+        return isset($this->entries[$dn->normalize()->toString()]);
     }
 
     public function list(StorageListOptions $options): EntryStream
@@ -69,7 +69,7 @@ final class InMemoryStorage implements EntryStorageInterface
 
     public function remove(Dn $dn): void
     {
-        unset($this->entries[$dn->toString()]);
+        unset($this->entries[$dn->normalize()->toString()]);
     }
 
     public function atomic(callable $operation): void

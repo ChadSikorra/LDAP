@@ -26,7 +26,10 @@ use function count;
 use function implode;
 use function ltrim;
 use function preg_split;
-use function strtolower;
+use function str_ends_with;
+use function strlen;
+use function strpos;
+use function substr;
 
 /**
  * Represents a Distinguished Name.
@@ -41,11 +44,24 @@ class Dn implements IteratorAggregate, Countable, Stringable
      */
     private ?array $pieces = null;
 
+    private ?Dn $normalized = null;
+
     public function __construct(private readonly string $dn) {}
 
     public function __toString(): string
     {
         return $this->dn;
+    }
+
+    /**
+     * Wrap an already-canonical DN string, skipping re-normalization.
+     */
+    public static function fromCanonical(string $canonical): self
+    {
+        $dn = new self($canonical);
+        $dn->normalized = $dn;
+
+        return $dn;
     }
 
     /**
@@ -133,11 +149,18 @@ class Dn implements IteratorAggregate, Countable, Stringable
     }
 
     /**
-     * Return a normalised (lowercased) copy of this DN.
+     * Return the canonical (RFC 4518 caseIgnore) copy of this DN.
      */
     public function normalize(): Dn
     {
-        return new Dn(strtolower($this->dn));
+        if ($this->normalized !== null) {
+            return $this->normalized;
+        }
+        $canonical = DnNormalizer::canonicalize($this->dn);
+
+        return $this->normalized = $canonical === $this->dn
+            ? $this
+            : self::fromCanonical($canonical);
     }
 
     /**
@@ -147,15 +170,13 @@ class Dn implements IteratorAggregate, Countable, Stringable
      */
     public function isChildOf(Dn $parent): bool
     {
-        $parentDn = $parent->toString();
-        if ($parentDn === '') {
-            return $this->getParent() === null
-                && $this->toString() !== '';
-        }
-        $myParent = $this->getParent();
+        $thisDn = $this->normalize()->toString();
 
-        return $myParent !== null
-            && strtolower($myParent->toString()) === strtolower($parentDn);
+        if ($thisDn === '') {
+            return false;
+        }
+
+        return self::canonicalParent($thisDn) === $parent->normalize()->toString();
     }
 
     /**
@@ -165,27 +186,51 @@ class Dn implements IteratorAggregate, Countable, Stringable
      */
     public function isDescendantOf(Dn $base): bool
     {
-        $baseDn = $base->toString();
-        $thisDn = $this->toString();
+        $baseDn = $base->normalize()->toString();
+        $thisDn = $this->normalize()->toString();
 
         if ($baseDn === '') {
             return $thisDn !== '';
         }
-
-        $baseLower = strtolower($baseDn);
-        if (strtolower($thisDn) === $baseLower) {
+        if ($thisDn === $baseDn) {
             return true;
         }
+        $ancestorSuffix = ',' . $baseDn;
 
-        $parent = $this->getParent();
-        while ($parent !== null) {
-            if (strtolower($parent->toString()) === $baseLower) {
-                return true;
+        return str_ends_with($thisDn, $ancestorSuffix)
+            && self::isUnescaped($thisDn, strlen($thisDn) - strlen($ancestorSuffix));
+    }
+
+    /**
+     * Parent of an already-canonical DN: the substring after the first unescaped RDN separator.
+     */
+    private static function canonicalParent(string $canonical): string
+    {
+        $offset = 0;
+        while (($pos = strpos($canonical, ',', $offset)) !== false) {
+            if (self::isUnescaped($canonical, $pos)) {
+                return substr($canonical, $pos + 1);
             }
-            $parent = $parent->getParent();
+            $offset = $pos + 1;
         }
 
-        return false;
+        return '';
+    }
+
+    /**
+     * Whether the character at $pos is preceded by an even number of backslashes (i.e. not escaped).
+     */
+    private static function isUnescaped(
+        string $value,
+        int $pos,
+    ): bool {
+        $slashes = 0;
+
+        for ($i = $pos - 1; $i >= 0 && $value[$i] === '\\'; $i--) {
+            $slashes++;
+        }
+
+        return $slashes % 2 === 0;
     }
 
     /**

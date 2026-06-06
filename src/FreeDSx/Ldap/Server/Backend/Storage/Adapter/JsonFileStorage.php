@@ -72,12 +72,12 @@ final class JsonFileStorage implements EntryStorageInterface
 
     public function find(Dn $dn): ?Entry
     {
-        return $this->read()[$dn->toString()] ?? null;
+        return $this->read()[$dn->normalize()->toString()] ?? null;
     }
 
     public function exists(Dn $dn): bool
     {
-        return isset($this->read()[$dn->toString()]);
+        return isset($this->read()[$dn->normalize()->toString()]);
     }
 
     public function list(StorageListOptions $options): EntryStream
@@ -102,7 +102,7 @@ final class JsonFileStorage implements EntryStorageInterface
     {
         $this->withMutation(function (string $contents) use ($dn): string {
             $data = $this->decodeContents($contents);
-            unset($data[$dn->toString()]);
+            unset($data[$dn->normalize()->toString()]);
 
             return $this->encodeContents($data);
         });

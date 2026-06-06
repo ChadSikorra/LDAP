@@ -51,6 +51,17 @@ final class InMemoryStorageTest extends TestCase
         self::assertNull($this->subject->find(new Dn('cn=nobody,dc=example,dc=com')));
     }
 
+    public function test_find_matches_whitespace_and_case_variant_dn(): void
+    {
+        $entry = $this->subject->find(new Dn('CN = Alice , dc=example , dc=com'));
+
+        self::assertNotNull($entry);
+        self::assertSame(
+            'cn=Alice,dc=example,dc=com',
+            $entry->getDn()->toString(),
+        );
+    }
+
     public function test_list_returns_all_entries(): void
     {
         $entries = iterator_to_array($this->subject->list(StorageListOptions::matchAll(new Dn(''), true))->entries);

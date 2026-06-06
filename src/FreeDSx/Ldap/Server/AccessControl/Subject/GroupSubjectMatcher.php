@@ -77,20 +77,15 @@ final class GroupSubjectMatcher implements SubjectMatcherInterface, BackendAware
             return false;
         }
 
-        $resolvedDn = self::normalizeDn($token->getResolvedDn()->toString());
+        $resolvedDn = $token->getResolvedDn()->normalize()->toString();
 
         foreach ($memberAttr->getValues() as $value) {
-            if (self::normalizeDn($value) === $resolvedDn) {
+            if ((new Dn($value))->normalize()->toString() === $resolvedDn) {
                 return true;
             }
         }
 
         return false;
-    }
-
-    private static function normalizeDn(string $dn): string
-    {
-        return strtolower(preg_replace('/\s*([,=])\s*/', '$1', $dn) ?? $dn);
     }
 
     private function getGroupEntry(TokenInterface $token): ?Entry
