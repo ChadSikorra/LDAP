@@ -26,8 +26,8 @@ final class OperationRollupCoordinator
     private ?ChildChannel $boundChannel = null;
 
     public function __construct(
-        private readonly OperationRollupInterface $recorder,
-        private readonly ChannelMessageFactory $messageFactory = new OperationDeltaMessageFactory(),
+        private readonly MetricsRollupInterface $recorder,
+        private readonly ChannelMessageFactory $messageFactory = new MetricsDeltaMessageFactory(),
     ) {}
 
     public function openChannel(): ChildChannel
@@ -36,20 +36,20 @@ final class OperationRollupCoordinator
     }
 
     /**
-     * In the child: clear operations inherited from the parent and bind the channel this child reports on.
+     * In the child: clear metrics inherited from the parent and bind the channel this child reports on.
      */
     public function enterChild(ChildChannel $channel): void
     {
-        $this->recorder->resetOperations();
+        $this->recorder->resetDelta();
         $this->boundChannel = $channel;
     }
 
     /**
-     * In the child: report the operations recorded since the last flush.
+     * In the child: report the metrics recorded since the last flush.
      */
     public function flush(): void
     {
-        $this->boundChannel?->send(new OperationDeltaMessage($this->recorder->takeOperationDelta()));
+        $this->boundChannel?->send(new MetricsDeltaMessage($this->recorder->takeDelta()));
     }
 
     /**
@@ -62,13 +62,13 @@ final class OperationRollupCoordinator
     }
 
     /**
-     * In the parent: fold any operation deltas available on a child's channel into the totals.
+     * In the parent: fold any metrics deltas available on a child's channel into the totals.
      */
     public function collect(ChildChannel $channel): void
     {
         foreach ($channel->receive() as $message) {
-            if ($message instanceof OperationDeltaMessage) {
-                $this->recorder->mergeOperations($message->operations());
+            if ($message instanceof MetricsDeltaMessage) {
+                $this->recorder->mergeDelta($message->delta());
             }
         }
     }

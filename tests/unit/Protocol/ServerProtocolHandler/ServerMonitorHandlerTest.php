@@ -26,6 +26,7 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerMonitorHandler;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
+use FreeDSx\Ldap\Server\Metrics\Observation\TrafficObservation;
 use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
 use FreeDSx\Ldap\Server\ServerRunner\PcntlServerRunner;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
@@ -242,6 +243,30 @@ final class ServerMonitorHandlerTest extends TestCase
 
         self::assertNull($entry->get('serverStartTime'));
         self::assertNull($entry->get('serverUptimeSeconds'));
+    }
+
+    public function test_it_reports_traffic_totals(): void
+    {
+        $this->metrics->trafficObserved(new TrafficObservation(
+            bytesSent: 2048,
+            bytesReceived: 256,
+            entriesReturned: 7,
+        ));
+
+        $entry = $this->handleAndCaptureEntry();
+
+        self::assertSame(
+            ['2048'],
+            $entry->get('trafficBytesSent')?->getValues(),
+        );
+        self::assertSame(
+            ['256'],
+            $entry->get('trafficBytesReceived')?->getValues(),
+        );
+        self::assertSame(
+            ['7'],
+            $entry->get('trafficEntriesReturned')?->getValues(),
+        );
     }
 
     public function test_it_omits_in_flight_operations_under_the_forking_runner(): void

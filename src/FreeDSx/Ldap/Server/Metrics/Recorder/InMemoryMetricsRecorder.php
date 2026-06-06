@@ -18,11 +18,14 @@ use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
-use FreeDSx\Ldap\Server\Metrics\Rollup\OperationRollupInterface;
+use FreeDSx\Ldap\Server\Metrics\Observation\TrafficObservation;
+use FreeDSx\Ldap\Server\Metrics\Rollup\MetricsDelta;
+use FreeDSx\Ldap\Server\Metrics\Rollup\MetricsRollupInterface;
 use FreeDSx\Ldap\Server\Metrics\Snapshot\ConnectionMetrics;
 use FreeDSx\Ldap\Server\Metrics\Snapshot\LifecycleMetrics;
 use FreeDSx\Ldap\Server\Metrics\Snapshot\MetricsSnapshot;
 use FreeDSx\Ldap\Server\Metrics\Snapshot\OperationMetrics;
+use FreeDSx\Ldap\Server\Metrics\Snapshot\TrafficMetrics;
 
 use function max;
 
@@ -31,7 +34,7 @@ use function max;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class InMemoryMetricsRecorder implements MetricsRecorderInterface, MetricsSnapshotProvider, OperationRollupInterface
+final class InMemoryMetricsRecorder implements MetricsRecorderInterface, MetricsSnapshotProvider, MetricsRollupInterface
 {
     private int $startedAt = 0;
 
@@ -102,6 +105,37 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
      */
     private array $operationsInProgress = [];
 
+    /**
+     * @var int<0, max>
+     */
+    private int $bytesSent = 0;
+
+    /**
+     * @var int<0, max>
+     */
+    private int $bytesReceived = 0;
+
+    /**
+     * @var int<0, max>
+     */
+    private int $entriesReturned = 0;
+
+    public function trafficObserved(TrafficObservation $observation): void
+    {
+        $this->bytesSent = max(
+            0,
+            $this->bytesSent + $observation->bytesSent,
+        );
+        $this->bytesReceived = max(
+            0,
+            $this->bytesReceived + $observation->bytesReceived,
+        );
+        $this->entriesReturned = max(
+            0,
+            $this->entriesReturned + $observation->entriesReturned,
+        );
+    }
+
     public function operationStarted(OperationType $operation): void
     {
         $this->operationsInProgress[$operation->value] = ($this->operationsInProgress[$operation->value] ?? 0) + 1;
@@ -166,15 +200,30 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
                 $this->writeTimeouts,
                 $this->idleTimeouts,
             ),
-            new OperationMetrics(
-                $this->operationCounts,
-                $this->operationErrors,
-                $this->operationDurationSeconds,
-                $this->resultCodeCounts,
-                $this->bindCounts,
-                $this->searchScopeCounts,
-            ),
+            $this->operationMetrics(),
             $this->operationsInProgress,
+            $this->trafficMetrics(),
+        );
+    }
+
+    private function operationMetrics(): OperationMetrics
+    {
+        return new OperationMetrics(
+            $this->operationCounts,
+            $this->operationErrors,
+            $this->operationDurationSeconds,
+            $this->resultCodeCounts,
+            $this->bindCounts,
+            $this->searchScopeCounts,
+        );
+    }
+
+    private function trafficMetrics(): TrafficMetrics
+    {
+        return new TrafficMetrics(
+            $this->bytesSent,
+            $this->bytesReceived,
+            $this->entriesReturned,
         );
     }
 
@@ -200,23 +249,19 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
         $this->operationsInProgress[$key] = $remaining;
     }
 
-    public function takeOperationDelta(): OperationMetrics
+    public function takeDelta(): MetricsDelta
     {
-        $delta = new OperationMetrics(
-            $this->operationCounts,
-            $this->operationErrors,
-            $this->operationDurationSeconds,
-            $this->resultCodeCounts,
-            $this->bindCounts,
-            $this->searchScopeCounts,
+        $delta = new MetricsDelta(
+            $this->operationMetrics(),
+            $this->trafficMetrics(),
         );
 
-        $this->resetOperations();
+        $this->resetDelta();
 
         return $delta;
     }
 
-    public function resetOperations(): void
+    public function resetDelta(): void
     {
         $this->operationCounts = [];
         $this->operationErrors = [];
@@ -224,9 +269,18 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
         $this->resultCodeCounts = [];
         $this->bindCounts = [];
         $this->searchScopeCounts = [];
+        $this->bytesSent = 0;
+        $this->bytesReceived = 0;
+        $this->entriesReturned = 0;
     }
 
-    public function mergeOperations(OperationMetrics $delta): void
+    public function mergeDelta(MetricsDelta $delta): void
+    {
+        $this->mergeOperations($delta->operations);
+        $this->mergeTraffic($delta->traffic);
+    }
+
+    private function mergeOperations(OperationMetrics $delta): void
     {
         foreach ($delta->counts as $operation => $count) {
             $this->operationCounts[$operation] = max(
@@ -266,6 +320,22 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
                 ($this->searchScopeCounts[$scope] ?? 0) + $count,
             );
         }
+    }
+
+    private function mergeTraffic(TrafficMetrics $delta): void
+    {
+        $this->bytesSent = max(
+            0,
+            $this->bytesSent + $delta->bytesSent,
+        );
+        $this->bytesReceived = max(
+            0,
+            $this->bytesReceived + $delta->bytesReceived,
+        );
+        $this->entriesReturned = max(
+            0,
+            $this->entriesReturned + $delta->entriesReturned,
+        );
     }
 
     private function onOpened(): void

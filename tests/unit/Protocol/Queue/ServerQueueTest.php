@@ -27,6 +27,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Exception\RequestSizeExceededException;
 use FreeDSx\Ldap\Protocol\Queue\MessageWrapperInterface;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
 use FreeDSx\Socket\Queue\Buffer;
 use FreeDSx\Socket\Socket;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -112,6 +113,60 @@ final class ServerQueueTest extends TestCase
         );
     }
 
+
+    public function test_it_records_bytes_sent_for_each_outgoing_message(): void
+    {
+        $recorder = new InMemoryMetricsRecorder();
+        $encoder = $this->createMock(EncoderInterface::class);
+        $encoder->method('encode')->willReturn('abcdef');
+        $socket = $this->createMock(Socket::class);
+
+        $queue = new ServerQueue(
+            $socket,
+            $encoder,
+            metricsRecorder: $recorder,
+        );
+        $queue->sendMessage(new LdapMessageResponse(
+            1,
+            new DeleteResponse(0),
+        ));
+
+        self::assertSame(
+            6,
+            $recorder->snapshot()->traffic->bytesSent,
+        );
+    }
+
+    public function test_it_records_bytes_received_for_each_decoded_request(): void
+    {
+        $recorder = new InMemoryMetricsRecorder();
+        $encoder = $this->createMock(EncoderInterface::class);
+        $encoder->method('getLastPosition')->willReturn(42);
+        $encoder->expects($this->once())
+            ->method('decode')
+            ->willReturn(Asn1::sequence(
+                Asn1::integer(1),
+                Asn1::application(10, Asn1::octetString('dc=foo,dc=bar')),
+                new IncompleteType((new LdapEncoder())->encode(Asn1::context(0, Asn1::sequenceOf((new Control('foo'))->toAsn1())))),
+            ));
+        $socket = $this->createMock(Socket::class);
+        $socket->method('read')->willReturnOnConsecutiveCalls(
+            'foo',
+            false,
+        );
+
+        $queue = new ServerQueue(
+            $socket,
+            $encoder,
+            metricsRecorder: $recorder,
+        );
+        $queue->getMessage();
+
+        self::assertSame(
+            42,
+            $recorder->snapshot()->traffic->bytesReceived,
+        );
+    }
 
     public function test_it_should_set_a_message_wrapper_and_use_it_when_sending_messages(): void
     {

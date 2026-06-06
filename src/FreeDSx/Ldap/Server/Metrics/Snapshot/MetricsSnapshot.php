@@ -28,6 +28,7 @@ final readonly class MetricsSnapshot
         public ConnectionMetrics $connections = new ConnectionMetrics(),
         public OperationMetrics $operations = new OperationMetrics(),
         public array $operationsInProgress = [],
+        public TrafficMetrics $traffic = new TrafficMetrics(),
     ) {}
 
     /**
@@ -40,6 +41,7 @@ final readonly class MetricsSnapshot
             'connections' => $this->connections->toArray(),
             'operations' => $this->operations->toArray(),
             'operations_in_progress' => $this->operationsInProgress,
+            'traffic' => $this->traffic->toArray(),
         ];
     }
 
@@ -62,6 +64,10 @@ final readonly class MetricsSnapshot
                 'operations',
             )),
             operationsInProgress: SnapshotValue::toIntMap($data['operations_in_progress'] ?? null),
+            traffic: TrafficMetrics::fromArray(self::section(
+                $data,
+                'traffic',
+            )),
         );
     }
 

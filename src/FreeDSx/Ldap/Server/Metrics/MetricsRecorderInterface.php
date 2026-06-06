@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Server\Metrics;
 use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
+use FreeDSx\Ldap\Server\Metrics\Observation\TrafficObservation;
 
 /**
  * Sink that server components push metric observations to.
@@ -33,6 +34,11 @@ interface MetricsRecorderInterface
      * Marks an operation as entering the handler.
      */
     public function operationStarted(OperationType $operation): void;
+
+    /**
+     * Records a unit of transport traffic.
+     */
+    public function trafficObserved(TrafficObservation $observation): void;
 
     public function connectionObserved(ConnectionObservation $observation): void;
 

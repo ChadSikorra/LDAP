@@ -13,21 +13,20 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Metrics\Rollup;
 
-use FreeDSx\Ldap\Server\Metrics\Snapshot\OperationMetrics;
 use FreeDSx\Ldap\Server\Process\ChannelMessage;
 
 /**
- * Carries a child process's operation-metrics delta to the parent over a ChildChannel.
+ * Carries a child process's metrics delta to the parent over a ChildChannel.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final readonly class OperationDeltaMessage implements ChannelMessage
+final readonly class MetricsDeltaMessage implements ChannelMessage
 {
-    public function __construct(private OperationMetrics $operations) {}
+    public function __construct(private MetricsDelta $delta) {}
 
-    public function operations(): OperationMetrics
+    public function delta(): MetricsDelta
     {
-        return $this->operations;
+        return $this->delta;
     }
 
     /**
@@ -35,6 +34,9 @@ final readonly class OperationDeltaMessage implements ChannelMessage
      */
     public function toArray(): array
     {
-        return $this->operations->toArray();
+        return [
+            'operations' => $this->delta->operations->toArray(),
+            'traffic' => $this->delta->traffic->toArray(),
+        ];
     }
 }
