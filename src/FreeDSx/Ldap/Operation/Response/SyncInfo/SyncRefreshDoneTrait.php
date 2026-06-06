@@ -46,13 +46,6 @@ trait SyncRefreshDoneTrait
         return $this->refreshDone;
     }
 
-    public function setRefreshDone(bool $refreshDone): self
-    {
-        $this->refreshDone = $refreshDone;
-
-        return $this;
-    }
-
     public function toAsn1(): SequenceType
     {
         $asn1 = Asn1::context(

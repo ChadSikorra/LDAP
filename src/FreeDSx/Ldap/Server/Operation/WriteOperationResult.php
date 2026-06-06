@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Operation;
 
-use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
@@ -32,7 +31,6 @@ final readonly class WriteOperationResult implements AuditableResult
     private function __construct(
         private LdapMessageRequest $message,
         private SchemaViolations $schemaViolations,
-        private ?OperationException $failure = null,
     ) {}
 
     public static function success(
@@ -45,28 +43,14 @@ final readonly class WriteOperationResult implements AuditableResult
         );
     }
 
-    public static function failure(
-        LdapMessageRequest $message,
-        OperationException $exception,
-        SchemaViolations $schemaViolations,
-    ): self {
-        return new self(
-            $message,
-            $schemaViolations,
-            $exception,
-        );
-    }
-
     public function outcome(): OperationOutcome
     {
-        return $this->failure === null
-            ? OperationOutcome::Succeeded
-            : OperationOutcome::Failed;
+        return OperationOutcome::Succeeded;
     }
 
     public function resultCode(): int
     {
-        return $this->failure?->getCode() ?? ResultCode::SUCCESS;
+        return ResultCode::SUCCESS;
     }
 
     public function record(
@@ -78,16 +62,6 @@ final readonly class WriteOperationResult implements AuditableResult
             $this->message,
             $token,
         );
-
-        if ($this->failure !== null) {
-            $auditor->recordFailure(
-                $this->message,
-                $this->failure,
-                $token,
-            );
-
-            return;
-        }
 
         $auditor->recordWriteSuccess(
             $this->message,
