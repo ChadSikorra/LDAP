@@ -26,9 +26,11 @@ use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
+use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
 use FreeDSx\Socket\Exception\ConnectionException;
+use FreeDSx\Socket\Exception\IdleTimeoutException;
 use FreeDSx\Socket\Exception\WriteTimeoutException;
 use Throwable;
 
@@ -50,10 +52,14 @@ readonly class ServerProtocolHandler
     /**
      * Listens for messages from the socket and handles the responses/actions needed.
      *
+     * @return ?ConnectionObservation The connection-timeout that ended the session, or null for a normal close.
+     *
      * @throws EncoderException
      */
-    public function handle(): void
+    public function handle(): ?ConnectionObservation
     {
+        $closeReason = null;
+
         try {
             while ($message = $this->queue->getMessage()) {
                 $this->dispatchRequest($message);
@@ -72,6 +78,14 @@ readonly class ServerProtocolHandler
                 ServerEvent::WriteTimeout,
                 [EventContext::REASON_MESSAGE => $e->getMessage()],
             );
+            $closeReason = ConnectionObservation::WriteTimeout;
+        } catch (IdleTimeoutException $e) {
+            # The client sent nothing within the read timeout. Record it and close; there is nothing to send back.
+            $this->eventLogger->record(
+                ServerEvent::IdleTimeout,
+                [EventContext::REASON_MESSAGE => $e->getMessage()],
+            );
+            $closeReason = ConnectionObservation::IdleTimeout;
         } catch (ConnectionException) {
             # Connection closure is recorded by the runner's lifecycle logging; no audit event for normal client disconnects.
         } catch (EncoderException|ProtocolException) {
@@ -88,6 +102,8 @@ readonly class ServerProtocolHandler
                 $this->queue->close();
             }
         }
+
+        return $closeReason;
     }
 
     /**

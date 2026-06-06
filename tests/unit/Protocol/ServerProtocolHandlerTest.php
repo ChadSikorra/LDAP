@@ -31,9 +31,11 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
+use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
 use FreeDSx\Socket\Exception\ConnectionException;
+use FreeDSx\Socket\Exception\IdleTimeoutException;
 use FreeDSx\Socket\Exception\WriteTimeoutException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -213,16 +215,57 @@ final class ServerProtocolHandlerTest extends TestCase
             ->expects(self::once())
             ->method('close');
 
-        $this->handlerWith(
+        $closeReason = $this->handlerWith(
             new ThrowingMiddlewareHandler(new WriteTimeoutException('The write operation timed out after 600 seconds.')),
             new EventLogger($recordingLogger, EventLogPolicy::default()),
         )->handle();
 
+        self::assertSame(
+            ConnectionObservation::WriteTimeout,
+            $closeReason,
+        );
         $record = $this->findRecord($recordingLogger, 'session.write_timeout');
         self::assertSame(
             'The write operation timed out after 600 seconds.',
             $record['context']['reason_message'],
         );
+    }
+
+    public function test_an_idle_timeout_is_recorded_and_closes_without_a_notice_of_disconnect(): void
+    {
+        $recordingLogger = new RecordingLogger();
+        $this->mockQueue
+            ->method('getMessage')
+            ->willThrowException(new IdleTimeoutException('The connection was idle for longer than the read timeout of 600 seconds.'));
+        $this->mockQueue
+            ->expects(self::never())
+            ->method('sendMessage');
+        $this->mockQueue
+            ->expects(self::once())
+            ->method('close');
+
+        $closeReason = $this->handlerWith(
+            new StubMiddlewareHandler(OperationOutcomeResult::succeeded()),
+            new EventLogger($recordingLogger, EventLogPolicy::default()),
+        )->handle();
+
+        self::assertSame(
+            ConnectionObservation::IdleTimeout,
+            $closeReason,
+        );
+        $record = $this->findRecord($recordingLogger, 'session.idle_timeout');
+        self::assertSame(
+            'The connection was idle for longer than the read timeout of 600 seconds.',
+            $record['context'][EventContext::REASON_MESSAGE],
+        );
+
+        foreach ($recordingLogger->records as $logged) {
+            self::assertNotSame(
+                'session.disconnect_notice',
+                $logged['message'],
+                'An idle client must not be sent a Notice of Disconnection.',
+            );
+        }
     }
 
     public function test_it_sends_a_notice_of_disconnect_and_closes_the_queue_on_shutdown(): void

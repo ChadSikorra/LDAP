@@ -86,6 +86,16 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
      */
     private array $resultCodeCounts = [];
 
+    /**
+     * @var array<string, int<0, max>>
+     */
+    private array $bindCounts = [];
+
+    /**
+     * @var array<string, int<0, max>>
+     */
+    private array $searchScopeCounts = [];
+
     public function operationObserved(OperationObservation $observation): void
     {
         $operation = $observation->operation->value;
@@ -96,6 +106,14 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
 
         if (!$observation->succeeded) {
             $this->operationErrors[$operation] = ($this->operationErrors[$operation] ?? 0) + 1;
+        }
+
+        if ($observation->bindMethod !== null) {
+            $this->bindCounts[$observation->bindMethod] = ($this->bindCounts[$observation->bindMethod] ?? 0) + 1;
+        }
+
+        if ($observation->searchScope !== null) {
+            $this->searchScopeCounts[$observation->searchScope] = ($this->searchScopeCounts[$observation->searchScope] ?? 0) + 1;
         }
     }
 
@@ -141,6 +159,8 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
                 $this->operationErrors,
                 $this->operationDurationSeconds,
                 $this->resultCodeCounts,
+                $this->bindCounts,
+                $this->searchScopeCounts,
             ),
         );
     }
@@ -165,16 +185,24 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
         $this->operationErrors = [];
         $this->operationDurationSeconds = [];
         $this->resultCodeCounts = [];
+        $this->bindCounts = [];
+        $this->searchScopeCounts = [];
     }
 
     public function mergeOperations(OperationMetrics $delta): void
     {
         foreach ($delta->counts as $operation => $count) {
-            $this->operationCounts[$operation] = max(0, ($this->operationCounts[$operation] ?? 0) + $count);
+            $this->operationCounts[$operation] = max(
+                0,
+                ($this->operationCounts[$operation] ?? 0) + $count,
+            );
         }
 
         foreach ($delta->errors as $operation => $count) {
-            $this->operationErrors[$operation] = max(0, ($this->operationErrors[$operation] ?? 0) + $count);
+            $this->operationErrors[$operation] = max(
+                0,
+                ($this->operationErrors[$operation] ?? 0) + $count,
+            );
         }
 
         foreach ($delta->durationSeconds as $operation => $seconds) {
@@ -182,7 +210,24 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
         }
 
         foreach ($delta->resultCodeCounts as $code => $count) {
-            $this->resultCodeCounts[$code] = max(0, ($this->resultCodeCounts[$code] ?? 0) + $count);
+            $this->resultCodeCounts[$code] = max(
+                0,
+                ($this->resultCodeCounts[$code] ?? 0) + $count,
+            );
+        }
+
+        foreach ($delta->bindCounts as $method => $count) {
+            $this->bindCounts[$method] = max(
+                0,
+                ($this->bindCounts[$method] ?? 0) + $count,
+            );
+        }
+
+        foreach ($delta->searchScopeCounts as $scope => $count) {
+            $this->searchScopeCounts[$scope] = max(
+                0,
+                ($this->searchScopeCounts[$scope] ?? 0) + $count,
+            );
         }
     }
 

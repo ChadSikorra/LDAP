@@ -15,6 +15,11 @@ namespace FreeDSx\Ldap\Server\Middleware;
 
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\OperationType;
+use FreeDSx\Ldap\Operation\Request\AnonBindRequest;
+use FreeDSx\Ldap\Operation\Request\RequestInterface;
+use FreeDSx\Ldap\Operation\Request\SaslBindRequest;
+use FreeDSx\Ldap\Operation\Request\SearchRequest;
+use FreeDSx\Ldap\Operation\Request\SimpleBindRequest;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
 use FreeDSx\Ldap\Server\Metrics\Rollup\OperationRollupCoordinator;
@@ -47,13 +52,15 @@ final readonly class MetricsMiddleware implements MiddlewareInterface
         ServerRequestContext $context,
         MiddlewareHandlerInterface $next,
     ): OperationResult {
-        $operation = OperationType::classify($context->message->getRequest());
+        $request = $context->message->getRequest();
+        $operation = OperationType::classify($request);
         $startedAt = microtime(true);
 
         try {
             $result = $next->handle($context);
         } catch (OperationException $e) {
             $this->record(
+                $request,
                 $operation,
                 false,
                 microtime(true) - $startedAt,
@@ -64,6 +71,7 @@ final readonly class MetricsMiddleware implements MiddlewareInterface
         }
 
         $this->record(
+            $request,
             $operation,
             $result->outcome() === OperationOutcome::Succeeded,
             microtime(true) - $startedAt,
@@ -74,6 +82,7 @@ final readonly class MetricsMiddleware implements MiddlewareInterface
     }
 
     private function record(
+        RequestInterface $request,
         OperationType $operation,
         bool $succeeded,
         float $durationSeconds,
@@ -84,7 +93,33 @@ final readonly class MetricsMiddleware implements MiddlewareInterface
             $succeeded,
             $durationSeconds,
             $resultCode,
+            $this->bindMethod($request),
+            $this->searchScope($request),
         ));
         $this->rollup?->flush();
+    }
+
+    private function bindMethod(RequestInterface $request): ?string
+    {
+        return match (true) {
+            $request instanceof AnonBindRequest => 'anonymous',
+            $request instanceof SaslBindRequest => 'sasl',
+            $request instanceof SimpleBindRequest => 'simple',
+            default => null,
+        };
+    }
+
+    private function searchScope(RequestInterface $request): ?string
+    {
+        if (!$request instanceof SearchRequest) {
+            return null;
+        }
+
+        return match ($request->getScope()) {
+            SearchRequest::SCOPE_BASE_OBJECT => 'base',
+            SearchRequest::SCOPE_SINGLE_LEVEL => 'one',
+            SearchRequest::SCOPE_WHOLE_SUBTREE => 'sub',
+            default => null,
+        };
     }
 }

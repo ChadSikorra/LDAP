@@ -45,6 +45,7 @@ enum ServerEvent: string
     case SchemaViolation                = 'schema.violation';
     case NoticeOfDisconnectSent         = 'session.disconnect_notice';
     case WriteTimeout                   = 'session.write_timeout';
+    case IdleTimeout                    = 'session.idle_timeout';
     case PasswordPolicyAccountLocked    = 'password_policy.account_locked';
     case PasswordPolicyAccountUnlocked  = 'password_policy.account_unlocked';
     case PasswordPolicyExpired          = 'password_policy.expired';
@@ -66,6 +67,7 @@ enum ServerEvent: string
             self::SchemaViolation,
             self::NoticeOfDisconnectSent,
             self::WriteTimeout,
+            self::IdleTimeout,
             self::PasswordPolicyExpired,
             self::PasswordPolicyChangeRejected => LogLevel::NOTICE,
             default => LogLevel::INFO,

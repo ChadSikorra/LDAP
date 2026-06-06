@@ -45,6 +45,13 @@ class PcntlServerRunner implements ServerRunnerInterface
     use ServerRunnerLoggerTrait;
     use ReloadsConfigurationTrait;
 
+    /**
+     * Child exit codes that tell the parent a connection ended on a timeout.
+     */
+    private const EXIT_CODE_WRITE_TIMEOUT = 10;
+
+    private const EXIT_CODE_IDLE_TIMEOUT = 11;
+
     private SocketServer $server;
 
     /**
@@ -131,8 +138,7 @@ class PcntlServerRunner implements ServerRunnerInterface
     private function cleanUpChildProcesses(): void
     {
         foreach ($this->childProcesses as $index => $childProcess) {
-            // No use for this at the moment, but define it anyway.
-            $status = null;
+            $status = 0;
 
             $result = pcntl_waitpid(
                 $childProcess->getPid(),
@@ -147,6 +153,10 @@ class PcntlServerRunner implements ServerRunnerInterface
                 $this->server->removeClient($socket);
                 $socket->close();
                 $this->metricsRecorder->connectionObserved(ConnectionObservation::Closed);
+                $this->recordChildTimeoutClose(
+                    $result,
+                    $status,
+                );
                 $this->logInfo(
                     'The child process has ended.',
                     array_merge(
@@ -191,6 +201,40 @@ class PcntlServerRunner implements ServerRunnerInterface
     {
         $this->collectOperationDelta($childProcess);
         $childProcess->getChannel()?->close();
+    }
+
+    /**
+     * The exit code a child uses to tell the parent which timeout, if any, ended the connection.
+     */
+    private function childExitCodeFor(?ConnectionObservation $closeReason): int
+    {
+        return match ($closeReason) {
+            ConnectionObservation::WriteTimeout => self::EXIT_CODE_WRITE_TIMEOUT,
+            ConnectionObservation::IdleTimeout => self::EXIT_CODE_IDLE_TIMEOUT,
+            default => 0,
+        };
+    }
+
+    /**
+     * Record a timeout close from a reaped child's exit status, alongside the connection-closed gauge update.
+     */
+    private function recordChildTimeoutClose(
+        int $result,
+        int $status,
+    ): void {
+        if ($result <= 0 || !pcntl_wifexited($status)) {
+            return;
+        }
+
+        $observation = match (pcntl_wexitstatus($status)) {
+            self::EXIT_CODE_WRITE_TIMEOUT => ConnectionObservation::WriteTimeout,
+            self::EXIT_CODE_IDLE_TIMEOUT => ConnectionObservation::IdleTimeout,
+            default => null,
+        };
+
+        if ($observation !== null) {
+            $this->metricsRecorder->connectionObserved($observation);
+        }
     }
 
     /**
@@ -452,8 +496,9 @@ class PcntlServerRunner implements ServerRunnerInterface
             $context,
         );
 
+        $closeReason = null;
         try {
-            $serverProtocolHandler->handle();
+            $closeReason = $serverProtocolHandler->handle();
         } finally {
             $this->operationRollup?->finish();
         }
@@ -463,7 +508,8 @@ class PcntlServerRunner implements ServerRunnerInterface
             $context,
         );
 
-        exit(0);
+        // Convey a timeout close to the parent through the exit code.
+        exit($this->childExitCodeFor($closeReason));
     }
 
     /**

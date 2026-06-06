@@ -100,8 +100,43 @@ class ServerMonitorHandler implements ServerProtocolHandlerInterface
             'connectionsMax' => [(string) $this->options->getMaxConnections()],
             'operationsCompleted' => [(string) $operations->total()],
             'operationsFailed' => [(string) $operations->totalErrors()],
-            'operationsByType' => $this->operationsByType($operations->counts),
+            'operationsByType' => $this->formatCounts($operations->counts),
+            'operationsByResultCode' => $this->formatCounts($operations->resultCodeCounts),
+            'bindsByMethod' => $this->formatCounts($operations->bindCounts),
+            'searchesByScope' => $this->formatCounts($operations->searchScopeCounts),
+            'operationsAvgLatencyMsByType' => $this->avgLatencyMsByType(
+                $operations->counts,
+                $operations->durationSeconds,
+            ),
         ]);
+    }
+
+    /**
+     * Mean latency per operation type in milliseconds, derived from the summed duration and count.
+     *
+     * @param array<string, int> $counts
+     * @param array<string, float> $durationSeconds
+     * @return list<string>
+     */
+    private function avgLatencyMsByType(
+        array $counts,
+        array $durationSeconds,
+    ): array {
+        $values = [];
+
+        foreach ($counts as $operation => $count) {
+            if ($count <= 0) {
+                continue;
+            }
+
+            $averageMs = (($durationSeconds[$operation] ?? 0.0) / $count) * 1000;
+            $values[] = $operation . '=' . (string) round(
+                $averageMs,
+                2,
+            );
+        }
+
+        return $values;
     }
 
     /**
@@ -135,15 +170,17 @@ class ServerMonitorHandler implements ServerProtocolHandlerInterface
     }
 
     /**
-     * @param array<string, int> $counts
+     * Render a count map as multivalue "key=count" strings.
+     *
+     * @param array<array-key, int> $counts
      * @return list<string>
      */
-    private function operationsByType(array $counts): array
+    private function formatCounts(array $counts): array
     {
         $values = [];
 
-        foreach ($counts as $operation => $count) {
-            $values[] = $operation . '=' . $count;
+        foreach ($counts as $key => $count) {
+            $values[] = $key . '=' . $count;
         }
 
         return $values;
