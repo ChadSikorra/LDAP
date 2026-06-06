@@ -32,7 +32,7 @@ use function implode;
 final class ReferralResult implements Countable, IteratorAggregate, Stringable
 {
     /**
-     * @var null|LdapUrl[]
+     * @var null|array<int, LdapUrl>
      */
     private ?array $referrals = null;
 

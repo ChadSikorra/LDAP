@@ -29,5 +29,9 @@ use FreeDSx\Ldap\Operation\Response\SyncInfoMessage;
 class SyncRefreshDelete extends SyncInfoMessage
 {
     use SyncRefreshDoneTrait;
-    protected const VALUE_TAG = 1;
+
+    protected static function valueTag(): int
+    {
+        return 1;
+    }
 }

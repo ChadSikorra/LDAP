@@ -36,17 +36,17 @@ class SearchResultReference implements ResponseInterface
     protected const TAG_NUMBER = 19;
 
     /**
-     * @var LdapUrl[]
+     * @var array<int, LdapUrl>
      */
     private array $referrals;
 
     public function __construct(LdapUrl ...$referrals)
     {
-        $this->referrals = $referrals;
+        $this->referrals = array_values($referrals);
     }
 
     /**
-     * @return LdapUrl[]
+     * @return array<int, LdapUrl>
      */
     public function getReferrals(): array
     {

@@ -70,7 +70,7 @@ final readonly class ProxyRequestForwarder implements MiddlewareHandlerInterface
         try {
             $response = $this->sendUpstream(
                 $request,
-                $message->controls()->toArray(),
+                array_values($message->controls()->toArray()),
             );
         } catch (OperationException $e) {
             $this->queue->sendMessage($this->responseFactory->getStandardResponse(

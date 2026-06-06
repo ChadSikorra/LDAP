@@ -139,7 +139,7 @@ final readonly class StringPrep
             Normalizer::FORM_KC,
         );
 
-        return $normalized !== false
+        return is_string($normalized)
             ? $normalized
             : $value;
     }

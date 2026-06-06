@@ -109,6 +109,13 @@ class Container
         }
 
         $instance = ($this->instanceFactory[$className])();
+        if (!$instance instanceof $className) {
+            throw new RuntimeException(sprintf(
+                'The factory for "%s" did not return the expected type.',
+                $className,
+            ));
+        }
+
         if (!in_array($className, self::FACTORY_ONLY, true)) {
             $this->instances[$className] = $instance;
         }
