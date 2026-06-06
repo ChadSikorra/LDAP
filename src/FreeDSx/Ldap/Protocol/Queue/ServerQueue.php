@@ -27,10 +27,15 @@ use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\LdapQueue;
 use FreeDSx\Ldap\Protocol\Queue\Response\ResponseInterceptor;
+use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
+use FreeDSx\Ldap\Server\Metrics\Observation\TrafficObservation;
+use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Socket\Exception\ConnectionException;
 use FreeDSx\Socket\Queue\Message;
 use FreeDSx\Socket\Socket;
 use Generator;
+
+use function strlen;
 
 /**
  * The LDAP Queue class for sending and receiving messages for servers.
@@ -57,6 +62,7 @@ class ServerQueue extends LdapQueue
         ?EncoderInterface $encoder = null,
         int $maxReceiveSize = 0,
         array $interceptors = [],
+        private readonly MetricsRecorderInterface $metricsRecorder = new NullMetricsRecorder(),
     ) {
         parent::__construct(
             $socket,
@@ -64,6 +70,32 @@ class ServerQueue extends LdapQueue
             $maxReceiveSize,
         );
         $this->interceptors = $interceptors;
+    }
+
+    /**
+     * Count the LDAP bytes received for a decoded request.
+     *
+     * @throws ProtocolException
+     */
+    protected function decode(string $bytes): Message
+    {
+        $message = parent::decode($bytes);
+
+        $this->metricsRecorder->trafficObserved(new TrafficObservation(
+            bytesReceived: (int) $message->getLastPosition(),
+        ));
+
+        return $message;
+    }
+
+    /**
+     * Count the LDAP bytes sent for each outgoing response.
+     */
+    protected function onMessageEncoded(string $encoded): void
+    {
+        $this->metricsRecorder->trafficObserved(new TrafficObservation(
+            bytesSent: strlen($encoded),
+        ));
     }
 
     /**

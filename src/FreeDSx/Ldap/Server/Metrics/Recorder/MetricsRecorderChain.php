@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
+use FreeDSx\Ldap\Server\Metrics\Observation\TrafficObservation;
 
 use function array_values;
 
@@ -48,6 +49,13 @@ final readonly class MetricsRecorderChain implements MetricsRecorderInterface
     {
         foreach ($this->recorders as $recorder) {
             $recorder->operationStarted($operation);
+        }
+    }
+
+    public function trafficObserved(TrafficObservation $observation): void
+    {
+        foreach ($this->recorders as $recorder) {
+            $recorder->trafficObserved($observation);
         }
     }
 

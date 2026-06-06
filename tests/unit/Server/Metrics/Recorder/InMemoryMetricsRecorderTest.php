@@ -17,8 +17,11 @@ use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
+use FreeDSx\Ldap\Server\Metrics\Observation\TrafficObservation;
 use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
+use FreeDSx\Ldap\Server\Metrics\Rollup\MetricsDelta;
 use FreeDSx\Ldap\Server\Metrics\Snapshot\OperationMetrics;
+use FreeDSx\Ldap\Server\Metrics\Snapshot\TrafficMetrics;
 use PHPUnit\Framework\TestCase;
 
 final class InMemoryMetricsRecorderTest extends TestCase
@@ -200,7 +203,7 @@ final class InMemoryMetricsRecorderTest extends TestCase
         );
     }
 
-    public function test_taking_the_operation_delta_returns_the_metrics_and_resets_them(): void
+    public function test_taking_the_delta_returns_the_metrics_and_resets_them(): void
     {
         $this->subject->operationObserved(new OperationObservation(
             OperationType::Search,
@@ -216,32 +219,45 @@ final class InMemoryMetricsRecorderTest extends TestCase
             ResultCode::SUCCESS,
             bindMethod: 'simple',
         ));
+        $this->subject->trafficObserved(new TrafficObservation(
+            bytesSent: 120,
+            bytesReceived: 30,
+            entriesReturned: 4,
+        ));
 
-        $delta = $this->subject->takeOperationDelta();
+        $delta = $this->subject->takeDelta();
 
         self::assertSame(
             ['search' => 1, 'bind' => 1],
-            $delta->counts,
+            $delta->operations->counts,
         );
         self::assertSame(
             [ResultCode::SUCCESS => 2],
-            $delta->resultCodeCounts,
+            $delta->operations->resultCodeCounts,
         );
         self::assertSame(
             ['simple' => 1],
-            $delta->bindCounts,
+            $delta->operations->bindCounts,
         );
         self::assertSame(
             ['sub' => 1],
-            $delta->searchScopeCounts,
+            $delta->operations->searchScopeCounts,
+        );
+        self::assertSame(
+            120,
+            $delta->traffic->bytesSent,
+        );
+        self::assertSame(
+            4,
+            $delta->traffic->entriesReturned,
         );
         self::assertSame(
             [],
-            $this->subject->takeOperationDelta()->counts,
+            $this->subject->takeDelta()->operations->counts,
         );
     }
 
-    public function test_resetting_operations_clears_the_accumulators_but_keeps_connections(): void
+    public function test_resetting_the_delta_clears_the_accumulators_but_keeps_connections(): void
     {
         $this->subject->operationObserved(new OperationObservation(
             OperationType::Search,
@@ -249,9 +265,10 @@ final class InMemoryMetricsRecorderTest extends TestCase
             0.5,
             ResultCode::SUCCESS,
         ));
+        $this->subject->trafficObserved(new TrafficObservation(bytesSent: 50));
         $this->subject->connectionObserved(ConnectionObservation::Opened);
 
-        $this->subject->resetOperations();
+        $this->subject->resetDelta();
 
         $snapshot = $this->subject->snapshot();
         self::assertSame(
@@ -259,12 +276,16 @@ final class InMemoryMetricsRecorderTest extends TestCase
             $snapshot->operations->counts,
         );
         self::assertSame(
+            0,
+            $snapshot->traffic->bytesSent,
+        );
+        self::assertSame(
             1,
             $snapshot->connections->active,
         );
     }
 
-    public function test_merging_an_operation_delta_sums_into_the_totals(): void
+    public function test_merging_a_delta_sums_into_the_totals(): void
     {
         $this->subject->operationObserved(new OperationObservation(
             OperationType::Search,
@@ -272,17 +293,29 @@ final class InMemoryMetricsRecorderTest extends TestCase
             0.5,
             ResultCode::SUCCESS,
         ));
-
-        $this->subject->mergeOperations(new OperationMetrics(
-            counts: ['search' => 2, 'bind' => 1],
-            errors: ['search' => 1],
-            durationSeconds: ['search' => 0.25],
-            resultCodeCounts: [ResultCode::SUCCESS => 2],
-            bindCounts: ['anonymous' => 1],
-            searchScopeCounts: ['sub' => 2],
+        $this->subject->trafficObserved(new TrafficObservation(
+            bytesSent: 10,
+            entriesReturned: 1,
         ));
 
-        $operations = $this->subject->snapshot()->operations;
+        $this->subject->mergeDelta(new MetricsDelta(
+            new OperationMetrics(
+                counts: ['search' => 2, 'bind' => 1],
+                errors: ['search' => 1],
+                durationSeconds: ['search' => 0.25],
+                resultCodeCounts: [ResultCode::SUCCESS => 2],
+                bindCounts: ['anonymous' => 1],
+                searchScopeCounts: ['sub' => 2],
+            ),
+            new TrafficMetrics(
+                bytesSent: 90,
+                bytesReceived: 5,
+                entriesReturned: 3,
+            ),
+        ));
+
+        $snapshot = $this->subject->snapshot();
+        $operations = $snapshot->operations;
 
         self::assertSame(
             ['search' => 3, 'bind' => 1],
@@ -307,6 +340,14 @@ final class InMemoryMetricsRecorderTest extends TestCase
         self::assertSame(
             ['sub' => 2],
             $operations->searchScopeCounts,
+        );
+        self::assertSame(
+            100,
+            $snapshot->traffic->bytesSent,
+        );
+        self::assertSame(
+            4,
+            $snapshot->traffic->entriesReturned,
         );
     }
 

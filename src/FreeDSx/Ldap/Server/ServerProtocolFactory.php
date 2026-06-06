@@ -58,6 +58,7 @@ use FreeDSx\Ldap\Server\Middleware\RequestValidationMiddleware;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\HandlerInvoker;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
+use FreeDSx\Ldap\Protocol\Queue\Response\MetricsResponseInterceptor;
 use FreeDSx\Ldap\Protocol\Queue\Response\PasswordPolicyResponseInterceptor;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
@@ -111,9 +112,14 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
             );
         }
 
+        if (!$this->metricsRecorder instanceof NullMetricsRecorder) {
+            $interceptors[] = new MetricsResponseInterceptor($this->metricsRecorder);
+        }
+
         $serverQueue = $this->makeServerQueue(
             $socket,
             $interceptors,
+            $this->metricsRecorder,
         );
 
         $authenticators = [

@@ -18,6 +18,8 @@ use FreeDSx\Ldap\Protocol\Queue\Response\ResponseInterceptor;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
+use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
+use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\Socket;
 
@@ -36,11 +38,13 @@ trait ServerConnectionScaffoldingTrait
     private function makeServerQueue(
         Socket $socket,
         array $interceptors = [],
+        MetricsRecorderInterface $metricsRecorder = new NullMetricsRecorder(),
     ): ServerQueue {
         return new ServerQueue(
             $socket,
             maxReceiveSize: $this->serverOptions()->getMaxRequestSize(),
             interceptors: $interceptors,
+            metricsRecorder: $metricsRecorder,
         );
     }
 

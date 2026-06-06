@@ -127,13 +127,16 @@ class LdapQueue extends Asn1MessageQueue
     protected function decode(string $bytes): Message
     {
         try {
-            return parent::decode($bytes);
+            $message = parent::decode($bytes);
         } catch (PduLengthException $e) {
             throw new RequestSizeExceededException(
                 $e->getMessage(),
                 previous: $e,
             );
         }
+        $this->onMessageDecoded($message);
+
+        return $message;
     }
 
     /**
@@ -152,6 +155,7 @@ class LdapQueue extends Asn1MessageQueue
 
         foreach ($messages as $message) {
             $encoded = $this->encoder->encode($message->toAsn1());
+            $this->onMessageEncoded($encoded);
             $buffer .= $this->messageWrapper !== null ? $this->messageWrapper->wrap($encoded) : $encoded;
             $bufferLen = strlen($buffer);
             if ($bufferLen >= self::BUFFER_SIZE) {
@@ -165,6 +169,16 @@ class LdapQueue extends Asn1MessageQueue
 
         return $this;
     }
+
+    /**
+     * Extension point invoked with each message's encoded bytes as it is sent.
+     */
+    protected function onMessageEncoded(string $encoded): void {}
+
+    /**
+     * Extension point invoked with each message decoded off the socket.
+     */
+    protected function onMessageDecoded(Message $message): void {}
 
     public function isConnected(): bool
     {

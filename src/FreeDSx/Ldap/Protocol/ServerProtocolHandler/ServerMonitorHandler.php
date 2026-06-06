@@ -82,6 +82,7 @@ class ServerMonitorHandler implements ServerProtocolHandlerInterface
         $lifecycle = $snapshot->lifecycle;
         $connections = $snapshot->connections;
         $operations = $snapshot->operations;
+        $traffic = $snapshot->traffic;
 
         return array_filter([
             'objectClass' => ['top', 'extensibleObject'],
@@ -110,6 +111,9 @@ class ServerMonitorHandler implements ServerProtocolHandlerInterface
                 $operations->durationSeconds,
             ),
             'operationsInProgressByType' => $this->operationsInProgress($snapshot->operationsInProgress),
+            'trafficBytesSent' => [(string) $traffic->bytesSent],
+            'trafficBytesReceived' => [(string) $traffic->bytesReceived],
+            'trafficEntriesReturned' => [(string) $traffic->entriesReturned],
         ]);
     }
 

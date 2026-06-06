@@ -14,21 +14,30 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Metrics\Rollup;
 
 use FreeDSx\Ldap\Server\Metrics\Snapshot\OperationMetrics;
+use FreeDSx\Ldap\Server\Metrics\Snapshot\TrafficMetrics;
 use FreeDSx\Ldap\Server\Process\ChannelMessage;
 use FreeDSx\Ldap\Server\Process\ChannelMessageFactory;
 
+use function is_array;
+
 /**
- * Rebuilds an OperationDeltaMessage from its wire form on the parent's end of a ChildChannel.
+ * Rebuilds a MetricsDeltaMessage from its wire form on the parent's end of a ChildChannel.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class OperationDeltaMessageFactory implements ChannelMessageFactory
+final class MetricsDeltaMessageFactory implements ChannelMessageFactory
 {
     /**
      * @param array<array-key, mixed> $data
      */
     public function fromArray(array $data): ChannelMessage
     {
-        return new OperationDeltaMessage(OperationMetrics::fromArray($data));
+        $operations = $data['operations'] ?? null;
+        $traffic = $data['traffic'] ?? null;
+
+        return new MetricsDeltaMessage(new MetricsDelta(
+            OperationMetrics::fromArray(is_array($operations) ? $operations : []),
+            TrafficMetrics::fromArray(is_array($traffic) ? $traffic : []),
+        ));
     }
 }
