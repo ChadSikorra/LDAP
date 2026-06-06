@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Server\Metrics\Snapshot\ConnectionMetrics;
 use FreeDSx\Ldap\Server\Metrics\Snapshot\LifecycleMetrics;
 use FreeDSx\Ldap\Server\Metrics\Snapshot\MetricsSnapshot;
 use FreeDSx\Ldap\Server\Metrics\Snapshot\OperationMetrics;
+use FreeDSx\Ldap\Server\Metrics\Snapshot\TrafficMetrics;
 use PHPUnit\Framework\TestCase;
 
 final class MetricsSnapshotTest extends TestCase
@@ -37,12 +38,21 @@ final class MetricsSnapshotTest extends TestCase
                 2,
                 1,
                 0,
+                5,
             ),
             new OperationMetrics(
                 ['search' => 7],
                 ['search' => 1],
                 ['search' => 3.5],
                 [0 => 6, 32 => 1],
+                ['simple' => 5, 'anonymous' => 2],
+                ['base' => 3, 'sub' => 4],
+            ),
+            ['search' => 2, 'bind' => 1],
+            new TrafficMetrics(
+                4096,
+                512,
+                9,
             ),
         );
     }
