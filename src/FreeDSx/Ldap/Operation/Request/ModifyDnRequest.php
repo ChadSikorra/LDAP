@@ -36,6 +36,8 @@ use function count;
  *     deleteoldrdn    BOOLEAN,
  *     newSuperior     [0] LDAPDN OPTIONAL }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class ModifyDnRequest implements RequestInterface, DnRequestInterface

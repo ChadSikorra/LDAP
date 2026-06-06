@@ -18,6 +18,8 @@ use FreeDSx\Ldap\Entry\Dn;
 /**
  * Represents a generic authentication token.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 interface TokenInterface

@@ -28,6 +28,8 @@ use Traversable;
 /**
  * Methods needed to implement the filter container interface.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 trait FilterContainerTrait
@@ -134,6 +136,8 @@ trait FilterContainerTrait
 
     /**
      * {@inheritDoc}
+     *
+     * @api
      *
      * @param AbstractType<mixed> $type
      * @throws EncoderException

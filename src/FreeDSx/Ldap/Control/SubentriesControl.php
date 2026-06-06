@@ -22,6 +22,8 @@ use FreeDSx\Ldap\Exception\ProtocolException;
 /**
  * Represents a subentries control. RFC 3672.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class SubentriesControl extends Control

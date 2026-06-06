@@ -13,6 +13,9 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Schema\Definition;
 
+/**
+ * @api
+ */
 enum AttributeUsage: string
 {
     case UserApplications = 'userApplications';

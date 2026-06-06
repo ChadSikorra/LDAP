@@ -18,6 +18,8 @@ use Stringable;
 /**
  * Accumulates LDIF chunks into an in-memory string.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class StringLdifOutput implements LdifOutputInterface, Stringable

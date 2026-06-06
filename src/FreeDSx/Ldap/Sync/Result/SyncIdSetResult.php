@@ -24,6 +24,8 @@ use Traversable;
 use function count;
 
 /**
+ * @api
+ *
  * @implements IteratorAggregate<int, string>
  */
 class SyncIdSetResult implements Countable, IteratorAggregate

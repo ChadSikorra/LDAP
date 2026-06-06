@@ -48,6 +48,8 @@ use Stringable;
 /**
  * The LDAP client.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class LdapClient

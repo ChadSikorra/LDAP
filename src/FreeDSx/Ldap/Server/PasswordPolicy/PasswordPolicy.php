@@ -26,6 +26,8 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;
  * Decoded view of a pwdPolicy entry per draft-behera-ldap-password-policy-10 §5.2.
  *
  * Nullable fields on the rule DTOs mean "policy unspecified" and are interpreted as "no limit" by the engine.
+ *
+ * @api
  */
 final readonly class PasswordPolicy
 {

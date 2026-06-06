@@ -47,6 +47,8 @@ use function count;
  *
  * AttributeValue ::= OCTET STRING
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class AddRequest implements RequestInterface

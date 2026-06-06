@@ -26,6 +26,8 @@ use function is_array;
 /**
  * Represents an Entry in LDAP.
  *
+ * @api
+ *
  * @implements IteratorAggregate<Attribute>
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */

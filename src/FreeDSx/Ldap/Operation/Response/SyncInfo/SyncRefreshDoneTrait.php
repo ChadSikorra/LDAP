@@ -23,6 +23,9 @@ use FreeDSx\Ldap\Operation\Response\IntermediateResponse;
 
 use function count;
 
+/**
+ * @api
+ */
 trait SyncRefreshDoneTrait
 {
     private bool $refreshDone;

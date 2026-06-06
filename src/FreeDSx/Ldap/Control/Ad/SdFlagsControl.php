@@ -24,6 +24,8 @@ use FreeDSx\Ldap\Control\Control;
  *     Flags    INTEGER
  * }
  *
+ * @api
+ *
  * @see https://msdn.microsoft.com/en-us/library/cc223323.aspx
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */

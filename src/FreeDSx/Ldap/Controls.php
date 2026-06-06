@@ -38,6 +38,8 @@ use FreeDSx\Ldap\Search\Filter\GreaterThanOrEqualFilter;
 /**
  * Provides some simple factory methods for building controls.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class Controls

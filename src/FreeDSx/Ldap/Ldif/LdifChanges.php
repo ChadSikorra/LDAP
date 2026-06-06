@@ -34,6 +34,8 @@ use function count;
 /**
  * The full outcome of an LDIF parse: write requests in original record order.
  *
+ * @api
+ *
  * @implements IteratorAggregate<RequestInterface>
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>

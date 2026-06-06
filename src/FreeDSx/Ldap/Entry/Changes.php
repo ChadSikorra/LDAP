@@ -24,6 +24,8 @@ use function count;
 /**
  * Represents a set of change objects.
  *
+ * @api
+ *
  * @implements IteratorAggregate<Change>
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */

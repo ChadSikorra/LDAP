@@ -40,6 +40,8 @@ use function substr;
  *     cookie    syncCookie OPTIONAL
  * }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com
  * @see https://tools.ietf.org/html/rfc4533
  */

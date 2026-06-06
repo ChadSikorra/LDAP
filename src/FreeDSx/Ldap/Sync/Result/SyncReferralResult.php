@@ -17,6 +17,9 @@ use FreeDSx\Ldap\LdapUrl;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Search\Result\ReferralResult;
 
+/**
+ * @api
+ */
 class SyncReferralResult
 {
     use SyncResultTrait;

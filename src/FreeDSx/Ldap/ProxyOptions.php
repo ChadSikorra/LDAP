@@ -16,6 +16,8 @@ namespace FreeDSx\Ldap;
 /**
  * Options for a forwarding proxy server.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class ProxyOptions

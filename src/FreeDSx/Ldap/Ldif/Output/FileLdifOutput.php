@@ -26,6 +26,8 @@ use function sprintf;
 /**
  * Streams LDIF chunks to a file path.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final readonly class FileLdifOutput implements LdifOutputInterface

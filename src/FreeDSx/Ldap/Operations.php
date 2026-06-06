@@ -47,6 +47,8 @@ use Stringable;
 /**
  * Provides a set of factory methods to help quickly construct different operations/requests.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class Operations

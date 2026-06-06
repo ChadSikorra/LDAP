@@ -19,6 +19,8 @@ use FreeDSx\Ldap\Server\Utility\Uuid;
 /**
  * Represents a token for an anonymous bind.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class AnonToken implements TokenInterface

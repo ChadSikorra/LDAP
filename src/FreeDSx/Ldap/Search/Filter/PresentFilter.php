@@ -25,6 +25,8 @@ use Stringable;
 /**
  * Checks for the presence of an attribute (ie. whether or not it contains a value). RFC 4511, 4.5.1.7.5
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class PresentFilter implements FilterInterface, Stringable

@@ -15,6 +15,8 @@ namespace FreeDSx\Ldap\Schema\Definition;
 
 /**
  * OIDs and names for standard LDAP matching rules (RFC 4517 + AD extensions).
+ *
+ * @api
  */
 final class MatchingRuleOid
 {

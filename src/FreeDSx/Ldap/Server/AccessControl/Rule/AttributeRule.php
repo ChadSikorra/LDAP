@@ -22,6 +22,8 @@ use FreeDSx\Ldap\Server\AccessControl\Target\TargetMatcherInterface;
  *
  * An empty $attributes list matches all attributes. Attribute names are stored lowercase.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final readonly class AttributeRule

@@ -27,6 +27,8 @@ use FreeDSx\Ldap\Operation\Response\SearchResponse;
 /**
  * Provides a simple wrapper around paging a search operation.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class Paging

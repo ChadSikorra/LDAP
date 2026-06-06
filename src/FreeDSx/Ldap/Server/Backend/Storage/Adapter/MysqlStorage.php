@@ -26,6 +26,8 @@ use SensitiveParameter;
 /**
  * MySQL/MariaDB factory for PdoStorage; use forPcntl()/forSwoole() to select the runner. Requires MySQL 8.0+ or MariaDB 10.6+.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class MysqlStorage implements PdoStorageFactoryInterface

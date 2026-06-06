@@ -17,6 +17,9 @@ use FreeDSx\Ldap\Control\Sync\SyncStateControl;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 
+/**
+ * @api
+ */
 trait SyncResultTrait
 {
     private ?SyncStateControl $syncState = null;
@@ -43,6 +46,8 @@ trait SyncResultTrait
 
     /**
      * Convenience method to check for a specific state. For the states possible {@see self::getState()}.
+     *
+     * @api
      */
     public function isState(int $state): bool
     {
@@ -51,6 +56,8 @@ trait SyncResultTrait
 
     /**
      * {@see SyncStateControl::isAdd()}
+     *
+     * @api
      */
     public function isAdd(): bool
     {
@@ -60,6 +67,8 @@ trait SyncResultTrait
 
     /**
      * {@see SyncStateControl::isDelete()}
+     *
+     * @api
      */
     public function isDelete(): bool
     {
@@ -69,6 +78,8 @@ trait SyncResultTrait
 
     /**
      * {@see SyncStateControl::isModify()}
+     *
+     * @api
      */
     public function isModify(): bool
     {
@@ -78,6 +89,8 @@ trait SyncResultTrait
 
     /**
      * {@see SyncStateControl::isPresent()}
+     *
+     * @api
      */
     public function isPresent(): bool
     {
@@ -87,6 +100,8 @@ trait SyncResultTrait
 
     /**
      * Get the cookie associated with this sync session / sync state.
+     *
+     * @api
      */
     public function getCookie(): ?string
     {
@@ -96,6 +111,8 @@ trait SyncResultTrait
 
     /**
      * Get the UUID of the entry for this sync result.
+     *
+     * @api
      */
     public function getEntryUuid(): string
     {

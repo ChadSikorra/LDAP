@@ -3,3 +3,11 @@ parameters:
     level: 10
     paths:
         - %currentWorkingDirectory%/tests
+    reportUnmatchedIgnoredErrors: false
+    # Dead-code detection targets src; the test suite is intentionally exempt.
+    ignoreErrors:
+        - identifier: shipmonk.deadMethod
+        - identifier: shipmonk.deadConstant
+        - identifier: shipmonk.deadEnumCase
+        - identifier: shipmonk.deadProperty.neverRead
+        - identifier: shipmonk.deadProperty.neverWritten

@@ -20,6 +20,8 @@ use FreeDSx\Ldap\Exception\ProtocolException;
 /**
  * Represents a proxied authorization control. RFC 4370.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class ProxyAuthorizationControl extends Control

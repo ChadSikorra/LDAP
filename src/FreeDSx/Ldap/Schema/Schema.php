@@ -21,6 +21,8 @@ use FreeDSx\Ldap\Schema\Matching\MatchingRuleComparatorInterface;
 
 /**
  * Registry of schema definitions; built incrementally via add*() methods.
+ *
+ * @api
  */
 final class Schema
 {

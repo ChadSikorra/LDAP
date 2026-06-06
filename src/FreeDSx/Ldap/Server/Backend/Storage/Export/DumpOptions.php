@@ -19,6 +19,8 @@ use FreeDSx\Ldap\Search\Filter\FilterInterface;
 /**
  * Options for {@see DirectoryDumper}. Optional filter and subtree restriction.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class DumpOptions

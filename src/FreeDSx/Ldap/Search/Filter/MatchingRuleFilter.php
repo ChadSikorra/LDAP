@@ -34,6 +34,8 @@ use Stringable;
  *     matchValue      [3] AssertionValue,
  *     dnAttributes    [4] BOOLEAN DEFAULT FALSE }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class MatchingRuleFilter implements FilterInterface, Stringable

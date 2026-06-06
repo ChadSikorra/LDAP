@@ -30,6 +30,8 @@ use FreeDSx\Ldap\Search\Filter\EqualityFilter;
  *     entry           LDAPDN,
  *     ava             AttributeValueAssertion }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class CompareRequest implements RequestInterface, DnRequestInterface

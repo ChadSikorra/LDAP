@@ -22,12 +22,16 @@ use function str_split;
 /**
  * Some common methods around escaping attribute values and RDN values.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 trait EscapeTrait
 {
     /**
      * Escape all characters in a value.
+     *
+     * @api
      */
     public static function escapeAll(string $value): string
     {

@@ -16,6 +16,8 @@ namespace FreeDSx\Ldap\Search\Filter;
 /**
  * Common methods for filters using attributes.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 trait FilterAttributeTrait
@@ -27,6 +29,9 @@ trait FilterAttributeTrait
         return $this->attribute;
     }
 
+    /**
+     * @api
+     */
     public function setAttribute(string $attribute): static
     {
         $this->attribute = $attribute;

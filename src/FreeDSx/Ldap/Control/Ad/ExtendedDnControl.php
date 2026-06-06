@@ -27,6 +27,8 @@ use function count;
 /**
  * Used to represent the Extended DN control.
  *
+ * @api
+ *
  * @see https://msdn.microsoft.com/en-us/library/cc223349.aspx
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */

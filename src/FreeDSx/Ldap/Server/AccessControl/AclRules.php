@@ -21,6 +21,8 @@ use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
 /**
  * The rule sets and defaults that configure {@see RuleBasedAccessControl}.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final readonly class AclRules

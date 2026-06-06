@@ -31,6 +31,8 @@ use FreeDSx\Ldap\Exception\ProtocolException;
  *                          -- result set size estimate from server
  *     cookie          OCTET STRING }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class PagingControl extends Control

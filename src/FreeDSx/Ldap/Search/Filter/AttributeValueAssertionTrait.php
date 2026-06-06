@@ -27,6 +27,8 @@ use FreeDSx\Ldap\Protocol\LdapEncoder;
 /**
  * Common methods for filters using attribute value assertions.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 trait AttributeValueAssertionTrait
@@ -43,6 +45,9 @@ trait AttributeValueAssertionTrait
         $this->value = $value;
     }
 
+    /**
+     * @api
+     */
     public function setValue(string $value): self
     {
         $this->value = $value;

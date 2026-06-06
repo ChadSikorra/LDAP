@@ -27,6 +27,8 @@ use function substr;
 /**
  * Streaming cursor over LDIF lines exposing the shared low-level reading primitives.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class LdifLineCursor

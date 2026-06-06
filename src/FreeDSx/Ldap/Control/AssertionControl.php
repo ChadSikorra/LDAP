@@ -23,6 +23,8 @@ use FreeDSx\Ldap\Search\Filter\FilterInterface;
  *
  * The operation proceeds only if the filter matches the target entry.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class AssertionControl extends Control

@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  * The outcome of a dispatched write, carrying any schema violations collected during it.
  *
  * @internal
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final readonly class WriteOperationResult implements AuditableResult

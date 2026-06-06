@@ -32,6 +32,8 @@ use function is_string;
  *     requestName      [0] LDAPOID,
  *     requestValue     [1] OCTET STRING OPTIONAL }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class ExtendedRequest implements RequestInterface

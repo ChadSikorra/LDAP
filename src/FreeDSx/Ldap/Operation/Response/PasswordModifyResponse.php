@@ -27,6 +27,8 @@ use FreeDSx\Ldap\Operation\LdapResult;
  * PasswdModifyResponseValue ::= SEQUENCE {
  *     genPasswd       [0]     OCTET STRING OPTIONAL }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class PasswordModifyResponse extends ExtendedResponse

@@ -52,6 +52,8 @@ use function array_map;
  *     filter          Filter,
  *     attributes      AttributeSelection }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class SearchRequest implements RequestInterface

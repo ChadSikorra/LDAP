@@ -22,6 +22,8 @@ use function strtolower;
 /**
  * Represents an attribute option. Described in RFC 4512, Section 2.5.2.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class Option implements Stringable

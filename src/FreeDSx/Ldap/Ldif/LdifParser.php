@@ -29,6 +29,8 @@ use function sprintf;
 /**
  * Parses RFC 2849 LDIF (content and change records) into a unified collection of write requests.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class LdifParser

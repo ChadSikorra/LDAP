@@ -18,6 +18,8 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\PdoStorage;
 /**
  * Constructs a configured PdoStorage for a specific database driver (e.g. SqliteStorage::forPcntl('/path/to/db.sqlite')).
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 interface PdoStorageFactoryInterface

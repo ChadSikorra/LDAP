@@ -23,6 +23,8 @@ use FreeDSx\Ldap\Server\AccessControl\Target\TargetMatcherInterface;
  *
  * An empty $operations list matches all operation types.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final readonly class OperationRule

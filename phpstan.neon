@@ -1,3 +1,9 @@
+services:
+    -
+        class: Tests\Support\FreeDSx\Ldap\PhpStan\ApiMemberUsageProvider
+        tags:
+            - shipmonk.deadCode.memberUsageProvider
+
 parameters:
     level: 9
     paths:
@@ -8,3 +14,7 @@ parameters:
     reportUnmatchedIgnoredErrors: false
     ignoreErrors:
         - '#Unsafe usage of new static\(\).#'
+    shipmonkDeadCode:
+        usageExcluders:
+            tests:
+                enabled: true

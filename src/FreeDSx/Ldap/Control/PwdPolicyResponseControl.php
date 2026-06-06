@@ -40,6 +40,8 @@ use FreeDSx\Ldap\Protocol\LdapEncoder;
  *         passwordTooYoung            (7),
  *         passwordInHistory           (8) } OPTIONAL }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class PwdPolicyResponseControl extends Control

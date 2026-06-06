@@ -31,6 +31,9 @@ trait PdoStorageFactoryTrait
 
     abstract protected function openConnection(PdoDialectInterface $dialect): PDO;
 
+    /**
+     * @api
+     */
     public function create(): PdoStorage
     {
         return $this->createShared();

@@ -28,6 +28,8 @@ use function is_string;
  *     responseName     [0] LDAPOID OPTIONAL,
  *     responseValue    [1] OCTET STRING OPTIONAL }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class IntermediateResponse implements ResponseInterface

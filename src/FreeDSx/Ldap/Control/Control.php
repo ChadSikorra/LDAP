@@ -35,6 +35,8 @@ use function count;
  *     criticality             BOOLEAN DEFAULT FALSE,
  *     controlValue            OCTET STRING OPTIONAL }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class Control implements ProtocolElementInterface, Stringable

@@ -23,6 +23,8 @@ use FreeDSx\Ldap\Exception\ProtocolException;
  *
  * AbandonRequest ::= [APPLICATION 16] MessageID
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class AbandonRequest implements RequestInterface

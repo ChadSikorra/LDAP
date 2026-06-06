@@ -28,6 +28,8 @@ use function sprintf;
 /**
  * Streams LDIF lines from a file.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final readonly class FileLdifLoader implements LdifLoaderInterface

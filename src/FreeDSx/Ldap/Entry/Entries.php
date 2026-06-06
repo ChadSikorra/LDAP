@@ -29,6 +29,8 @@ use function reset;
 /**
  * Represents a collection of entry objects.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  *
  * @implements IteratorAggregate<Entry>

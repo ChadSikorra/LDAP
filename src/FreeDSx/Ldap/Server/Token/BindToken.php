@@ -20,6 +20,8 @@ use SensitiveParameter;
 /**
  * Represents a username/password token that is bound and authorized.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class BindToken implements AuthenticatedTokenInterface

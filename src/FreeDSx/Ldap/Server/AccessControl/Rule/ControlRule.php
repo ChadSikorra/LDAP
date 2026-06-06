@@ -22,6 +22,8 @@ use FreeDSx\Ldap\Server\AccessControl\Target\TargetMatcherInterface;
  *
  * An empty $controlOids list matches all controls.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final readonly class ControlRule

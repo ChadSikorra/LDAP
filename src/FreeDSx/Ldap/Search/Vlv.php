@@ -31,6 +31,8 @@ use FreeDSx\Ldap\Search\Filter\GreaterThanOrEqualFilter;
 /**
  * Provides a simple wrapper around a VLV (Virtual List View) search operation.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class Vlv
