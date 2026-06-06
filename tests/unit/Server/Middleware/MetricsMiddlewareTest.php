@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Tests\Unit\FreeDSx\Ldap\Server\Middleware;
 
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\Request\AnonBindRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\Request\SimpleBindRequest;
@@ -113,6 +114,36 @@ final class MetricsMiddlewareTest extends TestCase
         self::assertSame(
             [ResultCode::INSUFFICIENT_ACCESS_RIGHTS => 1],
             $operations->resultCodeCounts,
+        );
+    }
+
+    public function test_it_records_the_bind_method_dimension(): void
+    {
+        $this->subject->process(
+            $this->contextFor(new AnonBindRequest()),
+            new StubMiddlewareHandler(OperationOutcomeResult::succeeded()),
+        );
+        $this->subject->process(
+            $this->contextFor(new SimpleBindRequest('cn=user,dc=foo,dc=bar', 'secret')),
+            new StubMiddlewareHandler(OperationOutcomeResult::succeeded()),
+        );
+
+        self::assertSame(
+            ['anonymous' => 1, 'simple' => 1],
+            $this->recorder->snapshot()->operations->bindCounts,
+        );
+    }
+
+    public function test_it_records_the_search_scope_dimension(): void
+    {
+        $this->subject->process(
+            $this->contextFor((new SearchRequest(Filters::present('objectClass')))->useBaseScope()),
+            new StubMiddlewareHandler(OperationOutcomeResult::succeeded()),
+        );
+
+        self::assertSame(
+            ['base' => 1],
+            $this->recorder->snapshot()->operations->searchScopeCounts,
         );
     }
 

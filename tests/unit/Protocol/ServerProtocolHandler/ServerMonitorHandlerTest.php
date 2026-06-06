@@ -131,6 +131,85 @@ final class ServerMonitorHandlerTest extends TestCase
         );
     }
 
+    public function test_it_reports_a_result_code_breakdown(): void
+    {
+        $this->metrics->operationObserved(new OperationObservation(
+            OperationType::Search,
+            true,
+            0.1,
+            ResultCode::SUCCESS,
+        ));
+        $this->metrics->operationObserved(new OperationObservation(
+            OperationType::Add,
+            false,
+            0.1,
+            ResultCode::NO_SUCH_OBJECT,
+        ));
+
+        $entry = $this->handleAndCaptureEntry();
+
+        self::assertEqualsCanonicalizing(
+            [
+                ResultCode::SUCCESS . '=1',
+                ResultCode::NO_SUCH_OBJECT . '=1',
+            ],
+            $entry->get('operationsByResultCode')?->getValues(),
+        );
+    }
+
+    public function test_it_reports_bind_method_and_search_scope_breakdowns(): void
+    {
+        $this->metrics->operationObserved(new OperationObservation(
+            OperationType::Bind,
+            true,
+            0.1,
+            ResultCode::SUCCESS,
+            bindMethod: 'anonymous',
+        ));
+        $this->metrics->operationObserved(new OperationObservation(
+            OperationType::Search,
+            true,
+            0.1,
+            ResultCode::SUCCESS,
+            searchScope: 'sub',
+        ));
+
+        $entry = $this->handleAndCaptureEntry();
+
+        self::assertSame(
+            ['anonymous=1'],
+            $entry->get('bindsByMethod')?->getValues(),
+        );
+        self::assertSame(
+            ['sub=1'],
+            $entry->get('searchesByScope')?->getValues(),
+        );
+    }
+
+    public function test_it_reports_the_average_latency_per_type_in_milliseconds(): void
+    {
+        $this->metrics->operationObserved(new OperationObservation(
+            OperationType::Search,
+            true,
+            0.1,
+            ResultCode::SUCCESS,
+        ));
+        $this->metrics->operationObserved(new OperationObservation(
+            OperationType::Search,
+            true,
+            0.3,
+            ResultCode::SUCCESS,
+        ));
+
+        $entry = $this->handleAndCaptureEntry();
+
+        // (0.1 + 0.3) / 2 = 0.2s = 200ms
+        self::assertSame(
+            ['search=200'],
+            $entry->get('operationsAvgLatencyMsByType')?->getValues(),
+        );
+    }
+
     public function test_it_reports_the_server_host(): void
     {
         $host = gethostname();

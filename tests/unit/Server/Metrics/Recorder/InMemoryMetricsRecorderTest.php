@@ -68,6 +68,42 @@ final class InMemoryMetricsRecorderTest extends TestCase
         );
     }
 
+    public function test_it_records_bind_method_and_search_scope_breakdowns(): void
+    {
+        $this->subject->operationObserved(new OperationObservation(
+            OperationType::Bind,
+            true,
+            0.1,
+            ResultCode::SUCCESS,
+            bindMethod: 'anonymous',
+        ));
+        $this->subject->operationObserved(new OperationObservation(
+            OperationType::Bind,
+            true,
+            0.1,
+            ResultCode::SUCCESS,
+            bindMethod: 'simple',
+        ));
+        $this->subject->operationObserved(new OperationObservation(
+            OperationType::Search,
+            true,
+            0.1,
+            ResultCode::SUCCESS,
+            searchScope: 'sub',
+        ));
+
+        $operations = $this->subject->snapshot()->operations;
+
+        self::assertSame(
+            ['anonymous' => 1, 'simple' => 1],
+            $operations->bindCounts,
+        );
+        self::assertSame(
+            ['sub' => 1],
+            $operations->searchScopeCounts,
+        );
+    }
+
     public function test_the_active_connection_gauge_rises_on_open_and_falls_on_close(): void
     {
         $this->subject->connectionObserved(ConnectionObservation::Opened);
@@ -181,6 +217,8 @@ final class InMemoryMetricsRecorderTest extends TestCase
             errors: ['search' => 1],
             durationSeconds: ['search' => 0.25],
             resultCodeCounts: [ResultCode::SUCCESS => 2],
+            bindCounts: ['anonymous' => 1],
+            searchScopeCounts: ['sub' => 2],
         ));
 
         $operations = $this->subject->snapshot()->operations;
@@ -200,6 +238,14 @@ final class InMemoryMetricsRecorderTest extends TestCase
         self::assertSame(
             [ResultCode::SUCCESS => 3],
             $operations->resultCodeCounts,
+        );
+        self::assertSame(
+            ['anonymous' => 1],
+            $operations->bindCounts,
+        );
+        self::assertSame(
+            ['sub' => 2],
+            $operations->searchScopeCounts,
         );
     }
 

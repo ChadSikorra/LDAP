@@ -24,11 +24,15 @@ final readonly class OperationObservation
 {
     /**
      * @param int $resultCode The LDAP result code the operation produced.
+     * @param string|null $bindMethod The bind sub-type (anonymous/simple/sasl) for binds, null otherwise.
+     * @param string|null $searchScope The search scope (base/one/sub) for searches, null otherwise.
      */
     public function __construct(
         public OperationType $operation,
         public bool $succeeded,
         public float $durationSeconds,
         public int $resultCode,
+        public ?string $bindMethod = null,
+        public ?string $searchScope = null,
     ) {}
 }

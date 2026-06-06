@@ -235,7 +235,11 @@ class SwooleServerRunner implements ServerRunnerInterface
             );
             $this->activeHandlers[$socketId] = $handler;
             $this->logClientConnected();
-            $handler->handle();
+            $closeReason = $handler->handle();
+
+            if ($closeReason !== null) {
+                $this->metricsRecorder->connectionObserved($closeReason);
+            }
         } catch (Throwable $e) {
             $this->logClientError($e);
         } finally {

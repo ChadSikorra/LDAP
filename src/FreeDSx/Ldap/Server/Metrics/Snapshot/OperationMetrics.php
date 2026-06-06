@@ -27,12 +27,16 @@ final readonly class OperationMetrics
      * @param array<string, int> $errors Operation label to failed count.
      * @param array<string, float> $durationSeconds Operation label to summed duration.
      * @param array<int, int> $resultCodeCounts LDAP result code to count.
+     * @param array<string, int> $bindCounts Bind sub-type (anonymous/simple/sasl) to count.
+     * @param array<string, int> $searchScopeCounts Search scope (base/one/sub) to count.
      */
     public function __construct(
         public array $counts = [],
         public array $errors = [],
         public array $durationSeconds = [],
         public array $resultCodeCounts = [],
+        public array $bindCounts = [],
+        public array $searchScopeCounts = [],
     ) {}
 
     public function total(): int
@@ -55,6 +59,8 @@ final readonly class OperationMetrics
             'errors' => $this->errors,
             'duration_seconds' => $this->durationSeconds,
             'result_code_counts' => $this->resultCodeCounts,
+            'bind_counts' => $this->bindCounts,
+            'search_scope_counts' => $this->searchScopeCounts,
         ];
     }
 
@@ -68,6 +74,8 @@ final readonly class OperationMetrics
             errors: SnapshotValue::toIntMap($data['errors'] ?? null),
             durationSeconds: SnapshotValue::toFloatMap($data['duration_seconds'] ?? null),
             resultCodeCounts: SnapshotValue::toIntKeyedIntMap($data['result_code_counts'] ?? null),
+            bindCounts: SnapshotValue::toIntMap($data['bind_counts'] ?? null),
+            searchScopeCounts: SnapshotValue::toIntMap($data['search_scope_counts'] ?? null),
         );
     }
 }
