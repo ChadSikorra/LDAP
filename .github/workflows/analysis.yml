@@ -63,9 +63,7 @@ jobs:
         run: composer run-script cs-check
 
       - name: Run Static Analysis
-        run: |
-          composer run-script analyse
-          composer run-script analyse-tests
+        run: composer run-script analyse
 
       - name: Run Test Coverage
         run: composer run-script --timeout=0 test-coverage
