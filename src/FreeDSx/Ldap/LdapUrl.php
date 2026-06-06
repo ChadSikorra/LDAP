@@ -36,6 +36,8 @@ use function strtolower;
 /**
  * Represents a LDAP URL. RFC 4516.
  *
+ * @api
+ *
  * @see https://tools.ietf.org/html/rfc4516
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */

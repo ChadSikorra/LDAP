@@ -24,6 +24,8 @@ use function substr;
 /**
  * Represents a LDAP URL extension component. RFC 4516, Section 2.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class LdapUrlExtension implements Stringable

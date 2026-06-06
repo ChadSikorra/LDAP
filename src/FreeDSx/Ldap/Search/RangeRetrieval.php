@@ -25,6 +25,8 @@ use Stringable;
 /**
  * Provides simple helper APIs for retrieving ranged results for an entry attribute.
  *
+ * @api
+ *
  * @see https://docs.microsoft.com/en-us/windows/desktop/adsi/attribute-range-retrieval
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */

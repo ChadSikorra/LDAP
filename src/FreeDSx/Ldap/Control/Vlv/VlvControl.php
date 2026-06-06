@@ -34,6 +34,8 @@ use FreeDSx\Ldap\Search\Filter\GreaterThanOrEqualFilter;
  *         greaterThanOrEqual [1] AssertionValue },
  *     contextID     OCTET STRING OPTIONAL }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class VlvControl extends Control

@@ -49,6 +49,8 @@ use FreeDSx\Ldap\Exception\ProtocolException;
  *         },
  *     attributeType [0] AttributeDescription OPTIONAL }
  *
+ * @api
+ *
  *  @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class SortingResponseControl extends Control

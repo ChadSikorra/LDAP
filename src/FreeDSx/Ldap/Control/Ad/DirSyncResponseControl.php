@@ -32,6 +32,8 @@ use FreeDSx\Ldap\Exception\ProtocolException;
  *     CookieServer    OCTET STRING
  * }
  *
+ * @api
+ *
  * @see https://msdn.microsoft.com/en-us/library/cc223347.aspx
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */

@@ -18,6 +18,8 @@ use function count;
 /**
  * Represents an entry change.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class Change

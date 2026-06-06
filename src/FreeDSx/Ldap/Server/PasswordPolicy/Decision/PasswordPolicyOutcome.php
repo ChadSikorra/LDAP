@@ -17,6 +17,8 @@ use FreeDSx\Ldap\Operation\ResultCode;
 
 /**
  * Decision returned by {@see PasswordPolicyEngine} methods.
+ *
+ * @api
  */
 final readonly class PasswordPolicyOutcome
 {

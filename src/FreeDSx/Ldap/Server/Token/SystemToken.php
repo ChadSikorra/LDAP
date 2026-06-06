@@ -18,6 +18,8 @@ use FreeDSx\Ldap\Server\Utility\Uuid;
 
 /**
  * Token for server-internal writes, recorded as cn=system rather than any bound user.
+ *
+ * @api
  */
 final readonly class SystemToken implements TokenInterface
 {

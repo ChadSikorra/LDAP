@@ -15,6 +15,8 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Rules;
 
 /**
  * Constraints on what a new password is allowed to contain (draft-behera-10 §5.2.4-5.2.6, §5.2.11).
+ *
+ * @api
  */
 final readonly class PasswordQualityRules
 {

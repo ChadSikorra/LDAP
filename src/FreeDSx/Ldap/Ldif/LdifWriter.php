@@ -40,6 +40,8 @@ use function substr;
 /**
  * Serializes write requests to RFC 2849 LDIF (content and change records).
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final readonly class LdifWriter

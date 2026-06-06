@@ -23,6 +23,8 @@ use Throwable;
  * indicate an error during server-side operation processing. The resulting message and code is used in the
  * LDAP result sent back to the client (when thrown from the request handler).
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class OperationException extends Exception

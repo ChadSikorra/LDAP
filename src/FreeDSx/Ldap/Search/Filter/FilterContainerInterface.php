@@ -16,6 +16,8 @@ namespace FreeDSx\Ldap\Search\Filter;
 /**
  * An interface used for filters that contain other filters.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 interface FilterContainerInterface extends FilterInterface

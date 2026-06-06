@@ -27,6 +27,8 @@ use FreeDSx\Ldap\Search\Filter\FilterInterface;
 /**
  * A helper class for an LDAP Content Synchronization Operation, described by RFC 4533.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  * @see https://tools.ietf.org/html/rfc4533
  */

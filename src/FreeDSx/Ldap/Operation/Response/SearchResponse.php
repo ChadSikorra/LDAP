@@ -22,6 +22,8 @@ use FreeDSx\Ldap\Search\Result\ReferralResult;
 /**
  * This response encapsulates the entries returned from the search overall, along with the LDAP result at the end.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class SearchResponse extends SearchResultDone

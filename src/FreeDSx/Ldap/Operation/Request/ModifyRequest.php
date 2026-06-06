@@ -40,6 +40,8 @@ use function count;
  *             ...  },
  *         modification    PartialAttribute } }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class ModifyRequest implements RequestInterface, DnRequestInterface

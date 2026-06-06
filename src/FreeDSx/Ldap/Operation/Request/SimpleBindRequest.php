@@ -27,6 +27,8 @@ use SensitiveParameter;
  *     sasl                    [3] SaslCredentials,
  *     ...  }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class SimpleBindRequest extends BindRequest

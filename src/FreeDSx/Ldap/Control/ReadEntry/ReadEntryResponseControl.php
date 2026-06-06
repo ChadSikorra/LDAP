@@ -24,6 +24,8 @@ use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
  *
  * Carries the entry state as a SearchResultEntry.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 abstract class ReadEntryResponseControl extends Control

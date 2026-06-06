@@ -29,6 +29,8 @@ use FreeDSx\Ldap\Search\Filter\SubstringFilter;
 /**
  * Provides some simple factory methods for building filters.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class Filters

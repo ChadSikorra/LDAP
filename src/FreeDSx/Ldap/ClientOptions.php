@@ -15,6 +15,9 @@ namespace FreeDSx\Ldap;
 
 use FreeDSx\Ldap\Control\ControlBag;
 
+/**
+ * @api
+ */
 final class ClientOptions
 {
     private int $version = 3;

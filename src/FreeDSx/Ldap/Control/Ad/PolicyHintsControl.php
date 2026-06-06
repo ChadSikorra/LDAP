@@ -29,6 +29,8 @@ use FreeDSx\Ldap\Exception\ProtocolException;
  *      Flags    INTEGER
  *  }
  *
+ * @api
+ *
  * @see https://msdn.microsoft.com/en-us/library/hh128228.aspx
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */

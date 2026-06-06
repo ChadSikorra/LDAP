@@ -15,6 +15,8 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Rules;
 
 /**
  * Constraints on when and by whom a password may be changed (draft-behera-10 §5.2.2, §5.2.12-5.2.15).
+ *
+ * @api
  */
 final readonly class PasswordChangeRules
 {

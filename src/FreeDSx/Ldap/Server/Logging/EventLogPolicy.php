@@ -16,6 +16,8 @@ namespace FreeDSx\Ldap\Server\Logging;
 /**
  * Immutable set of {@see ServerEvent} cases the server should emit.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final readonly class EventLogPolicy

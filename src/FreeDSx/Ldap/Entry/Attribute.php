@@ -33,6 +33,8 @@ use function str_contains;
 /**
  * Represents an entry attribute and any values.
  *
+ * @api
+ *
  * @implements IteratorAggregate<int|string, string>
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */

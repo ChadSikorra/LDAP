@@ -31,7 +31,8 @@
     "slevomat/coding-standard": "^7.2",
     "phpstan/phpstan-phpunit": "^2.0",
     "phpstan/extension-installer": "^1.4",
-    "swoole/ide-helper": "^6.0"
+    "swoole/ide-helper": "^6.0",
+    "shipmonk/dead-code-detector": "^1.2"
   },
   "minimum-stability": "dev",
   "prefer-stable": true,

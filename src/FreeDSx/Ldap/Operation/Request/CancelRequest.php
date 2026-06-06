@@ -29,6 +29,8 @@ use FreeDSx\Ldap\Exception\ProtocolException;
  *     -- MessageID is as defined in [RFC2251]
  * }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class CancelRequest extends ExtendedRequest

@@ -26,6 +26,8 @@ use function is_string;
 /**
  * Represents a set of controls.
  *
+ * @api
+ *
  * @implements IteratorAggregate<Control>
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */

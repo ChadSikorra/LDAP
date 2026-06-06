@@ -29,6 +29,8 @@ use PDO;
 /**
  * SQLite factory for PdoStorage; use SqliteStorage::forPcntl() or ::forSwoole() to select the runner.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class SqliteStorage implements PdoStorageFactoryInterface

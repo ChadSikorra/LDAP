@@ -15,6 +15,8 @@ namespace FreeDSx\Ldap\Schema\Definition;
 
 /**
  * OIDs, names, aliases, and descriptions for standard LDAP attribute types (RFC 4519 + RFC 4512 operational).
+ *
+ * @api
  */
 final class AttributeTypeOid
 {

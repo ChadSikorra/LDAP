@@ -32,6 +32,8 @@ use FreeDSx\Ldap\Search\Filter\FilterInterface;
 /**
  * Provides a simple wrapper around DirSync for Active Directory.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class DirSync

@@ -27,6 +27,8 @@ use FreeDSx\Ldap\Exception\ProtocolException;
  *
  *   SID octetString
  *
+ * @api
+ *
  * https://msdn.microsoft.com/en-us/library/dn392490.aspx
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */

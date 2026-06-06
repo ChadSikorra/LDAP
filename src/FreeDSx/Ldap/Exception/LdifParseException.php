@@ -18,6 +18,8 @@ use Exception;
 /**
  * Represents an issue encountered while parsing LDIF.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class LdifParseException extends Exception

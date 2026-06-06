@@ -16,6 +16,8 @@ namespace FreeDSx\Ldap\Server\AccessControl\Target;
 /**
  * Factory for common target matchers.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class Target

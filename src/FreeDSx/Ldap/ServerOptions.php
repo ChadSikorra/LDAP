@@ -44,6 +44,9 @@ use FreeDSx\Ldap\Server\TlsVersion;
 use Psr\Log\LoggerInterface;
 use Closure;
 
+/**
+ * @api
+ */
 final class ServerOptions
 {
     public const SASL_PLAIN = 'PLAIN';

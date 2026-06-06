@@ -33,6 +33,8 @@ use FreeDSx\Ldap\Protocol\LdapEncoder;
  *     orderingRule    [0] MatchingRuleId OPTIONAL,
  *     reverseOrder    [1] BOOLEAN DEFAULT FALSE }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class SortingControl extends Control

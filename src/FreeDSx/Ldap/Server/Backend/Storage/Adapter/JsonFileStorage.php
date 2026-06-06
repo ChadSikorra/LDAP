@@ -30,6 +30,8 @@ use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
  *
  * File format: { "cn=x,dc=y": { "dn": "cn=x,dc=y", "attributes": { "cn": ["x"] } } }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class JsonFileStorage implements EntryStorageInterface

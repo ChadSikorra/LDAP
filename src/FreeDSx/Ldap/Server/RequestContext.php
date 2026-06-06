@@ -20,6 +20,8 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  * Represents the context of a server request. This includes any controls associated with the request and the token for
  * authentication details.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class RequestContext

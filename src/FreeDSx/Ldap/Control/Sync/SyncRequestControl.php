@@ -38,6 +38,8 @@ use function count;
  *     reloadHint BOOLEAN DEFAULT FALSE
  * }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com
  * @see https://tools.ietf.org/html/rfc4533
  */

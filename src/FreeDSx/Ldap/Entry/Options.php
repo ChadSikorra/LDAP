@@ -25,6 +25,8 @@ use function sort;
 /**
  * Represents a collection of attribute options.
  *
+ * @api
+ *
  * @implements IteratorAggregate<Option>
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */

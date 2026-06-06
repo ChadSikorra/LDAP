@@ -28,6 +28,8 @@ use FreeDSx\Ldap\Exception\ProtocolException;
  *     oldPasswd       [1]  OCTET STRING OPTIONAL
  *     newPasswd       [2]  OCTET STRING OPTIONAL }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class PasswordModifyRequest extends ExtendedRequest

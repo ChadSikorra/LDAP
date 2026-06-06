@@ -15,6 +15,8 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Rules;
 
 /**
  * Rules governing account lockout from failed binds (draft-behera-10 §5.2.9-5.2.10, §5.2.17-5.2.18).
+ *
+ * @api
  */
 final readonly class PasswordLockoutRules
 {

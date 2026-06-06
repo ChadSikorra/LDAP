@@ -29,6 +29,8 @@ use FreeDSx\Ldap\Exception\ProtocolException;
  *     name                    LDAPDN,
  *     authentication          AuthenticationChoice }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 abstract class BindRequest implements RequestInterface

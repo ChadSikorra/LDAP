@@ -28,6 +28,8 @@ use function substr_replace;
 /**
  * Represents a Relative Distinguished Name.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class Rdn implements Stringable

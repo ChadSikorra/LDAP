@@ -20,6 +20,8 @@ use FreeDSx\Ldap\Operation\ResultCode;
 /**
  * Represents a referral exception from an operation that needs to be chased to be completed.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class ReferralException extends Exception

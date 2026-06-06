@@ -34,6 +34,8 @@ use FreeDSx\Ldap\Search\Result\EntryResult;
  *
  * Obtain an instance via {@see LdapClient::query()}.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class LdapQuery

@@ -15,6 +15,8 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Rules;
 
 /**
  * Rules governing password expiration / any grace window (draft-behera-10 §5.2.3, §5.2.7-5.2.8, §5.2.16, §5.2.19).
+ *
+ * @api
  */
 final readonly class PasswordExpirationRules
 {

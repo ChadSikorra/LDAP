@@ -22,6 +22,8 @@ use FreeDSx\Ldap\Operation\Request\SearchRequest;
 /**
  * Encapsulates the paging request from a client and provides some helpful methods.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class PagingRequest

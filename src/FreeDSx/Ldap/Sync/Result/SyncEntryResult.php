@@ -17,6 +17,9 @@ use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Search\Result\EntryResult;
 
+/**
+ * @api
+ */
 class SyncEntryResult
 {
     use SyncResultTrait;

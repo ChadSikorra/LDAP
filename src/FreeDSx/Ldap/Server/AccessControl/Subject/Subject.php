@@ -18,6 +18,8 @@ use Closure;
 /**
  * Factory for common subject matchers.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class Subject

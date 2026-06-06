@@ -16,6 +16,8 @@ namespace FreeDSx\Ldap\Ldif;
 /**
  * Output options for {@see LdifWriter}.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class LdifOutputOptions

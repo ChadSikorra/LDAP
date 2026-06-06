@@ -23,6 +23,8 @@ use Throwable;
 /**
  * Wraps a (nullable) PSR-3 logger with policy-gated, structured server events.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final readonly class EventLogger

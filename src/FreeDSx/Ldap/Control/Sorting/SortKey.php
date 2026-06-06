@@ -16,6 +16,8 @@ namespace FreeDSx\Ldap\Control\Sorting;
 /**
  * Represents a server side sorting request SortKey.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class SortKey

@@ -45,6 +45,8 @@ use FreeDSx\Ldap\Exception\ProtocolException;
  *         ... },
  *     contextID     OCTET STRING OPTIONAL }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class VlvResponseControl extends Control

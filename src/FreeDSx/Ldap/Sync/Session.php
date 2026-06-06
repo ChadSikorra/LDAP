@@ -15,6 +15,9 @@ namespace FreeDSx\Ldap\Sync;
 
 use FreeDSx\Ldap\Control\Sync\SyncRequestControl;
 
+/**
+ * @api
+ */
 final class Session
 {
     public const PHASE_DELETE = 0;

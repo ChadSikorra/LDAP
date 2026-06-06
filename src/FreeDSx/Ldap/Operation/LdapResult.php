@@ -87,6 +87,8 @@ use function count;
  *     diagnosticMessage  LDAPString,
  *     referral           [3] Referral OPTIONAL }
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class LdapResult implements ResponseInterface

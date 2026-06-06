@@ -31,6 +31,8 @@ use FreeDSx\Ldap\Exception\ProtocolException;
  *      searchEntriesMax    INTEGER
  *  }
  *
+ * @api
+ *
  * @see https://msdn.microsoft.com/en-us/library/jj216720.aspx
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */

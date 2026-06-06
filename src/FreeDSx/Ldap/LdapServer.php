@@ -50,6 +50,8 @@ use Psr\Log\LoggerInterface;
 /**
  * The LDAP server.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 class LdapServer

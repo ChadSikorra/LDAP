@@ -19,6 +19,8 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
 /**
  * Carries request-scoped metadata (identity, controls) for write operations.
  *
+ * @api
+ *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final readonly class WriteContext
