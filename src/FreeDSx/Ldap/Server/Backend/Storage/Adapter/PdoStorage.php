@@ -105,7 +105,7 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
     {
         $stmt = $this->prepareAndExecute(
             $this->dialect->queryFetchEntry(),
-            [$dn->toString()],
+            [$dn->normalize()->toString()],
         );
         $row = $stmt->fetch();
 
@@ -118,7 +118,7 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
     {
         $stmt = $this->prepareAndExecute(
             $this->dialect->queryExists(),
-            [$dn->toString()],
+            [$dn->normalize()->toString()],
         );
 
         return $stmt->fetch() !== false;
@@ -134,7 +134,7 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
             : null;
 
         $query = $this->queryBuilder->build(
-            $options->baseDn->toString(),
+            $options->baseDn->normalize()->toString(),
             $options->subtree,
             $filterResult,
             $sqlLimit,
@@ -187,7 +187,7 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
     {
         $this->prepareAndExecute(
             $this->dialect->queryDelete(),
-            [$dn->toString()],
+            [$dn->normalize()->toString()],
         );
     }
 
@@ -195,7 +195,7 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
     {
         $stmt = $this->prepareAndExecute(
             $this->dialect->queryHasChildren(),
-            [$dn->toString()],
+            [$dn->normalize()->toString()],
         );
 
         return $stmt->fetch() !== false;

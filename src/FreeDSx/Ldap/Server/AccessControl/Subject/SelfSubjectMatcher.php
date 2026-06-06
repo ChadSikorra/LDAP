@@ -32,6 +32,6 @@ final class SelfSubjectMatcher implements SubjectMatcherInterface
             return false;
         }
 
-        return strtolower($token->getResolvedDn()->toString()) === strtolower($targetDn->toString());
+        return $token->getResolvedDn()->normalize()->toString() === $targetDn->normalize()->toString();
     }
 }

@@ -86,7 +86,8 @@ trait ArrayEntryStorageTrait
     {
         $roots = [];
         foreach (array_keys($entries) as $normDn) {
-            $parent = (new Dn($normDn))->getParent()?->normalize()->toString() ?? '';
+            $normDn = (string) $normDn;
+            $parent = (new Dn($normDn))->getParent()?->toString() ?? '';
             if ($parent === '' || !isset($entries[$parent])) {
                 $roots[] = new Dn($normDn);
             }
@@ -114,11 +115,13 @@ trait ArrayEntryStorageTrait
                 throw new TimeLimitExceededException();
             }
 
-            $entryDn = new Dn($normDn);
+            $entryDn = Dn::fromCanonical((string) $normDn);
 
-            if ($subtree && $entryDn->isDescendantOf($baseDn)) {
-                yield $entry;
-            } elseif (!$subtree && $entryDn->isChildOf($baseDn)) {
+            $inScope = $subtree
+                ? $entryDn->isDescendantOf($baseDn)
+                : $entryDn->isChildOf($baseDn);
+
+            if ($inScope) {
                 yield $entry;
             }
         }
