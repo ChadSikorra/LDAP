@@ -104,6 +104,51 @@ final class InMemoryMetricsRecorderTest extends TestCase
         );
     }
 
+    public function test_it_tracks_in_flight_operations_per_type_and_prunes_at_zero(): void
+    {
+        $this->subject->operationStarted(OperationType::Search);
+        $this->subject->operationStarted(OperationType::Search);
+        $this->subject->operationStarted(OperationType::Bind);
+
+        self::assertSame(
+            ['search' => 2, 'bind' => 1],
+            $this->subject->snapshot()->operationsInProgress,
+        );
+
+        $this->subject->operationObserved(new OperationObservation(
+            OperationType::Search,
+            true,
+            0.1,
+            ResultCode::SUCCESS,
+        ));
+        $this->subject->operationObserved(new OperationObservation(
+            OperationType::Search,
+            true,
+            0.1,
+            ResultCode::SUCCESS,
+        ));
+
+        self::assertSame(
+            ['bind' => 1],
+            $this->subject->snapshot()->operationsInProgress,
+        );
+    }
+
+    public function test_observing_more_than_started_floors_the_in_flight_gauge(): void
+    {
+        $this->subject->operationObserved(new OperationObservation(
+            OperationType::Search,
+            true,
+            0.1,
+            ResultCode::SUCCESS,
+        ));
+
+        self::assertSame(
+            [],
+            $this->subject->snapshot()->operationsInProgress,
+        );
+    }
+
     public function test_the_active_connection_gauge_rises_on_open_and_falls_on_close(): void
     {
         $this->subject->connectionObserved(ConnectionObservation::Opened);
@@ -162,17 +207,33 @@ final class InMemoryMetricsRecorderTest extends TestCase
             true,
             0.5,
             ResultCode::SUCCESS,
+            searchScope: 'sub',
+        ));
+        $this->subject->operationObserved(new OperationObservation(
+            OperationType::Bind,
+            true,
+            0.1,
+            ResultCode::SUCCESS,
+            bindMethod: 'simple',
         ));
 
         $delta = $this->subject->takeOperationDelta();
 
         self::assertSame(
-            ['search' => 1],
+            ['search' => 1, 'bind' => 1],
             $delta->counts,
         );
         self::assertSame(
-            [ResultCode::SUCCESS => 1],
+            [ResultCode::SUCCESS => 2],
             $delta->resultCodeCounts,
+        );
+        self::assertSame(
+            ['simple' => 1],
+            $delta->bindCounts,
+        );
+        self::assertSame(
+            ['sub' => 1],
+            $delta->searchScopeCounts,
         );
         self::assertSame(
             [],
