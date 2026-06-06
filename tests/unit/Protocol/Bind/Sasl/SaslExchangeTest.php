@@ -59,27 +59,6 @@ final class SaslExchangeTest extends TestCase
         );
     }
 
-    private function makeInput(?string $initialCredentials = null): SaslExchangeInput
-    {
-        return new SaslExchangeInput(
-            challenge: $this->mockChallenge,
-            mechName: MechanismName::from(self::MECH),
-            initialMessage: new LdapMessageRequest(1, new SaslBindRequest(self::MECH)),
-            initialCredentials: $initialCredentials,
-        );
-    }
-
-    private function makeContext(
-        bool $isComplete,
-        bool $isAuthenticated = true,
-        ?string $response = null,
-    ): SaslContext {
-        return (new SaslContext())
-            ->setIsComplete($isComplete)
-            ->setIsAuthenticated($isAuthenticated)
-            ->setResponse($response);
-    }
-
     public function test_it_breaks_immediately_on_invalid_proof(): void
     {
         // Context is complete but not authenticated (e.g. SCRAM e=invalid-proof).
@@ -232,5 +211,26 @@ final class SaslExchangeTest extends TestCase
         self::expectExceptionCode(ResultCode::PROTOCOL_ERROR);
 
         $this->subject->run($this->makeInput());
+    }
+
+    private function makeInput(?string $initialCredentials = null): SaslExchangeInput
+    {
+        return new SaslExchangeInput(
+            challenge: $this->mockChallenge,
+            mechName: MechanismName::from(self::MECH),
+            initialMessage: new LdapMessageRequest(1, new SaslBindRequest(self::MECH)),
+            initialCredentials: $initialCredentials,
+        );
+    }
+
+    private function makeContext(
+        bool $isComplete,
+        bool $isAuthenticated = true,
+        ?string $response = null,
+    ): SaslContext {
+        return (new SaslContext())
+            ->setIsComplete($isComplete)
+            ->setIsAuthenticated($isAuthenticated)
+            ->setResponse($response);
     }
 }

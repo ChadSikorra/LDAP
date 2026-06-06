@@ -107,6 +107,11 @@ class LdapQueue extends Asn1MessageQueue
         return $this;
     }
 
+    public function isConnected(): bool
+    {
+        return $this->socket->isConnected();
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -179,11 +184,6 @@ class LdapQueue extends Asn1MessageQueue
      * Extension point invoked with each message decoded off the socket.
      */
     protected function onMessageDecoded(Message $message): void {}
-
-    public function isConnected(): bool
-    {
-        return $this->socket->isConnected();
-    }
 
     /**
      * True if data is already buffered or available on the socket without blocking.

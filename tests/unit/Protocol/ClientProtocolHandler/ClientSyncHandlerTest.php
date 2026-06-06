@@ -97,7 +97,6 @@ final class ClientSyncHandlerTest extends TestCase
         $this->subject->handleRequest($mockMessage);
     }
 
-
     public function test_it_should_retrieve_results_until_it_receives_a_search_done_with_a_sync_done_control(): void
     {
         $messageTo = new LdapMessageRequest(

@@ -100,6 +100,11 @@ class Control implements ProtocolElementInterface, Stringable
         protected AbstractType|ProtocolElementInterface|string|null $controlValue = null,
     ) {}
 
+    public function __toString(): string
+    {
+        return $this->controlType;
+    }
+
     public function setTypeOid(string $oid): static
     {
         $this->controlType = $oid;
@@ -162,11 +167,6 @@ class Control implements ProtocolElementInterface, Stringable
         }
 
         return $asn1;
-    }
-
-    public function __toString(): string
-    {
-        return $this->controlType;
     }
 
     /**

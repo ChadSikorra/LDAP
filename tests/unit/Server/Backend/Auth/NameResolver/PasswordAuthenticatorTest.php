@@ -39,22 +39,6 @@ final class PasswordAuthenticatorTest extends TestCase
         $this->mockBackend = $this->createMock(LdapBackendInterface::class);
     }
 
-    private function subject(?Entry $resolvedEntry = null): PasswordAuthenticator
-    {
-        $this->mockResolver
-            ->method('resolve')
-            ->with(
-                self::isType('string'),
-                $this->mockBackend,
-            )
-            ->willReturn($resolvedEntry);
-
-        return new PasswordAuthenticator(
-            $this->mockResolver,
-            $this->mockBackend,
-        );
-    }
-
     public function test_throws_when_entry_not_found(): void
     {
         self::expectException(OperationException::class);
@@ -300,5 +284,21 @@ final class PasswordAuthenticatorTest extends TestCase
         ))->getSaslIdentity('alice', MechanismName::SCRAM_SHA256);
 
         self::assertInstanceOf(SaslIdentity::class, $identity);
+    }
+
+    private function subject(?Entry $resolvedEntry = null): PasswordAuthenticator
+    {
+        $this->mockResolver
+            ->method('resolve')
+            ->with(
+                self::isType('string'),
+                $this->mockBackend,
+            )
+            ->willReturn($resolvedEntry);
+
+        return new PasswordAuthenticator(
+            $this->mockResolver,
+            $this->mockBackend,
+        );
     }
 }

@@ -57,27 +57,6 @@ final class ServerRootDseHandlerTest extends TestCase
         $this->withBackendNamingContexts([]);
     }
 
-    /**
-     * @param list<string> $dns
-     */
-    private function withBackendNamingContexts(array $dns): void
-    {
-        $this->mockBackend = $this->createMock(LdapBackendInterface::class);
-        $this->mockBackend
-            ->method('namingContexts')
-            ->willReturn(array_map(
-                fn(string $dn): Dn => new Dn($dn),
-                $dns,
-            ));
-
-        $this->subject = new ServerRootDseHandler(
-            $this->options,
-            $this->mockQueue,
-            $this->mockBackend,
-            null,
-        );
-    }
-
     public function test_it_should_send_back_a_RootDSE(): void
     {
         $this->options->setDseVendorName('Foo');
@@ -375,6 +354,27 @@ final class ServerRootDseHandlerTest extends TestCase
         $this->subject->handleRequest(
             $search,
             $this->mockToken,
+        );
+    }
+
+    /**
+     * @param list<string> $dns
+     */
+    private function withBackendNamingContexts(array $dns): void
+    {
+        $this->mockBackend = $this->createMock(LdapBackendInterface::class);
+        $this->mockBackend
+            ->method('namingContexts')
+            ->willReturn(array_map(
+                fn(string $dn): Dn => new Dn($dn),
+                $dns,
+            ));
+
+        $this->subject = new ServerRootDseHandler(
+            $this->options,
+            $this->mockQueue,
+            $this->mockBackend,
+            null,
         );
     }
 }

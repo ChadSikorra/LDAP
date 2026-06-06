@@ -30,8 +30,6 @@ trait SyncRefreshDoneTrait
 {
     private bool $refreshDone;
 
-    abstract protected static function valueTag(): int;
-
     public function __construct(
         bool $refreshDone = true,
         ?string $cookie = null,
@@ -108,4 +106,6 @@ trait SyncRefreshDoneTrait
             $cookie,
         );
     }
+
+    abstract protected static function valueTag(): int;
 }

@@ -21,6 +21,7 @@ use FreeDSx\Ldap\Protocol\LdapEncoder;
 class SdFlagsControlTest extends \PHPUnit\Framework\TestCase
 {
     protected SdFlagsControl $subject;
+
     protected function setUp(): void
     {
         $this->subject = new SdFlagsControl(SdFlagsControl::DACL_SECURITY_INFORMATION);

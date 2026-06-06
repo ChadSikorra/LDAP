@@ -163,7 +163,6 @@ final class PagingTest extends TestCase
         self::assertFalse($this->subject->hasEntries());
     }
 
-
     public function test_it_should_throw_an_exception_if_marked_as_critical_and_no_control_is_received(): void
     {
         self::expectException(ProtocolException::class);

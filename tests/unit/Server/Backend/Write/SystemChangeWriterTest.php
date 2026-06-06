@@ -26,6 +26,7 @@ use Tests\Support\FreeDSx\Ldap\Backend\RecordingWriteHandler;
 final class SystemChangeWriterTest extends TestCase
 {
     private RecordingWriteHandler $handler;
+
     private SystemChangeWriter $subject;
 
     protected function setUp(): void

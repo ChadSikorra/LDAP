@@ -70,30 +70,6 @@ final class JsonEntryBuffer implements EntryStorageInterface
         return new EntryStream($this->generateEntries($options));
     }
 
-    /**
-     * @return Generator<Entry>
-     */
-    private function generateEntries(StorageListOptions $options): Generator
-    {
-        $deadline = $options->timeLimit > 0
-            ? microtime(true) + $options->timeLimit
-            : null;
-
-        foreach ($this->data as $normDn => $entryData) {
-            if ($deadline !== null && microtime(true) >= $deadline) {
-                throw new TimeLimitExceededException();
-            }
-
-            $entryDn = new Dn($normDn);
-
-            if ($options->subtree && $entryDn->isDescendantOf($options->baseDn)) {
-                yield ($this->toEntry)($entryData);
-            } elseif (!$options->subtree && $entryDn->isChildOf($options->baseDn)) {
-                yield ($this->toEntry)($entryData);
-            }
-        }
-    }
-
     public function store(Entry $entry): void
     {
         $this->data[$entry->getDn()->normalize()->toString()] = ($this->fromEntry)($entry);
@@ -129,5 +105,29 @@ final class JsonEntryBuffer implements EntryStorageInterface
     public function getData(): array
     {
         return $this->data;
+    }
+
+    /**
+     * @return Generator<Entry>
+     */
+    private function generateEntries(StorageListOptions $options): Generator
+    {
+        $deadline = $options->timeLimit > 0
+            ? microtime(true) + $options->timeLimit
+            : null;
+
+        foreach ($this->data as $normDn => $entryData) {
+            if ($deadline !== null && microtime(true) >= $deadline) {
+                throw new TimeLimitExceededException();
+            }
+
+            $entryDn = new Dn($normDn);
+
+            if ($options->subtree && $entryDn->isDescendantOf($options->baseDn)) {
+                yield ($this->toEntry)($entryData);
+            } elseif (!$options->subtree && $entryDn->isChildOf($options->baseDn)) {
+                yield ($this->toEntry)($entryData);
+            }
+        }
     }
 }

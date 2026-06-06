@@ -65,22 +65,6 @@ final class JsonFileStorageTest extends TestCase
         );
     }
 
-    private function context(): WriteContext
-    {
-        return new WriteContext(
-            new AnonToken(),
-            new ControlBag(),
-        );
-    }
-
-    private function systemContext(): WriteContext
-    {
-        return WriteContext::system(
-            new AnonToken(),
-            new ControlBag(),
-        );
-    }
-
     protected function tearDown(): void
     {
         if (file_exists($this->tempFile)) {
@@ -302,6 +286,22 @@ final class JsonFileStorageTest extends TestCase
         self::assertSame(
             ['dc=example,dc=com', 'dc=other,dc=org'],
             $contexts,
+        );
+    }
+
+    private function context(): WriteContext
+    {
+        return new WriteContext(
+            new AnonToken(),
+            new ControlBag(),
+        );
+    }
+
+    private function systemContext(): WriteContext
+    {
+        return WriteContext::system(
+            new AnonToken(),
+            new ControlBag(),
         );
     }
 }

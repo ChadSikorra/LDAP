@@ -226,29 +226,6 @@ class ServerTestCase extends LdapTestCase
         return $this->client ?? throw new RuntimeException('The test LDAP client is not set.');
     }
 
-    /**
-     * @param list<string> $extraArgs
-     */
-    private static function launchSharedProcess(
-        string $mode,
-        string $transport,
-        array $extraArgs,
-    ): void {
-        $processArgs = [
-            'php',
-            '-dpcov.enabled=0',
-            __DIR__ . '/../bin/' . $mode . '.php',
-            '--transport=' . $transport,
-            ...$extraArgs,
-        ];
-
-        $process = new Process($processArgs);
-        $process->start();
-        self::waitForProcess($process, 'server starting...');
-
-        self::$sharedProcess = $process;
-    }
-
     protected function buildClient(string $transport): LdapClient
     {
         $useSsl = false;
@@ -270,6 +247,29 @@ class ServerTestCase extends LdapTestCase
                 ->setSslValidateCert(false)
                 ->setUseSsl($useSsl),
         );
+    }
+
+    /**
+     * @param list<string> $extraArgs
+     */
+    private static function launchSharedProcess(
+        string $mode,
+        string $transport,
+        array $extraArgs,
+    ): void {
+        $processArgs = [
+            'php',
+            '-dpcov.enabled=0',
+            __DIR__ . '/../bin/' . $mode . '.php',
+            '--transport=' . $transport,
+            ...$extraArgs,
+        ];
+
+        $process = new Process($processArgs);
+        $process->start();
+        self::waitForProcess($process, 'server starting...');
+
+        self::$sharedProcess = $process;
     }
 
     private static function waitForProcess(Process $process, string $marker): string

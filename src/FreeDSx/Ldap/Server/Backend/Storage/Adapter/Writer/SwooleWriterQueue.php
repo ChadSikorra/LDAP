@@ -41,6 +41,11 @@ final class SwooleWriterQueue implements WriterQueueInterface
         private readonly ?Closure $batchWrapper = null,
     ) {}
 
+    public function __destruct()
+    {
+        $this->jobs?->close();
+    }
+
     /**
      * Submit a write closure and block the caller until the writer reports completion.
      *
@@ -63,9 +68,45 @@ final class SwooleWriterQueue implements WriterQueueInterface
         }
     }
 
-    public function __destruct()
-    {
-        $this->jobs?->close();
+    /**
+     * Executes a batch under a single outer transaction, isolating per-job failures via savepoints.
+     *
+     * @internal
+     *
+     * @param list<array{Closure, Channel<mixed>}> $batch
+     * @param Closure(Closure(): void): void $batchWrapper
+     */
+    public static function executeBatch(
+        array $batch,
+        Closure $batchWrapper,
+    ): void {
+        $results = array_fill(
+            0,
+            count($batch),
+            true,
+        );
+
+        try {
+            $batchWrapper(static function () use ($batch, &$results): void {
+                foreach ($batch as $i => [$closure]) {
+                    try {
+                        $closure();
+                    } catch (Throwable $e) {
+                        $results[$i] = $e;
+                    }
+                }
+            });
+        } catch (Throwable $e) {
+            foreach ($batch as [, $reply]) {
+                $reply->push($e);
+            }
+
+            return;
+        }
+
+        foreach ($batch as $i => [, $reply]) {
+            $reply->push($results[$i]);
+        }
     }
 
     private function ensureStarted(): void
@@ -126,46 +167,5 @@ final class SwooleWriterQueue implements WriterQueueInterface
                 }
             }
         });
-    }
-
-    /**
-     * Executes a batch under a single outer transaction, isolating per-job failures via savepoints.
-     *
-     * @internal
-     *
-     * @param list<array{Closure, Channel<mixed>}> $batch
-     * @param Closure(Closure(): void): void $batchWrapper
-     */
-    public static function executeBatch(
-        array $batch,
-        Closure $batchWrapper,
-    ): void {
-        $results = array_fill(
-            0,
-            count($batch),
-            true,
-        );
-
-        try {
-            $batchWrapper(static function () use ($batch, &$results): void {
-                foreach ($batch as $i => [$closure]) {
-                    try {
-                        $closure();
-                    } catch (Throwable $e) {
-                        $results[$i] = $e;
-                    }
-                }
-            });
-        } catch (Throwable $e) {
-            foreach ($batch as [, $reply]) {
-                $reply->push($e);
-            }
-
-            return;
-        }
-
-        foreach ($batch as $i => [, $reply]) {
-            $reply->push($results[$i]);
-        }
     }
 }

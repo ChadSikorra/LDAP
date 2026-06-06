@@ -112,41 +112,6 @@ class ServerPagingHandlerTest extends TestCase
         );
     }
 
-    private function makeGenerator(Entry ...$entries): Generator
-    {
-        yield from $entries;
-    }
-
-    /**
-     * @return list<LdapMessageResponse>
-     */
-    private function entryMessages(): array
-    {
-        return array_values(array_filter(
-            $this->sentMessages,
-            static fn(LdapMessageResponse $m): bool => $m->getResponse() instanceof SearchResultEntry,
-        ));
-    }
-
-    private function doneMessage(): LdapMessageResponse
-    {
-        foreach ($this->sentMessages as $message) {
-            if ($message->getResponse() instanceof SearchResultDone) {
-                return $message;
-            }
-        }
-
-        self::fail('No SearchResultDone message was sent.');
-    }
-
-    private function donePagingControl(): PagingControl
-    {
-        $paging = $this->doneMessage()->controls()->get(Control::OID_PAGING);
-        self::assertInstanceOf(PagingControl::class, $paging);
-
-        return $paging;
-    }
-
     public function test_it_should_call_the_backend_search_on_paging_start_and_return_entries(): void
     {
         $message = $this->makeSearchMessage(size: 10);
@@ -629,28 +594,6 @@ class ServerPagingHandlerTest extends TestCase
         self::assertSame([], $this->entryMessages());
     }
 
-    private function makeExistingPagingRequest(
-        int $size = 10,
-        string $cookie = 'bar',
-        string $nextCookie = 'foo',
-        ?SearchRequest $searchRequest = null,
-    ): PagingRequest {
-        $searchReq = $searchRequest ?? $this->makeSearchRequest();
-
-        $pagingReq = new PagingRequest(
-            new PagingControl($size, $cookie),
-            $searchReq,
-            new ControlBag(),
-            $nextCookie,
-        );
-
-        $pagingReq->markProcessed();
-        $this->requestHistory->pagingRequest()->add($pagingReq);
-        $this->requestHistory->storePagingGenerator($nextCookie, $this->makeGenerator());
-
-        return $pagingReq;
-    }
-
     public function test_sort_control_appends_sorting_response_control_to_done_message(): void
     {
         $message = new LdapMessageRequest(
@@ -782,6 +725,63 @@ class ServerPagingHandlerTest extends TestCase
             '',
             $done->getDn()->toString(),
         );
+    }
+
+    private function makeGenerator(Entry ...$entries): Generator
+    {
+        yield from $entries;
+    }
+
+    /**
+     * @return list<LdapMessageResponse>
+     */
+    private function entryMessages(): array
+    {
+        return array_values(array_filter(
+            $this->sentMessages,
+            static fn(LdapMessageResponse $m): bool => $m->getResponse() instanceof SearchResultEntry,
+        ));
+    }
+
+    private function doneMessage(): LdapMessageResponse
+    {
+        foreach ($this->sentMessages as $message) {
+            if ($message->getResponse() instanceof SearchResultDone) {
+                return $message;
+            }
+        }
+
+        self::fail('No SearchResultDone message was sent.');
+    }
+
+    private function donePagingControl(): PagingControl
+    {
+        $paging = $this->doneMessage()->controls()->get(Control::OID_PAGING);
+        self::assertInstanceOf(PagingControl::class, $paging);
+
+        return $paging;
+    }
+
+    private function makeExistingPagingRequest(
+        int $size = 10,
+        string $cookie = 'bar',
+        string $nextCookie = 'foo',
+        ?SearchRequest $searchRequest = null,
+    ): PagingRequest {
+        $searchReq = $searchRequest ?? $this->makeSearchRequest();
+
+        $pagingReq = new PagingRequest(
+            new PagingControl($size, $cookie),
+            $searchReq,
+            new ControlBag(),
+            $nextCookie,
+        );
+
+        $pagingReq->markProcessed();
+        $this->requestHistory->pagingRequest()->add($pagingReq);
+        $this->requestHistory->storePagingGenerator($nextCookie, $this->makeGenerator());
+
+        return $pagingReq;
     }
 
     private function makeSearchMessage(

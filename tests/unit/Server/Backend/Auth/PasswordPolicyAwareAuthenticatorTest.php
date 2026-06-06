@@ -43,8 +43,11 @@ final class PasswordPolicyAwareAuthenticatorTest extends TestCase
     private const DN = 'cn=foo,dc=example,dc=com';
 
     private PasswordAuthenticatableInterface&MockObject $inner;
+
     private BindNameResolverInterface&MockObject $nameResolver;
+
     private RecordingWriteHandler $writeHandler;
+
     private PasswordPolicyContext $context;
 
     protected function setUp(): void

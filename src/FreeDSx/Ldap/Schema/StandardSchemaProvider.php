@@ -39,6 +39,8 @@ use FreeDSx\Ldap\Schema\Matching\TelephoneNumberComparator;
  */
 final class StandardSchemaProvider
 {
+    private function __construct() {}
+
     public static function buildCore(): Schema
     {
         $schema = new Schema();
@@ -736,6 +738,4 @@ final class StandardSchemaProvider
             ),
         ];
     }
-
-    private function __construct() {}
 }

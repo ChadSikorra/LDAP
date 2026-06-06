@@ -24,6 +24,11 @@ trait FilterAttributeTrait
 {
     protected string $attribute;
 
+    public function __toString(): string
+    {
+        return $this->toString();
+    }
+
     public function getAttribute(): string
     {
         return $this->attribute;
@@ -37,10 +42,5 @@ trait FilterAttributeTrait
         $this->attribute = $attribute;
 
         return $this;
-    }
-
-    public function __toString(): string
-    {
-        return $this->toString();
     }
 }

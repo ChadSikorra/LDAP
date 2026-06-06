@@ -76,6 +76,11 @@ class Attribute implements IteratorAggregate, Countable, Stringable
         }
     }
 
+    public function __toString(): string
+    {
+        return implode(', ', $this->values);
+    }
+
     /**
      * @param string[] $values
      */
@@ -297,11 +302,6 @@ class Attribute implements IteratorAggregate, Countable, Stringable
         }
 
         return $nameMatches;
-    }
-
-    public function __toString(): string
-    {
-        return implode(', ', $this->values);
     }
 
     /**

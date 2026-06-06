@@ -51,14 +51,6 @@ final class ServerSubschemaHandlerTest extends TestCase
         );
     }
 
-    private function makeMessage(): LdapMessageRequest
-    {
-        return new LdapMessageRequest(
-            1,
-            (new SearchRequest(Filters::present('objectClass')))->base('cn=Subschema')->useBaseScope(),
-        );
-    }
-
     public function test_it_returns_a_stub_subschema_entry(): void
     {
         $this->mockQueue
@@ -148,6 +140,14 @@ final class ServerSubschemaHandlerTest extends TestCase
         self::assertGreaterThan(
             0,
             count($entry->get('matchingRuleUse')?->getValues() ?? []),
+        );
+    }
+
+    private function makeMessage(): LdapMessageRequest
+    {
+        return new LdapMessageRequest(
+            1,
+            (new SearchRequest(Filters::present('objectClass')))->base('cn=Subschema')->useBaseScope(),
         );
     }
 

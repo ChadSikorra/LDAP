@@ -43,6 +43,11 @@ class Dn implements IteratorAggregate, Countable, Stringable
 
     public function __construct(private readonly string $dn) {}
 
+    public function __toString(): string
+    {
+        return $this->dn;
+    }
+
     /**
      * @throws UnexpectedValueException
      */
@@ -100,11 +105,6 @@ class Dn implements IteratorAggregate, Countable, Stringable
         }
 
         return count((array) $this->pieces);
-    }
-
-    public function __toString(): string
-    {
-        return $this->dn;
     }
 
     /**

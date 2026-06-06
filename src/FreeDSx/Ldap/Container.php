@@ -60,17 +60,17 @@ use FreeDSx\Socket\Transport;
 class Container
 {
     /**
-     * @var array<class-string, callable>
-     */
-    private array $instanceFactory = [];
-
-    /**
      * These are classes that should never cache an instance when retrieved from the container.
      */
     private const FACTORY_ONLY = [
         HandlerFactoryInterface::class,
         ServerAuthorization::class,
     ];
+
+    /**
+     * @var array<class-string, callable>
+     */
+    private array $instanceFactory = [];
 
     /**
      * @var array<class-string, object>

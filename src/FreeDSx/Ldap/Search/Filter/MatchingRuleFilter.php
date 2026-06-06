@@ -62,6 +62,11 @@ class MatchingRuleFilter implements FilterInterface, Stringable
         $this->useDnAttributes = $useDnAttributes;
     }
 
+    public function __toString(): string
+    {
+        return $this->toString();
+    }
+
     public function getAttribute(): ?string
     {
         return $this->attribute;
@@ -162,11 +167,6 @@ class MatchingRuleFilter implements FilterInterface, Stringable
             . self::FILTER_EXT
             . Attribute::escape($this->value)
             . self::PAREN_RIGHT;
-    }
-
-    public function __toString(): string
-    {
-        return $this->toString();
     }
 
     /**

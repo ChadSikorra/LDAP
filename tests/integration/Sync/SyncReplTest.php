@@ -24,6 +24,8 @@ class SyncReplTest extends ExternalLdapTestCase
 {
     private ?Process $syncWriteProcess = null;
 
+    private ?string $syncSignalFile = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -36,8 +38,6 @@ class SyncReplTest extends ExternalLdapTestCase
         // configured with restart: on-failure, so we wait here for it to recover before each test.
         $this->waitForServer();
     }
-
-    private ?string $syncSignalFile = null;
 
     public function tearDown(): void
     {

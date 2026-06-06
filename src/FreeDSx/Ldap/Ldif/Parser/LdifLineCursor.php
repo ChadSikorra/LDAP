@@ -101,17 +101,6 @@ final class LdifLineCursor
     }
 
     /**
-     * @param iterable<string> $lines
-     * @return Generator<int, string>
-     */
-    private static function toGenerator(iterable $lines): Generator
-    {
-        foreach ($lines as $line) {
-            yield $line;
-        }
-    }
-
-    /**
      * Reads the directive at the cursor, consuming any folded continuation lines.
      *
      * @throws LdifParseException
@@ -214,27 +203,6 @@ final class LdifLineCursor
     /**
      * @throws LdifParseException
      */
-    private function decodeBase64(
-        string $raw,
-        int $line,
-        ?string $sourceLine,
-    ): string {
-        $decoded = base64_decode($raw, true);
-
-        if ($decoded === false) {
-            $this->errorAt(
-                $line,
-                $sourceLine,
-                'A base64-encoded value is not valid',
-            );
-        }
-
-        return $decoded;
-    }
-
-    /**
-     * @throws LdifParseException
-     */
     public function error(string $message): never
     {
         $this->errorAt(
@@ -271,5 +239,37 @@ final class LdifLineCursor
             $directive->sourceLine,
             $message,
         );
+    }
+
+    /**
+     * @param iterable<string> $lines
+     * @return Generator<int, string>
+     */
+    private static function toGenerator(iterable $lines): Generator
+    {
+        foreach ($lines as $line) {
+            yield $line;
+        }
+    }
+
+    /**
+     * @throws LdifParseException
+     */
+    private function decodeBase64(
+        string $raw,
+        int $line,
+        ?string $sourceLine,
+    ): string {
+        $decoded = base64_decode($raw, true);
+
+        if ($decoded === false) {
+            $this->errorAt(
+                $line,
+                $sourceLine,
+                'A base64-encoded value is not valid',
+            );
+        }
+
+        return $decoded;
     }
 }

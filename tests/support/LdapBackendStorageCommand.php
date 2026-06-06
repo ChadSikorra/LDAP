@@ -305,5 +305,4 @@ final class LdapBackendStorageCommand extends Command
 
         return Command::SUCCESS;
     }
-
 }

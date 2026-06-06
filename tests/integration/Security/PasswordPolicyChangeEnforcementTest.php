@@ -64,12 +64,17 @@ use Tests\Support\FreeDSx\Ldap\Clock\FrozenClock;
 final class PasswordPolicyChangeEnforcementTest extends TestCase
 {
     private const NOW = '2026-05-20T12:00:00Z';
+
     private const USER_DN = 'cn=user,dc=foo,dc=bar';
+
     private const OLD_PASSWORD = '12345';
 
     private FrozenClock $clock;
+
     private WritableStorageBackend $backend;
+
     private PasswordPolicyContext $context;
+
     private ?LdapMessageResponse $response = null;
 
     protected function setUp(): void

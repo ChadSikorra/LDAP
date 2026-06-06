@@ -103,22 +103,6 @@ final class ServerSearchHandlerTest extends TestCase
         );
     }
 
-    private function makeGenerator(Entry ...$entries): Generator
-    {
-        yield from $entries;
-    }
-
-    /**
-     * @param list<LdapMessageResponse> $expected
-     */
-    private function assertSentMessages(array $expected): void
-    {
-        self::assertEquals(
-            $expected,
-            $this->sentMessages,
-        );
-    }
-
     public function test_it_should_send_entries_from_the_backend_to_the_client(): void
     {
         $entry1 = Entry::create('dc=foo,dc=bar', ['cn' => 'foo']);
@@ -681,5 +665,21 @@ final class ServerSearchHandlerTest extends TestCase
         $done = end($this->sentMessages);
         self::assertInstanceOf(LdapMessageResponse::class, $done);
         self::assertNull($done->controls()->get(Control::OID_SORTING_RESPONSE));
+    }
+
+    private function makeGenerator(Entry ...$entries): Generator
+    {
+        yield from $entries;
+    }
+
+    /**
+     * @param list<LdapMessageResponse> $expected
+     */
+    private function assertSentMessages(array $expected): void
+    {
+        self::assertEquals(
+            $expected,
+            $this->sentMessages,
+        );
     }
 }

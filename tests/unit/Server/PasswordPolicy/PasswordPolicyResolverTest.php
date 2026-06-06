@@ -24,7 +24,9 @@ use Tests\Support\FreeDSx\Ldap\Backend\RecordingLdapBackend;
 final class PasswordPolicyResolverTest extends TestCase
 {
     private const USER_DN = 'uid=alice,dc=example,dc=com';
+
     private const SUBENTRY_DN = 'cn=subentry-policy,ou=policies,dc=example,dc=com';
+
     private const DEFAULT_DN = 'cn=default,ou=policies,dc=example,dc=com';
 
     public function test_returns_null_when_no_source_configured(): void

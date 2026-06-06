@@ -113,7 +113,6 @@ final class ServerQueueTest extends TestCase
         );
     }
 
-
     public function test_it_records_bytes_sent_for_each_outgoing_message(): void
     {
         $recorder = new InMemoryMetricsRecorder();

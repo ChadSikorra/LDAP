@@ -73,15 +73,6 @@ final class Worker
         ];
     }
 
-    private function deriveMailDomain(string $baseDn): string
-    {
-        if (preg_match_all('/dc=([^,]+)/i', $baseDn, $matches) === 0) {
-            return 'example.com';
-        }
-
-        return implode('.', array_map('strtolower', $matches[1]));
-    }
-
     public function run(): void
     {
         $client = $this->buildClient();
@@ -115,6 +106,15 @@ final class Worker
         }
 
         $this->cleanup($client);
+    }
+
+    private function deriveMailDomain(string $baseDn): string
+    {
+        if (preg_match_all('/dc=([^,]+)/i', $baseDn, $matches) === 0) {
+            return 'example.com';
+        }
+
+        return implode('.', array_map('strtolower', $matches[1]));
     }
 
     private function shouldContinue(?float $deadline, int $iterations): bool

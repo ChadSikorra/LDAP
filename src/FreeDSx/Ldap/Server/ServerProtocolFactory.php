@@ -85,11 +85,6 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
         private readonly ?OperationRollupCoordinator $operationRollup = null,
     ) {}
 
-    protected function serverOptions(): ServerOptions
-    {
-        return $this->options;
-    }
-
     public function make(
         Socket $socket,
         ConnectionContext $context = new ConnectionContext(),
@@ -227,6 +222,11 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
             eventLogger: $eventLogger,
             connectionContext: $context,
         );
+    }
+
+    protected function serverOptions(): ServerOptions
+    {
+        return $this->options;
     }
 
     private function decoratePasswordAuthenticator(

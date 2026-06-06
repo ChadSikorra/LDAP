@@ -37,7 +37,6 @@ interface PdoDialectInterface
      */
     public function rollBack(PDO $pdo): void;
 
-
     /**
      * DDL for the `entries` table. Required columns:
      *   lc_dn         — PK, lowercased DN

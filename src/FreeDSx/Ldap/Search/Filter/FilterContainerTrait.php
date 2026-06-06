@@ -44,6 +44,11 @@ trait FilterContainerTrait
         $this->filters = $filters;
     }
 
+    public function __toString(): string
+    {
+        return $this->toString();
+    }
+
     public function add(FilterInterface ...$filters): self
     {
         foreach ($filters as $filter) {
@@ -127,11 +132,6 @@ trait FilterContainerTrait
     public function count(): int
     {
         return count($this->filters);
-    }
-
-    public function __toString(): string
-    {
-        return $this->toString();
     }
 
     /**

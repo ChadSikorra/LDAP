@@ -51,6 +51,39 @@ class Entry implements IteratorAggregate, Countable, Stringable
         $this->changes = new Changes();
     }
 
+    public function __toString(): string
+    {
+        return $this->dn->toString();
+    }
+
+    public function __get(string $name): ?Attribute
+    {
+        return $this->get($name);
+    }
+
+    /**
+     * @param Stringable|string|array<string|Stringable> $value
+     */
+    public function __set(
+        string $name,
+        Stringable|string|array $value,
+    ): void {
+        $this->set(
+            $name,
+            ...(is_array($value) ? $value : [(string) $value]),
+        );
+    }
+
+    public function __isset(string $name): bool
+    {
+        return $this->has($name);
+    }
+
+    public function __unset(string $name): void
+    {
+        $this->reset($name);
+    }
+
     /**
      * @internal
      * @param Attribute[] $attributes
@@ -279,39 +312,6 @@ class Entry implements IteratorAggregate, Countable, Stringable
     public function count(): int
     {
         return count($this->attributes);
-    }
-
-    public function __toString(): string
-    {
-        return $this->dn->toString();
-    }
-
-    public function __get(string $name): ?Attribute
-    {
-        return $this->get($name);
-    }
-
-    /**
-     * @param Stringable|string|array<string|Stringable> $value
-     */
-    public function __set(
-        string $name,
-        Stringable|string|array $value,
-    ): void {
-        $this->set(
-            $name,
-            ...(is_array($value) ? $value : [(string) $value]),
-        );
-    }
-
-    public function __isset(string $name): bool
-    {
-        return $this->has($name);
-    }
-
-    public function __unset(string $name): void
-    {
-        $this->reset($name);
     }
 
     /**

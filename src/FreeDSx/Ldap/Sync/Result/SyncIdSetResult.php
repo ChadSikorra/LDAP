@@ -68,25 +68,6 @@ class SyncIdSetResult implements Countable, IteratorAggregate
             ->getEntryUuids();
     }
 
-    private function getSyncIdSet(): SyncIdSet
-    {
-        if ($this->idSet !== null) {
-            return $this->idSet;
-        }
-        $idSet = $this->message->getResponse();
-
-        if (!$idSet instanceof SyncIdSet) {
-            throw new UnexpectedValueException(sprintf(
-                'Expected an instance of "%s", but got "%s".',
-                SyncIdSet::class,
-                get_class($idSet),
-            ));
-        }
-        $this->idSet = $idSet;
-
-        return $this->idSet;
-    }
-
     /**
      * The cookie to be used following this sync set.
      */
@@ -112,5 +93,24 @@ class SyncIdSetResult implements Countable, IteratorAggregate
     public function getIterator(): Traversable
     {
         return new ArrayIterator($this->getEntryUuids());
+    }
+
+    private function getSyncIdSet(): SyncIdSet
+    {
+        if ($this->idSet !== null) {
+            return $this->idSet;
+        }
+        $idSet = $this->message->getResponse();
+
+        if (!$idSet instanceof SyncIdSet) {
+            throw new UnexpectedValueException(sprintf(
+                'Expected an instance of "%s", but got "%s".',
+                SyncIdSet::class,
+                get_class($idSet),
+            ));
+        }
+        $this->idSet = $idSet;
+
+        return $this->idSet;
     }
 }

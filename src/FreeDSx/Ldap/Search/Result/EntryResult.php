@@ -26,6 +26,16 @@ final class EntryResult implements Stringable
     public function __construct(private readonly LdapMessageResponse $response) {}
 
     /**
+     * {@inheritDoc}
+     */
+    public function __toString(): string
+    {
+        return $this->getEntry()
+            ->getDn()
+            ->toString();
+    }
+
+    /**
      * The raw message response returned from the server, which contains any controls
      */
     public function getMessage(): LdapMessageResponse
@@ -54,15 +64,5 @@ final class EntryResult implements Stringable
         $this->entry = $entry->getEntry();
 
         return $this->entry;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function __toString(): string
-    {
-        return $this->getEntry()
-            ->getDn()
-            ->toString();
     }
 }

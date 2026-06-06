@@ -89,19 +89,19 @@ class SimpleBind implements BindInterface
         return $token;
     }
 
-    private function simpleBind(SimpleBindRequest $request): TokenInterface
-    {
-        return $this->authenticator->authenticate(
-            $request->getUsername(),
-            $request->getPassword(),
-        );
-    }
-
     /**
      * @inheritDoc
      */
     public function supports(LdapMessageRequest $request): bool
     {
         return $request->getRequest() instanceof SimpleBindRequest;
+    }
+
+    private function simpleBind(SimpleBindRequest $request): TokenInterface
+    {
+        return $this->authenticator->authenticate(
+            $request->getUsername(),
+            $request->getPassword(),
+        );
     }
 }

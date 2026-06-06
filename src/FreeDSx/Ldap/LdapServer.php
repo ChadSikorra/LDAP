@@ -93,37 +93,6 @@ class LdapServer
         return $this;
     }
 
-    private function init(): void
-    {
-        $this->options->setAccessControl($this->resolveAccessControl());
-    }
-
-    private function resolveAccessControl(): AccessControlInterface
-    {
-        if ($this->accessControl !== null) {
-            return $this->injectBackendIfNeeded($this->accessControl);
-        }
-
-        $aclRules = $this->options->getAclRules();
-
-        if ($aclRules->isEmpty()) {
-            return $this->options->getAccessControl();
-        }
-
-        return $this->injectBackendIfNeeded(new RuleBasedAccessControl($aclRules));
-    }
-
-    private function injectBackendIfNeeded(AccessControlInterface $acl): AccessControlInterface
-    {
-        $backend = $this->options->getBackend();
-
-        if ($backend !== null && $acl instanceof BackendAwareInterface) {
-            $acl->setBackend($backend);
-        }
-
-        return $acl;
-    }
-
     /**
      * Get the options currently set for the LDAP server.
      */
@@ -187,24 +156,6 @@ class LdapServer
     }
 
     /**
-     * @return Generator<Entry>
-     * @throws RuntimeException when the LDIF contains a non-add change record
-     * @throws LdifParseException
-     */
-    private function streamSeedEntries(LdifLoaderInterface $loader): Generator
-    {
-        foreach ((new LdifParser())->parse($loader) as $request) {
-            if (!$request instanceof AddRequest) {
-                throw new RuntimeException(
-                    'seed() only accepts content records (adds). Use applyChanges() for modify/delete/rename.',
-                );
-            }
-
-            yield $request->getEntry();
-        }
-    }
-
-    /**
      * Replays an LDIF changelog against the configured backend via the live write path.
      *
      * Use {@see seed()} instead for bulk initial provisioning of content records straight to storage.
@@ -254,20 +205,6 @@ class LdapServer
         ))->dump($options));
 
         return $this;
-    }
-
-    private function buildSchemaValidator(): ?SchemaValidator
-    {
-        $mode = $this->options->getSchemaValidationMode();
-
-        if ($mode === SchemaValidationMode::Off) {
-            return null;
-        }
-
-        return new SchemaValidator(
-            $this->options->getSchema(),
-            $mode,
-        );
     }
 
     /**
@@ -380,6 +317,69 @@ class LdapServer
                 ServerOptions::class => $serverOptions,
                 ProxyOptions::class => $proxyOptions,
             ]),
+        );
+    }
+
+    private function init(): void
+    {
+        $this->options->setAccessControl($this->resolveAccessControl());
+    }
+
+    private function resolveAccessControl(): AccessControlInterface
+    {
+        if ($this->accessControl !== null) {
+            return $this->injectBackendIfNeeded($this->accessControl);
+        }
+
+        $aclRules = $this->options->getAclRules();
+
+        if ($aclRules->isEmpty()) {
+            return $this->options->getAccessControl();
+        }
+
+        return $this->injectBackendIfNeeded(new RuleBasedAccessControl($aclRules));
+    }
+
+    private function injectBackendIfNeeded(AccessControlInterface $acl): AccessControlInterface
+    {
+        $backend = $this->options->getBackend();
+
+        if ($backend !== null && $acl instanceof BackendAwareInterface) {
+            $acl->setBackend($backend);
+        }
+
+        return $acl;
+    }
+
+    /**
+     * @return Generator<Entry>
+     * @throws RuntimeException when the LDIF contains a non-add change record
+     * @throws LdifParseException
+     */
+    private function streamSeedEntries(LdifLoaderInterface $loader): Generator
+    {
+        foreach ((new LdifParser())->parse($loader) as $request) {
+            if (!$request instanceof AddRequest) {
+                throw new RuntimeException(
+                    'seed() only accepts content records (adds). Use applyChanges() for modify/delete/rename.',
+                );
+            }
+
+            yield $request->getEntry();
+        }
+    }
+
+    private function buildSchemaValidator(): ?SchemaValidator
+    {
+        $mode = $this->options->getSchemaValidationMode();
+
+        if ($mode === SchemaValidationMode::Off) {
+            return null;
+        }
+
+        return new SchemaValidator(
+            $this->options->getSchema(),
+            $mode,
         );
     }
 }

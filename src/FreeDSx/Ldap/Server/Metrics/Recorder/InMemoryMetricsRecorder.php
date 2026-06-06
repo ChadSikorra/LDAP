@@ -213,6 +213,37 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
         );
     }
 
+    public function takeDelta(): MetricsDelta
+    {
+        $delta = new MetricsDelta(
+            $this->operationMetrics(),
+            $this->trafficMetrics(),
+        );
+
+        $this->resetDelta();
+
+        return $delta;
+    }
+
+    public function resetDelta(): void
+    {
+        $this->operationCounts = [];
+        $this->operationErrors = [];
+        $this->operationDurationSeconds = [];
+        $this->resultCodeCounts = [];
+        $this->bindCounts = [];
+        $this->searchScopeCounts = [];
+        $this->bytesSent = 0;
+        $this->bytesReceived = 0;
+        $this->entriesReturned = 0;
+    }
+
+    public function mergeDelta(MetricsDelta $delta): void
+    {
+        $this->mergeOperations($delta->operations);
+        $this->mergeTraffic($delta->traffic);
+    }
+
     private function operationMetrics(): OperationMetrics
     {
         return new OperationMetrics(
@@ -254,37 +285,6 @@ final class InMemoryMetricsRecorder implements MetricsRecorderInterface, Metrics
         }
 
         $this->operationsInProgress[$key] = $remaining;
-    }
-
-    public function takeDelta(): MetricsDelta
-    {
-        $delta = new MetricsDelta(
-            $this->operationMetrics(),
-            $this->trafficMetrics(),
-        );
-
-        $this->resetDelta();
-
-        return $delta;
-    }
-
-    public function resetDelta(): void
-    {
-        $this->operationCounts = [];
-        $this->operationErrors = [];
-        $this->operationDurationSeconds = [];
-        $this->resultCodeCounts = [];
-        $this->bindCounts = [];
-        $this->searchScopeCounts = [];
-        $this->bytesSent = 0;
-        $this->bytesReceived = 0;
-        $this->entriesReturned = 0;
-    }
-
-    public function mergeDelta(MetricsDelta $delta): void
-    {
-        $this->mergeOperations($delta->operations);
-        $this->mergeTraffic($delta->traffic);
     }
 
     private function mergeOperations(OperationMetrics $delta): void
