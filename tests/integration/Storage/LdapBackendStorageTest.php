@@ -18,6 +18,7 @@ use FreeDSx\Ldap\Control\Sorting\SortKey;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\BindException;
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Search\Filters;
@@ -540,6 +541,37 @@ class LdapBackendStorageTest extends ServerTestCase
                 ->base('dc=foo,dc=bar')
                 ->useSubtreeScope(),
         );
+    }
+
+    public function testSearchDeclinesAliasDereferencing(): void
+    {
+        $this->stopServer();
+        $this->createServerProcess('tcp', static::storageExtraArgs());
+        $this->authenticateUser();
+
+        $this->ldapClient()->create(Entry::fromArray('cn=ref,dc=foo,dc=bar', [
+            'objectClass' => ['top', 'alias', 'extensibleObject'],
+            'cn' => 'ref',
+            'aliasedObjectName' => 'cn=user,dc=foo,dc=bar',
+        ]));
+
+        $neverRequest = Operations::search(Filters::equal('cn', 'ref'))
+            ->base('dc=foo,dc=bar')
+            ->useSubtreeScope();
+
+        self::assertCount(
+            1,
+            $this->ldapClient()->search($neverRequest),
+        );
+
+        $derefRequest = Operations::search(Filters::equal('cn', 'ref'))
+            ->base('dc=foo,dc=bar')
+            ->useSubtreeScope()
+            ->setDereferenceAliases(SearchRequest::DEREF_ALWAYS);
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::ALIAS_DEREFERENCING_PROBLEM);
+        $this->ldapClient()->search($derefRequest);
     }
 
     /**

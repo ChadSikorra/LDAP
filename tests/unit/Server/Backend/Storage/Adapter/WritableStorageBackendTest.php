@@ -721,6 +721,99 @@ final class WritableStorageBackendTest extends TestCase
         );
     }
 
+    public function test_search_declines_alias_base_when_base_deref_requested(): void
+    {
+        $subject = new WritableStorageBackend(new InMemoryStorage([
+            $this->base,
+            $this->alice,
+            $this->aliasEntry(),
+        ]));
+
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::ALIAS_DEREFERENCING_PROBLEM);
+
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('cn=ref,dc=example,dc=com')
+            ->useBaseScope()
+            ->setDereferenceAliases(SearchRequest::DEREF_FINDING_BASE_OBJECT);
+        iterator_to_array($subject->search($request)->entries);
+    }
+
+    public function test_search_returns_alias_base_when_deref_never(): void
+    {
+        $subject = new WritableStorageBackend(new InMemoryStorage([
+            $this->base,
+            $this->alice,
+            $this->aliasEntry(),
+        ]));
+
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('cn=ref,dc=example,dc=com')
+            ->useBaseScope()
+            ->setDereferenceAliases(SearchRequest::DEREF_NEVER);
+        $entries = iterator_to_array($subject->search($request)->entries);
+
+        self::assertCount(1, $entries);
+        self::assertSame(
+            'cn=ref,dc=example,dc=com',
+            array_values($entries)[0]->getDn()->toString(),
+        );
+    }
+
+    public function test_search_declines_alias_in_subtree_when_in_search_deref_requested(): void
+    {
+        $subject = new WritableStorageBackend(new InMemoryStorage([
+            $this->base,
+            $this->alice,
+            $this->aliasEntry(),
+        ]));
+
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::ALIAS_DEREFERENCING_PROBLEM);
+
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('dc=example,dc=com')
+            ->useSubtreeScope()
+            ->setDereferenceAliases(SearchRequest::DEREF_IN_SEARCHING);
+        iterator_to_array($subject->search($request)->entries);
+    }
+
+    public function test_search_returns_alias_in_subtree_when_deref_never(): void
+    {
+        $subject = new WritableStorageBackend(new InMemoryStorage([
+            $this->base,
+            $this->alice,
+            $this->aliasEntry(),
+        ]));
+
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('dc=example,dc=com')
+            ->useSubtreeScope()
+            ->setDereferenceAliases(SearchRequest::DEREF_NEVER);
+        $dns = array_map(
+            static fn(Entry $entry): string => $entry->getDn()->toString(),
+            iterator_to_array($subject->search($request)->entries),
+        );
+
+        self::assertContains(
+            'cn=ref,dc=example,dc=com',
+            $dns,
+        );
+    }
+
+    public function test_search_succeeds_with_deref_always_when_no_aliases_present(): void
+    {
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('dc=example,dc=com')
+            ->useSubtreeScope()
+            ->setDereferenceAliases(SearchRequest::DEREF_ALWAYS);
+
+        self::assertCount(
+            3,
+            iterator_to_array($this->subject->search($request)->entries),
+        );
+    }
+
     public function test_add_converts_storage_io_exception_to_unavailable_operation_exception(): void
     {
         $ioException = new StorageIoException('Unable to publish the storage update.');
@@ -1693,6 +1786,15 @@ final class WritableStorageBackendTest extends TestCase
             new DeleteCommand(new Dn('ou=missing,dc=example,dc=com')),
             $this->context(),
             static function (Dn $dn): void {},
+        );
+    }
+
+    private function aliasEntry(): Entry
+    {
+        return new Entry(
+            new Dn('cn=ref,dc=example,dc=com'),
+            new Attribute('objectClass', 'alias'),
+            new Attribute('aliasedObjectName', 'cn=Alice,dc=example,dc=com'),
         );
     }
 

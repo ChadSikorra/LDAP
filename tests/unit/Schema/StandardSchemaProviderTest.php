@@ -63,7 +63,7 @@ final class StandardSchemaProviderTest extends TestCase
     public function test_has_expected_object_class_count(): void
     {
         self::assertCount(
-            12,
+            13,
             $this->schema->getObjectClasses(),
         );
     }
@@ -195,6 +195,17 @@ final class StandardSchemaProviderTest extends TestCase
     {
         self::assertNotNull(
             $this->schema->getObjectClass(ObjectClassOid::NAME_TOP),
+        );
+    }
+
+    public function test_alias_registered(): void
+    {
+        $alias = $this->schema->getObjectClass(ObjectClassOid::NAME_ALIAS);
+
+        self::assertNotNull($alias);
+        self::assertContains(
+            AttributeTypeOid::NAME_ALIASED_OBJECT_NAME,
+            $alias->must,
         );
     }
 
