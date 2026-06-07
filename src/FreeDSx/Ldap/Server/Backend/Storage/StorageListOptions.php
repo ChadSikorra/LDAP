@@ -35,6 +35,7 @@ final class StorageListOptions
         public readonly int $timeLimit = 0,
         public readonly int $sizeLimit = 0,
         public readonly array $sortKeys = [],
+        public readonly int $lookthroughLimit = 0,
     ) {}
 
     /**

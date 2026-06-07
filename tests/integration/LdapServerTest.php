@@ -298,7 +298,7 @@ final class LdapServerTest extends ServerTestCase
     public function testItCanHandlingPaging(): void
     {
         $this->stopServer();
-        $this->createServerProcess('tcp', ['--entries=5000']);
+        $this->createServerProcess('tcp', ['--entries=5000', '--max-search-lookthrough=0']);
         $this->authenticate();
 
         $allEntries = [];

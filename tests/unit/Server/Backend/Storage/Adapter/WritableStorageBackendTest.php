@@ -688,6 +688,39 @@ final class WritableStorageBackendTest extends TestCase
         iterator_to_array($subject->search($request)->entries);
     }
 
+    public function test_search_trips_lookthrough_limit_when_examined_exceeds_cap(): void
+    {
+        $subject = new WritableStorageBackend(
+            new InMemoryStorage([$this->base, $this->alice, $this->bob]),
+            new SearchLimits(maxSearchLookthrough: 2),
+        );
+
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::ADMIN_LIMIT_EXCEEDED);
+
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('dc=example,dc=com')
+            ->useSubtreeScope();
+        iterator_to_array($subject->search($request)->entries);
+    }
+
+    public function test_search_does_not_trip_lookthrough_limit_within_cap(): void
+    {
+        $subject = new WritableStorageBackend(
+            new InMemoryStorage([$this->base, $this->alice, $this->bob]),
+            new SearchLimits(maxSearchLookthrough: 100),
+        );
+
+        $request = (new SearchRequest(new PresentFilter('objectClass')))
+            ->base('dc=example,dc=com')
+            ->useSubtreeScope();
+
+        self::assertCount(
+            3,
+            iterator_to_array($subject->search($request)->entries),
+        );
+    }
+
     public function test_add_converts_storage_io_exception_to_unavailable_operation_exception(): void
     {
         $ioException = new StorageIoException('Unable to publish the storage update.');

@@ -36,7 +36,7 @@ final readonly class PdoListQueryBuilder
         string $base,
         bool $subtree,
         ?SqlFilterResult $filterResult,
-        ?int $sizeLimit,
+        ?int $sqlLimit,
         array $sortKeys,
     ): SqlQuery {
         $query = match (true) {
@@ -52,8 +52,8 @@ final readonly class PdoListQueryBuilder
             );
         }
 
-        if ($sizeLimit !== null) {
-            $query = $query->appending(' LIMIT ' . $sizeLimit);
+        if ($sqlLimit !== null) {
+            $query = $query->appending(' LIMIT ' . $sqlLimit);
         }
 
         return $query;

@@ -124,12 +124,23 @@ final readonly class SearchStreamBuilder
     /**
      * @param Generator<Entry> $generator
      * @return Generator<Entry>
+     * @throws OperationException
      */
     private function wrapWithFilterEvaluation(
         Generator $generator,
         FilterInterface $filter,
     ): Generator {
+        $lookthrough = $this->limits->maxSearchLookthrough;
+        $examined = 0;
+
         foreach ($generator as $entry) {
+            if ($lookthrough > 0 && ++$examined > $lookthrough) {
+                throw new OperationException(
+                    'Administrative limit exceeded.',
+                    ResultCode::ADMIN_LIMIT_EXCEEDED,
+                );
+            }
+
             if ($this->filterEvaluator->evaluate($entry, $filter)) {
                 yield $entry;
             }

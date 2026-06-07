@@ -31,6 +31,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Exception\DnTooLongException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
+use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Server\Backend\Write\Command\AddCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
@@ -279,6 +280,61 @@ final class SqliteStorageTest extends TestCase
         self::assertSame(
             'cn=Alice,dc=example,dc=com',
             $results[0]->getDn()->toString(),
+        );
+    }
+
+    public function test_search_inexact_filter_trips_lookthrough_limit(): void
+    {
+        $storage = SqliteStorage::forPcntl(':memory:');
+        $backend = new WritableStorageBackend(
+            $storage,
+            new SearchLimits(maxSearchLookthrough: 2),
+        );
+        $backend->add(
+            new AddCommand(new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example'))),
+            $this->systemContext(),
+        );
+        foreach (['Ann', 'Bob', 'Cyd'] as $cn) {
+            $backend->add(
+                new AddCommand(new Entry(new Dn("cn={$cn},dc=example,dc=com"), new Attribute('cn', $cn))),
+                $this->context(),
+            );
+        }
+
+        self::expectException(OperationException::class);
+        self::expectExceptionCode(ResultCode::ADMIN_LIMIT_EXCEEDED);
+
+        $request = (new SearchRequest(Filters::endsWith('cn', 'x')))
+            ->base('dc=example,dc=com')
+            ->useSubtreeScope();
+        iterator_to_array($backend->search($request)->entries);
+    }
+
+    public function test_search_exact_filter_is_not_subject_to_lookthrough(): void
+    {
+        $storage = SqliteStorage::forPcntl(':memory:');
+        $backend = new WritableStorageBackend(
+            $storage,
+            new SearchLimits(maxSearchLookthrough: 1),
+        );
+        $backend->add(
+            new AddCommand(new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example'))),
+            $this->systemContext(),
+        );
+        foreach (['Ann', 'Bob', 'Cyd'] as $cn) {
+            $backend->add(
+                new AddCommand(new Entry(new Dn("cn={$cn},dc=example,dc=com"), new Attribute('cn', $cn))),
+                $this->context(),
+            );
+        }
+
+        $request = (new SearchRequest(Filters::equal('cn', 'Ann')))
+            ->base('dc=example,dc=com')
+            ->useSubtreeScope();
+
+        self::assertCount(
+            1,
+            iterator_to_array($backend->search($request)->entries),
         );
     }
 

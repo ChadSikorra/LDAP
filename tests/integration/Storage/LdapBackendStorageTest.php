@@ -519,6 +519,29 @@ class LdapBackendStorageTest extends ServerTestCase
         );
     }
 
+    public function testInexactSearchTripsLookthroughLimit(): void
+    {
+        $this->stopServer();
+        $this->createServerProcess(
+            'tcp',
+            [
+                ...static::storageExtraArgs(),
+                '--seed-entries=10',
+                '--max-search-lookthrough=3',
+            ],
+        );
+        $this->authenticateUser();
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::ADMIN_LIMIT_EXCEEDED);
+
+        $this->ldapClient()->search(
+            Operations::search(Filters::endsWith('cn', 'zzz'))
+                ->base('dc=foo,dc=bar')
+                ->useSubtreeScope(),
+        );
+    }
+
     /**
      * Hook for subclasses to route the shared server through a different backend.
      *

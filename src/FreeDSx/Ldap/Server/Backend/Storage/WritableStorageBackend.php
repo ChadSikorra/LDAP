@@ -186,6 +186,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             sortKeys: $sortingControl instanceof SortingControl
                 ? $sortingControl->getSortKeys()
                 : [],
+            lookthroughLimit: $this->limits->maxSearchLookthrough,
         );
 
         try {
