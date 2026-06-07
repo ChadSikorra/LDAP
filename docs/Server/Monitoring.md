@@ -54,6 +54,7 @@ off rather than returned empty.
 | `connectionsRejected` | Connections turned away at the connection limit. |
 | `connectionsWriteTimeouts`, `connectionsIdleTimeouts` | Connections closed by the write or idle timeout. |
 | `connectionsRequestSizeExceeded` | Connections dropped because a request exceeded `setMaxRequestSize`. |
+| `connectionsProtocolErrors` | Connections dropped by a malformed/undecodable request PDU (Notice of Disconnection). |
 | `connectionsMax` | The configured connection limit (`0` is unlimited). |
 | `operationsCompleted`, `operationsFailed` | Total operations and the failed subset. |
 | `operationsByType` | Per-type counts, e.g. `search=1402, bind=210, add=8`. |

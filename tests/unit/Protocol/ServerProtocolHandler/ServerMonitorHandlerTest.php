@@ -258,6 +258,19 @@ final class ServerMonitorHandlerTest extends TestCase
         );
     }
 
+    public function test_it_reports_connections_closed_by_a_protocol_error(): void
+    {
+        $this->metrics->connectionObserved(ConnectionObservation::ProtocolError);
+        $this->metrics->connectionObserved(ConnectionObservation::ProtocolError);
+
+        $entry = $this->handleAndCaptureEntry();
+
+        self::assertSame(
+            ['2'],
+            $entry->get('connectionsProtocolErrors')?->getValues(),
+        );
+    }
+
     public function test_it_reports_traffic_totals(): void
     {
         $this->metrics->trafficObserved(new TrafficObservation(

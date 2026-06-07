@@ -159,8 +159,13 @@ final class ServerProtocolHandlerTest extends TestCase
 
         $this->expectNoticeOfDisconnect('The message could not be processed.');
 
-        $this->handlerWith(new StubMiddlewareHandler(OperationOutcomeResult::succeeded()))
+        $closeReason = $this->handlerWith(new StubMiddlewareHandler(OperationOutcomeResult::succeeded()))
             ->handle();
+
+        self::assertSame(
+            ConnectionObservation::ProtocolError,
+            $closeReason,
+        );
     }
 
     public function test_a_request_size_exceeded_is_recorded_and_sends_a_notice_of_disconnect(): void
@@ -196,8 +201,13 @@ final class ServerProtocolHandlerTest extends TestCase
 
         $this->expectNoticeOfDisconnect('The message could not be processed.');
 
-        $this->handlerWith(new StubMiddlewareHandler(OperationOutcomeResult::succeeded()))
+        $closeReason = $this->handlerWith(new StubMiddlewareHandler(OperationOutcomeResult::succeeded()))
             ->handle();
+
+        self::assertSame(
+            ConnectionObservation::ProtocolError,
+            $closeReason,
+        );
     }
 
     public function test_it_ends_normally_on_a_socket_exception_from_the_message_queue(): void

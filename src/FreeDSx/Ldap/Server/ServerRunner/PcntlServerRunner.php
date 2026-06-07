@@ -54,6 +54,8 @@ class PcntlServerRunner implements ServerRunnerInterface
 
     private const EXIT_CODE_REQUEST_SIZE_EXCEEDED = 12;
 
+    private const EXIT_CODE_PROTOCOL_ERROR = 13;
+
     private SocketServer $server;
 
     /**
@@ -214,6 +216,7 @@ class PcntlServerRunner implements ServerRunnerInterface
             ConnectionObservation::WriteTimeout => self::EXIT_CODE_WRITE_TIMEOUT,
             ConnectionObservation::IdleTimeout => self::EXIT_CODE_IDLE_TIMEOUT,
             ConnectionObservation::RequestSizeExceeded => self::EXIT_CODE_REQUEST_SIZE_EXCEEDED,
+            ConnectionObservation::ProtocolError => self::EXIT_CODE_PROTOCOL_ERROR,
             default => 0,
         };
     }
@@ -233,6 +236,7 @@ class PcntlServerRunner implements ServerRunnerInterface
             self::EXIT_CODE_WRITE_TIMEOUT => ConnectionObservation::WriteTimeout,
             self::EXIT_CODE_IDLE_TIMEOUT => ConnectionObservation::IdleTimeout,
             self::EXIT_CODE_REQUEST_SIZE_EXCEEDED => ConnectionObservation::RequestSizeExceeded,
+            self::EXIT_CODE_PROTOCOL_ERROR => ConnectionObservation::ProtocolError,
             default => null,
         };
 

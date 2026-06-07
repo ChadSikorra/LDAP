@@ -31,4 +31,6 @@ enum ConnectionObservation: string
     case IdleTimeout = 'idle_timeout';
 
     case RequestSizeExceeded = 'request_size_exceeded';
+
+    case ProtocolError = 'protocol_error';
 }

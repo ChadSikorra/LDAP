@@ -101,6 +101,7 @@ readonly class ServerProtocolHandler
             # Per RFC 4511 §4.1.1, a PDU that cannot be processed (malformed) warrants a disconnect with a protocol
             # error. The NoticeOfDisconnectSent event records the specific reason.
             $this->sendNoticeOfDisconnect('The message could not be processed.');
+            $closeReason = ConnectionObservation::ProtocolError;
         } catch (Throwable $e) {
             if ($this->queue->isConnected()) {
                 $this->sendNoticeOfDisconnect(cause: $e);
