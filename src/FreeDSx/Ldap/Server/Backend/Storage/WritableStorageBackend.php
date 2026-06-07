@@ -163,19 +163,19 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 );
             }
 
+            $this->assertBaseNotDeclinedAlias($entry, $request);
+
             return $this->searchStream->buildForBaseObject(
                 $entry,
                 $request,
             );
         }
 
-        // no chance to be confused with the RootDSE, which is handled special elsewhere.
-        if ($normBase->toString() !== '' && !$this->storage->exists($normBase)) {
-            $this->throwNoSuchObject(
-                $this->storage,
-                $baseDn,
-            );
-        }
+        $this->assertSearchBaseExists(
+            $normBase,
+            $baseDn,
+            $request,
+        );
 
         $subtree = $request->getScope() === SearchRequest::SCOPE_WHOLE_SUBTREE;
         $sortingControl = $controls->get(Control::OID_SORTING);
@@ -405,6 +405,88 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             $storage->remove($normOld);
             $storage->store($newEntry);
         });
+    }
+
+    /**
+     * Confirm the search base exists.
+     *
+     * When base-deref is requested, fetch it so an alias base can be declined.
+     *
+     * @throws OperationException
+     */
+    private function assertSearchBaseExists(
+        Dn $normBase,
+        Dn $baseDn,
+        SearchRequest $request,
+    ): void {
+        // The RootDSE (empty base) is handled special elsewhere.
+        if ($normBase->toString() === '') {
+            return;
+        }
+
+        if ($this->derefsBase($request)) {
+            $this->assertDereferenceableBaseExists($normBase, $baseDn, $request);
+
+            return;
+        }
+
+        if (!$this->storage->exists($normBase)) {
+            $this->throwNoSuchObject(
+                $this->storage,
+                $baseDn,
+            );
+        }
+    }
+
+    /**
+     * Base-deref path: fetch the base (so an alias base can be declined) and confirm it exists.
+     *
+     * @throws OperationException
+     */
+    private function assertDereferenceableBaseExists(
+        Dn $normBase,
+        Dn $baseDn,
+        SearchRequest $request,
+    ): void {
+        $base = $this->storage->find($normBase);
+        if ($base === null) {
+            $this->throwNoSuchObject(
+                $this->storage,
+                $baseDn,
+            );
+        }
+
+        $this->assertBaseNotDeclinedAlias($base, $request);
+    }
+
+    /**
+     * Decline (rather than silently ignore) when base dereferencing is requested for an alias base.
+     *
+     * @throws OperationException
+     */
+    private function assertBaseNotDeclinedAlias(
+        Entry $base,
+        SearchRequest $request,
+    ): void {
+        if (!$this->derefsBase($request)) {
+            return;
+        }
+        if (!AliasDetector::isAlias($base)) {
+            return;
+        }
+
+        throw new OperationException(
+            'Alias dereferencing is not supported.',
+            ResultCode::ALIAS_DEREFERENCING_PROBLEM,
+        );
+    }
+
+    private function derefsBase(SearchRequest $request): bool
+    {
+        $deref = $request->getDereferenceAliases();
+
+        return $deref === SearchRequest::DEREF_FINDING_BASE_OBJECT
+            || $deref === SearchRequest::DEREF_ALWAYS;
     }
 
     /**

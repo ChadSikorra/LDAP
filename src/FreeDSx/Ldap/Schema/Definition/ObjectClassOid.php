@@ -24,6 +24,12 @@ final class ObjectClassOid
 
     public const DESC_TOP = 'top of the class hierarchy';
 
+    public const OID_ALIAS = '2.5.6.1';
+
+    public const NAME_ALIAS = 'alias';
+
+    public const DESC_ALIAS = 'an alias entry pointing at another entry';
+
     public const OID_PERSON = '2.5.6.6';
 
     public const NAME_PERSON = 'person';

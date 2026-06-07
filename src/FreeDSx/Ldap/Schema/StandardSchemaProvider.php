@@ -580,6 +580,14 @@ final class StandardSchemaProvider
                 desc: ObjectClassOid::DESC_TOP,
             ),
             new ObjectClass(
+                ObjectClassOid::OID_ALIAS,
+                [ObjectClassOid::NAME_ALIAS],
+                type: ObjectClassType::StructuralClass,
+                superClassOids: [ObjectClassOid::OID_TOP],
+                must: [AttributeTypeOid::NAME_ALIASED_OBJECT_NAME],
+                desc: ObjectClassOid::DESC_ALIAS,
+            ),
+            new ObjectClass(
                 ObjectClassOid::OID_PERSON,
                 [ObjectClassOid::NAME_PERSON],
                 type: ObjectClassType::StructuralClass,
