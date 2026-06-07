@@ -320,6 +320,68 @@ final class LdapServerTest extends ServerTestCase
         $this->assertCount(5000, $allEntries);
     }
 
+    public function testPagedSearchHonorsAGenerousSeparatePagedLookthroughLimit(): void
+    {
+        $this->stopServer();
+        $this->createServerProcess('tcp', [
+            '--entries=5000',
+            '--max-search-lookthrough=10',
+            '--max-search-paged-lookthrough=100000',
+        ]);
+        $this->authenticate();
+
+        $search = Operations::search(Filters::raw('(foo=*)'))->base('dc=foo,dc=bar');
+        $paging = $this->ldapClient()->paging($search);
+
+        $count = 0;
+        while ($paging->hasEntries()) {
+            $count += count($paging->getEntries(500)->toArray());
+        }
+
+        $this->assertSame(
+            5000,
+            $count,
+        );
+    }
+
+    public function testPagedSearchFallsBackToRegularLookthroughWhenPagedUnset(): void
+    {
+        $this->stopServer();
+        $this->createServerProcess('tcp', [
+            '--entries=5000',
+            '--max-search-lookthrough=10',
+            '--max-search-paged-lookthrough=0',
+        ]);
+        $this->authenticate();
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::ADMIN_LIMIT_EXCEEDED);
+
+        $search = Operations::search(Filters::raw('(foo=*)'))->base('dc=foo,dc=bar');
+        $paging = $this->ldapClient()->paging($search);
+        while ($paging->hasEntries()) {
+            $paging->getEntries(500);
+        }
+    }
+
+    public function testPerIdentityRuleAppliesAuthenticatedLookthrough(): void
+    {
+        $this->stopServer();
+        $this->createServerProcess('tcp', [
+            '--entries=50',
+            '--max-search-lookthrough=5000',
+            '--authenticated-lookthrough=5',
+        ]);
+        $this->authenticate();
+
+        $this->expectException(OperationException::class);
+        $this->expectExceptionCode(ResultCode::ADMIN_LIMIT_EXCEEDED);
+
+        $this->ldapClient()->search(
+            Operations::search(Filters::raw('(foo=*)'))->base('dc=foo,dc=bar')->useSubtreeScope(),
+        );
+    }
+
     public function testItDoesASearchWhenPagingIsNotMarkedAsCritical(): void
     {
         $this->authenticate();

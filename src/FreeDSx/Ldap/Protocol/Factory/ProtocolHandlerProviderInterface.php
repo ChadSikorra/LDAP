@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Protocol\Factory;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerProtocolHandlerInterface;
+use FreeDSx\Ldap\Server\SearchLimits;
 
 /**
  * Builds the protocol handler for a resolved request route.
@@ -28,5 +29,6 @@ interface ProtocolHandlerProviderInterface
     public function get(
         RequestInterface $request,
         ControlBag $controls,
+        ?SearchLimits $searchLimits = null,
     ): ServerProtocolHandlerInterface;
 }

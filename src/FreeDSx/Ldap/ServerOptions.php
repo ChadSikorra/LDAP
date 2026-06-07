@@ -38,6 +38,7 @@ use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
+use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRules;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use FreeDSx\Ldap\Server\TlsVersion;
@@ -206,6 +207,10 @@ final class ServerOptions
     private int $maxSearchPageSize = 1000;
 
     private int $maxSearchLookthrough = 5000;
+
+    private int $maxSearchPagedLookthrough = 0;
+
+    private ?SearchLimitRules $searchLimitRules = null;
 
     private ?Closure $onServerReady = null;
 
@@ -886,6 +891,35 @@ final class ServerOptions
         return $this;
     }
 
+    /**
+     * Lookthrough cap for paged searches.
+     *
+     * A zero value falls back to the regular lookthrough.
+     */
+    public function getMaxSearchPagedLookthrough(): int
+    {
+        return $this->maxSearchPagedLookthrough;
+    }
+
+    public function setMaxSearchPagedLookthrough(int $maxSearchPagedLookthrough): self
+    {
+        $this->maxSearchPagedLookthrough = $maxSearchPagedLookthrough;
+
+        return $this;
+    }
+
+    public function setSearchLimitRules(SearchLimitRules $searchLimitRules): self
+    {
+        $this->searchLimitRules = $searchLimitRules;
+
+        return $this;
+    }
+
+    public function getSearchLimitRules(): SearchLimitRules
+    {
+        return $this->searchLimitRules ??= new SearchLimitRules();
+    }
+
     public function makeSearchLimits(): SearchLimits
     {
         return new SearchLimits(
@@ -893,6 +927,7 @@ final class ServerOptions
             maxSearchTimeLimit: $this->maxSearchTimeLimit,
             maxSearchPageSize: $this->maxSearchPageSize,
             maxSearchLookthrough: $this->maxSearchLookthrough,
+            maxSearchPagedLookthrough: $this->maxSearchPagedLookthrough,
         );
     }
 

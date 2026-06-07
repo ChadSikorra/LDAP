@@ -67,6 +67,7 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
         $backendResult = $this->backend->search(
             $request,
             $this->controlsForBackend($message),
+            $this->limits,
         );
 
         $projection = AttributeProjection::forRequest(

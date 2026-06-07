@@ -23,5 +23,16 @@ final readonly class SearchLimits
         public int $maxSearchTimeLimit = 0,
         public int $maxSearchPageSize = 0,
         public int $maxSearchLookthrough = 0,
+        public int $maxSearchPagedLookthrough = 0,
     ) {}
+
+    /**
+     * Effective lookthrough for paged searches: the paged limit when set, otherwise the regular lookthrough.
+     */
+    public function effectivePagedLookthrough(): int
+    {
+        return $this->maxSearchPagedLookthrough > 0
+            ? $this->maxSearchPagedLookthrough
+            : $this->maxSearchLookthrough;
+    }
 }

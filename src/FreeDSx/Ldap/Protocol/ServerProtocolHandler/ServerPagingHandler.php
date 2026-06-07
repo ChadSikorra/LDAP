@@ -191,9 +191,14 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
     ): PagingResponse {
         $searchRequest = $pagingRequest->getSearchRequest();
 
+        // Paged searches use the paged lookthrough limit (falls back to the regular one when unset).
         $result = $this->backend->search(
             $searchRequest,
             $pagingRequest->controls(),
+            new SearchLimits(
+                maxSearchTimeLimit: $this->limits->maxSearchTimeLimit,
+                maxSearchLookthrough: $this->limits->effectivePagedLookthrough(),
+            ),
         );
         $generator = $result->entries;
 

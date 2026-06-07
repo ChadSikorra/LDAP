@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
+use FreeDSx\Ldap\Server\SearchLimits;
 use Generator;
 
 /**
@@ -53,6 +54,7 @@ final class RecordingLdapBackend implements LdapBackendInterface
     public function search(
         SearchRequest $request,
         ControlBag $controls = new ControlBag(),
+        ?SearchLimits $effectiveLimits = null,
     ): EntryStream {
         return new EntryStream((static function (): Generator {
             yield from [];

@@ -147,7 +147,9 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     public function search(
         SearchRequest $request,
         ControlBag $controls = new ControlBag(),
+        ?SearchLimits $effectiveLimits = null,
     ): EntryStream {
+        $limits = $effectiveLimits ?? $this->limits;
         $baseDn = $request->getBaseDn() ?? new Dn('');
         $normBase = $baseDn->normalize();
 
@@ -181,12 +183,12 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             baseDn: $normBase,
             subtree: $subtree,
             filter: $request->getFilter(),
-            timeLimit: $this->searchStream->effectiveTimeLimit($request->getTimeLimit()),
+            timeLimit: $this->searchStream->effectiveTimeLimit($request->getTimeLimit(), $limits),
             sizeLimit: $request->getSizeLimit(),
             sortKeys: $sortingControl instanceof SortingControl
                 ? $sortingControl->getSortKeys()
                 : [],
-            lookthroughLimit: $this->limits->maxSearchLookthrough,
+            lookthroughLimit: $limits->maxSearchLookthrough,
         );
 
         try {
@@ -201,6 +203,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         return $this->searchStream->buildForList(
             $stream,
             $request,
+            $limits,
         );
     }
 

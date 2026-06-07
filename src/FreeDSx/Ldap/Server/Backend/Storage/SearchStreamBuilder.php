@@ -36,9 +36,11 @@ final readonly class SearchStreamBuilder
         private FilterEvaluatorInterface $filterEvaluator = new FilterEvaluator(),
     ) {}
 
-    public function effectiveTimeLimit(int $requestLimit): int
-    {
-        $serverMax = $this->limits->maxSearchTimeLimit;
+    public function effectiveTimeLimit(
+        int $requestLimit,
+        ?SearchLimits $effectiveLimits = null,
+    ): int {
+        $serverMax = ($effectiveLimits ?? $this->limits)->maxSearchTimeLimit;
 
         if ($serverMax === 0) {
             return $requestLimit;
@@ -71,6 +73,7 @@ final readonly class SearchStreamBuilder
     public function buildForList(
         EntryStream $stream,
         SearchRequest $request,
+        ?SearchLimits $effectiveLimits = null,
     ): EntryStream {
         $generator = $this->wrapWithTimeLimitHandling($stream->entries);
 
@@ -78,6 +81,7 @@ final readonly class SearchStreamBuilder
             $generator = $this->wrapWithFilterEvaluation(
                 $generator,
                 $request->getFilter(),
+                $effectiveLimits,
             );
         }
 
@@ -129,8 +133,9 @@ final readonly class SearchStreamBuilder
     private function wrapWithFilterEvaluation(
         Generator $generator,
         FilterInterface $filter,
+        ?SearchLimits $effectiveLimits = null,
     ): Generator {
-        $lookthrough = $this->limits->maxSearchLookthrough;
+        $lookthrough = ($effectiveLimits ?? $this->limits)->maxSearchLookthrough;
         $examined = 0;
 
         foreach ($generator as $entry) {

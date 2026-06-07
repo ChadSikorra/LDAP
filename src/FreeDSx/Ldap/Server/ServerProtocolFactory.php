@@ -55,7 +55,9 @@ use FreeDSx\Ldap\Server\Middleware\OperationAuditMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationAuthorizationMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationErrorMiddleware;
 use FreeDSx\Ldap\Server\Middleware\RequestValidationMiddleware;
+use FreeDSx\Ldap\Server\Middleware\ResourceLimitMiddleware;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\HandlerInvoker;
+use FreeDSx\Ldap\Server\SearchLimit\SearchLimitResolver;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
 use FreeDSx\Ldap\Protocol\Queue\Response\MetricsResponseInterceptor;
@@ -165,6 +167,12 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
             ),
         );
 
+        $searchLimitResolver = new SearchLimitResolver(
+            $this->options->getSearchLimitRules(),
+            $this->options->makeSearchLimits(),
+        );
+        $searchLimitResolver->setBackend($backend);
+
         $handlerProvider = new ProtocolHandlerProvider(
             routeResolver: $this->routeResolver,
             handlerFactory: $this->handlerFactory,
@@ -200,6 +208,8 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
                         $dispatchAuthorizer,
                         $policyContext,
                     ),
+                    // The token is resolved at this point, so per-identity limits can be attached.
+                    new ResourceLimitMiddleware($searchLimitResolver),
                     new OperationErrorMiddleware(
                         $serverQueue,
                         $backend,
