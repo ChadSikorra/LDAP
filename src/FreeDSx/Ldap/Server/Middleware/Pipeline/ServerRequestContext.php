@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Server\Middleware\Pipeline;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
+use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -30,6 +31,7 @@ final readonly class ServerRequestContext
         public LdapMessageRequest $message,
         private ?TokenInterface $token = null,
         public ConnectionContext $connectionContext = new ConnectionContext(),
+        private ?SearchLimits $searchLimits = null,
     ) {}
 
     /**
@@ -50,12 +52,31 @@ final readonly class ServerRequestContext
         return $this->token ?? throw new RuntimeException('No token has been resolved for this request.');
     }
 
+    /**
+     * The per-identity search limits, or null before resolution runs.
+     */
+    public function searchLimits(): ?SearchLimits
+    {
+        return $this->searchLimits;
+    }
+
     public function withToken(TokenInterface $token): self
     {
         return new self(
             $this->message,
             $token,
             $this->connectionContext,
+            $this->searchLimits,
+        );
+    }
+
+    public function withSearchLimits(SearchLimits $searchLimits): self
+    {
+        return new self(
+            $this->message,
+            $this->token,
+            $this->connectionContext,
+            $searchLimits,
         );
     }
 }

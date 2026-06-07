@@ -31,6 +31,7 @@ final readonly class HandlerInvoker implements MiddlewareHandlerInterface
         $handler = $this->protocolHandlerProvider->get(
             $context->message->getRequest(),
             $context->message->controls(),
+            $context->searchLimits(),
         );
 
         return $handler->handleRequest(

@@ -8,7 +8,11 @@ use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Ldif\Loader\FileLdifLoader;
 use FreeDSx\Ldap\Ldif\Output\FileLdifOutput;
+use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
+use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRule;
+use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRules;
+use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\MysqlStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
@@ -72,6 +76,20 @@ final class LdapServerCommand extends Command
                 InputOption::VALUE_REQUIRED,
                 'Maximum entries examined per search before adminLimitExceeded (0 = no limit)',
                 '5000',
+            )
+            ->addOption(
+                'max-search-paged-lookthrough',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Lookthrough cap for paged searches (0 = fall back to the regular lookthrough)',
+                '0',
+            )
+            ->addOption(
+                'authenticated-lookthrough',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'When > 0, a per-identity rule giving authenticated identities this lookthrough',
+                '0',
             )
             ->addOption(
                 'sasl',
@@ -169,7 +187,19 @@ final class LdapServerCommand extends Command
             ->setAllowAnonymous($allowAnonymous)
             ->setSocketAcceptTimeout(0.1)
             ->setMaxSearchLookthrough((int) $this->getStringOption($input, 'max-search-lookthrough'))
+            ->setMaxSearchPagedLookthrough((int) $this->getStringOption($input, 'max-search-paged-lookthrough'))
             ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL));
+
+        $authenticatedLookthrough = (int) $this->getStringOption($input, 'authenticated-lookthrough');
+        if ($authenticatedLookthrough > 0) {
+            $rules = (new SearchLimitRules())->withRules(
+                SearchLimitRule::for(
+                    Subject::authenticated(),
+                    new SearchLimits(maxSearchLookthrough: $authenticatedLookthrough),
+                ),
+            );
+            $options->setSearchLimitRules($rules);
+        }
 
         if ($reloadFlagFile !== '') {
             $options->setConfigReloader(new FileFlagConfigReloader($reloadFlagFile));

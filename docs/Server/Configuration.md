@@ -42,6 +42,8 @@ LDAP Server Configuration
     * [ServerOptions:setMaxSearchTimeLimit](#setmaxsearchtimelimit)
     * [ServerOptions:setMaxSearchPageSize](#setmaxsearchpagesize)
     * [ServerOptions:setMaxSearchLookthrough](#setmaxsearchlookthrough)
+    * [ServerOptions:setMaxSearchPagedLookthrough](#setmaxsearchpagedlookthrough)
+    * [ServerOptions:setSearchLimitRules](#setsearchlimitrules)
 * [SASL Options](#sasl-options)
     * [ServerOptions:setSaslMechanisms](#setsaslmechanisms)
 
@@ -601,7 +603,54 @@ scans many entries to return few. Raise it above the largest legitimate subtree 
 
 > It applies only to filters evaluated in PHP (array/JSON backends, and SQL backends when the filter cannot be pushed to the
 > index); indexed equality and prefix filters are bounded by the database and are not counted. Paged searches are subject to
-> this limit cumulatively across all pages.
+> the lookthrough limit cumulatively across all pages (see `setMaxSearchPagedLookthrough` to set a separate cap for paging).
+
+------------------
+#### setMaxSearchPagedLookthrough
+
+Set a lookthrough cap applied to paged searches, counted cumulatively across all pages. Paging is the standard way to retrieve
+large result sets, so this lets you allow large paged enumerations without loosening the regular `setMaxSearchLookthrough`
+for ordinary searches. A value of `0` falls back to the regular lookthrough limit.
+
+**Default**: `0` (use the regular lookthrough limit)
+
+------------------
+#### setSearchLimitRules
+
+Per-identity search limits: an ordered list of `(subject, limits)` rules, evaluated first-match-wins. The first rule whose
+subject matches the bound identity supplies that request's limits; identities matching no rule get the global limits above.
+
+```php
+use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
+use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRule;
+use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRules;
+use FreeDSx\Ldap\Server\SearchLimits;
+
+$rules = new SearchLimitRules([
+    SearchLimitRule::for(
+        Subject::anonymous(),
+        new SearchLimits(
+            maxSearchSize: 100,
+            maxSearchLookthrough: 1000,
+        ),
+    ),
+    SearchLimitRule::for(
+        Subject::authenticated(),
+        new SearchLimits(
+            maxSearchSize: 1000,
+            maxSearchLookthrough: 20000,
+        ),
+    ),
+]);
+
+$options->setSearchLimitRules($rules);
+```
+
+> Subjects reuse the access-control matchers (`Subject::anonymous()`, `Subject::authenticated()`, `Subject::dn()`,
+> `Subject::group()`), so you can, for example, give anonymous binds a tight lookthrough while authenticated identities
+> get a larger one.
+
+**Default**: none (all identities use the global limits)
 
 ## Monitoring
 

@@ -31,6 +31,9 @@ use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
 use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
+use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
+use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRule;
+use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRules;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\TlsVersion;
 use FreeDSx\Ldap\ServerOptions;
@@ -742,13 +745,50 @@ final class ServerOptionsTest extends TestCase
         );
     }
 
+    public function test_max_search_paged_lookthrough_defaults_to_0(): void
+    {
+        self::assertSame(
+            0,
+            $this->subject->getMaxSearchPagedLookthrough(),
+        );
+    }
+
+    public function test_it_can_set_max_search_paged_lookthrough(): void
+    {
+        $this->subject->setMaxSearchPagedLookthrough(100000);
+
+        self::assertSame(
+            100000,
+            $this->subject->getMaxSearchPagedLookthrough(),
+        );
+    }
+
+    public function test_search_limit_rules_default_to_empty(): void
+    {
+        self::assertTrue($this->subject->getSearchLimitRules()->isEmpty());
+    }
+
+    public function test_it_can_set_search_limit_rules(): void
+    {
+        $rules = (new SearchLimitRules())->withRules(
+            SearchLimitRule::for(Subject::anonymous(), new SearchLimits(maxSearchSize: 10)),
+        );
+        $this->subject->setSearchLimitRules($rules);
+
+        self::assertSame(
+            $rules,
+            $this->subject->getSearchLimitRules(),
+        );
+    }
+
     public function test_make_search_limits_reflects_current_options(): void
     {
         $this->subject
             ->setMaxSearchSize(500)
             ->setMaxSearchTimeLimit(60)
             ->setMaxSearchPageSize(250)
-            ->setMaxSearchLookthrough(5000);
+            ->setMaxSearchLookthrough(5000)
+            ->setMaxSearchPagedLookthrough(100000);
 
         self::assertEquals(
             new SearchLimits(
@@ -756,6 +796,7 @@ final class ServerOptionsTest extends TestCase
                 maxSearchTimeLimit: 60,
                 maxSearchPageSize: 250,
                 maxSearchLookthrough: 5000,
+                maxSearchPagedLookthrough: 100000,
             ),
             $this->subject->makeSearchLimits(),
         );

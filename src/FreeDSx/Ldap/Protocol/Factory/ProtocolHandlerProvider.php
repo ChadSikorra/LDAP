@@ -29,6 +29,7 @@ use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyComponentFactory;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\RequestHistory;
+use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\ServerOptions;
 
 /**
@@ -57,6 +58,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
     public function get(
         RequestInterface $request,
         ControlBag $controls,
+        ?SearchLimits $searchLimits = null,
     ): ServerProtocolHandlerInterface {
         return match ($this->routeResolver->routeIdFor($request, $controls)) {
             HandlerId::Abandon => new ServerProtocolHandler\ServerAbandonHandler(),
@@ -68,8 +70,8 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
             HandlerId::RootDse => $this->getRootDseHandler(),
             HandlerId::Subschema => $this->getSubschemaHandler(),
             HandlerId::Monitor => $this->getMonitorHandler(),
-            HandlerId::Paging => $this->getPagingHandler(),
-            HandlerId::Search => $this->getSearchHandler(),
+            HandlerId::Paging => $this->getPagingHandler($searchLimits),
+            HandlerId::Search => $this->getSearchHandler($searchLimits),
             HandlerId::Unbind => new ServerProtocolHandler\ServerUnbindHandler($this->queue),
             HandlerId::Dispatch => $this->getDispatchHandler(),
         };
@@ -119,7 +121,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
         );
     }
 
-    private function getSearchHandler(): ServerProtocolHandler\ServerSearchHandler
+    private function getSearchHandler(?SearchLimits $searchLimits): ServerProtocolHandler\ServerSearchHandler
     {
         return new ServerProtocolHandler\ServerSearchHandler(
             queue: $this->queue,
@@ -127,7 +129,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
             filterEvaluator: $this->options->getFilterEvaluator(),
             accessControl: $this->options->getAccessControl(),
             schema: $this->options->getSchema(),
-            limits: $this->options->makeSearchLimits(),
+            limits: $searchLimits ?? $this->options->makeSearchLimits(),
         );
     }
 
@@ -159,7 +161,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
         );
     }
 
-    private function getPagingHandler(): ServerProtocolHandler\ServerPagingHandler
+    private function getPagingHandler(?SearchLimits $searchLimits): ServerProtocolHandler\ServerPagingHandler
     {
         return new ServerProtocolHandler\ServerPagingHandler(
             queue: $this->queue,
@@ -168,7 +170,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
             accessControl: $this->options->getAccessControl(),
             requestHistory: $this->requestHistory,
             schema: $this->options->getSchema(),
-            limits: $this->options->makeSearchLimits(),
+            limits: $searchLimits ?? $this->options->makeSearchLimits(),
         );
     }
 }

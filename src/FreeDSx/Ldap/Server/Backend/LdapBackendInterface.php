@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
+use FreeDSx\Ldap\Server\SearchLimits;
 
 /**
  * Read-side backend contract that read-only consumers depend on.
@@ -28,9 +29,13 @@ use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
  */
 interface LdapBackendInterface
 {
+    /**
+     * @param ?SearchLimits $effectiveLimits Per-request effective limits (time/lookthrough); null uses backend defaults.
+     */
     public function search(
         SearchRequest $request,
         ControlBag $controls = new ControlBag(),
+        ?SearchLimits $effectiveLimits = null,
     ): EntryStream;
 
     /**
