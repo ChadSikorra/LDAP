@@ -724,18 +724,38 @@ final class ServerOptionsTest extends TestCase
         );
     }
 
+    public function test_max_search_lookthrough_defaults_to_5000(): void
+    {
+        self::assertSame(
+            5000,
+            $this->subject->getMaxSearchLookthrough(),
+        );
+    }
+
+    public function test_it_can_set_max_search_lookthrough(): void
+    {
+        $this->subject->setMaxSearchLookthrough(5000);
+
+        self::assertSame(
+            5000,
+            $this->subject->getMaxSearchLookthrough(),
+        );
+    }
+
     public function test_make_search_limits_reflects_current_options(): void
     {
         $this->subject
             ->setMaxSearchSize(500)
             ->setMaxSearchTimeLimit(60)
-            ->setMaxSearchPageSize(250);
+            ->setMaxSearchPageSize(250)
+            ->setMaxSearchLookthrough(5000);
 
         self::assertEquals(
             new SearchLimits(
                 maxSearchSize: 500,
                 maxSearchTimeLimit: 60,
                 maxSearchPageSize: 250,
+                maxSearchLookthrough: 5000,
             ),
             $this->subject->makeSearchLimits(),
         );

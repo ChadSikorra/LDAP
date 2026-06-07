@@ -41,6 +41,7 @@ LDAP Server Configuration
     * [ServerOptions:setMaxSearchSize](#setmaxsearchsize)
     * [ServerOptions:setMaxSearchTimeLimit](#setmaxsearchtimelimit)
     * [ServerOptions:setMaxSearchPageSize](#setmaxsearchpagesize)
+    * [ServerOptions:setMaxSearchLookthrough](#setmaxsearchlookthrough)
 * [SASL Options](#sasl-options)
     * [ServerOptions:setSaslMechanisms](#setsaslmechanisms)
 
@@ -588,6 +589,19 @@ The maximum number of entries the server will return per page in a paged search.
 (or sends `0` meaning "server decides"), this cap is applied.
 
 **Default**: `1000`
+
+------------------
+#### setMaxSearchLookthrough
+
+Maximum number of entries the server will examine while evaluating a search before returning an `ADMIN_LIMIT_EXCEEDED`
+result code. Unlike the size limit (entries returned), this caps entries inspected, so it bounds an unindexed filter that
+scans many entries to return few. Raise it above the largest legitimate subtree a client may scan, or set `0` to disable.
+
+**Default**: `5000`
+
+> It applies only to filters evaluated in PHP (array/JSON backends, and SQL backends when the filter cannot be pushed to the
+> index); indexed equality and prefix filters are bounded by the database and are not counted. Paged searches are subject to
+> this limit cumulatively across all pages.
 
 ## Monitoring
 

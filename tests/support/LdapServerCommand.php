@@ -67,6 +67,13 @@ final class LdapServerCommand extends Command
                 '0',
             )
             ->addOption(
+                'max-search-lookthrough',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Maximum entries examined per search before adminLimitExceeded (0 = no limit)',
+                '5000',
+            )
+            ->addOption(
                 'sasl',
                 null,
                 InputOption::VALUE_NONE,
@@ -161,6 +168,7 @@ final class LdapServerCommand extends Command
             ->setUseSsl($useSsl)
             ->setAllowAnonymous($allowAnonymous)
             ->setSocketAcceptTimeout(0.1)
+            ->setMaxSearchLookthrough((int) $this->getStringOption($input, 'max-search-lookthrough'))
             ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL));
 
         if ($reloadFlagFile !== '') {

@@ -205,6 +205,8 @@ final class ServerOptions
 
     private int $maxSearchPageSize = 1000;
 
+    private int $maxSearchLookthrough = 5000;
+
     private ?Closure $onServerReady = null;
 
     private ?ConfigReloaderInterface $configReloader = null;
@@ -869,12 +871,28 @@ final class ServerOptions
         return $this;
     }
 
+    /**
+     * Maximum entries examined per search before adminLimitExceeded (default 5000). Guards unindexed scans. Zero disables.
+     */
+    public function getMaxSearchLookthrough(): int
+    {
+        return $this->maxSearchLookthrough;
+    }
+
+    public function setMaxSearchLookthrough(int $maxSearchLookthrough): self
+    {
+        $this->maxSearchLookthrough = $maxSearchLookthrough;
+
+        return $this;
+    }
+
     public function makeSearchLimits(): SearchLimits
     {
         return new SearchLimits(
             maxSearchSize: $this->maxSearchSize,
             maxSearchTimeLimit: $this->maxSearchTimeLimit,
             maxSearchPageSize: $this->maxSearchPageSize,
+            maxSearchLookthrough: $this->maxSearchLookthrough,
         );
     }
 

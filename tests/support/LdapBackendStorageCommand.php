@@ -96,6 +96,13 @@ final class LdapBackendStorageCommand extends Command
                 null,
                 InputOption::VALUE_NONE,
                 'Enable the cn=monitor entry',
+            )
+            ->addOption(
+                'max-search-lookthrough',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Maximum entries examined per search before adminLimitExceeded (0 = no limit)',
+                '0',
             );
     }
 
@@ -195,6 +202,7 @@ final class LdapBackendStorageCommand extends Command
             ->setSocketAcceptTimeout(0.1)
             ->setSchemaValidationMode($validationMode)
             ->setMonitorEnabled((bool) $input->getOption('monitor'))
+            ->setMaxSearchLookthrough((int) $this->getStringOption($input, 'max-search-lookthrough'))
             ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL));
 
         if ($input->getOption('allow-relax')) {
