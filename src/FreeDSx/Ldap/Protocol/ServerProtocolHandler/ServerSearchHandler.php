@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
-use FreeDSx\Ldap\Control\Sorting\SortingResponseControl;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Operation\Request\AbandonRequest;
 use FreeDSx\Ldap\Operation\Request\CancelRequest;
@@ -88,9 +87,12 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
             $state,
         );
 
-        $sortControl = $this->sortingControl($message);
-        $responseControls = $sortControl !== null
-            ? [new SortingResponseControl(0)]
+        $sortResponse = $this->sortingResponseControl(
+            $this->sortingControl($message),
+            $this->schema,
+        );
+        $responseControls = $sortResponse !== null
+            ? [$sortResponse]
             : [];
 
         $this->sendEntriesToClient(

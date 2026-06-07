@@ -31,6 +31,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerPagingHandler;
 use FreeDSx\Ldap\Schema\Schema;
+use FreeDSx\Ldap\Schema\StandardSchemaProvider;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
@@ -77,7 +78,7 @@ class ServerPagingHandlerTest extends TestCase
         $this->mockFilterEvaluator = $this->createMock(FilterEvaluatorInterface::class);
         $this->mockAccessControl = $this->createMock(AccessControlInterface::class);
         $this->requestHistory = new RequestHistory();
-        $this->schema = new Schema();
+        $this->schema = StandardSchemaProvider::buildCore();
         $this->sentMessages = [];
 
         $this->mockFilterEvaluator
@@ -620,6 +621,39 @@ class ServerPagingHandlerTest extends TestCase
         self::assertSame(
             0,
             $sortControl->getResult(),
+        );
+    }
+
+    public function test_sort_by_unknown_attribute_reports_no_such_attribute(): void
+    {
+        $message = new LdapMessageRequest(
+            2,
+            $this->makeSearchRequest(),
+            new PagingControl(10, ''),
+            new SortingControl(SortKey::ascending('bogusAttr')),
+        );
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator()));
+
+        $this->subject->handleRequest(
+            $message,
+            $this->mockToken,
+        );
+
+        $sortControl = $this->doneMessage()->controls()->get(Control::OID_SORTING_RESPONSE);
+        self::assertInstanceOf(
+            SortingResponseControl::class,
+            $sortControl,
+        );
+        self::assertSame(
+            ResultCode::NO_SUCH_ATTRIBUTE,
+            $sortControl->getResult(),
+        );
+        self::assertSame(
+            'bogusAttr',
+            $sortControl->getAttribute(),
         );
     }
 

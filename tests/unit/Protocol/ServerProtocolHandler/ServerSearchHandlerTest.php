@@ -32,6 +32,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerSearchHandler;
 use FreeDSx\Ldap\Schema\Schema;
+use FreeDSx\Ldap\Schema\StandardSchemaProvider;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
@@ -73,7 +74,7 @@ final class ServerSearchHandlerTest extends TestCase
         $this->mockBackend = $this->createMock(LdapBackendInterface::class);
         $this->mockFilterEvaluator = $this->createMock(FilterEvaluatorInterface::class);
         $this->mockAccessControl = $this->createMock(AccessControlInterface::class);
-        $this->schema = new Schema();
+        $this->schema = StandardSchemaProvider::buildCore();
         $this->sentMessages = [];
 
         $this->mockAccessControl
@@ -642,6 +643,70 @@ final class ServerSearchHandlerTest extends TestCase
         );
         self::assertSame(
             0,
+            $sortControl->getResult(),
+        );
+    }
+
+    public function test_sort_by_unknown_attribute_reports_no_such_attribute(): void
+    {
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::present('cn')))->base('dc=foo,dc=bar'),
+            new SortingControl(SortKey::ascending('bogusAttr')),
+        );
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator()));
+
+        $this->subject->handleRequest(
+            $search,
+            $this->mockToken,
+        );
+
+        $done = end($this->sentMessages);
+        self::assertInstanceOf(LdapMessageResponse::class, $done);
+        $sortControl = $done->controls()->get(Control::OID_SORTING_RESPONSE);
+        self::assertInstanceOf(
+            SortingResponseControl::class,
+            $sortControl,
+        );
+        self::assertSame(
+            ResultCode::NO_SUCH_ATTRIBUTE,
+            $sortControl->getResult(),
+        );
+        self::assertSame(
+            'bogusAttr',
+            $sortControl->getAttribute(),
+        );
+    }
+
+    public function test_sort_by_attribute_without_ordering_rule_reports_inappropriate_matching(): void
+    {
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::present('cn')))->base('dc=foo,dc=bar'),
+            new SortingControl(SortKey::ascending('userPassword')),
+        );
+
+        $this->mockBackend
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator()));
+
+        $this->subject->handleRequest(
+            $search,
+            $this->mockToken,
+        );
+
+        $done = end($this->sentMessages);
+        self::assertInstanceOf(LdapMessageResponse::class, $done);
+        $sortControl = $done->controls()->get(Control::OID_SORTING_RESPONSE);
+        self::assertInstanceOf(
+            SortingResponseControl::class,
+            $sortControl,
+        );
+        self::assertSame(
+            ResultCode::INAPPROPRIATE_MATCHING,
             $sortControl->getResult(),
         );
     }

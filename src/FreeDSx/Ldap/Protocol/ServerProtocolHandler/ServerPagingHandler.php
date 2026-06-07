@@ -14,7 +14,6 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Ldap\Control\PagingControl;
-use FreeDSx\Ldap\Control\Sorting\SortingResponseControl;
 use FreeDSx\Ldap\Entry\Entries;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -119,9 +118,12 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $controls[] = new PagingControl(0, '');
         }
 
-        $sortControl = $this->sortingControl($message);
-        if ($sortControl !== null) {
-            $controls[] = new SortingResponseControl(0);
+        $sortResponse = $this->sortingResponseControl(
+            $this->sortingControl($message),
+            $this->schema,
+        );
+        if ($sortResponse !== null) {
+            $controls[] = $sortResponse;
         }
 
         $pagingRequest->markProcessed();
