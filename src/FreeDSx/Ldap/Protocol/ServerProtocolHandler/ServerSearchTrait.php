@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Control\PagingControl;
 use FreeDSx\Ldap\Control\Sorting\SortingControl;
+use FreeDSx\Ldap\Control\Sorting\SortingResponseControl;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\RuntimeException;
@@ -30,6 +31,7 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Schema\Schema;
 use Generator;
 
 trait ServerSearchTrait
@@ -190,5 +192,42 @@ trait ServerSearchTrait
         return $control instanceof SortingControl
             ? $control
             : null;
+    }
+
+    /**
+     * The RFC 2891 sort response control, with the result code per §1.2 (first unsortable key wins).
+     */
+    private function sortingResponseControl(
+        ?SortingControl $sortControl,
+        Schema $schema,
+    ): ?SortingResponseControl {
+        if ($sortControl === null) {
+            return null;
+        }
+
+        foreach ($sortControl->getSortKeys() as $sortKey) {
+            $attribute = $sortKey->getAttribute();
+            $attributeType = $schema->getAttributeType($attribute);
+
+            if ($attributeType === null) {
+                return new SortingResponseControl(
+                    ResultCode::NO_SUCH_ATTRIBUTE,
+                    $attribute,
+                );
+            }
+
+            $orderingRule = $sortKey->getOrderingRule();
+            $unknownRule = $orderingRule !== null
+                && $schema->getMatchingRule($orderingRule) === null;
+
+            if ($unknownRule || ($orderingRule === null && $attributeType->orderingOid === null)) {
+                return new SortingResponseControl(
+                    ResultCode::INAPPROPRIATE_MATCHING,
+                    $attribute,
+                );
+            }
+        }
+
+        return new SortingResponseControl(ResultCode::SUCCESS);
     }
 }
