@@ -35,6 +35,8 @@ final class LdapServerCommand extends Command
 
     private const SSL_CERT = __DIR__ . '/../resources/cert/slapd.crt';
 
+    private const EXTERNAL_CA_CERT = __DIR__ . '/../resources/cert/test-cases/ext-ca.crt';
+
     private const VALID_STORAGE = ['memory', 'json', 'sqlite', 'mysql'];
 
     protected function configure(): void
@@ -104,6 +106,12 @@ final class LdapServerCommand extends Command
                 'Allow anonymous bind',
             )
             ->addOption(
+                'external',
+                null,
+                InputOption::VALUE_NONE,
+                'Enable SASL EXTERNAL with client-certificate validation (implies TLS)',
+            )
+            ->addOption(
                 'seed',
                 null,
                 InputOption::VALUE_REQUIRED,
@@ -143,6 +151,7 @@ final class LdapServerCommand extends Command
         $storageType = $this->getStringOption($input, 'storage');
         $entryCount = (int) $this->getStringOption($input, 'entries');
         $sasl = $input->getOption('sasl') === true;
+        $external = $input->getOption('external') === true;
         $allowAnonymous = $input->getOption('allow-anonymous') === true;
         $seedFile = $this->getStringOption($input, 'seed');
         $changesFile = $this->getStringOption($input, 'changes');
@@ -162,6 +171,18 @@ final class LdapServerCommand extends Command
         }
 
         $entries = $sasl ? $this->buildSaslEntries() : $this->buildDefaultEntries();
+
+        if ($external) {
+            // Subject "/DC=bar/DC=foo/CN=extuser" maps (reversed) to this DN via SubjectDnCredentialMapper.
+            $entries[] = Entry::fromArray(
+                'cn=extuser,dc=foo,dc=bar',
+                [
+                    'cn' => 'extuser',
+                    'objectClass' => 'inetOrgPerson',
+                    'sn' => 'External',
+                ],
+            );
+        }
 
         for ($i = 1; $i <= $entryCount; $i++) {
             $entries[] = Entry::fromArray(
@@ -213,6 +234,13 @@ final class LdapServerCommand extends Command
                 ServerOptions::SASL_CRAM_MD5,
                 ServerOptions::SASL_SCRAM_SHA_256,
             );
+        }
+
+        if ($external) {
+            $options
+                ->setSslValidateCert(true)
+                ->setSslCaCert(self::EXTERNAL_CA_CERT)
+                ->setSaslMechanisms(ServerOptions::SASL_EXTERNAL);
         }
 
         $server->useStorage($storage);

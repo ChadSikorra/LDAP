@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Operation\Request\DeleteRequest;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Authorization\DispatchAuthorizer;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzIdResolver;
 use FreeDSx\Ldap\Protocol\Authorization\ProxiedAuthorizationResolver;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
@@ -61,10 +62,12 @@ final class DispatchAuthorizerTest extends TestCase
             $this->authorizer,
             new PasswordResetGate(),
             new ProxiedAuthorizationResolver(
-                $this->accessControl,
-                $this->backend,
-                $this->createMock(BindNameResolverInterface::class),
-                new EventLogger(null),
+                new AuthzIdResolver(
+                    $this->accessControl,
+                    $this->backend,
+                    $this->createMock(BindNameResolverInterface::class),
+                    new EventLogger(null),
+                ),
             ),
         );
     }

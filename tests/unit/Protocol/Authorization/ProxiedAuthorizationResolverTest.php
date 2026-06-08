@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Operation\Request\DeleteRequest;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzIdResolver;
 use FreeDSx\Ldap\Protocol\Authorization\ProxiedAuthorizationResolver;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
@@ -64,12 +65,14 @@ final class ProxiedAuthorizationResolverTest extends TestCase
         $this->identityResolver = $this->createMock(BindNameResolverInterface::class);
         $this->recordingLogger = new RecordingLogger();
         $this->subject = new ProxiedAuthorizationResolver(
-            $this->accessControl,
-            $this->backend,
-            $this->identityResolver,
-            new EventLogger(
-                $this->recordingLogger,
-                EventLogPolicy::all(),
+            new AuthzIdResolver(
+                $this->accessControl,
+                $this->backend,
+                $this->identityResolver,
+                new EventLogger(
+                    $this->recordingLogger,
+                    EventLogPolicy::all(),
+                ),
             ),
         );
         $this->boundToken = new BindToken(

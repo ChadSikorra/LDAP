@@ -32,6 +32,16 @@ trait RequireIdentityTrait
         return $this->resolvedDn;
     }
 
+    public function getUsername(): ?string
+    {
+        return null;
+    }
+
+    public function getAuthorizingDn(): ?Dn
+    {
+        return null;
+    }
+
     /**
      * Validates the identity, stores its resolved DN, and returns it.
      *

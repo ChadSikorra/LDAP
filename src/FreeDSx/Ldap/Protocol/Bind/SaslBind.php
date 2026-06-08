@@ -245,6 +245,7 @@ class SaslBind implements BindInterface
         $token = BindToken::fromSasl(
             $username,
             $resolvedDn,
+            authorizingDn: $result->getAuthorizingDn(),
         );
         if ($mustChangePassword) {
             $token->markMustChangePassword();

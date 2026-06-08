@@ -43,6 +43,10 @@ final class ClientOptions
 
     private ?string $sslCaCert = null;
 
+    private ?string $sslCert = null;
+
+    private ?string $sslCertKey = null;
+
     private ?string $sslPeerName = null;
 
     private int $timeoutConnect = 3;
@@ -205,6 +209,36 @@ final class ClientOptions
     public function setSslCaCert(?string $sslCaCert): self
     {
         $this->sslCaCert = $sslCaCert;
+
+        return $this;
+    }
+
+    public function getSslCert(): ?string
+    {
+        return $this->sslCert;
+    }
+
+    /**
+     * The client certificate to present for mutual TLS (e.g. for a SASL EXTERNAL bind).
+     */
+    public function setSslCert(?string $sslCert): self
+    {
+        $this->sslCert = $sslCert;
+
+        return $this;
+    }
+
+    public function getSslCertKey(): ?string
+    {
+        return $this->sslCertKey;
+    }
+
+    /**
+     * The private key for the client certificate (omit when the key is bundled in the certificate file).
+     */
+    public function setSslCertKey(?string $sslCertKey): self
+    {
+        $this->sslCertKey = $sslCertKey;
 
         return $this;
     }

@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\StandardSchemaProvider;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
+use FreeDSx\Ldap\Server\Sasl\External\ExternalCredentialMapperInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashScheme;
 use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\DefaultPasswordQualityChecker;
@@ -56,6 +57,8 @@ final class ServerOptions
 
     public const SASL_DIGEST_MD5 = 'DIGEST-MD5';
 
+    public const SASL_EXTERNAL = 'EXTERNAL';
+
     public const SASL_SCRAM_SHA_1 = 'SCRAM-SHA-1';
 
     public const SASL_SCRAM_SHA_1_PLUS = 'SCRAM-SHA-1-PLUS';
@@ -84,6 +87,7 @@ final class ServerOptions
         self::SASL_PLAIN,
         self::SASL_CRAM_MD5,
         self::SASL_DIGEST_MD5,
+        self::SASL_EXTERNAL,
         self::SASL_SCRAM_SHA_1,
         self::SASL_SCRAM_SHA_1_PLUS,
         self::SASL_SCRAM_SHA_224,
@@ -153,6 +157,8 @@ final class ServerOptions
     private ?PasswordAuthenticatableInterface $passwordAuthenticator = null;
 
     private ?BindNameResolverInterface $identityResolver = null;
+
+    private ?ExternalCredentialMapperInterface $externalCredentialMapper = null;
 
     private ?RootDseHandlerInterface $rootDseHandler = null;
 
@@ -521,6 +527,21 @@ final class ServerOptions
     public function setIdentityResolver(?BindNameResolverInterface $identityResolver): self
     {
         $this->identityResolver = $identityResolver;
+
+        return $this;
+    }
+
+    public function getExternalCredentialMapper(): ?ExternalCredentialMapperInterface
+    {
+        return $this->externalCredentialMapper;
+    }
+
+    /**
+     * Custom cert->identity policy for SASL EXTERNAL (e.g. map a SAN/UPN or rewrite the DN); null uses the subject DN.
+     */
+    public function setExternalCredentialMapper(?ExternalCredentialMapperInterface $externalCredentialMapper): self
+    {
+        $this->externalCredentialMapper = $externalCredentialMapper;
 
         return $this;
     }
