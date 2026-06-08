@@ -337,6 +337,8 @@ class Container
             ->setSslValidateCert($clientOptions->isSslValidateCert())
             ->setSslAllowSelfSigned($clientOptions->isSslAllowSelfSigned())
             ->setSslCaCert($clientOptions->getSslCaCert())
+            ->setSslCert($clientOptions->getSslCert())
+            ->setSslCertKey($clientOptions->getSslCertKey())
             ->setSslPeerName($clientOptions->getSslPeerName())
             ->setTimeoutConnect($clientOptions->getTimeoutConnect())
             ->setTimeoutRead($clientOptions->getTimeoutRead());

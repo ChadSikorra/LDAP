@@ -14,9 +14,13 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server;
 
 use FreeDSx\Ldap\Protocol\Authenticator;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzIdResolver;
 use FreeDSx\Ldap\Protocol\Authorization\DispatchAuthorizer;
 use FreeDSx\Ldap\Protocol\Authorization\ProxiedAuthorizationResolver;
+use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\ExternalMechanismOptionsBuilder;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\MechanismOptionsBuilderFactory;
+use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\MechanismOptionsBuilderInterface;
+use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\SaslExchange;
 use FreeDSx\Ldap\Protocol\Bind\SaslBind;
 use FreeDSx\Ldap\Protocol\Bind\SimpleBind;
@@ -34,6 +38,7 @@ use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordPolicyAwareAuthenticator;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Sasl\External\SubjectDnCredentialMapper;
 use FreeDSx\Ldap\Server\Backend\Auth\SaslBindPolicyEnforcer;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
@@ -68,6 +73,8 @@ use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordResetGate;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Socket\Socket;
+
+use function in_array;
 
 class ServerProtocolFactory implements ServerProtocolFactoryInterface
 {
@@ -130,6 +137,14 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
                 $eventLogger,
             ),
         ];
+
+        $authzIdResolver = new AuthzIdResolver(
+            $this->options->getAccessControl(),
+            $backend,
+            $this->handlerFactory->makeIdentityResolverChain(),
+            $eventLogger,
+        );
+
         $saslMechanisms = $this->options->getSaslMechanisms();
 
         if (!empty($saslMechanisms)) {
@@ -139,7 +154,12 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
                 exchange: new SaslExchange(
                     $serverQueue,
                     $responseFactory,
-                    new MechanismOptionsBuilderFactory($passwordAuthenticator),
+                    $this->makeOptionsBuilderFactory(
+                        $passwordAuthenticator,
+                        $serverQueue,
+                        $saslMechanisms,
+                        $authzIdResolver,
+                    ),
                 ),
                 sasl: new Sasl(new SaslOptions(
                     supported: $this->parseKnownMechanisms($saslMechanisms),
@@ -159,12 +179,7 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
         $dispatchAuthorizer = new DispatchAuthorizer(
             $authorization,
             new PasswordResetGate(),
-            new ProxiedAuthorizationResolver(
-                $this->options->getAccessControl(),
-                $backend,
-                $this->handlerFactory->makeIdentityResolverChain(),
-                $eventLogger,
-            ),
+            new ProxiedAuthorizationResolver($authzIdResolver),
         );
 
         $searchLimitResolver = new SearchLimitResolver(
@@ -286,6 +301,30 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
             new SystemChangeWriter($this->handlerFactory->makeWriteDispatcher()),
             $policyContext,
             $eventLogger,
+        );
+    }
+
+    /**
+     * @param string[] $saslMechanisms
+     */
+    private function makeOptionsBuilderFactory(
+        PasswordAuthenticatableInterface $authenticator,
+        ServerQueue $queue,
+        array $saslMechanisms,
+        AuthzIdResolver $authzIdResolver,
+    ): MechanismOptionsBuilderFactory {
+        if (!in_array(ServerOptions::SASL_EXTERNAL, $saslMechanisms, true)) {
+            return new MechanismOptionsBuilderFactory($authenticator);
+        }
+
+        return new MechanismOptionsBuilderFactory(
+            $authenticator,
+            fn(): MechanismOptionsBuilderInterface => new ExternalMechanismOptionsBuilder(
+                $queue,
+                $this->options,
+                $this->options->getExternalCredentialMapper() ?? new SubjectDnCredentialMapper(),
+                $authzIdResolver,
+            ),
         );
     }
 

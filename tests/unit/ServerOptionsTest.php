@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\DefaultPasswordQualityChecke
 use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\PasswordQualityCheckerInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
+use FreeDSx\Ldap\Server\Sasl\External\ExternalCredentialMapperInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
@@ -67,6 +68,33 @@ final class ServerOptionsTest extends TestCase
         self::assertSame(
             [ServerOptions::SASL_PLAIN, ServerOptions::SASL_CRAM_MD5],
             $this->subject->getSaslMechanisms(),
+        );
+    }
+
+    public function test_it_can_set_the_external_sasl_mechanism(): void
+    {
+        $this->subject->setSaslMechanisms(ServerOptions::SASL_EXTERNAL);
+
+        self::assertSame(
+            [ServerOptions::SASL_EXTERNAL],
+            $this->subject->getSaslMechanisms(),
+        );
+    }
+
+    public function test_external_credential_mapper_is_null_by_default(): void
+    {
+        self::assertNull($this->subject->getExternalCredentialMapper());
+    }
+
+    public function test_it_can_set_an_external_credential_mapper(): void
+    {
+        $mapper = $this->createMock(ExternalCredentialMapperInterface::class);
+
+        $this->subject->setExternalCredentialMapper($mapper);
+
+        self::assertSame(
+            $mapper,
+            $this->subject->getExternalCredentialMapper(),
         );
     }
 

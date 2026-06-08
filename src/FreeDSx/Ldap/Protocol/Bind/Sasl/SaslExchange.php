@@ -83,11 +83,12 @@ final class SaslExchange
         return new SaslExchangeResult(
             $context,
             $message,
-            $this->extractUsername(
+            $optionsBuilder->getUsername() ?? $this->extractUsername(
                 $usernameCredentials,
                 $mechName,
             ),
             $optionsBuilder->getResolvedDn(),
+            $optionsBuilder->getAuthorizingDn(),
         );
     }
 

@@ -27,6 +27,7 @@ use FreeDSx\Socket\Queue\Asn1MessageQueue;
 use FreeDSx\Socket\Queue\Buffer;
 use FreeDSx\Socket\Queue\Message;
 use FreeDSx\Socket\Socket;
+use FreeDSx\Socket\Tls\Certificate;
 
 use function strlen;
 use function substr;
@@ -72,6 +73,11 @@ class LdapQueue extends Asn1MessageQueue
     public function isEncrypted(): bool
     {
         return ($this->socket->isConnected() && $this->socket->isEncrypted());
+    }
+
+    public function peerCertificate(): ?Certificate
+    {
+        return $this->socket->getPeerCertificate();
     }
 
     /**

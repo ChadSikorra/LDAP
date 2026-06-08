@@ -46,6 +46,7 @@ LDAP Server Configuration
     * [ServerOptions:setSearchLimitRules](#setsearchlimitrules)
 * [SASL Options](#sasl-options)
     * [ServerOptions:setSaslMechanisms](#setsaslmechanisms)
+    * [ServerOptions:setExternalCredentialMapper](#setexternalcredentialmapper)
 
 The LDAP server is configured through a `ServerOptions` object. The configuration object is passed to the server
 on construction:
@@ -691,6 +692,7 @@ Use the constants defined on `ServerOptions` to specify mechanisms:
 | Constant                                  | Mechanism             |
 |-------------------------------------------|-----------------------|
 | `ServerOptions::SASL_PLAIN`               | `PLAIN`               |
+| `ServerOptions::SASL_EXTERNAL`            | `EXTERNAL`            |
 | `ServerOptions::SASL_CRAM_MD5`            | `CRAM-MD5`            |
 | `ServerOptions::SASL_DIGEST_MD5`          | `DIGEST-MD5`          |
 | `ServerOptions::SASL_SCRAM_SHA_1`         | `SCRAM-SHA-1`         |
@@ -730,6 +732,47 @@ $server = new LdapServer(
 **Note**: The `PLAIN` mechanism transmits credentials in cleartext. It should only be enabled when the connection is
 protected by TLS (via StartTLS or `setUseSsl`).
 
+**Note**: The `EXTERNAL` mechanism authenticates from the verified TLS client certificate rather than `getSaslIdentity()`.
+It requires a TLS connection **and** client-certificate validation (`setSslValidateCert(true)` with `setSslCaCert()`),
+otherwise the bind is rejected. By default, the certificate subject DN is resolved via the identity resolver chain. You 
+can customize the mapping with [setExternalCredentialMapper](#setexternalcredentialmapper).
+
 See [SASL Authentication](General-Usage.md#sasl-authentication) for full usage details.
 
 **Default**: `[]` (SASL disabled)
+
+------------------
+#### setExternalCredentialMapper
+
+Customizes how a verified TLS client certificate is mapped to an identity for the `EXTERNAL` mechanism. The
+mapper returns an `AuthzId` (a `dn:`/`u:` identity) that is resolved through the identity resolver chain, or `null` to
+reject the certificate.
+
+The default (`SubjectDnCredentialMapper`) reconstructs the certificate subject DN (X.509 order reversed to LDAP order)
+and resolves it as a DN. Provide a custom mapper to instead map a SAN/UPN, rewrite the DN, or gate on the issuer:
+
+```php
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
+use FreeDSx\Ldap\Server\Sasl\External\ExternalCredentialMapperInterface;
+use FreeDSx\Socket\Tls\Certificate;
+
+$mapper = new class implements ExternalCredentialMapperInterface {
+    public function map(Certificate $certificate): ?AuthzId
+    {
+        // Resolve the entry by the certificate's subjectAltName via an attribute search.
+        $san = $certificate->getSubjectAltName();
+
+        return $san === null
+            ? null
+            : AuthzId::fromUsername($san);
+    }
+};
+
+$options->setSaslMechanisms(ServerOptions::SASL_EXTERNAL)
+    ->setExternalCredentialMapper($mapper);
+```
+
+A client may also send an authorization identity (`dn:`/`u:`) in the EXTERNAL credentials to act as a different
+identity. This is only allowed when the certificate identity holds the proxied-authorization grant (RFC 4370).
+
+**Default**: `null` (the certificate subject DN mapper)

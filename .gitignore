@@ -2,4 +2,7 @@ composer.lock
 composer.phar
 vendor/
 .phpunit.result.cache
-tests/resources/cert/
+# The OpenLDAP tooling dumps its generated certs here; ignore them, but keep the committed
+# SASL EXTERNAL fixtures under test-cases/ (see test-cases/generate-external-certs.sh).
+tests/resources/cert/*
+!tests/resources/cert/test-cases/

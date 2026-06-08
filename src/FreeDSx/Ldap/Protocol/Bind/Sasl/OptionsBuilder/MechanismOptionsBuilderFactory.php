@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 
+use Closure;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor\UsernameFieldExtractor;
@@ -24,10 +25,14 @@ use FreeDSx\Sasl\Mechanism\MechanismName;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class MechanismOptionsBuilderFactory
+final readonly class MechanismOptionsBuilderFactory
 {
+    /**
+     * @param (Closure(): MechanismOptionsBuilderInterface)|null $externalBuilderFactory builds a fresh EXTERNAL builder
+     */
     public function __construct(
-        private readonly PasswordAuthenticatableInterface $authenticator,
+        private PasswordAuthenticatableInterface $authenticator,
+        private ?Closure $externalBuilderFactory = null,
     ) {}
 
     /**
@@ -44,6 +49,8 @@ final class MechanismOptionsBuilderFactory
                 => new DigestMD5MechanismOptionsBuilder($this->authenticator, new UsernameFieldExtractor()),
             $mechanism->isScram()
                 => new ScramMechanismOptionsBuilder($this->authenticator),
+            $mechanism === MechanismName::EXTERNAL && $this->externalBuilderFactory !== null
+                => ($this->externalBuilderFactory)(),
             default => throw new OperationException(
                 sprintf('The SASL mechanism "%s" is not supported.', $mechanism->value),
                 ResultCode::OTHER,
