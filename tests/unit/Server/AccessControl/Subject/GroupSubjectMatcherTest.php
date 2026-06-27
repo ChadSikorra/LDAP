@@ -51,7 +51,6 @@ final class GroupSubjectMatcherTest extends TestCase
         self::assertTrue($subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->targetDn,
         ));
@@ -74,7 +73,6 @@ final class GroupSubjectMatcherTest extends TestCase
         self::assertTrue($subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->targetDn,
         ));
@@ -97,7 +95,6 @@ final class GroupSubjectMatcherTest extends TestCase
         self::assertFalse($subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->targetDn,
         ));
@@ -115,7 +112,6 @@ final class GroupSubjectMatcherTest extends TestCase
         self::assertFalse($subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->targetDn,
         ));
@@ -128,7 +124,6 @@ final class GroupSubjectMatcherTest extends TestCase
         self::assertFalse($subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->targetDn,
         ));
@@ -184,7 +179,6 @@ final class GroupSubjectMatcherTest extends TestCase
         self::assertTrue($subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->targetDn,
         ));
@@ -207,7 +201,6 @@ final class GroupSubjectMatcherTest extends TestCase
 
         $token = BindToken::fromDn(
             'cn=admin,dc=foo,dc=bar',
-            'secret',
         );
 
         $subject->matches(
@@ -257,14 +250,12 @@ final class GroupSubjectMatcherTest extends TestCase
         $subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->targetDn,
         );
         $subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->targetDn,
         );
@@ -291,7 +282,6 @@ final class GroupSubjectMatcherTest extends TestCase
 
         $token = BindToken::fromDn(
             'cn=admin,dc=foo,dc=bar',
-            'secret',
         );
 
         $subject->matches($token, $this->targetDn);
@@ -316,7 +306,6 @@ final class GroupSubjectMatcherTest extends TestCase
         self::assertTrue($subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->targetDn,
         ));
@@ -339,7 +328,6 @@ final class GroupSubjectMatcherTest extends TestCase
         self::assertFalse($subject->matches(
             BindToken::fromDn(
                 'cn=admin, dc=foo, dc=bar',
-                'secret',
             ),
             $this->targetDn,
         ));
@@ -364,9 +352,9 @@ final class GroupSubjectMatcherTest extends TestCase
         );
         $subject->setBackend($this->mockBackend);
 
-        $token1 = BindToken::fromDn('cn=admin,dc=foo,dc=bar', 'secret');
-        $token2 = BindToken::fromDn('cn=admin,dc=foo,dc=bar', 'secret');
-        $token3 = BindToken::fromDn('cn=admin,dc=foo,dc=bar', 'secret');
+        $token1 = BindToken::fromDn('cn=admin,dc=foo,dc=bar');
+        $token2 = BindToken::fromDn('cn=admin,dc=foo,dc=bar');
+        $token3 = BindToken::fromDn('cn=admin,dc=foo,dc=bar');
 
         $subject->matches($token1, $this->targetDn);
         $subject->matches($token2, $this->targetDn);

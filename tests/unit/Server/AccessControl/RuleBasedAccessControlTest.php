@@ -47,7 +47,6 @@ final class RuleBasedAccessControlTest extends TestCase
         $this->dn = new Dn('dc=foo,dc=bar');
         $this->bindToken = BindToken::fromDn(
             'cn=admin,dc=foo,dc=bar',
-            'secret',
         );
     }
 

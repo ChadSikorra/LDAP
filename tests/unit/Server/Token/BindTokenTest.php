@@ -24,7 +24,6 @@ final class BindTokenTest extends TestCase
     {
         $this->subject = BindToken::fromDn(
             'foo',
-            'bar',
         );
     }
 
@@ -33,14 +32,6 @@ final class BindTokenTest extends TestCase
         self::assertSame(
             'foo',
             $this->subject->getUsername(),
-        );
-    }
-
-    public function test_it_should_get_the_password(): void
-    {
-        self::assertSame(
-            'bar',
-            $this->subject->getPassword(),
         );
     }
 
@@ -64,7 +55,6 @@ final class BindTokenTest extends TestCase
     {
         $other = BindToken::fromDn(
             'foo',
-            'bar',
         );
 
         self::assertNotSame(
@@ -77,7 +67,6 @@ final class BindTokenTest extends TestCase
     {
         $token = BindToken::fromDn(
             'cn=foo,dc=bar',
-            'secret',
         );
 
         self::assertSame(

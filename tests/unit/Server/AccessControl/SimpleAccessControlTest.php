@@ -115,7 +115,6 @@ final class SimpleAccessControlTest extends TestCase
             OperationType::Search,
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->dn,
         );
@@ -129,7 +128,6 @@ final class SimpleAccessControlTest extends TestCase
             OperationType::Add,
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->dn,
         );
@@ -142,7 +140,6 @@ final class SimpleAccessControlTest extends TestCase
         $result = $this->subject->filterEntry(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $entry,
         );
@@ -175,7 +172,6 @@ final class SimpleAccessControlTest extends TestCase
         $this->subject->authorizeAttribute(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->dn,
             'userPassword',

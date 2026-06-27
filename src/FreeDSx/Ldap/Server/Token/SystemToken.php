@@ -42,11 +42,6 @@ final readonly class SystemToken implements TokenInterface
         return self::IDENTITY;
     }
 
-    public function getPassword(): ?string
-    {
-        return null;
-    }
-
     public function getVersion(): int
     {
         return $this->version;

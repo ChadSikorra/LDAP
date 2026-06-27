@@ -54,11 +54,6 @@ class AnonToken implements TokenInterface
         return $this->username;
     }
 
-    public function getPassword(): ?string
-    {
-        return null;
-    }
-
     public function getVersion(): int
     {
         return $this->version;

@@ -72,7 +72,6 @@ final class AuthenticatorTest extends TestCase
 
         $token = BindToken::fromDn(
             'foo',
-            'bar',
         );
 
         $this->authOne

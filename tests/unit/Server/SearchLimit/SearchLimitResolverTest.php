@@ -97,7 +97,6 @@ final class SearchLimitResolverTest extends TestCase
     {
         return BindToken::fromDn(
             'cn=user,dc=foo,dc=bar',
-            '12345',
         );
     }
 }

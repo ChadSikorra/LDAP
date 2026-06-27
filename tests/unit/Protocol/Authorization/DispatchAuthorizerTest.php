@@ -200,7 +200,6 @@ final class DispatchAuthorizerTest extends TestCase
     {
         return BindToken::fromDn(
             self::BOUND_DN,
-            'secret',
         );
     }
 

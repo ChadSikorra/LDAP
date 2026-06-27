@@ -63,7 +63,6 @@ final class AuthzIdResolverTest extends TestCase
         );
         $this->boundToken = BindToken::fromDn(
             self::ADMIN_DN,
-            'secret',
         );
     }
 

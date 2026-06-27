@@ -55,7 +55,6 @@ final class ServerWhoAmIHandlerTest extends TestCase
             $request,
             BindToken::fromDn(
                 'cn=foo,dc=foo,dc=bar',
-                '12345',
             ),
         );
     }

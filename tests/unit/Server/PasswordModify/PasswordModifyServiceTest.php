@@ -67,7 +67,6 @@ final class PasswordModifyServiceTest extends TestCase
         );
         $this->userToken = BindToken::fromDn(
             self::USER_DN,
-            '12345',
         );
 
         $this->subject = new PasswordModifyService(
@@ -124,7 +123,6 @@ final class PasswordModifyServiceTest extends TestCase
             ),
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'adminpass',
             ),
             new ControlBag(),
         );
@@ -277,7 +275,6 @@ final class PasswordModifyServiceTest extends TestCase
 
         $token = BindToken::fromDn(
             'cn=other,dc=foo,dc=bar',
-            'secret',
         );
         $token->markMustChangePassword();
 
@@ -313,7 +310,6 @@ final class PasswordModifyServiceTest extends TestCase
 
         $token = BindToken::fromDn(
             self::USER_DN,
-            '12345',
         );
         $token->markMustChangePassword();
 

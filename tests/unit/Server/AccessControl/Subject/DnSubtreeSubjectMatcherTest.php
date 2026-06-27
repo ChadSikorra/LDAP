@@ -35,7 +35,6 @@ final class DnSubtreeSubjectMatcherTest extends TestCase
         self::assertTrue($subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->targetDn,
         ));
@@ -48,7 +47,6 @@ final class DnSubtreeSubjectMatcherTest extends TestCase
         self::assertFalse($subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=other,dc=bar',
-                'secret',
             ),
             $this->targetDn,
         ));
@@ -81,7 +79,6 @@ final class DnSubtreeSubjectMatcherTest extends TestCase
         self::assertFalse($subject->matches(
             BindToken::fromDn(
                 'jdoe',
-                'secret',
             ),
             $this->targetDn,
         ));

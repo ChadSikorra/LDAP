@@ -46,7 +46,7 @@ final class ServerRequestContextTest extends TestCase
 
     public function test_with_token_returns_a_new_context_carrying_the_token(): void
     {
-        $token = BindToken::fromDn('cn=user,dc=foo,dc=bar', 'secret');
+        $token = BindToken::fromDn('cn=user,dc=foo,dc=bar');
 
         $withToken = $this->subject->withToken($token);
 

@@ -60,7 +60,6 @@ final class PasswordAuthenticator implements PasswordAuthenticatableInterface
             if ($this->hashService->verify($password, $stored)) {
                 return new BindToken(
                     AuthzId::fromDn($entry->getDn()),
-                    $password,
                     $name,
                 );
             }

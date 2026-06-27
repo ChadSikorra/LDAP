@@ -366,7 +366,6 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
     {
         return BindToken::fromDn(
             self::USER_DN,
-            'original-pass',
         );
     }
 

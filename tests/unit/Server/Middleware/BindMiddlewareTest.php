@@ -66,7 +66,7 @@ final class BindMiddlewareTest extends TestCase
 
     public function test_a_successful_bind_stores_the_token_and_short_circuits(): void
     {
-        $token = BindToken::fromDn('cn=user,dc=foo,dc=bar', 'secret');
+        $token = BindToken::fromDn('cn=user,dc=foo,dc=bar');
         $this->authenticator
             ->method('bind')
             ->willReturn($token);
@@ -119,7 +119,7 @@ final class BindMiddlewareTest extends TestCase
 
     public function test_a_failed_rebind_resets_an_authenticated_session_to_anonymous(): void
     {
-        $this->authorization->setToken(BindToken::fromDn('cn=admin,dc=foo,dc=bar', 'secret'));
+        $this->authorization->setToken(BindToken::fromDn('cn=admin,dc=foo,dc=bar'));
         $this->authenticator
             ->method('bind')
             ->willThrowException(new OperationException(

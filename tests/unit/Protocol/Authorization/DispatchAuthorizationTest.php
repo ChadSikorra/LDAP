@@ -24,7 +24,6 @@ final class DispatchAuthorizationTest extends TestCase
     {
         $token = BindToken::fromDn(
             'cn=alice,dc=example,dc=com',
-            'secret',
         );
 
         $authorization = DispatchAuthorization::proceed($token);
