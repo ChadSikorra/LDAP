@@ -353,17 +353,13 @@ final class PasswordPolicyChangeEnforcementTest extends TestCase
 
     private function selfToken(): BindToken
     {
-        return BindToken::fromDn(
-            self::USER_DN,
-            self::OLD_PASSWORD,
-        );
+        return BindToken::fromDn(self::USER_DN);
     }
 
     private function adminToken(): BindToken
     {
         return BindToken::fromDn(
             'cn=admin,dc=foo,dc=bar',
-            'admin-pass',
         );
     }
 

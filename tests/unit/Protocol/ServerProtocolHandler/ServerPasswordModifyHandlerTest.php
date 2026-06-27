@@ -69,7 +69,6 @@ final class ServerPasswordModifyHandlerTest extends TestCase
         );
         $this->userToken = BindToken::fromDn(
             'cn=user,dc=foo,dc=bar',
-            '12345',
         );
 
         $this->subject = new ServerPasswordModifyHandler(

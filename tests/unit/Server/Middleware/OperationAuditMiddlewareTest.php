@@ -56,7 +56,6 @@ final class OperationAuditMiddlewareTest extends TestCase
             new LdapMessageRequest(1, new AddRequest(Entry::create('cn=foo,dc=bar'))),
             BindToken::fromDn(
                 'cn=alice,dc=bar',
-                'secret',
             ),
         );
     }
@@ -206,7 +205,6 @@ final class OperationAuditMiddlewareTest extends TestCase
             new LdapMessageRequest(1, $request),
             BindToken::fromDn(
                 'cn=alice,dc=bar',
-                'secret',
             ),
         );
     }

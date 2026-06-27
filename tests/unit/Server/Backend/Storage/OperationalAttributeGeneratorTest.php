@@ -438,10 +438,7 @@ final class OperationalAttributeGeneratorTest extends TestCase
     private function boundContext(string $dn): WriteContext
     {
         return new WriteContext(
-            BindToken::fromDn(
-                $dn,
-                '',
-            ),
+            BindToken::fromDn($dn),
             new ControlBag(),
         );
     }

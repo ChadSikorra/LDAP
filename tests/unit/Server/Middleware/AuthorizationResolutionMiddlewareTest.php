@@ -64,7 +64,7 @@ final class AuthorizationResolutionMiddlewareTest extends TestCase
 
     public function test_a_request_requiring_a_password_change_is_rejected_and_stashes_the_control(): void
     {
-        $token = BindToken::fromDn('cn=user,dc=foo,dc=bar', 'secret');
+        $token = BindToken::fromDn('cn=user,dc=foo,dc=bar');
         $token->markMustChangePassword();
         $this->authorization->setToken($token);
 
@@ -90,7 +90,7 @@ final class AuthorizationResolutionMiddlewareTest extends TestCase
 
     public function test_an_authorized_request_is_delegated_with_the_resolved_token(): void
     {
-        $token = BindToken::fromDn('cn=user,dc=foo,dc=bar', 'secret');
+        $token = BindToken::fromDn('cn=user,dc=foo,dc=bar');
         $this->authorization->setToken($token);
 
         $this->subject()->process(

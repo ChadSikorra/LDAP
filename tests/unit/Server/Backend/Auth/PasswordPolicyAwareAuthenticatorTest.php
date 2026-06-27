@@ -227,7 +227,6 @@ final class PasswordPolicyAwareAuthenticatorTest extends TestCase
     {
         $token = BindToken::fromDn(
             self::DN,
-            'secret',
         );
         $this->inner
             ->method('authenticate')

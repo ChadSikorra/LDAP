@@ -145,7 +145,6 @@ final class PasswordResetGateTest extends TestCase
     {
         return BindToken::fromDn(
             self::USER_DN,
-            'secret',
         );
     }
 }

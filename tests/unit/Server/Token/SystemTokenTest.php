@@ -32,11 +32,6 @@ final class SystemTokenTest extends TestCase
         );
     }
 
-    public function test_it_carries_no_password(): void
-    {
-        self::assertNull((new SystemToken())->getPassword());
-    }
-
     public function test_it_defaults_to_ldap_v3(): void
     {
         self::assertSame(

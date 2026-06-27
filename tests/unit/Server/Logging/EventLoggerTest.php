@@ -95,7 +95,6 @@ final class EventLoggerTest extends TestCase
     {
         $token = BindToken::fromDn(
             'cn=alice,dc=example,dc=com',
-            '',
             3,
             new Dn('cn=admin,dc=example,dc=com'),
         );
@@ -132,7 +131,6 @@ final class EventLoggerTest extends TestCase
     {
         $token = BindToken::fromDn(
             'cn=alice,dc=example,dc=com',
-            'secret',
         );
 
         $this->mockLogger

@@ -31,7 +31,6 @@ final class CallbackSubjectMatcherTest extends TestCase
         self::assertTrue($subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             new Dn('dc=foo,dc=bar'),
         ));
@@ -46,7 +45,6 @@ final class CallbackSubjectMatcherTest extends TestCase
         self::assertFalse($subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             new Dn('dc=foo,dc=bar'),
         ));
@@ -59,7 +57,6 @@ final class CallbackSubjectMatcherTest extends TestCase
 
         $token = BindToken::fromDn(
             'cn=admin,dc=foo,dc=bar',
-            'secret',
         );
         $dn = new Dn('dc=foo,dc=bar');
 
@@ -96,7 +93,6 @@ final class CallbackSubjectMatcherTest extends TestCase
         self::assertFalse($subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             new Dn('dc=foo,dc=bar'),
         ));

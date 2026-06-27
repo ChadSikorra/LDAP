@@ -37,7 +37,6 @@ final class AuthenticatedSubjectMatcherTest extends TestCase
         self::assertTrue($this->subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->dn,
         ));

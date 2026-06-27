@@ -56,10 +56,7 @@ final readonly class ProxyAuthenticator implements PasswordAuthenticatableInterf
             );
         }
 
-        return BindToken::fromDn(
-            $name,
-            $password,
-        );
+        return BindToken::fromDn($name);
     }
 
     /**

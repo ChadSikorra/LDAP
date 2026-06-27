@@ -65,7 +65,6 @@ final class OperationAuditorTest extends TestCase
         ));
         $this->token = BindToken::fromDn(
             self::ACTOR_DN,
-            'secret',
         );
     }
 

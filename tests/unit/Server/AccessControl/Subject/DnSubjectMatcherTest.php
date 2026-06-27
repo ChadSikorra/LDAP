@@ -35,7 +35,6 @@ final class DnSubjectMatcherTest extends TestCase
         self::assertTrue($subject->matches(
             BindToken::fromDn(
                 'cn=admin,dc=foo,dc=bar',
-                'secret',
             ),
             $this->targetDn,
         ));
@@ -48,7 +47,6 @@ final class DnSubjectMatcherTest extends TestCase
         self::assertTrue($subject->matches(
             BindToken::fromDn(
                 'CN=Admin,DC=foo,DC=bar',
-                'secret',
             ),
             $this->targetDn,
         ));
@@ -61,7 +59,6 @@ final class DnSubjectMatcherTest extends TestCase
         self::assertFalse($subject->matches(
             BindToken::fromDn(
                 'cn=other,dc=foo,dc=bar',
-                'secret',
             ),
             $this->targetDn,
         ));

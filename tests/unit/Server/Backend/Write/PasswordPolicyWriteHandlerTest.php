@@ -348,7 +348,6 @@ final class PasswordPolicyWriteHandlerTest extends TestCase
         return new WriteContext(
             BindToken::fromDn(
                 self::USER_DN,
-                'original-pass',
             ),
             new ControlBag(),
         );
