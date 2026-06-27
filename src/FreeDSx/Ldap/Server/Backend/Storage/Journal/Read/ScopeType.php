@@ -11,17 +11,16 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace FreeDSx\Ldap\Server\Backend\Storage\Journal;
+namespace FreeDSx\Ldap\Server\Backend\Storage\Journal\Read;
 
 /**
- * The kind of write a change-journal record captures.
+ * The DIT extent a change stream covers.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-enum ChangeType: string
+enum ScopeType
 {
-    case Add = 'add';
-    case Modify = 'modify';
-    case Delete = 'delete';
-    case ModRdn = 'modrdn';
+    case BaseObject;
+    case OneLevel;
+    case WholeSubtree;
 }

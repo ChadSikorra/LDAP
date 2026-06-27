@@ -11,7 +11,10 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace FreeDSx\Ldap\Server\Backend\Storage\Journal;
+namespace FreeDSx\Ldap\Server\Backend\Storage\Journal\Read;
+
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeRecord;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
 
 /**
  * Read-only view over the journal: the seam the audit sink and RFC 4533 provider consume.

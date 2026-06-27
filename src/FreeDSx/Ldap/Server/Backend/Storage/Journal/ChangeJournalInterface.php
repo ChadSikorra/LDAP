@@ -13,6 +13,9 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Storage\Journal;
 
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeRecord;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
+
 /**
  * Append-only log of committed writes.
  *
@@ -40,4 +43,11 @@ interface ChangeJournalInterface
      * @api
      */
     public function latestSeq(): int;
+
+    /**
+     * Drop records that fall outside the policy; returns how many were removed. seq keeps climbing.
+     *
+     * @api
+     */
+    public function prune(RetentionPolicy $policy): int;
 }
