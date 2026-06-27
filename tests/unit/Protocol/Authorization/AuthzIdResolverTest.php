@@ -61,10 +61,9 @@ final class AuthzIdResolverTest extends TestCase
                 EventLogPolicy::all(),
             ),
         );
-        $this->boundToken = new BindToken(
+        $this->boundToken = BindToken::fromDn(
             self::ADMIN_DN,
             'secret',
-            new Dn(self::ADMIN_DN),
         );
     }
 

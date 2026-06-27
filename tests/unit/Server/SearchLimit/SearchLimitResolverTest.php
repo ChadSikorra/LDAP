@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Server\SearchLimit;
 
-use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
 use FreeDSx\Ldap\Server\SearchLimit\SearchLimitResolver;
 use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRule;
@@ -96,10 +95,9 @@ final class SearchLimitResolverTest extends TestCase
 
     private function authenticatedToken(): BindToken
     {
-        return new BindToken(
+        return BindToken::fromDn(
             'cn=user,dc=foo,dc=bar',
             '12345',
-            new Dn('cn=user,dc=foo,dc=bar'),
         );
     }
 }

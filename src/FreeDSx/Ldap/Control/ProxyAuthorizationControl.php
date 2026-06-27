@@ -15,7 +15,9 @@ namespace FreeDSx\Ldap\Control;
 
 use FreeDSx\Asn1\Type\AbstractType;
 use FreeDSx\Asn1\Type\SequenceType;
+use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Exception\ProtocolException;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 
 /**
  * Represents a proxied authorization control. RFC 4370.
@@ -26,10 +28,16 @@ use FreeDSx\Ldap\Exception\ProtocolException;
  */
 final class ProxyAuthorizationControl extends Control
 {
+    private string $rawAuthzId;
+
+    private ?AuthzId $authzId;
+
     public function __construct(
-        private string $authzId = '',
+        AuthzId $authzId,
         bool $criticality = true,
     ) {
+        $this->setAuthzId($authzId);
+
         parent::__construct(
             self::OID_PROXY_AUTHORIZATION,
             $criticality,
@@ -37,23 +45,34 @@ final class ProxyAuthorizationControl extends Control
     }
 
     /**
-     * The authorization identity to assume: an authzId ("dn:..." / "u:..."), or empty for anonymous.
+     * The authorization identity to assume; lazily parsed from the raw value when decoded from a request.
+     *
+     * @throws InvalidArgumentException when the raw wire value is not a valid authzId form (e.g. a malformed request)
      */
-    public function getAuthzId(): string
+    public function getAuthzId(): AuthzId
     {
-        return $this->authzId;
+        return $this->authzId ??= AuthzId::fromString($this->rawAuthzId);
     }
 
-    public function setAuthzId(string $authzId): self
+    /**
+     * The raw authzId wire value, which may be an invalid form when decoded from a request.
+     */
+    public function getRawAuthzId(): string
+    {
+        return $this->rawAuthzId;
+    }
+
+    public function setAuthzId(AuthzId $authzId): self
     {
         $this->authzId = $authzId;
+        $this->rawAuthzId = $authzId->toString();
 
         return $this;
     }
 
     public function toAsn1(): SequenceType
     {
-        $this->controlValue = $this->authzId;
+        $this->controlValue = $this->rawAuthzId;
 
         return parent::toAsn1();
     }
@@ -73,10 +92,23 @@ final class ProxyAuthorizationControl extends Control
         }
 
         [1 => $criticality, 2 => $authzId] = self::parseAsn1ControlValues($type);
+        $rawAuthzId = $authzId ?? '';
 
-        return new static(
-            $authzId ?? '',
-            $criticality,
-        );
+        try {
+            return new static(
+                AuthzId::fromString($rawAuthzId),
+                $criticality,
+            );
+        } catch (InvalidArgumentException) {
+            // Preserve a malformed value so it surfaces as an authorization denial rather than a decode failure.
+            $control = new static(
+                AuthzId::anonymous(),
+                $criticality,
+            );
+            $control->rawAuthzId = $rawAuthzId;
+            $control->authzId = null;
+
+            return $control;
+        }
     }
 }

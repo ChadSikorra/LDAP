@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\Authorization;
 
-use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\Authorization\DispatchAuthorization;
 use FreeDSx\Ldap\Server\Token\BindToken;
@@ -23,10 +22,9 @@ final class DispatchAuthorizationTest extends TestCase
 {
     public function test_proceed_carries_the_effective_token(): void
     {
-        $token = new BindToken(
+        $token = BindToken::fromDn(
             'cn=alice,dc=example,dc=com',
             'secret',
-            new Dn('cn=alice,dc=example,dc=com'),
         );
 
         $authorization = DispatchAuthorization::proceed($token);

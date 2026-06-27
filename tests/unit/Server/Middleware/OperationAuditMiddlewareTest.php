@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Server\Middleware;
 
-use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\SchemaRuleException;
@@ -55,10 +54,9 @@ final class OperationAuditMiddlewareTest extends TestCase
         )));
         $this->context = new ServerRequestContext(
             new LdapMessageRequest(1, new AddRequest(Entry::create('cn=foo,dc=bar'))),
-            new BindToken(
+            BindToken::fromDn(
                 'cn=alice,dc=bar',
                 'secret',
-                new Dn('cn=alice,dc=bar'),
             ),
         );
     }
@@ -206,10 +204,9 @@ final class OperationAuditMiddlewareTest extends TestCase
     {
         return new ServerRequestContext(
             new LdapMessageRequest(1, $request),
-            new BindToken(
+            BindToken::fromDn(
                 'cn=alice,dc=bar',
                 'secret',
-                new Dn('cn=alice,dc=bar'),
             ),
         );
     }

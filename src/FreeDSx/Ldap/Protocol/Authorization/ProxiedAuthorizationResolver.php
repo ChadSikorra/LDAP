@@ -89,21 +89,19 @@ final readonly class ProxiedAuthorizationResolver
             );
         }
 
-        $rawAuthzId = $control->getAuthzId();
-
         if (!$token instanceof AuthenticatedTokenInterface) {
             $this->authzIdResolver->deny(
                 $token,
-                $rawAuthzId,
+                $control->getRawAuthzId(),
             );
         }
 
         try {
-            $authzId = AuthzId::fromString($rawAuthzId);
+            $authzId = $control->getAuthzId();
         } catch (InvalidArgumentException) {
             $this->authzIdResolver->deny(
                 $token,
-                $rawAuthzId,
+                $control->getRawAuthzId(),
             );
         }
 

@@ -7,23 +7,33 @@ namespace Tests\Unit\FreeDSx\Ldap\Control;
 use FreeDSx\Asn1\Asn1;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ProxyAuthorizationControl;
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Exception\InvalidArgumentException;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzIdType;
 use PHPUnit\Framework\TestCase;
 
 final class ProxyAuthorizationControlTest extends TestCase
 {
     public function test_it_defaults_to_an_empty_anonymous_authz_id(): void
     {
-        self::assertSame(
-            '',
-            (new ProxyAuthorizationControl())->getAuthzId(),
-        );
+        $control = new ProxyAuthorizationControl(AuthzId::anonymous());
+
+        self::assertSame('', $control->getRawAuthzId());
+        self::assertTrue($control->getAuthzId()->isType(AuthzIdType::Anonymous));
     }
 
     public function test_it_exposes_the_authz_id(): void
     {
+        $control = new ProxyAuthorizationControl(AuthzId::fromDn(new Dn('cn=foo,dc=example,dc=com')));
+
         self::assertSame(
             'dn:cn=foo,dc=example,dc=com',
-            (new ProxyAuthorizationControl('dn:cn=foo,dc=example,dc=com'))->getAuthzId(),
+            $control->getRawAuthzId(),
+        );
+        self::assertSame(
+            'dn:cn=foo,dc=example,dc=com',
+            $control->getAuthzId()->toString(),
         );
     }
 
@@ -31,13 +41,13 @@ final class ProxyAuthorizationControlTest extends TestCase
     {
         self::assertSame(
             Control::OID_PROXY_AUTHORIZATION,
-            (new ProxyAuthorizationControl())->getTypeOid(),
+            (new ProxyAuthorizationControl(AuthzId::anonymous()))->getTypeOid(),
         );
     }
 
     public function test_it_is_critical_by_default(): void
     {
-        self::assertTrue((new ProxyAuthorizationControl('u:bob'))->getCriticality());
+        self::assertTrue((new ProxyAuthorizationControl(AuthzId::fromUsername('bob')))->getCriticality());
     }
 
     public function test_it_preserves_a_non_critical_flag_from_asn1(): void
@@ -59,7 +69,7 @@ final class ProxyAuthorizationControlTest extends TestCase
                 Asn1::boolean(true),
                 Asn1::octetString('dn:cn=foo,dc=example,dc=com'),
             ),
-            (new ProxyAuthorizationControl('dn:cn=foo,dc=example,dc=com'))->toAsn1(),
+            (new ProxyAuthorizationControl(AuthzId::fromDn(new Dn('cn=foo,dc=example,dc=com'))))->toAsn1(),
         );
     }
 
@@ -71,7 +81,7 @@ final class ProxyAuthorizationControlTest extends TestCase
                 Asn1::boolean(true),
                 Asn1::octetString(''),
             ),
-            (new ProxyAuthorizationControl())->toAsn1(),
+            (new ProxyAuthorizationControl(AuthzId::anonymous()))->toAsn1(),
         );
     }
 
@@ -85,7 +95,11 @@ final class ProxyAuthorizationControlTest extends TestCase
 
         self::assertSame(
             'u:bob',
-            $control->getAuthzId(),
+            $control->getRawAuthzId(),
+        );
+        self::assertSame(
+            'u:bob',
+            $control->getAuthzId()->toString(),
         );
         self::assertTrue($control->getCriticality());
         self::assertSame(
@@ -104,7 +118,25 @@ final class ProxyAuthorizationControlTest extends TestCase
 
         self::assertSame(
             '',
-            $control->getAuthzId(),
+            $control->getRawAuthzId(),
         );
+    }
+
+    public function test_it_defers_a_malformed_authz_id_until_it_is_read(): void
+    {
+        $control = ProxyAuthorizationControl::fromAsn1(Asn1::sequence(
+            Asn1::octetString(Control::OID_PROXY_AUTHORIZATION),
+            Asn1::boolean(true),
+            Asn1::octetString('mail:bob@example.com'),
+        ));
+
+        self::assertSame(
+            'mail:bob@example.com',
+            $control->getRawAuthzId(),
+        );
+
+        $this->expectException(InvalidArgumentException::class);
+
+        $control->getAuthzId();
     }
 }

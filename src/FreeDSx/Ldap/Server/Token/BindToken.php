@@ -14,11 +14,12 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Token;
 
 use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Server\Utility\Uuid;
 use SensitiveParameter;
 
 /**
- * Represents a username/password token that is bound and authorized.
+ * Represents a bound and authorized identity, identified by its authorization identity (authzId).
  *
  * @api
  *
@@ -28,9 +29,9 @@ class BindToken implements AuthenticatedTokenInterface
 {
     private string $id;
 
-    private string $username;
-
     private readonly Dn $resolvedDn;
+
+    private string $authcId;
 
     private string $password;
 
@@ -40,17 +41,21 @@ class BindToken implements AuthenticatedTokenInterface
 
     private readonly ?Dn $authorizingDn;
 
+    /**
+     * @param AuthzId $authzId the resolved authorization identity (its DN, or the username when it is not a DN)
+     * @param string|null $authcId the authentication identity as presented, for auditing; defaults to the authzId value
+     */
     public function __construct(
-        string $username,
+        private readonly AuthzId $authzId,
         #[SensitiveParameter]
-        string $password,
-        Dn $resolvedDn,
+        string $password = '',
+        ?string $authcId = null,
         int $version = 3,
         ?Dn $authorizingDn = null,
     ) {
         $this->id = Uuid::v4();
-        $this->username = $username;
-        $this->resolvedDn = $resolvedDn;
+        $this->resolvedDn = new Dn($authzId->getValue());
+        $this->authcId = $authcId ?? $authzId->getValue();
         $this->password = $password;
         $this->version = $version;
         $this->authorizingDn = $authorizingDn;
@@ -64,9 +69,9 @@ class BindToken implements AuthenticatedTokenInterface
         ?Dn $authorizingDn = null,
     ): self {
         return new self(
-            $dn,
+            AuthzId::fromDn(new Dn($dn)),
             $password,
-            new Dn($dn),
+            $dn,
             $version,
             $authorizingDn,
         );
@@ -82,9 +87,26 @@ class BindToken implements AuthenticatedTokenInterface
         ?Dn $authorizingDn = null,
     ): self {
         return new self(
-            $username,
+            AuthzId::fromDn($resolvedDn),
             '',
-            $resolvedDn,
+            $username,
+            $version,
+            $authorizingDn,
+        );
+    }
+
+    /**
+     * Creates a token for an identity that resolved to a bare username rather than a DN.
+     */
+    public static function fromUsername(
+        string $username,
+        int $version = 3,
+        ?Dn $authorizingDn = null,
+    ): self {
+        return new self(
+            AuthzId::fromUsername($username),
+            '',
+            $username,
             $version,
             $authorizingDn,
         );
@@ -95,9 +117,14 @@ class BindToken implements AuthenticatedTokenInterface
         return $this->id;
     }
 
+    public function getAuthzId(): AuthzId
+    {
+        return $this->authzId;
+    }
+
     public function getUsername(): ?string
     {
-        return $this->username;
+        return $this->authcId;
     }
 
     public function getPassword(): ?string
