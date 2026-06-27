@@ -50,9 +50,8 @@ final class SimpleBindTest extends TestCase
 
     public function test_it_should_return_a_token_on_success(): void
     {
-        $expectedToken = new BindToken(
+        $expectedToken = BindToken::fromSasl(
             'foo@bar',
-            'bar',
             new Dn('cn=foo,dc=bar'),
         );
 

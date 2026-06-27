@@ -15,12 +15,12 @@ namespace Tests\Unit\FreeDSx\Ldap\Protocol\Authorization;
 
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ProxyAuthorizationControl;
-use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\DeleteRequest;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Protocol\Authorization\DispatchAuthorizer;
 use FreeDSx\Ldap\Protocol\Authorization\AuthzIdResolver;
 use FreeDSx\Ldap\Protocol\Authorization\ProxiedAuthorizationResolver;
@@ -156,7 +156,7 @@ final class DispatchAuthorizerTest extends TestCase
             ->willReturn(new Entry(self::PROXIED_DN));
 
         $authorization = $this->subject->authorize($this->message(
-            new ProxyAuthorizationControl('dn:' . self::PROXIED_DN),
+            new ProxyAuthorizationControl(AuthzId::fromString('dn:' . self::PROXIED_DN)),
         ));
 
         $effective = $authorization->token();
@@ -192,16 +192,15 @@ final class DispatchAuthorizerTest extends TestCase
         $this->expectExceptionCode(ResultCode::AUTHORIZATION_DENIED);
 
         $this->subject->authorize($this->message(
-            new ProxyAuthorizationControl('dn:' . self::PROXIED_DN),
+            new ProxyAuthorizationControl(AuthzId::fromString('dn:' . self::PROXIED_DN)),
         ));
     }
 
     private function boundToken(): BindToken
     {
-        return new BindToken(
+        return BindToken::fromDn(
             self::BOUND_DN,
             'secret',
-            new Dn(self::BOUND_DN),
         );
     }
 

@@ -62,6 +62,11 @@ final readonly class AuthzId
         };
     }
 
+    public static function anonymous(): self
+    {
+        return new self(AuthzIdType::Anonymous);
+    }
+
     public static function fromDn(Dn $dn): self
     {
         return new self(

@@ -15,6 +15,7 @@ namespace Tests\Integration\FreeDSx\Ldap\Security;
 
 use FreeDSx\Ldap\Controls;
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Operations;
@@ -62,7 +63,7 @@ final class LdapProxiedAuthorizationControlTest extends ServerTestCase
 
         $response = $this->ldapClient()->send(
             Operations::whoami(),
-            Controls::proxyAuthorization('dn:' . self::PROXIED_DN),
+            Controls::proxyAuthorization(AuthzId::fromString('dn:' . self::PROXIED_DN)),
         );
 
         self::assertNotNull($response);
@@ -95,7 +96,7 @@ final class LdapProxiedAuthorizationControlTest extends ServerTestCase
             Operations::search(Filters::equal('cn', 'alice'))
                 ->base('dc=foo,dc=bar')
                 ->useSubtreeScope(),
-            Controls::proxyAuthorization('dn:' . self::PROXIED_DN),
+            Controls::proxyAuthorization(AuthzId::fromString('dn:' . self::PROXIED_DN)),
         );
 
         self::assertCount(1, $entries);
@@ -116,7 +117,7 @@ final class LdapProxiedAuthorizationControlTest extends ServerTestCase
             Operations::search(Filters::present('objectClass'))
                 ->base('dc=foo,dc=bar')
                 ->useSubtreeScope(),
-            Controls::proxyAuthorization('dn:cn=user,dc=foo,dc=bar'),
+            Controls::proxyAuthorization(AuthzId::fromString('dn:cn=user,dc=foo,dc=bar')),
         );
     }
 }

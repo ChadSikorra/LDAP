@@ -31,6 +31,7 @@ use FreeDSx\Ldap\Control\Sorting\SortKey;
 use FreeDSx\Ldap\Control\SubentriesControl;
 use FreeDSx\Ldap\Control\Sync\SyncRequestControl;
 use FreeDSx\Ldap\Control\Vlv\VlvControl;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Protocol\ProtocolElementInterface;
 use FreeDSx\Ldap\Search\Filter\FilterInterface;
 use FreeDSx\Ldap\Search\Filter\GreaterThanOrEqualFilter;
@@ -184,9 +185,9 @@ class Controls
     }
 
     /**
-     * Create a Proxied Authorization control to run the operation as the given authzId ("dn:..." / "u:...", or empty for anonymous).
+     * Create a Proxied Authorization control to run the operation as the given authzId (use AuthzId::anonymous() for anonymous).
      */
-    public static function proxyAuthorization(string $authzId = ''): ProxyAuthorizationControl
+    public static function proxyAuthorization(AuthzId $authzId): ProxyAuthorizationControl
     {
         return new ProxyAuthorizationControl($authzId);
     }

@@ -93,10 +93,9 @@ final class EventLoggerTest extends TestCase
 
     public function test_record_includes_authorized_by_for_a_proxied_subject(): void
     {
-        $token = new BindToken(
+        $token = BindToken::fromDn(
             'cn=alice,dc=example,dc=com',
             '',
-            new Dn('cn=alice,dc=example,dc=com'),
             3,
             new Dn('cn=admin,dc=example,dc=com'),
         );
@@ -131,10 +130,9 @@ final class EventLoggerTest extends TestCase
 
     public function test_record_omits_authorized_by_for_a_non_proxied_subject(): void
     {
-        $token = new BindToken(
+        $token = BindToken::fromDn(
             'cn=alice,dc=example,dc=com',
             'secret',
-            new Dn('cn=alice,dc=example,dc=com'),
         );
 
         $this->mockLogger

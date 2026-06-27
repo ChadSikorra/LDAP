@@ -13,10 +13,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\Authorization;
 
+use FreeDSx\Asn1\Asn1;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Control\ProxyAuthorizationControl;
-use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Operation\Request\DeleteRequest;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Protocol\Authorization\AuthzIdResolver;
 use FreeDSx\Ldap\Protocol\Authorization\ProxiedAuthorizationResolver;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
@@ -75,10 +76,9 @@ final class ProxiedAuthorizationResolverTest extends TestCase
                 ),
             ),
         );
-        $this->boundToken = new BindToken(
+        $this->boundToken = BindToken::fromDn(
             self::ADMIN_DN,
             'secret',
-            new Dn(self::ADMIN_DN),
         );
     }
 
@@ -105,7 +105,7 @@ final class ProxiedAuthorizationResolverTest extends TestCase
 
         $result = $this->subject->resolve(
             $this->eligibleRequest(),
-            new ControlBag(new ProxyAuthorizationControl('dn:' . self::PROXIED_DN)),
+            new ControlBag(new ProxyAuthorizationControl(AuthzId::fromString('dn:' . self::PROXIED_DN))),
             $this->boundToken,
         );
 
@@ -132,7 +132,7 @@ final class ProxiedAuthorizationResolverTest extends TestCase
 
         $result = $this->subject->resolve(
             $this->eligibleRequest(),
-            new ControlBag(new ProxyAuthorizationControl('u:alice')),
+            new ControlBag(new ProxyAuthorizationControl(AuthzId::fromString('u:alice'))),
             $this->boundToken,
         );
 
@@ -152,7 +152,7 @@ final class ProxiedAuthorizationResolverTest extends TestCase
 
         $result = $this->subject->resolve(
             $this->eligibleRequest(),
-            new ControlBag(new ProxyAuthorizationControl('')),
+            new ControlBag(new ProxyAuthorizationControl(AuthzId::anonymous())),
             $this->boundToken,
         );
 
@@ -179,7 +179,7 @@ final class ProxiedAuthorizationResolverTest extends TestCase
             ->method('resolve');
 
         $this->assertDeniesWith(
-            new ProxyAuthorizationControl('dn:' . self::PROXIED_DN),
+            new ProxyAuthorizationControl(AuthzId::fromString('dn:' . self::PROXIED_DN)),
             'dn:' . self::PROXIED_DN,
         );
     }
@@ -198,7 +198,7 @@ final class ProxiedAuthorizationResolverTest extends TestCase
             ));
 
         $this->assertDeniesWith(
-            new ProxyAuthorizationControl('dn:' . self::PROXIED_DN),
+            new ProxyAuthorizationControl(AuthzId::fromString('dn:' . self::PROXIED_DN)),
             'dn:' . self::PROXIED_DN,
         );
     }
@@ -211,7 +211,7 @@ final class ProxiedAuthorizationResolverTest extends TestCase
             ->willReturn(null);
 
         $this->assertDeniesWith(
-            new ProxyAuthorizationControl('dn:' . self::PROXIED_DN),
+            new ProxyAuthorizationControl(AuthzId::fromString('dn:' . self::PROXIED_DN)),
             'dn:' . self::PROXIED_DN,
         );
     }
@@ -224,7 +224,7 @@ final class ProxiedAuthorizationResolverTest extends TestCase
             ->willThrowException(new InvalidArgumentException('The DN value is not valid.'));
 
         $this->assertDeniesWith(
-            new ProxyAuthorizationControl('dn:not a dn'),
+            new ProxyAuthorizationControl(AuthzId::fromString('dn:not a dn')),
             'dn:not a dn',
         );
     }
@@ -233,8 +233,13 @@ final class ProxiedAuthorizationResolverTest extends TestCase
     {
         $this->grantProxyCapability();
 
+        // A malformed authzId form can only originate from the wire, so build it via fromAsn1.
         $this->assertDeniesWith(
-            new ProxyAuthorizationControl('mail:alice@example.com'),
+            ProxyAuthorizationControl::fromAsn1(Asn1::sequence(
+                Asn1::octetString(Control::OID_PROXY_AUTHORIZATION),
+                Asn1::boolean(true),
+                Asn1::octetString('mail:alice@example.com'),
+            )),
             'mail:alice@example.com',
         );
     }
@@ -244,7 +249,7 @@ final class ProxiedAuthorizationResolverTest extends TestCase
         try {
             $this->subject->resolve(
                 $this->eligibleRequest(),
-                new ControlBag(new ProxyAuthorizationControl('dn:' . self::PROXIED_DN)),
+                new ControlBag(new ProxyAuthorizationControl(AuthzId::fromString('dn:' . self::PROXIED_DN))),
                 new AnonToken(),
             );
             self::fail('Expected an OperationException.');
@@ -264,7 +269,7 @@ final class ProxiedAuthorizationResolverTest extends TestCase
         try {
             $this->subject->resolve(
                 new ExtendedRequest($extendedOid),
-                new ControlBag(new ProxyAuthorizationControl('dn:' . self::PROXIED_DN)),
+                new ControlBag(new ProxyAuthorizationControl(AuthzId::fromString('dn:' . self::PROXIED_DN))),
                 $this->boundToken,
             );
             self::fail('Expected an OperationException.');
@@ -298,7 +303,7 @@ final class ProxiedAuthorizationResolverTest extends TestCase
             $this->subject->resolve(
                 $this->eligibleRequest(),
                 new ControlBag(new ProxyAuthorizationControl(
-                    'dn:' . self::PROXIED_DN,
+                    AuthzId::fromString('dn:' . self::PROXIED_DN),
                     false,
                 )),
                 $this->boundToken,
@@ -323,8 +328,8 @@ final class ProxiedAuthorizationResolverTest extends TestCase
             $this->subject->resolve(
                 $this->eligibleRequest(),
                 new ControlBag(
-                    new ProxyAuthorizationControl('dn:' . self::PROXIED_DN),
-                    new ProxyAuthorizationControl('u:alice'),
+                    new ProxyAuthorizationControl(AuthzId::fromString('dn:' . self::PROXIED_DN)),
+                    new ProxyAuthorizationControl(AuthzId::fromString('u:alice')),
                 ),
                 $this->boundToken,
             );

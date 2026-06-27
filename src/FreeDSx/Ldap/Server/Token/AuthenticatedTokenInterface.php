@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Token;
 
 use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 
 /**
  * Implemented by tokens that represent a successfully authenticated identity with a resolved DN.
@@ -23,6 +24,11 @@ use FreeDSx\Ldap\Entry\Dn;
 interface AuthenticatedTokenInterface extends TokenInterface
 {
     public function getResolvedDn(): Dn;
+
+    /**
+     * The bound identity as an authorization identity: the resolved DN, or the username when it is not a DN.
+     */
+    public function getAuthzId(): AuthzId;
 
     /**
      * Whether the bound identity must change its password before any other operation is permitted (pwdReset).

@@ -81,9 +81,8 @@ final class ServerWhoAmIHandlerTest extends TestCase
 
         $this->subject->handleRequest(
             $request,
-            new BindToken(
+            BindToken::fromSasl(
                 'uid=alice',
-                '12345',
                 new Dn('cn=Alice,dc=example,dc=com'),
             ),
         );
@@ -103,9 +102,8 @@ final class ServerWhoAmIHandlerTest extends TestCase
 
         $this->subject->handleRequest(
             $request,
-            BindToken::fromDn(
+            BindToken::fromUsername(
                 'foo@bar.local',
-                '12345',
             ),
         );
     }

@@ -63,10 +63,9 @@ final class OperationAuditorTest extends TestCase
             $this->recordingLogger,
             EventLogPolicy::all(),
         ));
-        $this->token = new BindToken(
+        $this->token = BindToken::fromDn(
             self::ACTOR_DN,
             'secret',
-            new Dn(self::ACTOR_DN),
         );
     }
 

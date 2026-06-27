@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Server\Backend\Auth;
 
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
@@ -58,9 +59,9 @@ final class PasswordAuthenticator implements PasswordAuthenticatableInterface
         foreach ($attr->getValues() as $stored) {
             if ($this->hashService->verify($password, $stored)) {
                 return new BindToken(
-                    $name,
+                    AuthzId::fromDn($entry->getDn()),
                     $password,
-                    $entry->getDn(),
+                    $name,
                 );
             }
         }
