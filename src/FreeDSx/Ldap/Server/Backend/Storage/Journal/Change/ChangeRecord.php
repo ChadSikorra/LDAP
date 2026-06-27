@@ -11,9 +11,10 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace FreeDSx\Ldap\Server\Backend\Storage\Journal;
+namespace FreeDSx\Ldap\Server\Backend\Storage\Journal\Change;
 
 use DateTimeImmutable;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ReplicaId;
 
 /**
  * A PendingChange stamped by the journal.

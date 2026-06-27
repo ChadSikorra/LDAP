@@ -11,16 +11,16 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Tests\Unit\FreeDSx\Ldap\Server\Backend\Storage\Journal;
+namespace Tests\Unit\FreeDSx\Ldap\Server\Backend\Storage\Journal\Read;
 
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeRecord;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeScope;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeStream;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeType;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeRecord;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeType;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\InMemoryChangeJournal;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\PendingChange;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeScope;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
 use PHPUnit\Framework\TestCase;
 
 final class ChangeStreamTest extends TestCase

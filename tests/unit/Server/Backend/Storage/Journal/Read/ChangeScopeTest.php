@@ -11,10 +11,10 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Tests\Unit\FreeDSx\Ldap\Server\Backend\Storage\Journal;
+namespace Tests\Unit\FreeDSx\Ldap\Server\Backend\Storage\Journal\Read;
 
 use FreeDSx\Ldap\Entry\Dn;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeScope;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeScope;
 use PHPUnit\Framework\TestCase;
 
 final class ChangeScopeTest extends TestCase

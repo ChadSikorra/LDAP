@@ -11,7 +11,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Tests\Unit\FreeDSx\Ldap\Server\Backend\Storage\Journal;
+namespace Tests\Unit\FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture;
 
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Entry\Attribute;
@@ -20,9 +20,9 @@ use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Schema\Definition\AttributeTypeOid;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeRecord;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeRecorder;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeType;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeRecorder;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeRecord;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeType;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\InMemoryChangeJournal;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Token\BindToken;

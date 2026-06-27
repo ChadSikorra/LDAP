@@ -11,17 +11,17 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace FreeDSx\Ldap\Server\Backend\Storage\Journal;
+namespace FreeDSx\Ldap\Server\Backend\Storage\Journal\Change;
 
 /**
- * Append a change within the active write boundary.
+ * The kind of write a change-journal record captures.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-interface ChangeJournalingInterface
+enum ChangeType: string
 {
-    /**
-     * Append a change to the journal within the currently active write boundary.
-     */
-    public function appendChange(PendingChange $change): void;
+    case Add = 'add';
+    case Modify = 'modify';
+    case Delete = 'delete';
+    case ModRdn = 'modrdn';
 }

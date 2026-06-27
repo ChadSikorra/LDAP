@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Storage\Journal;
 
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeRecord;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
 use FreeDSx\Ldap\Server\Clock\ClockInterface;
 use FreeDSx\Ldap\Server\Clock\SystemClock;
 
@@ -60,5 +62,30 @@ final class InMemoryChangeJournal implements ChangeJournalInterface
     public function latestSeq(): int
     {
         return $this->seq;
+    }
+
+    public function prune(RetentionPolicy $policy): int
+    {
+        $before = count($this->records);
+        $records = $this->records;
+
+        if ($policy->maxRecords !== null && count($records) > $policy->maxRecords) {
+            $records = array_slice(
+                $records,
+                count($records) - $policy->maxRecords,
+            );
+        }
+
+        if ($policy->maxAgeSeconds !== null) {
+            $oldest = $this->clock->now()->getTimestamp() - $policy->maxAgeSeconds;
+            $records = array_filter(
+                $records,
+                static fn(ChangeRecord $record): bool => $record->createdAt->getTimestamp() >= $oldest,
+            );
+        }
+
+        $this->records = array_values($records);
+
+        return $before - count($this->records);
     }
 }
