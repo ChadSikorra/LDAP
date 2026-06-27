@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Token;
 
 use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Server\Utility\Uuid;
 
 /**
@@ -33,6 +34,8 @@ class AnonToken implements TokenInterface
 
     private readonly ?Dn $authorizingDn;
 
+    private readonly AuthzId $authzId;
+
     public function __construct(
         ?string $username = null,
         int $version = 3,
@@ -42,6 +45,7 @@ class AnonToken implements TokenInterface
         $this->username = $username;
         $this->version = $version;
         $this->authorizingDn = $authorizingDn;
+        $this->authzId = AuthzId::anonymous();
     }
 
     public function getId(): string
@@ -52,6 +56,11 @@ class AnonToken implements TokenInterface
     public function getUsername(): ?string
     {
         return $this->username;
+    }
+
+    public function getAuthzId(): AuthzId
+    {
+        return $this->authzId;
     }
 
     public function getVersion(): int

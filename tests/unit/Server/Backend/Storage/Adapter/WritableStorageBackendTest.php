@@ -29,6 +29,11 @@ use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeRecord;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeRecorder;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeType;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\InMemoryChangeJournal;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\PendingChange;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\InvalidAttributeException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\TimeLimitExceededException;
@@ -1789,6 +1794,134 @@ final class WritableStorageBackendTest extends TestCase
         );
     }
 
+    public function test_add_is_journaled_when_a_recorder_is_set(): void
+    {
+        [$backend, $journal] = $this->journalingBackend();
+        $backend->add(
+            new AddCommand(new Entry(new Dn('cn=New,dc=example,dc=com'), new Attribute('cn', 'New'))),
+            $this->context(),
+        );
+
+        $records = iterator_to_array($journal->read());
+        self::assertCount(
+            1,
+            $records,
+        );
+        self::assertSame(
+            ChangeType::Add,
+            $records[0]->change->changeType,
+        );
+        self::assertNotSame(
+            '',
+            $records[0]->change->entryUuid,
+        );
+    }
+
+    public function test_modify_is_journaled(): void
+    {
+        [$backend, $journal] = $this->journalingBackend();
+        $this->seedJournaled($backend, 'cn=New,dc=example,dc=com');
+
+        $backend->update(
+            new UpdateCommand(
+                new Dn('cn=New,dc=example,dc=com'),
+                [new Change(Change::TYPE_ADD, 'mail', 'new@example.com')],
+            ),
+            $this->context(),
+        );
+
+        self::assertSame(
+            ChangeType::Modify,
+            $this->lastChange($journal)->changeType,
+        );
+    }
+
+    public function test_delete_is_journaled_with_a_pre_image(): void
+    {
+        [$backend, $journal] = $this->journalingBackend();
+        $this->seedJournaled($backend, 'cn=New,dc=example,dc=com');
+
+        $backend->delete(
+            new DeleteCommand(new Dn('cn=New,dc=example,dc=com')),
+            $this->context(),
+        );
+
+        $change = $this->lastChange($journal);
+        self::assertSame(
+            ChangeType::Delete,
+            $change->changeType,
+        );
+        self::assertNotNull($change->preImage);
+    }
+
+    public function test_modrdn_is_journaled_with_the_previous_dn(): void
+    {
+        [$backend, $journal] = $this->journalingBackend();
+        $this->seedJournaled($backend, 'cn=New,dc=example,dc=com');
+
+        $backend->move(
+            new MoveCommand(
+                new Dn('cn=New,dc=example,dc=com'),
+                Rdn::create('cn=Renamed'),
+                true,
+                null,
+            ),
+            $this->context(),
+        );
+
+        $change = $this->lastChange($journal);
+        self::assertSame(
+            ChangeType::ModRdn,
+            $change->changeType,
+        );
+        self::assertSame(
+            'cn=New,dc=example,dc=com',
+            $change->previousDn?->toString(),
+        );
+    }
+
+    public function test_subtree_delete_is_journaled_per_entry(): void
+    {
+        [$backend, $journal] = $this->journalingBackend();
+        $this->seedJournaled($backend, 'ou=people,dc=example,dc=com');
+        $this->seedJournaled($backend, 'cn=New,ou=people,dc=example,dc=com');
+
+        $backend->deleteSubtree(
+            new DeleteCommand(new Dn('ou=people,dc=example,dc=com')),
+            $this->context(),
+            static fn(): null => null,
+        );
+
+        $deletes = array_filter(
+            iterator_to_array($journal->read()),
+            static fn(ChangeRecord $record): bool => $record->change->changeType === ChangeType::Delete,
+        );
+        self::assertCount(
+            2,
+            $deletes,
+        );
+    }
+
+    public function test_nothing_is_journaled_without_a_recorder(): void
+    {
+        $journal = new InMemoryChangeJournal();
+        $storage = new InMemoryStorage(
+            [new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example'))],
+            $journal,
+        );
+        $backend = new WritableStorageBackend(storage: $storage);
+
+        $backend->add(
+            new AddCommand(new Entry(new Dn('cn=New,dc=example,dc=com'), new Attribute('cn', 'New'))),
+            $this->context(),
+        );
+
+        self::assertSame(
+            0,
+            $journal->latestSeq(),
+        );
+    }
+
     private function aliasEntry(): Entry
     {
         return new Entry(
@@ -1796,6 +1929,51 @@ final class WritableStorageBackendTest extends TestCase
             new Attribute('objectClass', 'alias'),
             new Attribute('aliasedObjectName', 'cn=Alice,dc=example,dc=com'),
         );
+    }
+
+    /**
+     * @return array{WritableStorageBackend, InMemoryChangeJournal}
+     */
+    private function journalingBackend(): array
+    {
+        $journal = new InMemoryChangeJournal();
+        // Seed the naming context directly so only the operations under test are journaled.
+        $storage = new InMemoryStorage(
+            [new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example'))],
+            $journal,
+        );
+        $backend = new WritableStorageBackend(
+            storage: $storage,
+            changeRecorder: new ChangeRecorder(),
+        );
+
+        return [$backend, $journal];
+    }
+
+    private function seedJournaled(
+        WritableStorageBackend $backend,
+        string $dn,
+    ): void {
+        $backend->add(
+            new AddCommand(new Entry(
+                new Dn($dn),
+                new Attribute('objectClass', 'person'),
+                new Attribute('cn', 'seed'),
+            )),
+            $this->context(),
+        );
+    }
+
+    private function lastChange(InMemoryChangeJournal $journal): PendingChange
+    {
+        $records = iterator_to_array($journal->read());
+        $last = end($records);
+        self::assertInstanceOf(
+            ChangeRecord::class,
+            $last,
+        );
+
+        return $last->change;
     }
 
     private function context(): WriteContext

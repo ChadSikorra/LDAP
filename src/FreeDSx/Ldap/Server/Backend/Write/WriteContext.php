@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Backend\Write;
 
 use FreeDSx\Ldap\Control\ControlBag;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -59,19 +60,17 @@ final readonly class WriteContext
         return $this->token->getUsername();
     }
 
-    public function isAnonymous(): bool
+    /**
+     * Effective authorization identity for this write.
+     */
+    public function getAuthzId(): AuthzId
     {
-        return $this->token->getUsername() === null;
+        return $this->token->getAuthzId();
     }
 
     public function isSystem(): bool
     {
         return $this->isSystem;
-    }
-
-    public function getLdapVersion(): int
-    {
-        return $this->token->getVersion();
     }
 
     public function getControls(): ControlBag

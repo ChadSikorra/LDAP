@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Token;
 
 use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Server\Utility\Uuid;
 
 /**
@@ -27,9 +28,12 @@ final readonly class SystemToken implements TokenInterface
 
     private string $id;
 
+    private AuthzId $authzId;
+
     public function __construct(private int $version = 3)
     {
         $this->id = Uuid::v4();
+        $this->authzId = AuthzId::fromDn(new Dn(self::IDENTITY));
     }
 
     public function getId(): string
@@ -40,6 +44,11 @@ final readonly class SystemToken implements TokenInterface
     public function getUsername(): string
     {
         return self::IDENTITY;
+    }
+
+    public function getAuthzId(): AuthzId
+    {
+        return $this->authzId;
     }
 
     public function getVersion(): int

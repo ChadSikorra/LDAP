@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Exception\SchemaRuleException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Operation\WriteEntryOperationHandler;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeRecorder;
 use FreeDSx\Ldap\Server\Backend\Write\Command\AddCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\MoveCommand;
@@ -62,6 +63,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         private readonly ?SchemaValidator $validator = null,
         private readonly OperationalAttributeGenerator $operationalAttrs = new OperationalAttributeGenerator(),
         private readonly WriteEntryOperationHandler $entryHandler = new WriteEntryOperationHandler(),
+        private readonly ?ChangeRecorder $changeRecorder = null,
     ) {
         $this->searchStream = new SearchStreamBuilder(
             $this->storage,
@@ -273,6 +275,11 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 $context,
             );
             $storage->store($command->entry);
+            $this->changeRecorder?->recordAdd(
+                $storage,
+                $command->entry,
+                $context,
+            );
         });
     }
 
@@ -283,9 +290,12 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         DeleteCommand $command,
         WriteContext $context,
     ): void {
-        $this->writeAtomic(function (EntryStorageInterface $storage) use ($command): void {
+        $this->writeAtomic(function (EntryStorageInterface $storage) use ($command, $context): void {
             $dn = $command->dn->normalize();
-            $this->findOrFail($storage, $dn);
+            $entry = $this->findOrFail(
+                $storage,
+                $dn,
+            );
 
             if ($storage->hasChildren($dn)) {
                 throw new OperationException(
@@ -303,6 +313,11 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             );
 
             $storage->remove($dn);
+            $this->changeRecorder?->recordDelete(
+                $storage,
+                $entry,
+                $context,
+            );
         });
     }
 
@@ -334,9 +349,20 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         }
 
         foreach (array_chunk($dns, self::SUBTREE_DELETE_BATCH_SIZE) as $batch) {
-            $this->writeAtomic(static function (EntryStorageInterface $storage) use ($batch): void {
+            $this->writeAtomic(function (EntryStorageInterface $storage) use ($batch, $context): void {
                 foreach ($batch as $dn) {
+                    $entry = $this->changeRecorder !== null
+                        ? $storage->find($dn)
+                        : null;
                     $storage->remove($dn);
+
+                    if ($entry !== null) {
+                        $this->changeRecorder->recordDelete(
+                            $storage,
+                            $entry,
+                            $context,
+                        );
+                    }
                 }
             });
         }
@@ -363,6 +389,11 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 $context,
             );
             $storage->store($updated);
+            $this->changeRecorder?->recordModify(
+                $storage,
+                $updated,
+                $context,
+            );
         });
     }
 
@@ -404,6 +435,12 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             );
             $storage->remove($normOld);
             $storage->store($newEntry);
+            $this->changeRecorder?->recordModRdn(
+                $storage,
+                $newEntry,
+                $command->dn,
+                $context,
+            );
         });
     }
 

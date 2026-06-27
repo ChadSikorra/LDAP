@@ -32,6 +32,14 @@ final class SystemTokenTest extends TestCase
         );
     }
 
+    public function test_its_authz_id_is_the_system_identity(): void
+    {
+        self::assertSame(
+            'cn=system',
+            (new SystemToken())->getAuthzId()->getValue(),
+        );
+    }
+
     public function test_it_defaults_to_ldap_v3(): void
     {
         self::assertSame(
