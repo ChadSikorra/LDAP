@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Token;
 
 use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 
 /**
  * Represents a generic authentication token.
@@ -27,6 +28,11 @@ interface TokenInterface
     public function getId(): string;
 
     public function getUsername(): ?string;
+
+    /**
+     * The effective authorization identity.
+     */
+    public function getAuthzId(): AuthzId;
 
     public function getVersion(): int;
 

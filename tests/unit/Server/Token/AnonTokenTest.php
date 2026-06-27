@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Server\Token;
 
+use FreeDSx\Ldap\Protocol\Authorization\AuthzIdType;
 use FreeDSx\Ldap\Server\Token\AnonToken;
 use PHPUnit\Framework\TestCase;
 
@@ -31,6 +32,11 @@ final class AnonTokenTest extends TestCase
             'foo',
             $this->subject->getUsername(),
         );
+    }
+
+    public function test_its_authz_id_is_anonymous_even_with_a_bind_name(): void
+    {
+        self::assertTrue($this->subject->getAuthzId()->isType(AuthzIdType::Anonymous));
     }
 
     public function test_it_should_get_the_version(): void

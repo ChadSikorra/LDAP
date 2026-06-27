@@ -18,6 +18,10 @@ use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Support\ArrayEntryStorageTrait;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalingInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\InMemoryChangeJournal;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\PendingChange;
 use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
 
 /**
@@ -25,7 +29,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class InMemoryStorage implements EntryStorageInterface
+final class InMemoryStorage implements EntryStorageInterface, ChangeJournalingInterface
 {
     use ArrayEntryStorageTrait;
 
@@ -34,11 +38,17 @@ final class InMemoryStorage implements EntryStorageInterface
      */
     private array $entries = [];
 
+    private readonly ChangeJournalInterface $journal;
+
     /**
      * @param Entry[] $entries pre-populated into the store
      */
-    public function __construct(array $entries = [])
-    {
+    public function __construct(
+        array $entries = [],
+        ?ChangeJournalInterface $journal = null,
+    ) {
+        $this->journal = $journal ?? new InMemoryChangeJournal();
+
         foreach ($entries as $entry) {
             $this->entries[$entry->getDn()->normalize()->toString()] = $entry;
         }
@@ -75,6 +85,11 @@ final class InMemoryStorage implements EntryStorageInterface
     public function atomic(callable $operation): void
     {
         $operation($this);
+    }
+
+    public function appendChange(PendingChange $change): void
+    {
+        $this->journal->append($change);
     }
 
     public function namingContexts(): array
