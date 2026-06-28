@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture;
 
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
 
 /**
  * Append a change within the active write boundary.
@@ -26,4 +27,9 @@ interface ChangeJournalingInterface
      * Append a change to the journal within the currently active write boundary.
      */
     public function appendChange(PendingChange $change): void;
+
+    /**
+     * The change journal, for reading recorded changes (e.g. the RFC 4533 sync provider).
+     */
+    public function changeJournal(): ChangeJournalInterface;
 }

@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Journal\Audit;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeRecord;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ReplicaId;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionPolicy;
 use FreeDSx\Ldap\Server\Logging\ExceptionLogging;
 use Psr\Log\LoggerInterface;
@@ -68,5 +69,10 @@ final class AuditingChangeJournal implements ChangeJournalInterface
     public function prune(RetentionPolicy $policy): int
     {
         return $this->journal->prune($policy);
+    }
+
+    public function origin(): ReplicaId
+    {
+        return $this->journal->origin();
     }
 }

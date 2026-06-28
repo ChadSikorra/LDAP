@@ -57,6 +57,7 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
         private readonly ServerQueue $queue,
         private readonly LdapBackendInterface $backend,
         private readonly ?RootDseHandlerInterface $rootDseHandler = null,
+        private readonly bool $supportsSync = false,
     ) {}
 
     /**
@@ -95,6 +96,12 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
             'supportedLDAPVersion' => ['3'],
             'vendorName' => $this->options->getDseVendorName(),
         ]);
+        if ($this->supportsSync) {
+            $entry->add(
+                'supportedControl',
+                Control::OID_SYNC_REQUEST,
+            );
+        }
         if ($this->options->getSslCert()) {
             $entry->add(
                 'supportedExtension',

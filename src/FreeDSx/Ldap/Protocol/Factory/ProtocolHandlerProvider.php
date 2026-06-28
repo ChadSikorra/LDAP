@@ -19,6 +19,10 @@ use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerProtocolHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
+use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
+use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
@@ -71,6 +75,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
             HandlerId::Subschema => $this->getSubschemaHandler(),
             HandlerId::Monitor => $this->getMonitorHandler(),
             HandlerId::Paging => $this->getPagingHandler($searchLimits),
+            HandlerId::Sync => $this->getSyncHandler($searchLimits),
             HandlerId::Search => $this->getSearchHandler($searchLimits),
             HandlerId::Unbind => new ServerProtocolHandler\ServerUnbindHandler($this->queue),
             HandlerId::Dispatch => $this->getDispatchHandler(),
@@ -133,6 +138,35 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
         );
     }
 
+    private function getSyncHandler(?SearchLimits $searchLimits): ServerProtocolHandler\ServerSyncHandler
+    {
+        $backend = $this->handlerFactory->makeBackend();
+
+        return new ServerProtocolHandler\ServerSyncHandler(
+            queue: $this->queue,
+            backend: $backend,
+            filterEvaluator: $this->options->getFilterEvaluator(),
+            accessControl: $this->options->getAccessControl(),
+            limits: $searchLimits ?? $this->options->makeSearchLimits(),
+            changeStream: $this->changeStreamFor($backend),
+        );
+    }
+
+    private function changeStreamFor(LdapBackendInterface $backend): ?ChangeStream
+    {
+        if (!$backend instanceof WritableStorageBackend) {
+            return null;
+        }
+
+        $storage = $backend->getStorage();
+
+        if (!$storage instanceof ChangeJournalingInterface) {
+            return null;
+        }
+
+        return new ChangeStream($storage->changeJournal());
+    }
+
     private function getDispatchHandler(): ServerProtocolHandler\ServerDispatchHandler
     {
         $policyWriteHandler = $this->policyComponentFactory->makeWriteHandler(
@@ -153,11 +187,14 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
 
     private function getRootDseHandler(): ServerProtocolHandler\ServerRootDseHandler
     {
+        $backend = $this->handlerFactory->makeBackend();
+
         return new ServerProtocolHandler\ServerRootDseHandler(
             options: $this->options,
             queue: $this->queue,
-            backend: $this->handlerFactory->makeBackend(),
+            backend: $backend,
             rootDseHandler: $this->handlerFactory->makeRootDseHandler(),
+            supportsSync: $this->changeStreamFor($backend) !== null,
         );
     }
 

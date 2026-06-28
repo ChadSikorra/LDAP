@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Journal\Read;
 
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeRecord;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ReplicaId;
 
 /**
  * Read-only view over the journal: the seam the audit sink and RFC 4533 provider consume.
@@ -53,5 +54,15 @@ final readonly class ChangeStream
     public function latestSeq(): int
     {
         return $this->journal->latestSeq();
+    }
+
+    /**
+     * The origin replica a sync cookie should be stamped with.
+     *
+     * @api
+     */
+    public function origin(): ReplicaId
+    {
+        return $this->journal->origin();
     }
 }

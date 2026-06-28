@@ -64,6 +64,11 @@ final class InMemoryChangeJournal implements ChangeJournalInterface
         return $this->seq;
     }
 
+    public function origin(): ReplicaId
+    {
+        return $this->origin;
+    }
+
     public function prune(RetentionPolicy $policy): int
     {
         $before = count($this->records);

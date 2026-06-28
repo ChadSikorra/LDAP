@@ -31,6 +31,7 @@ enum HandlerId: string
     case Subschema = 'subschema';
     case Monitor = 'monitor';
     case Paging = 'paging';
+    case Sync = 'sync';
     case Search = 'search';
     case Unbind = 'unbind';
     case Dispatch = 'dispatch';
