@@ -83,6 +83,7 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
                 Control::OID_PRE_READ,
                 Control::OID_POST_READ,
                 Control::OID_SUBTREE_DELETE,
+                Control::OID_SYNC_REQUEST,
             ],
             'supportedExtension' => [
                 ExtendedRequest::OID_WHOAMI,
