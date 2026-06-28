@@ -46,6 +46,7 @@ readonly class ServerProtocolHandlerFactory implements HandlerRouteResolverInter
             $this->isRootDseSearch($request) => HandlerId::RootDse,
             $this->isSubschemaSearch($request) => HandlerId::Subschema,
             $this->isMonitorSearch($request) => HandlerId::Monitor,
+            $this->isSyncSearch($request, $controls) => HandlerId::Sync,
             $this->isPagingSearch($request, $controls) => HandlerId::Paging,
             $request instanceof SearchRequest => HandlerId::Search,
             $request instanceof UnbindRequest => HandlerId::Unbind,
@@ -90,5 +91,13 @@ readonly class ServerProtocolHandlerFactory implements HandlerRouteResolverInter
     ): bool {
         return $request instanceof SearchRequest
             && $controls->has(Control::OID_PAGING);
+    }
+
+    private function isSyncSearch(
+        RequestInterface $request,
+        ControlBag $controls,
+    ): bool {
+        return $request instanceof SearchRequest
+            && $controls->has(Control::OID_SYNC_REQUEST);
     }
 }

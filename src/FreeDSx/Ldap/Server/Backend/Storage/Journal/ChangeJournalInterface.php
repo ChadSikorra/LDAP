@@ -50,4 +50,11 @@ interface ChangeJournalInterface
      * @api
      */
     public function prune(RetentionPolicy $policy): int;
+
+    /**
+     * The replica that authored this journal's records; the origin a sync cookie is stamped with.
+     *
+     * @api
+     */
+    public function origin(): ReplicaId;
 }

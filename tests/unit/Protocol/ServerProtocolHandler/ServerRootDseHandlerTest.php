@@ -133,6 +133,40 @@ final class ServerRootDseHandlerTest extends TestCase
         );
     }
 
+    public function test_it_advertises_the_sync_control_when_sync_is_enabled(): void
+    {
+        $this->subject = new ServerRootDseHandler(
+            $this->options,
+            $this->mockQueue,
+            $this->mockBackend,
+            null,
+            true,
+        );
+
+        $search = new LdapMessageRequest(
+            1,
+            (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope(),
+        );
+
+        $this->mockQueue
+            ->expects($this->once())
+            ->method('sendMessage')
+            ->with(
+                self::callback(function (LdapMessageResponse $response) {
+                    /** @var SearchResultEntry $result */
+                    $result = $response->getResponse();
+
+                    return $result->getEntry()->get('supportedControl')?->has(Control::OID_SYNC_REQUEST) === true;
+                }),
+                self::anything(),
+            );
+
+        $this->subject->handleRequest(
+            $search,
+            $this->mockToken,
+        );
+    }
+
     public function test_it_should_send_a_request_to_the_dispatcher_if_it_implements_a_rootdse_aware_interface(): void
     {
         $this->options->setDseVendorName('Foo');

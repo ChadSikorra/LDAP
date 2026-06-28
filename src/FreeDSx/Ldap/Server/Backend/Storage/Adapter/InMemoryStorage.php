@@ -92,6 +92,11 @@ final class InMemoryStorage implements EntryStorageInterface, ChangeJournalingIn
         $this->journal->append($change);
     }
 
+    public function changeJournal(): ChangeJournalInterface
+    {
+        return $this->journal;
+    }
+
     public function namingContexts(): array
     {
         return $this->namingContextsFromArray($this->entries);

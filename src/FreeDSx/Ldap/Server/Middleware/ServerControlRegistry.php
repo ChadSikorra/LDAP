@@ -82,6 +82,9 @@ final class ServerControlRegistry
                 Control::OID_POST_READ,
                 Control::OID_SUBTREE_DELETE,
             ],
+            HandlerId::Sync => [
+                Control::OID_SYNC_REQUEST,
+            ],
             default => [],
         };
     }

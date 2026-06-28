@@ -13,11 +13,16 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Utility;
 
+use FreeDSx\Ldap\Exception\InvalidArgumentException;
+
 use function bin2hex;
 use function chr;
+use function hex2bin;
 use function ord;
 use function random_bytes;
+use function str_replace;
 use function str_split;
+use function strlen;
 use function vsprintf;
 
 /**
@@ -47,5 +52,21 @@ final class Uuid
                 4,
             ),
         );
+    }
+
+    /**
+     * The 16-byte binary form of a dashed UUID string, as RFC 4533 sync controls carry it.
+     *
+     * @throws InvalidArgumentException when the value is not a UUID
+     */
+    public static function toBinary(string $uuid): string
+    {
+        $binary = hex2bin(str_replace('-', '', $uuid));
+
+        if ($binary === false || strlen($binary) !== 16) {
+            throw new InvalidArgumentException(sprintf('"%s" is not a valid UUID.', $uuid));
+        }
+
+        return $binary;
     }
 }
