@@ -277,6 +277,47 @@ final class ClientSaslBindHandlerTest extends TestCase
         );
     }
 
+    public function test_it_sends_the_initial_response_and_completes_in_a_single_round(): void
+    {
+        // EXTERNAL: the client's first response is carried in the initial bind and the server
+        // completes immediately, so the challenge loop is never entered.
+        $saslBind = Operations::bindSasl(
+            null,
+            MechanismName::EXTERNAL,
+        );
+        $messageRequest = new LdapMessageRequest(1, $saslBind);
+
+        $this->mockQueue
+            ->expects(self::once())
+            ->method('getMessage')
+            ->willReturn($this->saslComplete);
+
+        $this->mockSasl
+            ->method('get')
+            ->with(MechanismName::EXTERNAL)
+            ->willReturn($this->mockMech);
+        $this->mockMech
+            ->method('getName')
+            ->willReturn(MechanismName::EXTERNAL);
+        $this->mockMech
+            ->method('challenge')
+            ->willReturn($this->mockChallenge);
+
+        $this->mockChallenge
+            ->expects(self::once())
+            ->method('challenge')
+            ->willReturn(
+                (new SaslContext())
+                    ->setResponse('dn:cn=proxy,dc=foo,dc=bar')
+                    ->setIsComplete(true),
+            );
+
+        self::assertSame(
+            $this->saslComplete,
+            $this->subject->handleRequest($messageRequest),
+        );
+    }
+
     private function withStandardRootDseResponse(): void
     {
         $this->mockRootDseLoader

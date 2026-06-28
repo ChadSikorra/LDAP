@@ -7,8 +7,13 @@ namespace Tests\Support\FreeDSx\Ldap;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Ldif\Loader\FileLdifLoader;
+use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Ldif\Output\FileLdifOutput;
+use FreeDSx\Ldap\Server\AccessControl\AclRules;
+use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
+use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
 use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
+use FreeDSx\Ldap\Server\AccessControl\Target\Target;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRule;
 use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRules;
@@ -110,6 +115,12 @@ final class LdapServerCommand extends Command
                 null,
                 InputOption::VALUE_NONE,
                 'Enable SASL EXTERNAL with client-certificate validation (implies TLS)',
+            )
+            ->addOption(
+                'external-allow-proxy',
+                null,
+                InputOption::VALUE_NONE,
+                'Grant the EXTERNAL cert identity (cn=extuser) the Proxied Authorization control over dc=foo,dc=bar',
             )
             ->addOption(
                 'seed',
@@ -241,6 +252,18 @@ final class LdapServerCommand extends Command
                 ->setSslValidateCert(true)
                 ->setSslCaCert(self::EXTERNAL_CA_CERT)
                 ->setSaslMechanisms(ServerOptions::SASL_EXTERNAL);
+        }
+
+        if ($external && $input->getOption('external-allow-proxy') === true) {
+            $options->setAclRules(
+                (new AclRules())
+                    ->withOperationRules(OperationRule::allow(Subject::authenticated()))
+                    ->withControlRules(ControlRule::allow(
+                        Subject::dn('cn=extuser,dc=foo,dc=bar'),
+                        Target::subtree('dc=foo,dc=bar'),
+                        Control::OID_PROXY_AUTHORIZATION,
+                    )),
+            );
         }
 
         $server->useStorage($storage);

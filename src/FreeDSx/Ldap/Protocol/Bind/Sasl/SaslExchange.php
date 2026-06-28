@@ -14,17 +14,23 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\Bind\Sasl;
 
 use Closure;
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Request\SaslBindRequest;
 use FreeDSx\Ldap\Operation\Response\BindResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzIdResolver;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\MechanismOptionsBuilderFactory;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\UsernameExtractor\SaslUsernameExtractorFactory;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
+use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\SaslContext;
 use Throwable;
@@ -40,6 +46,7 @@ final class SaslExchange
         private readonly ServerQueue $queue,
         private readonly ResponseFactory $responseFactory,
         private readonly MechanismOptionsBuilderFactory $optionsBuilderFactory,
+        private readonly AuthzIdResolver $authzIdResolver,
         private readonly SaslUsernameExtractorFactory $usernameExtractorFactory = new SaslUsernameExtractorFactory(),
     ) {}
 
@@ -66,6 +73,26 @@ final class SaslExchange
                 $input->getInitialCredentials(),
                 $message,
             );
+
+            $username = $optionsBuilder->getUsername() ?? $this->extractUsername(
+                $usernameCredentials,
+                $mechName,
+            );
+            $resolvedDn = $optionsBuilder->getResolvedDn();
+            // The authorizing identity is set only when an authzid is assumed, below.
+            $authorizingDn = null;
+
+            // A client-supplied authzid is honored uniformly here, after the mechanism authenticated.
+            $effective = $this->honorAuthzId(
+                $context,
+                $username,
+                $resolvedDn,
+            );
+            if ($effective !== null) {
+                $username = $effective->getUsername();
+                $resolvedDn = $effective->getResolvedDn();
+                $authorizingDn = $effective->getAuthorizingDn();
+            }
         } catch (OperationException $e) {
             // Once $message is a continuation, the outer ServerProtocolHandler holds a stale
             // initial-bind ID. Send the error here with the correct ID before re-throwing.
@@ -83,13 +110,68 @@ final class SaslExchange
         return new SaslExchangeResult(
             $context,
             $message,
-            $optionsBuilder->getUsername() ?? $this->extractUsername(
-                $usernameCredentials,
-                $mechName,
-            ),
-            $optionsBuilder->getResolvedDn(),
-            $optionsBuilder->getAuthorizingDn(),
+            $username,
+            $resolvedDn,
+            $authorizingDn,
         );
+    }
+
+    /**
+     * Resolves a client-supplied authzid (when the mechanism carried one) to the effective identity.
+     *
+     * Returns the token to bind as, or null when there is no authzid to honor.
+     *
+     * @throws OperationException when the assumption is denied
+     */
+    private function honorAuthzId(
+        SaslContext $context,
+        ?string $username,
+        ?Dn $resolvedDn,
+    ): ?AuthenticatedTokenInterface {
+        $rawAuthzId = $this->requestedAuthzId(
+            $context->getAuthzId(),
+            $username,
+        );
+        if ($rawAuthzId === null || $resolvedDn === null) {
+            return null;
+        }
+
+        $authcToken = BindToken::fromSasl(
+            $username ?? $resolvedDn->toString(),
+            $resolvedDn,
+        );
+        try {
+            $authzId = AuthzId::fromString($rawAuthzId);
+        } catch (InvalidArgumentException) {
+            $this->authzIdResolver->deny(
+                $authcToken,
+                $rawAuthzId,
+            );
+        }
+        $effective = $this->authzIdResolver->assume(
+            $authcToken,
+            $authzId,
+        );
+
+        return $effective instanceof AuthenticatedTokenInterface
+            ? $effective
+            : null;
+    }
+
+    /**
+     * The authzid to honor as a proxy request, or null when it is absent or names the authenticated identity itself.
+     *
+     * A client asking to act as its own authcId (the common case, e.g. PLAIN) needs no proxy authorization.
+     */
+    private function requestedAuthzId(
+        ?string $rawAuthzId,
+        ?string $authcId,
+    ): ?string {
+        if ($rawAuthzId === null || $rawAuthzId === '' || $rawAuthzId === $authcId) {
+            return null;
+        }
+
+        return $rawAuthzId;
     }
 
     private function extractUsername(

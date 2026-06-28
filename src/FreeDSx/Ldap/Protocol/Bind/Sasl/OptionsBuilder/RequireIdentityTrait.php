@@ -37,11 +37,6 @@ trait RequireIdentityTrait
         return null;
     }
 
-    public function getAuthorizingDn(): ?Dn
-    {
-        return null;
-    }
-
     /**
      * Validates the identity, stores its resolved DN, and returns it.
      *

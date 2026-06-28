@@ -73,28 +73,25 @@ final readonly class AuthzIdResolver
         AuthenticatedTokenInterface $token,
         AuthzId $authzId,
     ): TokenInterface {
-        // a caller with no proxy grant cannot drive resolution.
+        if ($authzId->isType(AuthzIdType::Anonymous)) {
+            return $this->assumeAnonymous(
+                $token,
+                $authzId,
+            );
+        }
+
+        // Authorizing as the already-authenticated identity needs no proxy grant (RFC 4513 section 3.2).
+        if ($this->isAuthenticatedIdentity($authzId, $token)) {
+            return $token;
+        }
+
+        // Acting as any other identity is a proxy request and requires the grant (checked before resolving).
         if (!$this->accessControl->mayUseControl($token, Control::OID_PROXY_AUTHORIZATION)) {
             $this->deny(
                 $token,
                 $authzId->toString(),
             );
         }
-
-        if ($authzId->isType(AuthzIdType::Anonymous)) {
-            $this->authorize(
-                $token,
-                new Dn(''),
-                $authzId,
-            );
-
-            return new AnonToken(
-                null,
-                $token->getVersion(),
-                $token->getResolvedDn(),
-            );
-        }
-
         $entry = $this->resolve($authzId);
         if ($entry === null) {
             $this->deny(
@@ -141,6 +138,62 @@ final readonly class AuthzIdResolver
         );
 
         throw $exception;
+    }
+
+    /**
+     * Assume the anonymous identity (an empty authzId), which still requires the proxy-auth grant.
+     *
+     * @throws OperationException when the assumption is not permitted
+     */
+    private function assumeAnonymous(
+        AuthenticatedTokenInterface $token,
+        AuthzId $authzId,
+    ): TokenInterface {
+        if (!$this->accessControl->mayUseControl($token, Control::OID_PROXY_AUTHORIZATION)) {
+            $this->deny(
+                $token,
+                $authzId->toString(),
+            );
+        }
+        $this->authorize(
+            $token,
+            new Dn(''),
+            $authzId,
+        );
+
+        return new AnonToken(
+            null,
+            $token->getVersion(),
+            $token->getResolvedDn(),
+        );
+    }
+
+    /**
+     * Whether the authzId already names the authenticated identity, so no proxy assumption is involved.
+     */
+    private function isAuthenticatedIdentity(
+        AuthzId $authzId,
+        AuthenticatedTokenInterface $token,
+    ): bool {
+        if ($authzId->isType(AuthzIdType::Username)) {
+            return $authzId->getValue() === $token->getUsername();
+        }
+
+        return $authzId->isType(AuthzIdType::Dn)
+            && $this->isSameDn($authzId->getValue(), $token->getResolvedDn());
+    }
+
+    private function isSameDn(
+        string $candidate,
+        Dn $resolvedDn,
+    ): bool {
+        try {
+            $normalized = (new Dn($candidate))->normalize()->toString();
+        } catch (InvalidArgumentException|UnexpectedValueException) {
+            return false;
+        }
+
+        return $normalized === $resolvedDn->normalize()->toString();
     }
 
     /**
