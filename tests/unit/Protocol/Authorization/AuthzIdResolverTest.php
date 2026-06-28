@@ -138,6 +138,47 @@ final class AuthzIdResolverTest extends TestCase
         );
     }
 
+    public function test_assume_returns_the_authenticated_token_when_the_authz_id_names_self_by_dn(): void
+    {
+        $this->accessControl
+            ->expects(self::never())
+            ->method('mayUseControl');
+        $this->accessControl
+            ->expects(self::never())
+            ->method('authorizeControl');
+
+        $token = $this->subject->assume(
+            $this->boundToken,
+            AuthzId::fromString('dn:' . self::ADMIN_DN),
+        );
+
+        self::assertSame(
+            $this->boundToken,
+            $token,
+        );
+    }
+
+    public function test_assume_returns_the_authenticated_token_when_the_authz_id_names_self_by_username(): void
+    {
+        $boundToken = BindToken::fromUsername('alice');
+        $this->accessControl
+            ->expects(self::never())
+            ->method('mayUseControl');
+        $this->accessControl
+            ->expects(self::never())
+            ->method('authorizeControl');
+
+        $token = $this->subject->assume(
+            $boundToken,
+            AuthzId::fromString('u:alice'),
+        );
+
+        self::assertSame(
+            $boundToken,
+            $token,
+        );
+    }
+
     public function test_assume_anonymous_returns_an_anonymous_token(): void
     {
         $this->accessControl

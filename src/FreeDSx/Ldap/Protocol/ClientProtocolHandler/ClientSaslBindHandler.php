@@ -27,6 +27,7 @@ use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ClientQueue;
 use FreeDSx\Ldap\Protocol\Queue\MessageWrapper\SaslMessageWrapper;
 use FreeDSx\Ldap\Protocol\RootDseLoader;
+use FreeDSx\Sasl\Challenge\ChallengeInterface;
 use FreeDSx\Sasl\Exception\SaslException;
 use FreeDSx\Sasl\Mechanism\MechanismInterface;
 use FreeDSx\Sasl\Mechanism\MechanismName;
@@ -71,9 +72,18 @@ class ClientSaslBindHandler implements RequestHandlerInterface
         $detectDowngrade = ($request->getMechanism() === '');
         $mech = $this->selectSaslMech($request);
 
-        $this->queue->sendMessage($message);
+        # Compute the client's initial response. Client-first mechanisms (PLAIN, SCRAM, EXTERNAL)
+        # produce one to carry in the initial bind; server-first mechanisms produce null.
+        $challenge = $mech->challenge();
+        $context = $challenge->challenge(
+            null,
+            $request->getOptions(),
+        );
 
-        $response = $this->queue->getMessage($message->getMessageId());
+        $response = $this->sendInitialBind(
+            $request,
+            $context,
+        );
         $saslResponse = $response->getResponse();
         if (!$saslResponse instanceof BindResponse) {
             throw new ProtocolException(sprintf(
@@ -81,15 +91,24 @@ class ClientSaslBindHandler implements RequestHandlerInterface
                 get_class($saslResponse),
             ));
         }
-        if ($saslResponse->getResultCode() !== ResultCode::SASL_BIND_IN_PROGRESS) {
-            return $response;
+
+        if ($saslResponse->getResultCode() === ResultCode::SASL_BIND_IN_PROGRESS) {
+            $response = $this->processSaslChallenge(
+                $request,
+                $this->queue,
+                $saslResponse,
+                $mech,
+                $challenge,
+            );
+        } else {
+            # A client-first mechanism that completes in a single round (e.g. EXTERNAL): no challenge loop.
+            $this->activateSecurityLayer(
+                $context,
+                $saslResponse,
+                $mech,
+            );
         }
-        $response = $this->processSaslChallenge(
-            $request,
-            $this->queue,
-            $saslResponse,
-            $mech,
-        );
+
         if (
             $detectDowngrade
             && $response->getResponse() instanceof BindResponse
@@ -99,6 +118,27 @@ class ClientSaslBindHandler implements RequestHandlerInterface
         }
 
         return $response;
+    }
+
+    /**
+     * Sends the initial bind carrying the client's first response, then returns the server's reply.
+     */
+    private function sendInitialBind(
+        SaslBindRequest $request,
+        SaslContext $context,
+    ): LdapMessageResponse {
+        $message = $this->makeRequest(
+            $this->queue,
+            Operations::bindSasl(
+                $request->getOptions(),
+                MechanismName::from($request->getMechanism()),
+                $context->getResponse(),
+            )->setVersion($request->getVersion()),
+            $this->controls,
+        );
+        $this->queue->sendMessage($message);
+
+        return $this->queue->getMessage($message->getMessageId());
     }
 
     /**
@@ -133,13 +173,22 @@ class ClientSaslBindHandler implements RequestHandlerInterface
         ClientQueue $queue,
         BindResponse $saslResponse,
         MechanismInterface $mech,
+        ChallengeInterface $challenge,
     ): LdapMessageResponse {
-        $challenge = $mech->challenge();
-
         do {
-            $context = $challenge->challenge($saslResponse->getSaslCredentials(), $request->getOptions());
-            $saslBind = Operations::bindSasl($request->getOptions(), MechanismName::from($request->getMechanism()), $context->getResponse());
-            $response = $this->sendRequestGetResponse($saslBind, $queue);
+            $context = $challenge->challenge(
+                $saslResponse->getSaslCredentials(),
+                $request->getOptions(),
+            );
+            $saslBind = Operations::bindSasl(
+                $request->getOptions(),
+                MechanismName::from($request->getMechanism()),
+                $context->getResponse(),
+            );
+            $response = $this->sendRequestGetResponse(
+                $saslBind,
+                $queue,
+            );
             $saslResponse = $response->getResponse();
             if (!$saslResponse instanceof BindResponse) {
                 throw new BindException(sprintf(
@@ -150,14 +199,37 @@ class ClientSaslBindHandler implements RequestHandlerInterface
         } while (!$this->isChallengeComplete($context, $saslResponse));
 
         if (!$context->isComplete()) {
-            $context = $challenge->challenge($saslResponse->getSaslCredentials(), $request->getOptions());
+            $context = $challenge->challenge(
+                $saslResponse->getSaslCredentials(),
+                $request->getOptions(),
+            );
         }
 
-        if ($saslResponse->getResultCode() === ResultCode::SUCCESS && $context->hasSecurityLayer()) {
-            $queue->setMessageWrapper(new SaslMessageWrapper($mech->securityLayer(), $context));
-        }
+        $this->activateSecurityLayer(
+            $context,
+            $saslResponse,
+            $mech,
+        );
 
         return $response;
+    }
+
+    /**
+     * Installs the negotiated SASL security layer (integrity/privacy) once the bind has succeeded.
+     */
+    private function activateSecurityLayer(
+        SaslContext $context,
+        BindResponse $saslResponse,
+        MechanismInterface $mech,
+    ): void {
+        if ($saslResponse->getResultCode() !== ResultCode::SUCCESS || !$context->hasSecurityLayer()) {
+            return;
+        }
+
+        $this->queue->setMessageWrapper(new SaslMessageWrapper(
+            $mech->securityLayer(),
+            $context,
+        ));
     }
 
     private function sendRequestGetResponse(

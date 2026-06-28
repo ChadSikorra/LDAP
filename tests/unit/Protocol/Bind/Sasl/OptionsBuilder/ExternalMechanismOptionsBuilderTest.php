@@ -43,8 +43,6 @@ final class ExternalMechanismOptionsBuilderTest extends TestCase
 {
     private const CERT_DN = 'cn=client,dc=example,dc=com';
 
-    private const TARGET_DN = 'cn=service,dc=example,dc=com';
-
     private AccessControlInterface&MockObject $accessControl;
 
     private LdapBackendInterface&MockObject $backend;
@@ -123,7 +121,7 @@ final class ExternalMechanismOptionsBuilderTest extends TestCase
         self::assertFalse($validate(null));
     }
 
-    public function test_it_resolves_the_certificate_identity_when_no_authz_id_is_requested(): void
+    public function test_it_resolves_the_certificate_identity(): void
     {
         $this->backend
             ->method('get')
@@ -136,55 +134,12 @@ final class ExternalMechanismOptionsBuilderTest extends TestCase
             mapped: AuthzId::fromDn(new Dn(self::CERT_DN)),
         );
 
+        // The authzid (if any) is honored later by the SASL exchange, not here.
         self::assertTrue($this->validateClosure($builder)(null));
         self::assertSame(
             self::CERT_DN,
             $builder->getResolvedDn()?->toString(),
         );
-        self::assertNull($builder->getAuthorizingDn());
-    }
-
-    public function test_it_assumes_a_requested_authz_id_recording_the_authorizing_dn(): void
-    {
-        $this->accessControl
-            ->method('mayUseControl')
-            ->willReturn(true);
-        $this->backend
-            ->method('get')
-            ->willReturnCallback(fn(Dn $dn): Entry => new Entry($dn));
-
-        $builder = $this->builder(
-            encrypted: true,
-            validateCert: true,
-            certificate: $this->certificate(),
-            mapped: AuthzId::fromDn(new Dn(self::CERT_DN)),
-        );
-
-        self::assertTrue($this->validateClosure($builder)('dn:' . self::TARGET_DN));
-        self::assertSame(
-            self::TARGET_DN,
-            $builder->getResolvedDn()?->toString(),
-        );
-        self::assertSame(
-            self::CERT_DN,
-            $builder->getAuthorizingDn()?->toString(),
-        );
-    }
-
-    public function test_it_fails_on_a_malformed_authz_id(): void
-    {
-        $this->backend
-            ->method('get')
-            ->willReturn(new Entry(new Dn(self::CERT_DN)));
-
-        $builder = $this->builder(
-            encrypted: true,
-            validateCert: true,
-            certificate: $this->certificate(),
-            mapped: AuthzId::fromDn(new Dn(self::CERT_DN)),
-        );
-
-        self::assertFalse($this->validateClosure($builder)('not-an-authzid'));
     }
 
     private function builder(

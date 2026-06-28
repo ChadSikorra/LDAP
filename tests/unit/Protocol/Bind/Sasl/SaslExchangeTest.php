@@ -17,13 +17,18 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\SaslBindRequest;
 use FreeDSx\Ldap\Operation\Request\SimpleBindRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzIdResolver;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder\MechanismOptionsBuilderFactory;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\SaslExchange;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\SaslExchangeInput;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
+use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Sasl\Challenge\ChallengeInterface;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\SaslContext;
@@ -56,6 +61,12 @@ final class SaslExchangeTest extends TestCase
             queue: $this->mockQueue,
             responseFactory: new ResponseFactory(),
             optionsBuilderFactory: new MechanismOptionsBuilderFactory($mockAuthenticator),
+            authzIdResolver: new AuthzIdResolver(
+                $this->createMock(AccessControlInterface::class),
+                $this->createMock(LdapBackendInterface::class),
+                $this->createMock(BindNameResolverInterface::class),
+                new EventLogger(null),
+            ),
         );
     }
 

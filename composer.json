@@ -18,7 +18,7 @@
     "php": ">=8.2",
     "freedsx/asn1": "dev-main#b57a38f",
     "freedsx/socket": "dev-main#df083d9",
-    "freedsx/sasl": "dev-main#b886acb",
+    "freedsx/sasl": "dev-main#ebf53ad",
     "psr/log": "^3"
   },
   "require-dev": {

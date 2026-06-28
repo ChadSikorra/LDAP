@@ -160,6 +160,7 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
                         $saslMechanisms,
                         $authzIdResolver,
                     ),
+                    $authzIdResolver,
                 ),
                 sasl: new Sasl(new SaslOptions(
                     supported: $this->parseKnownMechanisms($saslMechanisms),

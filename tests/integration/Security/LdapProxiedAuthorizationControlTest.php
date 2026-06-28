@@ -113,11 +113,13 @@ final class LdapProxiedAuthorizationControlTest extends ServerTestCase
         $this->expectException(OperationException::class);
         $this->expectExceptionCode(ResultCode::AUTHORIZATION_DENIED);
 
+        // dc=foo,dc=bar resolves but sits above ou=people, and is not the bound identity, so
+        // neither the grant nor the authorize-as-self path applies.
         $this->ldapClient()->search(
             Operations::search(Filters::present('objectClass'))
                 ->base('dc=foo,dc=bar')
                 ->useSubtreeScope(),
-            Controls::proxyAuthorization(AuthzId::fromString('dn:cn=user,dc=foo,dc=bar')),
+            Controls::proxyAuthorization(AuthzId::fromString('dn:dc=foo,dc=bar')),
         );
     }
 }

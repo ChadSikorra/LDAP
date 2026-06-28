@@ -41,9 +41,4 @@ interface MechanismOptionsBuilderInterface
      * The username the mechanism resolved directly, when it is not carried in the SASL credentials (else null).
      */
     public function getUsername(): ?string;
-
-    /**
-     * The authorizing identity's DN when an authorization identity was assumed for the bind (else null).
-     */
-    public function getAuthorizingDn(): ?Dn;
 }

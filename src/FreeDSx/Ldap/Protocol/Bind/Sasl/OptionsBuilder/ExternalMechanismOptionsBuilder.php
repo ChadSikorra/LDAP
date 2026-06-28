@@ -14,16 +14,11 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\Bind\Sasl\OptionsBuilder;
 
 use FreeDSx\Ldap\Entry\Dn;
-use FreeDSx\Ldap\Entry\Entry;
-use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Protocol\Authorization\AuthzIdResolver;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Sasl\External\ExternalCredentialMapperInterface;
-use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
-use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use FreeDSx\Sasl\Options\ChallengeOptionsInterface;
@@ -40,8 +35,6 @@ final class ExternalMechanismOptionsBuilder implements MechanismOptionsBuilderIn
 
     private ?string $username = null;
 
-    private ?Dn $authorizingDn = null;
-
     public function __construct(
         private readonly ServerQueue $queue,
         private readonly ServerOptions $options,
@@ -54,7 +47,7 @@ final class ExternalMechanismOptionsBuilder implements MechanismOptionsBuilderIn
         MechanismName $mechanism,
     ): ChallengeOptionsInterface {
         return (new ExternalOptions())->setValidate(
-            fn(?string $authzId): bool => $this->validate($authzId),
+            fn(?string $authzId): bool => $this->validate(),
         );
     }
 
@@ -68,15 +61,13 @@ final class ExternalMechanismOptionsBuilder implements MechanismOptionsBuilderIn
         return $this->username;
     }
 
-    public function getAuthorizingDn(): ?Dn
-    {
-        return $this->authorizingDn;
-    }
-
     /**
-     * @throws OperationException when the channel is unsuitable for EXTERNAL or an assumed authzId is denied
+     * Validates the channel and resolves the certificate's authentication identity. A client-supplied
+     * authzId is honored later, uniformly, by the SASL exchange.
+     *
+     * @throws OperationException when the channel is unsuitable for EXTERNAL
      */
-    private function validate(?string $clientAuthzId): bool
+    private function validate(): bool
     {
         $this->assertSecureChannel();
 
@@ -98,55 +89,10 @@ final class ExternalMechanismOptionsBuilder implements MechanismOptionsBuilderIn
             return false;
         }
 
-        $token = $this->effectiveToken(
-            $authcEntry,
-            $clientAuthzId,
-        );
-        if ($token === null) {
-            return false;
-        }
-
-        $this->resolvedDn = $token->getResolvedDn();
-        $this->username = $token->getUsername();
-        $this->authorizingDn = $token->getAuthorizingDn();
+        $this->resolvedDn = $authcEntry->getDn();
+        $this->username = $authcEntry->getDn()->toString();
 
         return true;
-    }
-
-    /**
-     * The certificate identity, or the authzId it is authorized to assume.
-     *
-     * Returns null when the client authzId is malformed.
-     *
-     * @throws OperationException when the assumed authzId is denied
-     */
-    private function effectiveToken(
-        Entry $authcEntry,
-        ?string $clientAuthzId,
-    ): ?AuthenticatedTokenInterface {
-        $authcToken = BindToken::fromSasl(
-            $authcEntry->getDn()->toString(),
-            $authcEntry->getDn(),
-        );
-
-        if ($clientAuthzId === null || $clientAuthzId === '') {
-            return $authcToken;
-        }
-
-        try {
-            $authzId = AuthzId::fromString($clientAuthzId);
-        } catch (InvalidArgumentException) {
-            return null;
-        }
-
-        $assumed = $this->authzIdResolver->assume(
-            $authcToken,
-            $authzId,
-        );
-
-        return $assumed instanceof AuthenticatedTokenInterface
-            ? $assumed
-            : null;
     }
 
     /**
