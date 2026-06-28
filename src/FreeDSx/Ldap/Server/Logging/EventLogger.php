@@ -64,17 +64,10 @@ final readonly class EventLogger
             return [];
         }
 
-        $context = [
-            EventContext::EXCEPTION_CLASS => $cause::class,
-            EventContext::EXCEPTION_MESSAGE => $cause->getMessage(),
-            EventContext::EXCEPTION_ORIGIN => $cause->getFile() . ':' . $cause->getLine(),
-        ];
-
-        if ($this->policy->includesExceptionTraces()) {
-            $context[EventContext::EXCEPTION_TRACE] = $cause->getTraceAsString();
-        }
-
-        return $context;
+        return ExceptionLogging::makeLogContext(
+            $cause,
+            $this->policy->includesExceptionTraces(),
+        );
     }
 
     /**
