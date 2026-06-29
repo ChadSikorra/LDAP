@@ -64,6 +64,17 @@ final class InMemoryChangeJournal implements ChangeJournalInterface
         return $this->seq;
     }
 
+    public function retainsSince(int $afterSeq): bool
+    {
+        // Prune drops an oldest-first prefix, so the first retained record is the window floor. An
+        // empty journal only serves a consumer already at the high-water mark.
+        if ($this->records === []) {
+            return $afterSeq >= $this->seq;
+        }
+
+        return $afterSeq + 1 >= $this->records[0]->seq;
+    }
+
     public function origin(): ReplicaId
     {
         return $this->origin;

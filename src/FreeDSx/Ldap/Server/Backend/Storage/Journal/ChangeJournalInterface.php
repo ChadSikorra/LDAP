@@ -45,6 +45,14 @@ interface ChangeJournalInterface
     public function latestSeq(): int;
 
     /**
+     * Whether every record after $afterSeq is still retained, so an incremental sync from it cannot miss a
+     * pruned change; false means the cookie lapsed past the trim horizon and the consumer needs a full refresh.
+     *
+     * @api
+     */
+    public function retainsSince(int $afterSeq): bool;
+
+    /**
      * Drop records that fall outside the policy; returns how many were removed. seq keeps climbing.
      *
      * @api

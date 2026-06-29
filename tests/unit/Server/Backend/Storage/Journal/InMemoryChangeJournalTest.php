@@ -196,6 +196,48 @@ final class InMemoryChangeJournalTest extends TestCase
         );
     }
 
+    public function test_it_retains_from_any_seq_when_nothing_has_been_pruned(): void
+    {
+        $this->subject->append($this->change('cn=a,dc=example,dc=com'));
+        $this->subject->append($this->change('cn=b,dc=example,dc=com'));
+
+        self::assertTrue($this->subject->retainsSince(0));
+        self::assertTrue($this->subject->retainsSince(1));
+    }
+
+    public function test_a_cookie_at_the_pruned_floor_is_still_retained(): void
+    {
+        for ($i = 0; $i < 5; $i++) {
+            $this->subject->append($this->change("cn={$i},dc=example,dc=com"));
+        }
+        $this->subject->prune(new RetentionPolicy(maxRecords: 2));
+
+        // Pruned seq 1-3, retained 4-5: a consumer last at seq 3 still gets every record it needs.
+        self::assertTrue($this->subject->retainsSince(3));
+    }
+
+    public function test_a_cookie_below_the_pruned_floor_has_lapsed(): void
+    {
+        for ($i = 0; $i < 5; $i++) {
+            $this->subject->append($this->change("cn={$i},dc=example,dc=com"));
+        }
+        $this->subject->prune(new RetentionPolicy(maxRecords: 2));
+
+        // A consumer last at seq 2 needs seq 3, which was pruned.
+        self::assertFalse($this->subject->retainsSince(2));
+    }
+
+    public function test_a_fully_pruned_journal_only_retains_a_caught_up_cookie(): void
+    {
+        $this->subject->append($this->change('cn=a,dc=example,dc=com'));
+        $this->subject->append($this->change('cn=b,dc=example,dc=com'));
+        $this->clock->setTo($this->clock->now()->modify('+10 seconds'));
+        $this->subject->prune(new RetentionPolicy(maxAgeSeconds: 5));
+
+        self::assertFalse($this->subject->retainsSince(1));
+        self::assertTrue($this->subject->retainsSince(2));
+    }
+
     private function change(string $dn): PendingChange
     {
         return new PendingChange(
