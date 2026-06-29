@@ -57,6 +57,17 @@ final readonly class ChangeStream
     }
 
     /**
+     * Whether an incremental sync from $afterSeq is safe, or the cookie lapsed past the trim horizon and the
+     * consumer must fall back to a present-phase full refresh.
+     *
+     * @api
+     */
+    public function retainsSince(int $afterSeq): bool
+    {
+        return $this->journal->retainsSince($afterSeq);
+    }
+
+    /**
      * The origin replica a sync cookie should be stamped with.
      *
      * @api

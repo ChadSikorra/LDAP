@@ -263,6 +263,12 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
             return null;
         }
 
+        // Cookie lapsed past the trim horizon: an incremental sync would miss pruned changes, so
+        // serve a present-phase full refresh the consumer reconciles by absence.
+        if (!$stream->retainsSince($decoded->seq)) {
+            return null;
+        }
+
         return $decoded->seq;
     }
 

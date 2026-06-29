@@ -66,6 +66,11 @@ final class AuditingChangeJournal implements ChangeJournalInterface
         return $this->journal->latestSeq();
     }
 
+    public function retainsSince(int $afterSeq): bool
+    {
+        return $this->journal->retainsSince($afterSeq);
+    }
+
     public function prune(RetentionPolicy $policy): int
     {
         return $this->journal->prune($policy);

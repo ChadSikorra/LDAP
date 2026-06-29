@@ -99,6 +99,14 @@ final class ChangeStreamTest extends TestCase
         );
     }
 
+    public function test_retains_since_reflects_the_journal_window(): void
+    {
+        $this->append('cn=a,dc=example,dc=com');
+        $this->append('cn=b,dc=example,dc=com');
+
+        self::assertTrue($this->subject->retainsSince(0));
+    }
+
     private function append(string $dn): void
     {
         $this->journal->append(new PendingChange(

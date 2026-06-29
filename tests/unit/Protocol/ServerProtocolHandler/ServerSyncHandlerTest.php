@@ -39,6 +39,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\InMemoryChangeJournal;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ReplicaId;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionPolicy;
 use FreeDSx\Ldap\Server\Operation\OperationOutcome;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
@@ -346,6 +347,30 @@ final class ServerSyncHandlerTest extends TestCase
             [],
             $this->states(),
         );
+    }
+
+    public function test_a_cookie_past_the_trim_horizon_gets_a_present_phase_full_refresh(): void
+    {
+        $this->append(ChangeType::Add, 'cn=a,dc=example,dc=com', self::UUID_A);
+        $this->append(ChangeType::Add, 'cn=b,dc=example,dc=com', self::UUID_B);
+        $this->append(ChangeType::Delete, 'cn=gone,dc=example,dc=com', self::UUID_A);
+        $this->journal->prune(new RetentionPolicy(maxRecords: 1));
+        $this->searchEntries = [
+            $this->entry('cn=a,dc=example,dc=com', self::UUID_A),
+            $this->entry('cn=b,dc=example,dc=com', self::UUID_B),
+        ];
+
+        // Cookie at seq 1 is below the retained floor (seq 3), so the incremental path would miss changes.
+        $this->handle($this->cookieAt(1));
+
+        self::assertSame(
+            [
+                [SyncStateControl::STATE_ADD, self::UUID_A],
+                [SyncStateControl::STATE_ADD, self::UUID_B],
+            ],
+            $this->states(),
+        );
+        self::assertFalse($this->doneControl()->getRefreshDeletes());
     }
 
     public function test_a_full_refresh_skips_an_entry_with_a_malformed_uuid_without_aborting(): void
