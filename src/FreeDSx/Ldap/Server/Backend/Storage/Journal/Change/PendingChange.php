@@ -32,4 +32,19 @@ final readonly class PendingChange
         public ?Dn $previousDn = null,
         public ?Entry $preImage = null,
     ) {}
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return [
+            'change_type' => $this->changeType->value,
+            'dn' => $this->dn->toString(),
+            'entry_uuid' => $this->entryUuid,
+            'authz_id' => $this->authzId->toString(),
+            'previous_dn' => $this->previousDn?->toString(),
+            'pre_image' => $this->preImage?->toArray(),
+        ];
+    }
 }

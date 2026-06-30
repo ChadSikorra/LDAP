@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Backend\Storage\Journal\Change;
 
 use DateTimeImmutable;
+use DateTimeInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ReplicaId;
 
 /**
@@ -29,4 +30,17 @@ final readonly class ChangeRecord
         public DateTimeImmutable $createdAt,
         public PendingChange $change,
     ) {}
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return [
+            'seq' => $this->seq,
+            'origin' => (string) $this->origin,
+            'created_at' => $this->createdAt->format(DateTimeInterface::ATOM),
+            ...$this->change->toArray(),
+        ];
+    }
 }
