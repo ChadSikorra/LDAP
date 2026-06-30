@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Storage\Journal\Audit;
 
-use DateTimeInterface;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeRecord;
 
@@ -37,35 +36,20 @@ final readonly class JsonLinesAuditSink implements AuditSinkInterface
 
     public function write(ChangeRecord $record): void
     {
+        $data = $record->toArray();
+
+        // Redact at the export boundary: overwrite the full pre-image with a redacted projection.
+        if ($record->change->preImage !== null) {
+            $data['pre_image'] = $this->redaction->apply($record->change->preImage);
+        }
+
         $line = json_encode(
-            $this->toArray($record),
+            $data,
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
         ) . "\n";
 
         if (file_put_contents($this->path, $line, FILE_APPEND | LOCK_EX) === false) {
             throw new RuntimeException('Failed to write a record to the audit sink.');
         }
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function toArray(ChangeRecord $record): array
-    {
-        $change = $record->change;
-
-        return [
-            'seq' => $record->seq,
-            'origin' => (string) $record->origin,
-            'created_at' => $record->createdAt->format(DateTimeInterface::ATOM),
-            'change_type' => $change->changeType->value,
-            'dn' => $change->dn->toString(),
-            'entry_uuid' => $change->entryUuid,
-            'authz_id' => $change->authzId->toString(),
-            'previous_dn' => $change->previousDn?->toString(),
-            'pre_image' => $change->preImage !== null
-                ? $this->redaction->apply($change->preImage)
-                : null,
-        ];
     }
 }
