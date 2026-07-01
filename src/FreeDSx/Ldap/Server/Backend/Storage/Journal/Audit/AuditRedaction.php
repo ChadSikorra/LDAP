@@ -52,7 +52,8 @@ final readonly class AuditRedaction
     }
 
     /**
-     * The entry's attributes as a map, with excluded attributes removed.
+     * The entry's attributes as a map, with excluded attributes removed. Matching is on the base
+     * attribute name so an option (e.g. userPassword;binary) cannot slip a secret past redaction.
      *
      * @return array<string, list<string>>
      */
@@ -60,10 +61,12 @@ final readonly class AuditRedaction
     {
         $attributes = [];
 
-        foreach ($entry->toArray() as $name => $values) {
-            if (!in_array(strtolower($name), $this->excluded, true)) {
-                $attributes[$name] = array_values($values);
+        foreach ($entry->getAttributes() as $attribute) {
+            if (in_array(strtolower($attribute->getName()), $this->excluded, true)) {
+                continue;
             }
+
+            $attributes[$attribute->getDescription()] = array_values($attribute->getValues());
         }
 
         return $attributes;

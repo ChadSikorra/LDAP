@@ -54,4 +54,37 @@ final class AuditRedactionTest extends TestCase
             $result,
         );
     }
+
+    public function test_an_excluded_attribute_carrying_an_option_is_still_dropped(): void
+    {
+        $redaction = new AuditRedaction(['userPassword']);
+        $entry = new Entry(
+            new Dn('cn=a,dc=example,dc=com'),
+            new Attribute('cn', 'a'),
+            new Attribute('userPassword;binary', 'secret'),
+        );
+
+        $result = $redaction->apply($entry);
+
+        self::assertSame(
+            ['cn' => ['a']],
+            $result,
+        );
+    }
+
+    public function test_a_retained_attribute_keeps_its_options_in_the_key(): void
+    {
+        $redaction = new AuditRedaction(['userPassword']);
+        $entry = new Entry(
+            new Dn('cn=a,dc=example,dc=com'),
+            new Attribute('cn;lang-en', 'a'),
+        );
+
+        $result = $redaction->apply($entry);
+
+        self::assertSame(
+            ['cn;lang-en' => ['a']],
+            $result,
+        );
+    }
 }
