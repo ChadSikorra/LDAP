@@ -16,21 +16,15 @@ namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\Sync\SyncDoneControl;
 use FreeDSx\Ldap\Control\Sync\SyncRequestControl;
-use FreeDSx\Ldap\Control\Sync\SyncStateControl;
 use FreeDSx\Ldap\Entry\Dn;
-use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\Response\SearchResultDone;
-use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
-use FreeDSx\Ldap\Schema\Definition\AttributeTypeOid;
-use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeType;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeScope;
@@ -39,9 +33,10 @@ use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Operation\SearchOperationResult;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
-use FreeDSx\Ldap\Server\Utility\Uuid;
 use FreeDSx\Ldap\Sync\Provider\Exception\MalformedSyncCookieException;
 use FreeDSx\Ldap\Sync\Provider\SyncCookie;
+use FreeDSx\Ldap\Sync\Provider\SyncResult;
+use FreeDSx\Ldap\Sync\Provider\SyncResultProjector;
 use Generator;
 
 /**
@@ -56,8 +51,7 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
     public function __construct(
         private readonly ServerQueue $queue,
         private readonly LdapBackendInterface $backend,
-        private readonly FilterEvaluatorInterface $filterEvaluator,
-        private readonly AccessControlInterface $accessControl,
+        private readonly SyncResultProjector $projector,
         private readonly SearchLimits $limits = new SearchLimits(),
         private readonly ?ChangeStream $changeStream = null,
     ) {}
@@ -155,17 +149,11 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
         );
 
         foreach ($result->entries as $entry) {
-            $visible = $this->accessControl->filterEntry(
-                $token,
-                $entry,
-            );
-
-            if ($visible === null) {
-                continue;
-            }
-
             yield from $this->emit(
-                $this->addResponse($message->getMessageId(), $visible),
+                $this->toResponse(
+                    $message->getMessageId(),
+                    $this->projector->projectSearched($entry, $token),
+                ),
                 $state,
             );
         }
@@ -191,108 +179,51 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
         }
 
         foreach ($netByUuid as $change) {
-            $response = $change->changeType === ChangeType::Delete
-                ? $this->deleteResponse($message->getMessageId(), $request, $token, $change)
-                : $this->changedEntryResponse($message->getMessageId(), $request, $token, $change);
+            $result = $change->changeType === ChangeType::Delete
+                ? $this->projector->projectDeleted($change, $request, $token)
+                : $this->changedResult($request, $token, $change);
 
-            yield from $this->emit($response, $state);
+            yield from $this->emit(
+                $this->toResponse($message->getMessageId(), $result),
+                $state,
+            );
         }
-    }
-
-    private function addResponse(
-        int $messageId,
-        Entry $entry,
-    ): ?LdapMessageResponse {
-        $uuid = $entry->get(AttributeTypeOid::NAME_ENTRY_UUID)?->firstValue();
-
-        if ($uuid === null || $uuid === '') {
-            return null;
-        }
-
-        return new LdapMessageResponse(
-            $messageId,
-            new SearchResultEntry($entry),
-            new SyncStateControl(
-                SyncStateControl::STATE_ADD,
-                Uuid::toBinary($uuid),
-            ),
-        );
     }
 
     /**
-     * The delete is announced only if the consumer could have seen the entry, checked against its
-     * pre-image, so a gone entry never leaks a DN/UUID the read-side ACL would have hidden.
+     * Re-reads the live entry for a non-delete change; null when it is gone or no longer matches.
      */
-    private function deleteResponse(
-        int $messageId,
+    private function changedResult(
         SearchRequest $request,
         TokenInterface $token,
         PendingChange $change,
-    ): ?LdapMessageResponse {
-        if (!$this->wasVisible($request, $token, $change->preImage)) {
-            return null;
-        }
-
-        return new LdapMessageResponse(
-            $messageId,
-            new SearchResultEntry(new Entry($change->dn)),
-            new SyncStateControl(
-                SyncStateControl::STATE_DELETE,
-                Uuid::toBinary($change->entryUuid),
-            ),
-        );
-    }
-
-    private function changedEntryResponse(
-        int $messageId,
-        SearchRequest $request,
-        TokenInterface $token,
-        PendingChange $change,
-    ): ?LdapMessageResponse {
+    ): ?SyncResult {
         $entry = $this->backend->get($change->dn);
 
         if ($entry === null) {
             return null;
         }
 
-        $visible = $this->accessControl->filterEntry(
-            $token,
+        return $this->projector->projectFetched(
             $entry,
-        );
-
-        if ($visible === null) {
-            return null;
-        }
-
-        if (!$this->filterEvaluator->evaluate($visible, $request->getFilter())) {
-            return null;
-        }
-
-        return $this->addResponse(
-            $messageId,
-            $visible,
+            $request,
+            $token,
         );
     }
 
-    /**
-     * Whether the entry, as it was before deletion, was readable by and matched the consumer's view.
-     */
-    private function wasVisible(
-        SearchRequest $request,
-        TokenInterface $token,
-        ?Entry $preImage,
-    ): bool {
-        if ($preImage === null) {
-            return false;
+    private function toResponse(
+        int $messageId,
+        ?SyncResult $result,
+    ): ?LdapMessageResponse {
+        if ($result === null) {
+            return null;
         }
 
-        $visible = $this->accessControl->filterEntry(
-            $token,
-            $preImage,
+        return new LdapMessageResponse(
+            $messageId,
+            $result->entry,
+            $result->control,
         );
-
-        return $visible !== null
-            && $this->filterEvaluator->evaluate($visible, $request->getFilter());
     }
 
     /**

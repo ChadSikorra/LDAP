@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Exception\InvalidArgumentException;
 
 use function bin2hex;
 use function chr;
+use function ctype_xdigit;
 use function hex2bin;
 use function ord;
 use function random_bytes;
@@ -61,9 +62,14 @@ final class Uuid
      */
     public static function toBinary(string $uuid): string
     {
-        $binary = hex2bin(str_replace('-', '', $uuid));
+        $hex = str_replace('-', '', $uuid);
 
-        if ($binary === false || strlen($binary) !== 16) {
+        // Validate before hex2bin so a malformed value returns cleanly rather than emitting a warning.
+        $binary = strlen($hex) === 32 && ctype_xdigit($hex)
+            ? hex2bin($hex)
+            : false;
+
+        if ($binary === false) {
             throw new InvalidArgumentException(sprintf('"%s" is not a valid UUID.', $uuid));
         }
 

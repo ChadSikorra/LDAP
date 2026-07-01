@@ -43,6 +43,7 @@ use FreeDSx\Ldap\Server\Operation\OperationOutcome;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Ldap\Sync\Provider\SyncCookie;
+use FreeDSx\Ldap\Sync\Provider\SyncResultProjector;
 use Generator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -134,8 +135,10 @@ final class ServerSyncHandlerTest extends TestCase
         $this->subject = new ServerSyncHandler(
             queue: $this->queue,
             backend: $this->backend,
-            filterEvaluator: $this->filterEvaluator,
-            accessControl: $this->accessControl,
+            projector: new SyncResultProjector(
+                accessControl: $this->accessControl,
+                filterEvaluator: $this->filterEvaluator,
+            ),
             changeStream: new ChangeStream($this->journal),
         );
     }
@@ -345,6 +348,40 @@ final class ServerSyncHandlerTest extends TestCase
         );
     }
 
+    public function test_a_full_refresh_skips_an_entry_with_a_malformed_uuid_without_aborting(): void
+    {
+        $this->searchEntries = [
+            $this->entry('cn=bad,dc=example,dc=com', 'not-a-uuid'),
+            $this->entry('cn=b,dc=example,dc=com', self::UUID_B),
+        ];
+
+        $this->handle(null);
+
+        self::assertSame(
+            [[SyncStateControl::STATE_ADD, self::UUID_B]],
+            $this->states(),
+        );
+        self::assertFalse($this->doneControl()->getRefreshDeletes());
+    }
+
+    public function test_a_delete_with_a_malformed_uuid_is_skipped_without_aborting(): void
+    {
+        $this->append(
+            ChangeType::Delete,
+            'cn=bad,dc=example,dc=com',
+            'not-a-uuid',
+            $this->entry('cn=bad,dc=example,dc=com', 'not-a-uuid'),
+        );
+
+        $this->handle($this->cookieAt(0));
+
+        self::assertSame(
+            [],
+            $this->states(),
+        );
+        self::assertTrue($this->doneControl()->getRefreshDeletes());
+    }
+
     public function test_refresh_and_persist_is_declined(): void
     {
         self::expectException(OperationException::class);
@@ -358,8 +395,10 @@ final class ServerSyncHandlerTest extends TestCase
         $handler = new ServerSyncHandler(
             queue: $this->queue,
             backend: $this->backend,
-            filterEvaluator: $this->filterEvaluator,
-            accessControl: $this->accessControl,
+            projector: new SyncResultProjector(
+                accessControl: $this->accessControl,
+                filterEvaluator: $this->filterEvaluator,
+            ),
         );
 
         self::expectException(OperationException::class);

@@ -35,6 +35,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\ServerOptions;
+use FreeDSx\Ldap\Sync\Provider\SyncResultProjector;
 
 /**
  * Builds the per-request protocol handler, wiring per-connection state to shared services.
@@ -145,8 +146,11 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
         return new ServerProtocolHandler\ServerSyncHandler(
             queue: $this->queue,
             backend: $backend,
-            filterEvaluator: $this->options->getFilterEvaluator(),
-            accessControl: $this->options->getAccessControl(),
+            projector: new SyncResultProjector(
+                accessControl: $this->options->getAccessControl(),
+                filterEvaluator: $this->options->getFilterEvaluator(),
+                eventLogger: $this->eventLogger,
+            ),
             limits: $searchLimits ?? $this->options->makeSearchLimits(),
             changeStream: $this->changeStreamFor($backend),
         );

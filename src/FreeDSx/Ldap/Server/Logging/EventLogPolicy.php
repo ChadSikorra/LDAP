@@ -59,6 +59,7 @@ final readonly class EventLogPolicy
             ServerEvent::ProxyAuthorizationDenied,
             ServerEvent::CriticalControlRejected,
             ServerEvent::SchemaViolation,
+            ServerEvent::SyncEntrySkipped,
             ServerEvent::NoticeOfDisconnectSent,
             ServerEvent::WriteTimeout,
             ServerEvent::IdleTimeout,
