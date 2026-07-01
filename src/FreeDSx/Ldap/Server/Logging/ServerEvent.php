@@ -43,6 +43,7 @@ enum ServerEvent: string
     case ProxyAuthorizationDenied       = 'authz.denied.proxy';
     case CriticalControlRejected        = 'control.critical.rejected';
     case SchemaViolation                = 'schema.violation';
+    case SyncEntrySkipped               = 'sync.entry_skipped';
     case NoticeOfDisconnectSent         = 'session.disconnect_notice';
     case WriteTimeout                   = 'session.write_timeout';
     case IdleTimeout                    = 'session.idle_timeout';
@@ -56,7 +57,8 @@ enum ServerEvent: string
     public function level(): string
     {
         return match ($this) {
-            self::PasswordPolicyAccountLocked => LogLevel::WARNING,
+            self::PasswordPolicyAccountLocked,
+            self::SyncEntrySkipped => LogLevel::WARNING,
             self::BindFailure,
             self::StartTlsFailed,
             self::PasswordModifyFailed,
