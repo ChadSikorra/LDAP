@@ -19,6 +19,9 @@ use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeRecord;
 /**
  * Appends each record as one JSON line, redacting the pre-image; appends are lock-guarded for multi-process safety.
  *
+ * Envelope fields (dn, entry_uuid, authz_id, timestamps) are plain UTF-8; pre_image values are base64 and must be
+ * decoded by a consumer.
+ *
  * @api
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
@@ -38,9 +41,12 @@ final readonly class JsonLinesAuditSink implements AuditSinkInterface
     {
         $data = $record->toArray();
 
-        // Redact at the export boundary: overwrite the full pre-image with a redacted projection.
+        // Redact at the export boundary, then base64 every value: pre_image is the only
+        // binary-capable field, so uniform encoding keeps the record valid JSON with one value shape.
         if ($record->change->preImage !== null) {
-            $data['pre_image'] = $this->redaction->apply($record->change->preImage);
+            $data['pre_image'] = $this->encodeValues(
+                $this->redaction->apply($record->change->preImage),
+            );
         }
 
         $line = json_encode(
@@ -51,5 +57,23 @@ final readonly class JsonLinesAuditSink implements AuditSinkInterface
         if (file_put_contents($this->path, $line, FILE_APPEND | LOCK_EX) === false) {
             throw new RuntimeException('Failed to write a record to the audit sink.');
         }
+    }
+
+    /**
+     * Base64-encodes every attribute value so a binary value (e.g. a certificate) is captured
+     * faithfully rather than aborting the encode and dropping the record.
+     *
+     * @param array<string, list<string>> $attributes
+     * @return array<string, list<string>>
+     */
+    private function encodeValues(array $attributes): array
+    {
+        return array_map(
+            static fn(array $values): array => array_map(
+                base64_encode(...),
+                $values,
+            ),
+            $attributes,
+        );
     }
 }

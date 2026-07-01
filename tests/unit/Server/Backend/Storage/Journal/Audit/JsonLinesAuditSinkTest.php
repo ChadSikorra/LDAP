@@ -58,9 +58,29 @@ final class JsonLinesAuditSinkTest extends TestCase
                 'entry_uuid' => '11111111-1111-4111-8111-111111111111',
                 'authz_id' => 'dn:cn=admin,dc=example,dc=com',
                 'previous_dn' => null,
-                'pre_image' => ['cn' => ['a']],
+                'pre_image' => ['cn' => [base64_encode('a')]],
             ],
             $this->firstLine(),
+        );
+    }
+
+    public function test_it_captures_a_binary_pre_image_value_without_dropping_the_record(): void
+    {
+        $binary = "\x00\xff\xfeDER";
+        $this->subject->write($this->deleteRecord(new Attribute(
+            'userCertificate',
+            $binary,
+        )));
+
+        $preImage = $this->firstLine()['pre_image'] ?? null;
+        self::assertIsArray($preImage);
+        $values = $preImage['userCertificate'] ?? null;
+        self::assertIsArray($values);
+        $encoded = $values[0] ?? null;
+        self::assertIsString($encoded);
+        self::assertSame(
+            $binary,
+            base64_decode($encoded, true),
         );
     }
 
@@ -101,8 +121,18 @@ final class JsonLinesAuditSinkTest extends TestCase
         return is_array($decoded) ? $decoded : [];
     }
 
-    private function deleteRecord(): ChangeRecord
+    private function deleteRecord(?Attribute $extra = null): ChangeRecord
     {
+        $preImage = new Entry(
+            new Dn('cn=a,dc=example,dc=com'),
+            new Attribute('cn', 'a'),
+            new Attribute('userPassword', 'secret'),
+        );
+
+        if ($extra !== null) {
+            $preImage->add($extra);
+        }
+
         return new ChangeRecord(
             seq: 7,
             origin: new ReplicaId('node-a'),
@@ -112,11 +142,7 @@ final class JsonLinesAuditSinkTest extends TestCase
                 dn: new Dn('cn=a,dc=example,dc=com'),
                 entryUuid: '11111111-1111-4111-8111-111111111111',
                 authzId: AuthzId::fromDn(new Dn('cn=admin,dc=example,dc=com')),
-                preImage: new Entry(
-                    new Dn('cn=a,dc=example,dc=com'),
-                    new Attribute('cn', 'a'),
-                    new Attribute('userPassword', 'secret'),
-                ),
+                preImage: $preImage,
             ),
         );
     }
