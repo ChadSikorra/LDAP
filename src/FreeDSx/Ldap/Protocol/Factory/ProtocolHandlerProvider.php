@@ -158,7 +158,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
 
     private function changeStreamFor(LdapBackendInterface $backend): ?ChangeStream
     {
-        if (!$backend instanceof WritableStorageBackend) {
+        if (!$this->options->isSyncEnabled() || !$backend instanceof WritableStorageBackend) {
             return null;
         }
 

@@ -30,6 +30,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\PasswordQualityCheckerInterf
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\AclRules;
 use FreeDSx\Ldap\Server\AccessControl\SimpleAccessControl;
@@ -199,6 +200,10 @@ final class ServerOptions
     private bool $useSwooleRunner = false;
 
     private bool $monitorEnabled = false;
+
+    private bool $syncEnabled = false;
+
+    private ?ChangeJournalConfig $changeJournalConfig = null;
 
     private ?string $monitorSnapshotPath = null;
 
@@ -824,6 +829,30 @@ final class ServerOptions
     public function setMonitorEnabled(bool $monitorEnabled): self
     {
         $this->monitorEnabled = $monitorEnabled;
+
+        return $this;
+    }
+
+    public function isSyncEnabled(): bool
+    {
+        return $this->syncEnabled;
+    }
+
+    public function setSyncEnabled(bool $syncEnabled): self
+    {
+        $this->syncEnabled = $syncEnabled;
+
+        return $this;
+    }
+
+    public function getChangeJournalConfig(): ChangeJournalConfig
+    {
+        return $this->changeJournalConfig ??= new ChangeJournalConfig();
+    }
+
+    public function setChangeJournalConfig(ChangeJournalConfig $changeJournalConfig): self
+    {
+        $this->changeJournalConfig = $changeJournalConfig;
 
         return $this;
     }

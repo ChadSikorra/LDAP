@@ -16,12 +16,20 @@ namespace Tests\Unit\FreeDSx\Ldap\Server\Backend\Storage\Adapter;
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\InMemoryChangeJournal;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ReplicaId;
 use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\FreeDSx\Ldap\Journal\JournalingStorageContractTests;
 
 final class InMemoryStorageTest extends TestCase
 {
+    use JournalingStorageContractTests;
+
     private InMemoryStorage $subject;
 
     private Entry $alice;
@@ -308,5 +316,28 @@ final class InMemoryStorageTest extends TestCase
             ['cn=alice,dc=example,dc=com'],
             $contexts,
         );
+    }
+
+    public function test_configure_journal_builds_a_journal_stamped_with_the_config_origin(): void
+    {
+        $this->subject->configureJournal(new ChangeJournalConfig(new ReplicaId('node-x')));
+
+        self::assertTrue($this->subject->changeJournal()->origin()->equals(new ReplicaId('node-x')));
+    }
+
+    public function test_a_constructor_injected_journal_cannot_also_be_configured(): void
+    {
+        $storage = new InMemoryStorage(
+            [],
+            new InMemoryChangeJournal(),
+        );
+
+        $this->expectException(InvalidArgumentException::class);
+        $storage->configureJournal(new ChangeJournalConfig());
+    }
+
+    protected function makeJournalingStorage(): ChangeJournalingInterface
+    {
+        return new InMemoryStorage();
     }
 }

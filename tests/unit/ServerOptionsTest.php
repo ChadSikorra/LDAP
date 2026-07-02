@@ -27,6 +27,8 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ReplicaId;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
@@ -139,6 +141,36 @@ final class ServerOptionsTest extends TestCase
     public function test_monitor_snapshot_path_is_null_by_default(): void
     {
         self::assertNull($this->subject->getMonitorSnapshotPath());
+    }
+
+    public function test_sync_is_disabled_by_default(): void
+    {
+        self::assertFalse($this->subject->isSyncEnabled());
+    }
+
+    public function test_it_can_enable_sync(): void
+    {
+        $this->subject->setSyncEnabled(true);
+
+        self::assertTrue($this->subject->isSyncEnabled());
+    }
+
+    public function test_the_change_journal_config_defaults_to_a_usable_config(): void
+    {
+        self::assertTrue(
+            $this->subject->getChangeJournalConfig()->origin->equals(new ReplicaId('local')),
+        );
+    }
+
+    public function test_it_can_override_the_change_journal_config(): void
+    {
+        $config = new ChangeJournalConfig(new ReplicaId('node-a'));
+        $this->subject->setChangeJournalConfig($config);
+
+        self::assertSame(
+            $config,
+            $this->subject->getChangeJournalConfig(),
+        );
     }
 
     public function test_it_can_set_the_monitor_snapshot_path(): void

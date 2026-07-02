@@ -19,7 +19,8 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Support\ArrayEntryStorageTrait;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingTrait;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\InMemoryChangeJournal;
 use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
@@ -32,13 +33,12 @@ use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
 final class InMemoryStorage implements EntryStorageInterface, ChangeJournalingInterface
 {
     use ArrayEntryStorageTrait;
+    use ChangeJournalingTrait;
 
     /**
      * @var array<string, Entry> keyed by normalised DN string
      */
     private array $entries = [];
-
-    private readonly ChangeJournalInterface $journal;
 
     /**
      * @param Entry[] $entries pre-populated into the store
@@ -47,7 +47,9 @@ final class InMemoryStorage implements EntryStorageInterface, ChangeJournalingIn
         array $entries = [],
         ?ChangeJournalInterface $journal = null,
     ) {
-        $this->journal = $journal ?? new InMemoryChangeJournal();
+        if ($journal !== null) {
+            $this->useJournal($journal);
+        }
 
         foreach ($entries as $entry) {
             $this->entries[$entry->getDn()->normalize()->toString()] = $entry;
@@ -87,18 +89,13 @@ final class InMemoryStorage implements EntryStorageInterface, ChangeJournalingIn
         $operation($this);
     }
 
-    public function appendChange(PendingChange $change): void
-    {
-        $this->journal->append($change);
-    }
-
-    public function changeJournal(): ChangeJournalInterface
-    {
-        return $this->journal;
-    }
-
     public function namingContexts(): array
     {
         return $this->namingContextsFromArray($this->entries);
+    }
+
+    protected function buildJournal(ChangeJournalConfig $config): ChangeJournalInterface
+    {
+        return new InMemoryChangeJournal($config->origin);
     }
 }
