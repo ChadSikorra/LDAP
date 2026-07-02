@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture;
 
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
 
@@ -23,6 +24,11 @@ use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
  */
 interface ChangeJournalingInterface
 {
+    /**
+     * Build the journal from central config using the storage's own atomic primitives; set-once at wiring time.
+     */
+    public function configureJournal(ChangeJournalConfig $config): void;
+
     /**
      * Append a change to the journal within the currently active write boundary.
      */

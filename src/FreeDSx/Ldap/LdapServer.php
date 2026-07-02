@@ -29,6 +29,8 @@ use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\BackendAwareInterface;
 use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeRecorder;
 use FreeDSx\Ldap\Server\Backend\Storage\OperationalAttributeGenerator;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
@@ -46,6 +48,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
 use Generator;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * The LDAP server.
@@ -121,6 +124,7 @@ class LdapServer
             limits: $this->options->makeSearchLimits(),
             validator: $this->buildSchemaValidator(),
             operationalAttrs: new OperationalAttributeGenerator($schema),
+            changeRecorder: $this->changeRecorderFor($storage),
         ));
     }
 
@@ -318,6 +322,20 @@ class LdapServer
                 ProxyOptions::class => $proxyOptions,
             ]),
         );
+    }
+
+    /**
+     * Configures the storage's journal and returns a recorder when sync is enabled and the storage can journal.
+     */
+    private function changeRecorderFor(EntryStorageInterface $storage): ?ChangeRecorder
+    {
+        if (!$this->options->isSyncEnabled() || !$storage instanceof ChangeJournalingInterface) {
+            return null;
+        }
+
+        $storage->configureJournal($this->options->getChangeJournalConfig());
+
+        return new ChangeRecorder($this->options->getLogger() ?? new NullLogger());
     }
 
     private function init(): void
