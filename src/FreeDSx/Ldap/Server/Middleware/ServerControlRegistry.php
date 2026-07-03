@@ -28,9 +28,13 @@ final class ServerControlRegistry
 {
     /**
      * Controls accepted on every handler that runs the check. Proxied authorization is global because the
-     * RFC 4370 eligibility gate runs upstream in ProxiedAuthorizationResolver, not here.
+     * RFC 4370 eligibility gate runs upstream in ProxiedAuthorizationResolver, not here. ManageDsaIT is global
+     * because it is recognized server-wide and treated as inert (no referral entries to reinterpret).
      */
-    private const GLOBAL_CONTROLS = [Control::OID_PROXY_AUTHORIZATION];
+    private const GLOBAL_CONTROLS = [
+        Control::OID_PROXY_AUTHORIZATION,
+        Control::OID_MANAGE_DSA_IT,
+    ];
 
     /**
      * Handlers whose requests carry no response, so the critical-control check does not apply.
