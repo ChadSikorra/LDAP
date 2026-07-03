@@ -26,6 +26,8 @@ final class CoroutineLock implements StorageLockInterface
 {
     use AtomicStorageLockTrait;
 
+    private const DEPTH_KEY = '__freedsx_storage_lock_depth';
+
     /**
      * @var Channel<mixed>|null
      */
@@ -33,16 +35,49 @@ final class CoroutineLock implements StorageLockInterface
 
     private function acquireLock(): void
     {
-        $this->getOrCreateMutex()->pop();
+        // Depth is tracked per coroutine, not per instance: coroutines share one lock.
+        $depth = $this->currentDepth();
+        if ($depth === 0) {
+            $this->getOrCreateMutex()->pop();
+        }
+
+        $this->setCurrentDepth($depth + 1);
     }
 
     private function releaseLock(): void
     {
-        if ($this->mutex === null) {
+        $depth = $this->currentDepth();
+        if ($depth === 0) {
             return;
         }
 
-        $this->mutex->push(true);
+        $this->setCurrentDepth($depth - 1);
+
+        if ($depth === 1) {
+            $this->mutex?->push(true);
+        }
+    }
+
+    private function currentDepth(): int
+    {
+        $context = Coroutine::getContext();
+        if ($context === null) {
+            return 0;
+        }
+
+        $depth = $context[self::DEPTH_KEY] ?? 0;
+
+        return is_int($depth) ? $depth : 0;
+    }
+
+    private function setCurrentDepth(int $depth): void
+    {
+        $context = Coroutine::getContext();
+        if ($context === null) {
+            return;
+        }
+
+        $context[self::DEPTH_KEY] = $depth;
     }
 
     private function readCurrentContents(): string

@@ -23,7 +23,17 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Support\ArrayEntryStorageTrait;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Support\JsonEntryBuffer;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingTrait;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\FileChangeJournal;
 use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
+use FreeDSx\Ldap\Server\Logging\ExceptionLogging;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+use Throwable;
 
 /**
  * JSON-file storage; use forPcntl() / forSwoole() to pick a locking strategy. Reads are lock-free; writes go through atomic() which loads, mutates, and rewrites the file under lock.
@@ -34,9 +44,14 @@ use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class JsonFileStorage implements EntryStorageInterface
+final class JsonFileStorage implements EntryStorageInterface, ChangeJournalingInterface
 {
     use ArrayEntryStorageTrait;
+    use ChangeJournalingTrait;
+
+    private const JOURNAL_SUFFIX = '.journal.jsonl';
+
+    private const SEQ_SUFFIX = '.journal.seq';
 
     /**
      * @var array<string, Entry>|null
@@ -48,25 +63,30 @@ final class JsonFileStorage implements EntryStorageInterface
     private function __construct(
         private readonly string $filePath,
         private readonly StorageLockInterface $lock,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {}
 
     public static function forPcntl(
         string $filePath,
         ?StorageLockInterface $lock = null,
+        ?LoggerInterface $logger = null,
     ): self {
         return new self(
             $filePath,
             $lock ?? new FileLock($filePath),
+            $logger ?? new NullLogger(),
         );
     }
 
     public static function forSwoole(
         string $filePath,
         ?StorageLockInterface $lock = null,
+        ?LoggerInterface $logger = null,
     ): self {
         return new self(
             $filePath,
             $lock ?? new CoroutineLock($filePath),
+            $logger ?? new NullLogger(),
         );
     }
 
@@ -110,17 +130,23 @@ final class JsonFileStorage implements EntryStorageInterface
 
     public function atomic(callable $operation): void
     {
-        $this->withMutation(function (string $contents) use ($operation): string {
-            $data = $this->decodeContents($contents);
-            $buffer = new JsonEntryBuffer(
-                $data,
-                $this->arrayToEntry(...),
-                $this->entryToArray(...),
-            );
-            $operation($buffer);
+        $buffer = $this->newBuffer([]);
 
-            return $this->encodeContents($buffer->getData());
-        });
+        $this->withMutation(
+            function (string $contents) use ($operation, &$buffer): string {
+                $buffer = $this->newBuffer($this->decodeContents($contents));
+                $operation($buffer);
+
+                return $this->encodeContents($buffer->getData());
+            },
+            // Flush after the data is committed so a failed write records nothing; the shared lock is still held,
+            // so the journal append re-enters it rather than deadlocking.
+            function () use (&$buffer): void {
+                foreach ($buffer->getPendingChanges() as $change) {
+                    $this->flushChange($change);
+                }
+            },
+        );
     }
 
     public function namingContexts(): array
@@ -128,13 +154,45 @@ final class JsonFileStorage implements EntryStorageInterface
         return $this->namingContextsFromArray($this->read());
     }
 
+    protected function buildJournal(ChangeJournalConfig $config): ChangeJournalInterface
+    {
+        return new FileChangeJournal(
+            $this->lock,
+            $this->filePath . self::JOURNAL_SUFFIX,
+            $this->filePath . self::SEQ_SUFFIX,
+            $config->origin,
+        );
+    }
+
     /**
-     * @param callable(string): string $mutation
+     * Append a committed change to the journal, logging rather than raising a best-effort journal failure so an
+     * already-committed entry write is never reported as failed; sync reconciles the lost record via the present phase.
      */
-    private function withMutation(callable $mutation): void
+    private function flushChange(PendingChange $change): void
     {
         try {
-            $this->lock->withLock($mutation);
+            $this->appendChange($change);
+        } catch (Throwable $e) {
+            $this->logger->error(
+                'Failed to append a committed change to the file change journal.',
+                ExceptionLogging::makeLogContext($e),
+            );
+        }
+    }
+
+    /**
+     * @param callable(string): string $mutation
+     * @param ?callable(): void $afterCommit
+     */
+    private function withMutation(
+        callable $mutation,
+        ?callable $afterCommit = null,
+    ): void {
+        try {
+            $this->lock->withLock(
+                $mutation,
+                $afterCommit,
+            );
         } finally {
             $this->cache = null;
         }
@@ -255,6 +313,18 @@ final class JsonFileStorage implements EntryStorageInterface
         return new Entry(
             new Dn($dn),
             ...$attributes,
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function newBuffer(array $data): JsonEntryBuffer
+    {
+        return new JsonEntryBuffer(
+            $data,
+            $this->arrayToEntry(...),
+            $this->entryToArray(...),
         );
     }
 }

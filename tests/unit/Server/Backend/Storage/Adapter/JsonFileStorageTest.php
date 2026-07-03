@@ -16,7 +16,15 @@ namespace Tests\Unit\FreeDSx\Ldap\Server\Backend\Storage\Adapter;
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeAppenderInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeRecorder;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeType;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Search\Filter\PresentFilter;
@@ -26,9 +34,14 @@ use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Token\AnonToken;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+use RuntimeException;
+use Tests\Support\FreeDSx\Ldap\Journal\JournalingStorageContractTests;
 
 final class JsonFileStorageTest extends TestCase
 {
+    use JournalingStorageContractTests;
+
     private WritableStorageBackend $subject;
 
     private JsonFileStorage $storage;
@@ -36,6 +49,11 @@ final class JsonFileStorageTest extends TestCase
     private string $tempFile;
 
     private Entry $alice;
+
+    /**
+     * @var list<string>
+     */
+    private array $tempFiles = [];
 
     protected function setUp(): void
     {
@@ -67,8 +85,10 @@ final class JsonFileStorageTest extends TestCase
 
     protected function tearDown(): void
     {
-        if (file_exists($this->tempFile)) {
-            unlink($this->tempFile);
+        $this->cleanupBase($this->tempFile);
+
+        foreach ($this->tempFiles as $base) {
+            $this->cleanupBase($base);
         }
     }
 
@@ -287,6 +307,127 @@ final class JsonFileStorageTest extends TestCase
             ['dc=example,dc=com', 'dc=other,dc=org'],
             $contexts,
         );
+    }
+
+    public function test_a_recorded_write_is_journaled_through_the_buffer(): void
+    {
+        $storage = JsonFileStorage::forPcntl($this->registerTemp());
+        $storage->configureJournal(new ChangeJournalConfig());
+        $backend = new WritableStorageBackend(
+            storage: $storage,
+            changeRecorder: new ChangeRecorder(),
+        );
+
+        $backend->add(
+            new AddCommand(new Entry(
+                new Dn('dc=example,dc=com'),
+                new Attribute('objectClass', 'dcObject'),
+                new Attribute('dc', 'example'),
+            )),
+            $this->systemContext(),
+        );
+
+        self::assertCount(
+            1,
+            iterator_to_array($storage->changeJournal()->read()),
+        );
+    }
+
+    public function test_a_failed_write_records_nothing_in_the_journal(): void
+    {
+        $storage = JsonFileStorage::forPcntl($this->registerTemp());
+        $storage->configureJournal(new ChangeJournalConfig());
+
+        try {
+            $storage->atomic(function (EntryStorageInterface $buffer): void {
+                // The recorder collects into the buffer; the storage only flushes it after the data commits.
+                if ($buffer instanceof ChangeAppenderInterface) {
+                    $buffer->appendChange(new PendingChange(
+                        changeType: ChangeType::Add,
+                        dn: new Dn('cn=a,dc=example,dc=com'),
+                        entryUuid: '11111111-1111-4111-8111-111111111111',
+                        authzId: AuthzId::anonymous(),
+                    ));
+                }
+
+                throw new RuntimeException('force rollback');
+            });
+        } catch (RuntimeException) {
+        }
+
+        self::assertCount(
+            0,
+            iterator_to_array($storage->changeJournal()->read()),
+        );
+        self::assertSame(
+            0,
+            $storage->changeJournal()->latestSeq(),
+        );
+    }
+
+    public function test_a_journal_write_failure_does_not_fail_a_committed_write(): void
+    {
+        $base = $this->registerTemp();
+        // A directory where the sidecar file must go makes the journal append fail while the entry write commits.
+        mkdir($base . '.journal.jsonl');
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('error');
+
+        $storage = JsonFileStorage::forPcntl(
+            $base,
+            null,
+            $logger,
+        );
+        $storage->configureJournal(new ChangeJournalConfig());
+        $backend = new WritableStorageBackend(
+            storage: $storage,
+            changeRecorder: new ChangeRecorder(),
+        );
+
+        // Swallow the E_WARNING fopen() raises on the directory sidecar; the thrown StorageIoException is the point.
+        set_error_handler(static fn(): bool => true);
+
+        try {
+            $backend->add(
+                new AddCommand(new Entry(
+                    new Dn('dc=example,dc=com'),
+                    new Attribute('objectClass', 'dcObject'),
+                    new Attribute('dc', 'example'),
+                )),
+                $this->systemContext(),
+            );
+        } finally {
+            restore_error_handler();
+        }
+
+        self::assertNotNull($backend->get(new Dn('dc=example,dc=com')));
+    }
+
+    protected function makeJournalingStorage(): ChangeJournalingInterface
+    {
+        return JsonFileStorage::forPcntl($this->registerTemp());
+    }
+
+    private function registerTemp(): string
+    {
+        $base = sys_get_temp_dir() . '/ldap_journal_' . uniqid('', true) . '.json';
+        $this->tempFiles[] = $base;
+
+        return $base;
+    }
+
+    private function cleanupBase(string $base): void
+    {
+        foreach (['', '.journal.jsonl', '.journal.seq', '.lock'] as $suffix) {
+            $path = $base . $suffix;
+            if (is_dir($path)) {
+                @rmdir($path);
+            } elseif (is_file($path)) {
+                @unlink($path);
+            }
+        }
     }
 
     private function context(): WriteContext
