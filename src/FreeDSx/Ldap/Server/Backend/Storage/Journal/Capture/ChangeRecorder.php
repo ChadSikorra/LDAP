@@ -97,7 +97,7 @@ final readonly class ChangeRecorder
         ?Dn $previousDn = null,
         ?Entry $preImage = null,
     ): void {
-        if (!$storage instanceof ChangeJournalingInterface) {
+        if (!$storage instanceof ChangeAppenderInterface) {
             return;
         }
 

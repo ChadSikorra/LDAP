@@ -31,8 +31,20 @@ final class FileLock implements StorageLockInterface
      */
     private $lockHandle = null;
 
+    private int $depth = 0;
+
+    /**
+     * A process holds one instance, so a shared depth counter is per-context: re-entrant here, serialized
+     * across forked processes by the flock() below.
+     */
     private function acquireLock(): void
     {
+        if ($this->depth > 0) {
+            $this->depth++;
+
+            return;
+        }
+
         $handle = fopen(
             $this->filePath . self::LOCK_SUFFIX,
             'c',
@@ -49,11 +61,18 @@ final class FileLock implements StorageLockInterface
         }
 
         $this->lockHandle = $handle;
+        $this->depth = 1;
     }
 
     private function releaseLock(): void
     {
-        if ($this->lockHandle === null) {
+        if ($this->depth === 0) {
+            return;
+        }
+
+        $this->depth--;
+
+        if ($this->depth > 0 || $this->lockHandle === null) {
             return;
         }
 

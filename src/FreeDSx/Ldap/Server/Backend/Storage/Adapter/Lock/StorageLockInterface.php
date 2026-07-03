@@ -21,9 +21,21 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Lock;
 interface StorageLockInterface
 {
     /**
-     * Lock exclusively, hand the raw contents to $mutation, persist its return value, and release the lock.
+     * Lock exclusively, hand the raw contents to $mutation, persist its return value, run $afterCommit while
+     * still holding the lock, then release. $afterCommit sees the freshly committed data (e.g. journal flush).
      *
      * @param callable(string): string $mutation
+     * @param ?callable(): void $afterCommit
      */
-    public function withLock(callable $mutation): void;
+    public function withLock(
+        callable $mutation,
+        ?callable $afterCommit = null,
+    ): void;
+
+    /**
+     * Run $callback under the exclusive lock without any data read/publish.
+     *
+     * @param callable(): void $callback
+     */
+    public function withExclusive(callable $callback): void;
 }

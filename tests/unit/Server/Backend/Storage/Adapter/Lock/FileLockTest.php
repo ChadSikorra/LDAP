@@ -28,7 +28,7 @@ final class FileLockTest extends TestCase
 
     protected function tearDown(): void
     {
-        foreach ([$this->tempFile, $this->tempFile . '.lock'] as $path) {
+        foreach ([$this->tempFile, $this->tempFile . '.lock', $this->tempFile . '.sidecar'] as $path) {
             if (file_exists($path)) {
                 unlink($path);
             }
@@ -151,6 +151,124 @@ final class FileLockTest extends TestCase
         self::assertSame(
             'original|recovered',
             file_get_contents($this->tempFile),
+        );
+    }
+
+    public function test_with_exclusive_runs_the_callback_under_the_lock(): void
+    {
+        $lock = new FileLock($this->tempFile);
+        $ran = false;
+
+        $lock->withExclusive(function () use (&$ran): void {
+            $ran = true;
+        });
+
+        self::assertTrue($ran);
+        self::assertFileExists($this->tempFile . '.lock');
+    }
+
+    public function test_with_exclusive_is_reentrant_and_does_not_deadlock(): void
+    {
+        $lock = new FileLock($this->tempFile);
+        $depth = 0;
+
+        // A nested acquire in the same process must not block on its own flock().
+        $lock->withExclusive(function () use ($lock, &$depth): void {
+            $lock->withExclusive(function () use (&$depth): void {
+                $depth = 2;
+            });
+        });
+
+        self::assertSame(
+            2,
+            $depth,
+        );
+    }
+
+    public function test_a_journal_style_append_runs_within_a_write_without_deadlocking(): void
+    {
+        $lock = new FileLock($this->tempFile);
+        $sidecar = $this->tempFile . '.sidecar';
+
+        $lock->withLock(
+            fn(string $_): string => 'entry-data',
+            // Mirrors the journal flush: a nested exclusive write while the data lock is still held.
+            function () use ($lock, $sidecar): void {
+                $lock->withExclusive(function () use ($sidecar): void {
+                    file_put_contents(
+                        $sidecar,
+                        'journal-record',
+                    );
+                });
+            },
+        );
+
+        self::assertSame(
+            'entry-data',
+            file_get_contents($this->tempFile),
+        );
+        self::assertSame(
+            'journal-record',
+            file_get_contents($sidecar),
+        );
+    }
+
+    public function test_after_commit_runs_after_the_data_is_published(): void
+    {
+        $lock = new FileLock($this->tempFile);
+        $seenDuringAfterCommit = null;
+
+        $lock->withLock(
+            fn(string $_): string => 'published',
+            function () use (&$seenDuringAfterCommit): void {
+                $seenDuringAfterCommit = file_get_contents($this->tempFile);
+            },
+        );
+
+        self::assertSame(
+            'published',
+            $seenDuringAfterCommit,
+        );
+    }
+
+    public function test_after_commit_is_skipped_when_the_mutation_throws(): void
+    {
+        $lock = new FileLock($this->tempFile);
+        $afterCommitRan = false;
+
+        try {
+            $lock->withLock(
+                function (string $_): string {
+                    throw new \RuntimeException('mutation failed');
+                },
+                function () use (&$afterCommitRan): void {
+                    $afterCommitRan = true;
+                },
+            );
+            self::fail('Expected exception was not thrown.');
+        } catch (\RuntimeException) {
+        }
+
+        self::assertFalse($afterCommitRan);
+    }
+
+    public function test_reentrant_use_balances_the_depth_counter(): void
+    {
+        $lock = new FileLock($this->tempFile);
+
+        $lock->withExclusive(function () use ($lock): void {
+            $lock->withLock(fn(string $_): string => 'data');
+        });
+
+        $depth = new \ReflectionProperty(
+            $lock,
+            'depth',
+        );
+
+        // Back to zero means the underlying flock was released exactly once, at the outermost exit.
+        self::assertSame(
+            0,
+            $depth->getValue($lock),
         );
     }
 }

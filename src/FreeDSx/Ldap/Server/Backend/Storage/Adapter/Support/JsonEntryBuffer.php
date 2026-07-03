@@ -19,6 +19,8 @@ use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\TimeLimitExceededException;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeAppenderInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
 use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
 use Generator;
 
@@ -28,7 +30,7 @@ use Generator;
  * @internal
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class JsonEntryBuffer implements EntryStorageInterface
+final class JsonEntryBuffer implements EntryStorageInterface, ChangeAppenderInterface
 {
     use DefaultHasChildrenTrait;
 
@@ -36,6 +38,11 @@ final class JsonEntryBuffer implements EntryStorageInterface
      * @var array<string, mixed>
      */
     private array $data;
+
+    /**
+     * @var list<PendingChange>
+     */
+    private array $pending = [];
 
     /**
      * @param array<string, mixed> $data
@@ -83,6 +90,21 @@ final class JsonEntryBuffer implements EntryStorageInterface
     public function atomic(callable $operation): void
     {
         $operation($this);
+    }
+
+    public function appendChange(PendingChange $change): void
+    {
+        $this->pending[] = $change;
+    }
+
+    /**
+     * Changes collected during this write cycle, for the storage to flush to the journal after it commits.
+     *
+     * @return list<PendingChange>
+     */
+    public function getPendingChanges(): array
+    {
+        return $this->pending;
     }
 
     public function namingContexts(): array

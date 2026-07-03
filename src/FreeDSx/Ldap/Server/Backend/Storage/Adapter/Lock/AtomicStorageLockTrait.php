@@ -25,20 +25,39 @@ trait AtomicStorageLockTrait
 {
     public function __construct(private readonly string $filePath) {}
 
-    final public function withLock(callable $mutation): void
+    final public function withLock(
+        callable $mutation,
+        ?callable $afterCommit = null,
+    ): void {
+        $this->withExclusive(function () use ($mutation, $afterCommit): void {
+            $newContents = $mutation($this->readCurrentContents());
+            $this->publishAtomically($newContents);
+
+            if ($afterCommit !== null) {
+                $afterCommit();
+            }
+        });
+    }
+
+    final public function withExclusive(callable $callback): void
     {
         $this->acquireLock();
 
         try {
-            $newContents = $mutation($this->readCurrentContents());
-            $this->publishAtomically($newContents);
+            $callback();
         } finally {
             $this->releaseLock();
         }
     }
 
+    /**
+     * Acquire the exclusive lock, or bump the re-entrancy depth when already held by this execution context.
+     */
     abstract private function acquireLock(): void;
 
+    /**
+     * Drop the re-entrancy depth, releasing the underlying lock only when the outermost holder exits.
+     */
     abstract private function releaseLock(): void;
 
     abstract private function readCurrentContents(): string;
