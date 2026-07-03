@@ -27,6 +27,11 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\PdoStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\SharedPdoConnectionProvider;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeType;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\DnTooLongException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
@@ -41,9 +46,12 @@ use PDO;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Tests\Support\FreeDSx\Ldap\Journal\JournalingStorageContractTests;
 
 final class SqliteStorageTest extends TestCase
 {
+    use JournalingStorageContractTests;
+
     private WritableStorageBackend $subject;
 
     private PdoStorage $storage;
@@ -777,6 +785,40 @@ final class SqliteStorageTest extends TestCase
         );
     }
 
+    public function test_a_journal_append_rolls_back_with_the_enclosing_write_transaction(): void
+    {
+        $storage = SqliteStorage::forPcntl(':memory:');
+        $storage->configureJournal(new ChangeJournalConfig());
+
+        try {
+            $storage->atomic(function () use ($storage): void {
+                $storage->appendChange(new PendingChange(
+                    changeType: ChangeType::Add,
+                    dn: new Dn('cn=a,dc=example,dc=com'),
+                    entryUuid: '11111111-1111-4111-8111-111111111111',
+                    authzId: AuthzId::anonymous(),
+                ));
+
+                throw new RuntimeException('force rollback');
+            });
+        } catch (RuntimeException) {
+        }
+
+        self::assertCount(
+            0,
+            iterator_to_array($storage->changeJournal()->read()),
+        );
+        self::assertSame(
+            0,
+            $storage->changeJournal()->latestSeq(),
+        );
+    }
+
+    protected function makeJournalingStorage(): ChangeJournalingInterface
+    {
+        return SqliteStorage::forPcntl(':memory:');
+    }
+
     private function context(): WriteContext
     {
         return new WriteContext(
@@ -807,6 +849,14 @@ final class SqliteStorageTest extends TestCase
             ->willReturn($sqlite->ddlCreateSidecarTable());
         $dialect->method('ddlCreateSidecarIndexes')
             ->willReturn($sqlite->ddlCreateSidecarIndexes());
+        $dialect->method('ddlCreateJournalTable')
+            ->willReturn($sqlite->ddlCreateJournalTable());
+        $dialect->method('ddlCreateJournalIndexes')
+            ->willReturn($sqlite->ddlCreateJournalIndexes());
+        $dialect->method('ddlCreateJournalSeqTable')
+            ->willReturn($sqlite->ddlCreateJournalSeqTable());
+        $dialect->method('queryJournalSeqInit')
+            ->willReturn($sqlite->queryJournalSeqInit());
         $dialect->method('queryUpsert')
             ->willReturn($sqlite->queryUpsert());
         $dialect->method('queryExists')
