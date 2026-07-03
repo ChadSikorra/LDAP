@@ -91,9 +91,8 @@ $server = new LdapServer(
                     ),
                 ),
         )
+        ->setStorage(new MyDirectoryStorage())
 );
-
-$server->useBackend(new MyDirectoryBackend());
 ```
 
 ### Rule Evaluation Order

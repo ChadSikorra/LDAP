@@ -67,9 +67,7 @@ use FreeDSx\Ldap\ServerOptions;
 
 $passwordHash = '{SHA}' . base64_encode(sha1('secret', true));
 
-$server = new LdapServer();
-
-$server->useStorage(new InMemoryStorage([
+$options = (new ServerOptions())->setStorage(new InMemoryStorage([
     new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
     new Entry(
         new Dn('cn=admin,dc=example,dc=com'),
@@ -78,6 +76,7 @@ $server->useStorage(new InMemoryStorage([
     ),
 ]));
 
+$server = new LdapServer($options);
 $server->run();
 ```
 
@@ -96,11 +95,11 @@ use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
 use FreeDSx\Ldap\ServerOptions;
 
-$server = new LdapServer(
-    (new ServerOptions())->setSaslMechanisms(ServerOptions::SASL_PLAIN),
-);
+$options = (new ServerOptions())
+    ->setSaslMechanisms(ServerOptions::SASL_PLAIN)
+    ->setStorage(JsonFileStorage::forPcntl('/var/lib/myapp/ldap.json'));
 
-$server->useStorage(JsonFileStorage::forPcntl('/var/lib/myapp/ldap.json'));
+$server = new LdapServer($options);
 $server->run();
 ```
 
@@ -152,15 +151,15 @@ class MyAuthenticator implements PasswordAuthenticatableInterface
     }
 }
 
-$server = new LdapServer(
-    (new ServerOptions())->setSaslMechanisms(
+$options = (new ServerOptions())
+    ->setSaslMechanisms(
         ServerOptions::SASL_PLAIN,
         ServerOptions::SASL_SCRAM_SHA_256,
-    ),
-);
+    )
+    ->setStorage(JsonFileStorage::forPcntl('/var/lib/myapp/ldap.json'))
+    ->setPasswordAuthenticator(new MyAuthenticator());
 
-$server->useStorage(JsonFileStorage::forPcntl('/var/lib/myapp/ldap.json'));
-$server->usePasswordAuthenticator(new MyAuthenticator());
+$server = new LdapServer($options);
 $server->run();
 ```
 
@@ -171,13 +170,15 @@ about the other.
 
 ## Running The Server
 
-In its simplest form you construct the server and call `run()`. Without a backend configured, the server accepts
-connections and returns empty results for searches; write operations are rejected with `unwillingToPerform`.
+In its simplest form you construct the server with storage and call `run()`. A non-proxy server started without
+storage throws at startup rather than silently serving an empty directory.
 
 ```php
 use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\ServerOptions;
 
-$server = (new LdapServer())->run();
+$server = new LdapServer((new ServerOptions())->useInMemoryStorage());
+$server->run();
 ```
 
 ## Reloading Configuration on SIGHUP
@@ -186,8 +187,8 @@ A running server can reload its configuration on a `SIGHUP` signal without dropp
 accepted after the reload use the updated configuration. Connections already in flight keep the configuration they
 started with. This works on both the PCNTL and Swoole runners.
 
-By default `SIGHUP` is a logged no-op. To opt in, register a reloader via `LdapServer::onReload()`. The reloader is
-invoked on each `SIGHUP` and returns the `ServerOptions` the server should adopt going forward:
+By default `SIGHUP` is a logged no-op. To opt in, register a reloader via `ServerOptions::setConfigReloader()`. The
+reloader is invoked on each `SIGHUP` and returns the `ServerOptions` the server should adopt going forward:
 
 ```php
 use FreeDSx\Ldap\Server\Configuration\ConfigReloaderInterface;
@@ -214,11 +215,13 @@ final class FileConfigReloader implements ConfigReloaderInterface
 
 ```php
 use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\ServerOptions;
 
-$server = (new LdapServer())
-    ->useStorage($storage)
-    ->onReload(new FileConfigReloader('/etc/myapp/ldap.json'));
+$options = (new ServerOptions())
+    ->setStorage($storage)
+    ->setConfigReloader(new FileConfigReloader('/etc/myapp/ldap.json'));
 
+$server = new LdapServer($options);
 $server->run();
 ```
 
@@ -295,19 +298,18 @@ and entry transformation. Your storage implementation handles only raw persisten
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 
-$server = (new LdapServer())->useStorage(new InMemoryStorage($entries));
+$server = new LdapServer((new ServerOptions())->setStorage(new InMemoryStorage($entries)));
 $server->run();
 ```
 
-For advanced cases where storage cannot model your source, implement a backend directly with `useBackend()`.
-This is a low-level path: you take on **all** LDAP semantics yourself (validation, error codes, scope and
-DN handling, operational attributes) with no help from `WritableStorageBackend`. Prefer `EntryStorageInterface`
-whenever possible.
+For a custom source that a bundled adapter cannot model, implement `EntryStorageInterface` yourself and pass
+it to `useStorage()`. `WritableStorageBackend` still handles LDAP semantics (validation, error codes, scope
+and DN handling, operational attributes) on top of your storage, so you only implement entry read/write.
 
 ```php
 use FreeDSx\Ldap\LdapServer;
 
-$server = (new LdapServer())->useBackend(new MyBackend());
+$server = new LdapServer((new ServerOptions())->setStorage(new MyEntryStorage()));
 $server->run();
 ```
 
@@ -344,10 +346,11 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
+use FreeDSx\Ldap\ServerOptions;
 
 $passwordHash = '{SHA}' . base64_encode(sha1('secret', true));
 
-$server = (new LdapServer())->useStorage(new InMemoryStorage([
+$options = (new ServerOptions())->setStorage(new InMemoryStorage([
     new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example')),
     new Entry(
         new Dn('cn=admin,dc=example,dc=com'),
@@ -355,6 +358,8 @@ $server = (new LdapServer())->useStorage(new InMemoryStorage([
         new Attribute('userPassword', $passwordHash),
     ),
 ]));
+
+$server = new LdapServer($options);
 $server->run();
 ```
 
@@ -368,13 +373,14 @@ Use the named constructor that matches your server runner:
 ```php
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
+use FreeDSx\Ldap\ServerOptions;
 
 // PCNTL runner — uses flock() to serialise writes across forked processes
-$server = (new LdapServer())->useStorage(JsonFileStorage::forPcntl('/var/lib/myapp/ldap.json'));
+$server = new LdapServer((new ServerOptions())->setStorage(JsonFileStorage::forPcntl('/var/lib/myapp/ldap.json')));
 $server->run();
 
 // Swoole runner — uses a coroutine Channel mutex and non-blocking file I/O
-$server = (new LdapServer())->useStorage(JsonFileStorage::forSwoole('/var/lib/myapp/ldap.json'));
+$server = new LdapServer((new ServerOptions())->setStorage(JsonFileStorage::forSwoole('/var/lib/myapp/ldap.json')));
 $server->run();
 ```
 
@@ -405,20 +411,21 @@ Use the named constructor that matches your server runner:
 ```php
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\ServerOptions;
 
 // PCNTL runner — WAL journal mode, shared connection
-$server = (new LdapServer())->useStorage(SqliteStorage::forPcntl('/var/lib/myapp/ldap.sqlite'));
+$server = new LdapServer((new ServerOptions())->setStorage(SqliteStorage::forPcntl('/var/lib/myapp/ldap.sqlite')));
 $server->run();
 
 // Swoole runner — WAL journal mode, per-coroutine connection
-$server = (new LdapServer())->useStorage(SqliteStorage::forSwoole('/var/lib/myapp/ldap.sqlite'));
+$server = new LdapServer((new ServerOptions())->setStorage(SqliteStorage::forSwoole('/var/lib/myapp/ldap.sqlite')));
 $server->run();
 ```
 
 Use `:memory:` as the path to run a non-persistent, in-process SQLite database (useful for testing):
 
 ```php
-$server = (new LdapServer())->useStorage(SqliteStorage::forPcntl(':memory:'));
+$server = new LdapServer((new ServerOptions())->setStorage(SqliteStorage::forPcntl(':memory:')));
 ```
 
 #### MysqlStorage
@@ -430,17 +437,18 @@ Use the named constructor that matches your server runner:
 ```php
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\MysqlStorage;
+use FreeDSx\Ldap\ServerOptions;
 
 // PCNTL runner — shared connection across forked processes
-$server = (new LdapServer())->useStorage(
+$server = new LdapServer((new ServerOptions())->setStorage(
     MysqlStorage::forPcntl('mysql:host=localhost;dbname=ldap', 'user', 'secret')
-);
+));
 $server->run();
 
 // Swoole runner — per-coroutine connection
-$server = (new LdapServer())->useStorage(
+$server = new LdapServer((new ServerOptions())->setStorage(
     MysqlStorage::forSwoole('mysql:host=localhost;dbname=ldap', 'user', 'secret')
-);
+));
 $server->run();
 ```
 
@@ -526,13 +534,15 @@ pre-filtered results, you can replace the evaluator:
 
 ```php
 use FreeDSx\Ldap\LdapServer;
-use App\MyBackend;
+use FreeDSx\Ldap\ServerOptions;
+use App\MyEntryStorage;
 use App\MySqlFilterEvaluator;
 
-$server = (new LdapServer())
-    ->useBackend(new MyBackend())
-    ->useFilterEvaluator(new MySqlFilterEvaluator());
+$options = (new ServerOptions())
+    ->setStorage(new MyEntryStorage())
+    ->setFilterEvaluator(new MySqlFilterEvaluator());
 
+$server = new LdapServer($options);
 $server->run();
 ```
 
@@ -562,22 +572,24 @@ other source (database, remote URL, gzip stream, etc.). LDIF output uses the par
 
 ### Seeding Initial Entries
 
-`LdapServer::seed()` bulk-imports RFC 2849 LDIF content records into the storage configured via `useStorage()` in one
-atomic transaction, with schema validation and operational-attribute stamping (`createTimestamp`, `entryUUID`, etc.)
-applied. Use it to populate a persistent storage backend before `$server->run()`.
+`LdapServer::seed()` bulk-imports RFC 2849 LDIF content records into the storage configured via
+`ServerOptions::setStorage()` in one atomic transaction, with schema validation and operational-attribute stamping
+(`createTimestamp`, `entryUUID`, etc.) applied. Use it to populate a persistent storage backend before `$server->run()`.
 
 ```php
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Ldif\Loader\FileLdifLoader;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\ServerOptions;
 
-$server = (new LdapServer())
-    ->useStorage(SqliteStorage::forPcntl('/var/lib/myapp/ldap.sqlite'))
-    ->seed(
-        new FileLdifLoader('/etc/myapp/initial-data.ldif'),
-        new Dn('cn=admin,dc=example,dc=com'),
-    );
+$server = new LdapServer(
+    (new ServerOptions())->setStorage(SqliteStorage::forPcntl('/var/lib/myapp/ldap.sqlite')),
+);
+$server->seed(
+    new FileLdifLoader('/etc/myapp/initial-data.ldif'),
+    new Dn('cn=admin,dc=example,dc=com'),
+);
 
 $server->run();
 ```
@@ -617,10 +629,10 @@ deleteoldrdn: 1
 ```php
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Ldif\Loader\FileLdifLoader;
+use FreeDSx\Ldap\ServerOptions;
 
-(new LdapServer())
-    ->useStorage($storage)
-    ->seed(new FileLdifLoader('/etc/myapp/initial-data.ldif'))
+$server = new LdapServer((new ServerOptions())->setStorage($storage));
+$server->seed(new FileLdifLoader('/etc/myapp/initial-data.ldif'))
     ->applyChanges(new FileLdifLoader('/etc/myapp/changes-today.ldif'))
     ->run();
 ```
@@ -639,10 +651,12 @@ entries exactly as they were.
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Ldif\Output\FileLdifOutput;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\ServerOptions;
 
-(new LdapServer())
-    ->useStorage(SqliteStorage::forPcntl('/var/lib/myapp/ldap.sqlite'))
-    ->dump(new FileLdifOutput('/var/backups/ldap-snapshot.ldif'));
+$server = new LdapServer(
+    (new ServerOptions())->setStorage(SqliteStorage::forPcntl('/var/lib/myapp/ldap.sqlite')),
+);
+$server->dump(new FileLdifOutput('/var/backups/ldap-snapshot.ldif'));
 ```
 
 For in-memory use (logging, tests, piping over the network) use `StringLdifOutput`, which collects the chunks and is
@@ -766,6 +780,7 @@ use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\SaslIdentity;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
+use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Sasl\Mechanism\MechanismName;
 use SensitiveParameter;
 
@@ -788,7 +803,7 @@ class MyAuthenticator implements PasswordAuthenticatableInterface
     }
 }
 
-$server = (new LdapServer())->usePasswordAuthenticator(new MyAuthenticator());
+$server = new LdapServer((new ServerOptions())->setPasswordAuthenticator(new MyAuthenticator()));
 ```
 
 ## Handling the RootDSE
@@ -834,16 +849,19 @@ Register it with the server:
 
 ```php
 use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\ServerOptions;
+use App\MyEntryStorage;
 use App\MyRootDseHandler;
 
-$server = (new LdapServer())
-    ->useBackend(new MyBackend())
-    ->useRootDseHandler(new MyRootDseHandler());
+$options = (new ServerOptions())
+    ->setStorage(new MyEntryStorage())
+    ->setRootDseHandler(new MyRootDseHandler());
 
+$server = new LdapServer($options);
 $server->run();
 ```
 
-If your backend class also implements `RootDseHandlerInterface`, you do not need to call `useRootDseHandler()` — it will be used automatically.
+If your backend class also implements `RootDseHandlerInterface`, you do not need to set `setRootDseHandler()` — it will be used automatically.
 
 ## SASL Authentication
 

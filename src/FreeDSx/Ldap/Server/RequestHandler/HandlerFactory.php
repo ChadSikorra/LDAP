@@ -20,8 +20,7 @@ use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticator;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
-use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
@@ -35,14 +34,17 @@ use FreeDSx\Ldap\ServerOptions;
  */
 class HandlerFactory implements HandlerFactoryInterface
 {
-    public function __construct(private readonly ServerOptions $options) {}
+    public function __construct(
+        private readonly ServerOptions $options,
+        private readonly WritableLdapBackendInterface $backend,
+    ) {}
 
     /**
      * @inheritDoc
      */
     public function makeBackend(): LdapBackendInterface
     {
-        return $this->options->getBackend() ?? new WritableStorageBackend(new InMemoryStorage());
+        return $this->backend;
     }
 
     /**
@@ -55,9 +57,8 @@ class HandlerFactory implements HandlerFactoryInterface
             return $explicit;
         }
 
-        $backend = $this->options->getBackend();
-        if ($backend instanceof RootDseHandlerInterface) {
-            return $backend;
+        if ($this->backend instanceof RootDseHandlerInterface) {
+            return $this->backend;
         }
 
         return null;
@@ -102,11 +103,7 @@ class HandlerFactory implements HandlerFactoryInterface
     public function makeWriteDispatcher(WriteHandlerInterface ...$prepend): WriteOperationDispatcher
     {
         $handlers = $this->options->getWriteHandlers();
-
-        $backend = $this->options->getBackend();
-        if ($backend !== null) {
-            $handlers[] = $backend;
-        }
+        $handlers[] = $this->backend;
 
         return new WriteOperationDispatcher(
             ...$prepend,

@@ -24,7 +24,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Sasl\External\ExternalCredentialMapperInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
-use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
@@ -541,23 +541,6 @@ final class ServerOptionsTest extends TestCase
         );
     }
 
-    public function test_backend_is_null_by_default(): void
-    {
-        self::assertNull($this->subject->getBackend());
-    }
-
-    public function test_it_can_set_backend(): void
-    {
-        $backend = $this->createMock(WritableLdapBackendInterface::class);
-
-        $this->subject->setBackend($backend);
-
-        self::assertSame(
-            $backend,
-            $this->subject->getBackend(),
-        );
-    }
-
     public function test_password_authenticator_is_null_by_default(): void
     {
         self::assertNull($this->subject->getPasswordAuthenticator());
@@ -572,6 +555,33 @@ final class ServerOptionsTest extends TestCase
         self::assertSame(
             $authenticator,
             $this->subject->getPasswordAuthenticator(),
+        );
+    }
+
+    public function test_storage_is_null_by_default(): void
+    {
+        self::assertNull($this->subject->getStorage());
+    }
+
+    public function test_it_can_set_storage(): void
+    {
+        $storage = new InMemoryStorage();
+
+        $this->subject->setStorage($storage);
+
+        self::assertSame(
+            $storage,
+            $this->subject->getStorage(),
+        );
+    }
+
+    public function test_use_in_memory_storage_configures_an_in_memory_directory(): void
+    {
+        $this->subject->useInMemoryStorage();
+
+        self::assertInstanceOf(
+            InMemoryStorage::class,
+            $this->subject->getStorage(),
         );
     }
 

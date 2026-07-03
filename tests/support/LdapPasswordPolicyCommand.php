@@ -85,7 +85,7 @@ final class LdapPasswordPolicyCommand extends Command
                 ->setSaslMechanisms(ServerOptions::SASL_PLAIN)
                 ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL)),
         );
-        $server->useStorage(new InMemoryStorage($entries));
+        $server->getOptions()->setStorage(new InMemoryStorage($entries));
         $server->run();
 
         return Command::SUCCESS;

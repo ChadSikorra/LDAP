@@ -23,6 +23,14 @@ use FreeDSx\Ldap\Protocol\RootDseLoader;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Server\Clock\ClockInterface;
 use FreeDSx\Ldap\Server\Clock\SystemClock;
+use FreeDSx\Ldap\Schema\SchemaValidationMode;
+use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
+use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeRecorder;
+use FreeDSx\Ldap\Server\Backend\Storage\OperationalAttributeGenerator;
+use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
+use Psr\Log\NullLogger;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Metrics\File\FileSnapshotProvider;
 use FreeDSx\Ldap\Server\Metrics\File\FileSnapshotWriter;
@@ -183,6 +191,10 @@ class Container
         $this->registerFactory(
             className: HandlerFactoryInterface::class,
             factory: $this->makeHandlerFactory(...),
+        );
+        $this->registerFactory(
+            className: WritableStorageBackend::class,
+            factory: $this->makeBackend(...),
         );
         $this->registerFactory(
             className: ServerProtocolFactory::class,
@@ -429,7 +441,85 @@ class Container
 
     private function makeHandlerFactory(): HandlerFactory
     {
-        return new HandlerFactory($this->get(ServerOptions::class));
+        return new HandlerFactory(
+            $this->get(ServerOptions::class),
+            $this->backendOrFail(),
+        );
+    }
+
+    /**
+     * The configured backend; only reached on the non-proxy path, where LdapServer's startup check guarantees one.
+     */
+    private function backendOrFail(): WritableStorageBackend
+    {
+        return $this->backendOrNull()
+            ?? throw new RuntimeException('No storage is configured; set ServerOptions::setStorage().');
+    }
+
+    /**
+     * The configured backend, or null when no storage is set (the proxy path has none).
+     */
+    private function backendOrNull(): ?WritableStorageBackend
+    {
+        return $this->get(ServerOptions::class)->getStorage() !== null
+            ? $this->get(WritableStorageBackend::class)
+            : null;
+    }
+
+    /**
+     * Assemble the writable backend from the configured storage; only invoked when storage is set.
+     */
+    private function makeBackend(): WritableStorageBackend
+    {
+        $options = $this->get(ServerOptions::class);
+        $storage = $options->getStorage();
+
+        if ($storage === null) {
+            throw new RuntimeException('No storage is configured; set ServerOptions::setStorage().');
+        }
+
+        $schema = $options->getSchemaValidationMode() !== SchemaValidationMode::Off
+            ? $options->getSchema()
+            : null;
+
+        return new WritableStorageBackend(
+            storage: $storage,
+            limits: $options->makeSearchLimits(),
+            validator: $this->buildSchemaValidator(),
+            operationalAttrs: new OperationalAttributeGenerator($schema),
+            changeRecorder: $this->changeRecorderFor($storage),
+        );
+    }
+
+    private function buildSchemaValidator(): ?SchemaValidator
+    {
+        $options = $this->get(ServerOptions::class);
+        $mode = $options->getSchemaValidationMode();
+
+        if ($mode === SchemaValidationMode::Off) {
+            return null;
+        }
+
+        return new SchemaValidator(
+            $options->getSchema(),
+            $mode,
+        );
+    }
+
+    /**
+     * Configure the storage's journal and return a recorder when sync is enabled and the storage can journal.
+     */
+    private function changeRecorderFor(EntryStorageInterface $storage): ?ChangeRecorder
+    {
+        $options = $this->get(ServerOptions::class);
+
+        if (!$options->isSyncEnabled() || !$storage instanceof ChangeJournalingInterface) {
+            return null;
+        }
+
+        $storage->configureJournal($options->getChangeJournalConfig());
+
+        return new ChangeRecorder($options->getLogger() ?? new NullLogger());
     }
 
     private function makeServerRunner(): ServerRunnerInterface
@@ -456,6 +546,7 @@ class Container
             metricsRecorder: $metricsRecorder,
             snapshotPublisher: $this->makeSnapshotPublisher(),
             operationRollup: $this->makeOperationRollup(),
+            backend: $this->backendOrNull(),
         );
     }
 
@@ -500,6 +591,8 @@ class Container
         $proxyOptions = $this->has(ProxyOptions::class)
             ? $this->get(ProxyOptions::class)
             : null;
+        // Carry the backend across reloads so a SIGHUP does not drop the configured storage.
+        $backend = $this->backendOrNull();
 
         // Share the metrics state across reloads so SIGHUP does not reset the counters or detach cn=monitor. The rollup
         // coordinator is shared so a reloaded middleware streams to the same channel the (persistent) runner bound.
@@ -510,6 +603,7 @@ class Container
 
         return static function (ServerOptions $options) use (
             $proxyOptions,
+            $backend,
             $metricsRecorder,
             $metricsSnapshots,
             $inMemoryMetrics,
@@ -521,6 +615,10 @@ class Container
                 MetricsSnapshotProvider::class => $metricsSnapshots,
                 InMemoryMetricsRecorder::class => $inMemoryMetrics,
             ];
+
+            if ($backend !== null) {
+                $instances[WritableStorageBackend::class] = $backend;
+            }
 
             if ($proxyOptions !== null) {
                 $instances[ProxyOptions::class] = $proxyOptions;

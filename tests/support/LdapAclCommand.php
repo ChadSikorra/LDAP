@@ -139,7 +139,7 @@ class LdapAclCommand extends Command
                 ),
         );
 
-        $server->useStorage(new InMemoryStorage($entries));
+        $server->getOptions()->setStorage(new InMemoryStorage($entries));
         $server->run();
 
         return Command::SUCCESS;
