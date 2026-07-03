@@ -32,6 +32,7 @@ final class ServerControlRegistryTest extends TestCase
         self::assertSame(
             [
                 Control::OID_PROXY_AUTHORIZATION,
+                Control::OID_MANAGE_DSA_IT,
                 Control::OID_SORTING,
                 Control::OID_ASSERTION,
             ],
@@ -44,6 +45,7 @@ final class ServerControlRegistryTest extends TestCase
         self::assertSame(
             [
                 Control::OID_PROXY_AUTHORIZATION,
+                Control::OID_MANAGE_DSA_IT,
                 Control::OID_PAGING,
                 Control::OID_SORTING,
                 Control::OID_ASSERTION,
@@ -57,6 +59,7 @@ final class ServerControlRegistryTest extends TestCase
         self::assertSame(
             [
                 Control::OID_PROXY_AUTHORIZATION,
+                Control::OID_MANAGE_DSA_IT,
                 Control::OID_RELAX_RULES,
                 Control::OID_ASSERTION,
                 Control::OID_PRE_READ,
@@ -74,7 +77,10 @@ final class ServerControlRegistryTest extends TestCase
     public function test_handlers_without_specific_controls_support_only_the_global_set(HandlerId $id): void
     {
         self::assertSame(
-            [Control::OID_PROXY_AUTHORIZATION],
+            [
+                Control::OID_PROXY_AUTHORIZATION,
+                Control::OID_MANAGE_DSA_IT,
+            ],
             $this->subject->supportedControlsFor($id),
         );
     }

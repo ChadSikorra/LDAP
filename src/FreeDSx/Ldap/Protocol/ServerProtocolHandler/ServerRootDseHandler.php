@@ -79,6 +79,7 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
                 Control::OID_SORTING,
                 Control::OID_RELAX_RULES,
                 Control::OID_PROXY_AUTHORIZATION,
+                Control::OID_MANAGE_DSA_IT,
                 Control::OID_ASSERTION,
                 Control::OID_PRE_READ,
                 Control::OID_POST_READ,
