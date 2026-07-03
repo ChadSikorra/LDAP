@@ -23,32 +23,17 @@ use FreeDSx\Ldap\Ldif\LdifParser;
 use FreeDSx\Ldap\Ldif\Loader\LdifLoaderInterface;
 use FreeDSx\Ldap\Ldif\Output\LdifOutputInterface;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
-use FreeDSx\Ldap\Schema\SchemaValidationMode;
-use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\BackendAwareInterface;
 use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
-use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeRecorder;
-use FreeDSx\Ldap\Server\Backend\Storage\OperationalAttributeGenerator;
-use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
-use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
-use FreeDSx\Ldap\Server\Configuration\ConfigReloaderInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DirectoryDumper;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DumpOptions;
 use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
-use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteRequestReplayer;
-use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
 use Generator;
-use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 
 /**
  * The LDAP server.
@@ -105,30 +90,6 @@ class LdapServer
     }
 
     /**
-     * Specify an entry storage implementation to back the LDAP server.
-     *
-     * Schema validation is applied automatically. If you don't want it, set {@see SchemaValidationMode::Off} in your
-     * server options.
-     *
-     * Use {@see useBackend()} instead when implementing a fully custom backend (e.g. a proxy) that handles LDAP
-     * semantics itself.
-     */
-    public function useStorage(EntryStorageInterface $storage): self
-    {
-        $schema = $this->options->getSchemaValidationMode() !== SchemaValidationMode::Off
-            ? $this->options->getSchema()
-            : null;
-
-        return $this->useBackend(new WritableStorageBackend(
-            storage: $storage,
-            limits: $this->options->makeSearchLimits(),
-            validator: $this->buildSchemaValidator(),
-            operationalAttrs: new OperationalAttributeGenerator($schema),
-            changeRecorder: $this->changeRecorderFor($storage),
-        ));
-    }
-
-    /**
      * Bulk-loads LDIF content records into the storage configured via {@see useStorage()} as one atomic batch.
      *
      * Use {@see applyChanges()} instead to replay a changelog (modify/delete/rename) through the live write path.
@@ -143,10 +104,10 @@ class LdapServer
         LdifLoaderInterface $loader,
         Dn $creatorDn = new Dn(''),
     ): self {
-        $backend = $this->options->getBackend();
+        $backend = $this->backend();
 
-        if (!$backend instanceof WritableStorageBackend) {
-            throw new RuntimeException('seed() requires a storage backend configured via useStorage().');
+        if ($backend === null) {
+            throw new RuntimeException('seed() requires storage configured via ServerOptions::setStorage().');
         }
 
         (new LdapImporter(
@@ -170,10 +131,10 @@ class LdapServer
      */
     public function applyChanges(LdifLoaderInterface $loader): self
     {
-        $backend = $this->options->getBackend();
+        $backend = $this->backend();
 
         if ($backend === null) {
-            throw new RuntimeException('applyChanges() requires a backend configured via useStorage() or useBackend().');
+            throw new RuntimeException('applyChanges() requires storage configured via ServerOptions::setStorage().');
         }
 
         (new WriteRequestReplayer(
@@ -196,10 +157,10 @@ class LdapServer
         LdifOutputInterface $output,
         DumpOptions $options = new DumpOptions(),
     ): self {
-        $backend = $this->options->getBackend();
+        $backend = $this->backend();
 
-        if (!$backend instanceof WritableStorageBackend) {
-            throw new RuntimeException('dump() requires a storage backend configured via useStorage().');
+        if ($backend === null) {
+            throw new RuntimeException('dump() requires storage configured via ServerOptions::setStorage().');
         }
 
         $output->write((new DirectoryDumper(
@@ -207,100 +168,6 @@ class LdapServer
             $backend->namingContexts(),
             $this->options->getFilterEvaluator(),
         ))->dump($options));
-
-        return $this;
-    }
-
-    /**
-     * Specify a backend to use for incoming LDAP requests.
-     */
-    public function useBackend(WritableLdapBackendInterface $backend): self
-    {
-        $this->options->setBackend($backend);
-
-        return $this;
-    }
-
-    /**
-     * Set the identity resolver used to translate a name to an Entry for simple bind, SASL bind, and PasswordModify.
-     */
-    public function useIdentityResolver(BindNameResolverInterface $resolver): self
-    {
-        $this->options->setIdentityResolver($resolver);
-
-        return $this;
-    }
-
-    /**
-     * Override the password authenticator used for simple bind and SASL PLAIN.
-     */
-    public function usePasswordAuthenticator(PasswordAuthenticatableInterface $authenticator): self
-    {
-        $this->options->setPasswordAuthenticator($authenticator);
-
-        return $this;
-    }
-
-    /**
-     * Register a handler for one or more LDAP write operations.
-     */
-    public function useWriteHandler(WriteHandlerInterface $handler): self
-    {
-        $this->options->addWriteHandler($handler);
-
-        return $this;
-    }
-
-    /**
-     * Specify an instance of a RootDSE handler to use for RootDSE requests.
-     */
-    public function useRootDseHandler(RootDseHandlerInterface $rootDseHandler): self
-    {
-        $this->options->setRootDseHandler($rootDseHandler);
-
-        return $this;
-    }
-
-    /**
-     * Override the filter evaluator used by the server when applying LDAP filters
-     * to entries returned by the backend's search() generator.
-     */
-    public function useFilterEvaluator(FilterEvaluatorInterface $evaluator): self
-    {
-        $this->options->setFilterEvaluator($evaluator);
-
-        return $this;
-    }
-
-    /**
-     * Specify a logger to be used by the server process.
-     */
-    public function useLogger(LoggerInterface $logger): self
-    {
-        $this->options->setLogger($logger);
-
-        return $this;
-    }
-
-    /**
-     * Register a reloader that supplies fresh ServerOptions on a SIGHUP reload. New connections use the result.
-     */
-    public function onReload(ConfigReloaderInterface $configReloader): self
-    {
-        $this->options->setConfigReloader($configReloader);
-
-        return $this;
-    }
-
-    /**
-     * Configure the server to use the Swoole coroutine runner instead of the default PCNTL process runner.
-     *
-     * Requires the swoole PHP extension. The SwooleServerRunner handles each client connection in its own
-     * coroutine within a single process, making in-memory storage adapters safe to use concurrently.
-     */
-    public function useSwooleRunner(): self
-    {
-        $this->options->setUseSwooleRunner(true);
 
         return $this;
     }
@@ -324,23 +191,31 @@ class LdapServer
         );
     }
 
-    /**
-     * Configures the storage's journal and returns a recorder when sync is enabled and the storage can journal.
-     */
-    private function changeRecorderFor(EntryStorageInterface $storage): ?ChangeRecorder
-    {
-        if (!$this->options->isSyncEnabled() || !$storage instanceof ChangeJournalingInterface) {
-            return null;
-        }
-
-        $storage->configureJournal($this->options->getChangeJournalConfig());
-
-        return new ChangeRecorder($this->options->getLogger() ?? new NullLogger());
-    }
-
     private function init(): void
     {
+        $this->requireBackendUnlessProxy();
         $this->options->setAccessControl($this->resolveAccessControl());
+    }
+
+    private function requireBackendUnlessProxy(): void
+    {
+        if ($this->options->getStorage() !== null || $this->container->has(ProxyOptions::class)) {
+            return;
+        }
+
+        throw new RuntimeException(
+            'No storage is configured. Set ServerOptions::setStorage() (or useInMemoryStorage()) before running.',
+        );
+    }
+
+    /**
+     * The assembled storage backend from the container, or null when no storage is configured.
+     */
+    private function backend(): ?WritableStorageBackend
+    {
+        return $this->options->getStorage() === null
+            ? null
+            : $this->container->get(WritableStorageBackend::class);
     }
 
     private function resolveAccessControl(): AccessControlInterface
@@ -360,7 +235,7 @@ class LdapServer
 
     private function injectBackendIfNeeded(AccessControlInterface $acl): AccessControlInterface
     {
-        $backend = $this->options->getBackend();
+        $backend = $this->backend();
 
         if ($backend !== null && $acl instanceof BackendAwareInterface) {
             $acl->setBackend($backend);
@@ -385,19 +260,5 @@ class LdapServer
 
             yield $request->getEntry();
         }
-    }
-
-    private function buildSchemaValidator(): ?SchemaValidator
-    {
-        $mode = $this->options->getSchemaValidationMode();
-
-        if ($mode === SchemaValidationMode::Off) {
-            return null;
-        }
-
-        return new SchemaValidator(
-            $this->options->getSchema(),
-            $mode,
-        );
     }
 }

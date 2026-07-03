@@ -267,7 +267,7 @@ final class LdapServerCommand extends Command
             );
         }
 
-        $server->useStorage($storage);
+        $server->getOptions()->setStorage($storage);
 
         if ($seedFile !== '') {
             $server->seed(new FileLdifLoader($seedFile));

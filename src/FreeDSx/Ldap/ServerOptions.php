@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap;
 
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Schema\PasswordPolicySchemaProvider;
 use FreeDSx\Ldap\Schema\Schema;
@@ -27,7 +28,8 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashScheme;
 use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\DefaultPasswordQualityChecker;
 use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\PasswordQualityCheckerInterface;
-use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
@@ -153,7 +155,7 @@ final class ServerOptions
 
     private ?string $dseVendorVersion = null;
 
-    private ?WritableLdapBackendInterface $backend = null;
+    private ?EntryStorageInterface $storage = null;
 
     private ?PasswordAuthenticatableInterface $passwordAuthenticator = null;
 
@@ -500,14 +502,26 @@ final class ServerOptions
         return $this;
     }
 
-    public function getBackend(): ?WritableLdapBackendInterface
+    public function getStorage(): ?EntryStorageInterface
     {
-        return $this->backend;
+        return $this->storage;
     }
 
-    public function setBackend(?WritableLdapBackendInterface $backend): self
+    public function setStorage(?EntryStorageInterface $storage): self
     {
-        $this->backend = $backend;
+        $this->storage = $storage;
+
+        return $this;
+    }
+
+    /**
+     * Back the server with a transient in-memory directory.
+     *
+     * @param Entry[] $entries
+     */
+    public function useInMemoryStorage(array $entries = []): self
+    {
+        $this->storage = new InMemoryStorage($entries);
 
         return $this;
     }
@@ -1041,7 +1055,7 @@ final class ServerOptions
     }
 
     /**
-     * @return array{ip: string, port: int, unix_socket: string, transport: string, idle_timeout: int, require_authentication: bool, allow_anonymous: bool, backend: ?WritableLdapBackendInterface, rootdse_handler: ?RootDseHandlerInterface, logger: ?LoggerInterface, use_ssl: bool, ssl_cert: ?string, ssl_cert_key: ?string, ssl_cert_passphrase: ?string, min_tls_version: string, ssl_ciphers: string, ssl_validate_cert: bool, ssl_allow_self_signed: ?bool, ssl_ca_cert: ?string, monitor_enabled: bool, monitor_snapshot_path: ?string, dse_alt_server: ?string, dse_vendor_name: string, dse_vendor_version: ?string, sasl_mechanisms: string[]}
+     * @return array{ip: string, port: int, unix_socket: string, transport: string, idle_timeout: int, require_authentication: bool, allow_anonymous: bool, rootdse_handler: ?RootDseHandlerInterface, logger: ?LoggerInterface, use_ssl: bool, ssl_cert: ?string, ssl_cert_key: ?string, ssl_cert_passphrase: ?string, min_tls_version: string, ssl_ciphers: string, ssl_validate_cert: bool, ssl_allow_self_signed: ?bool, ssl_ca_cert: ?string, monitor_enabled: bool, monitor_snapshot_path: ?string, dse_alt_server: ?string, dse_vendor_name: string, dse_vendor_version: ?string, sasl_mechanisms: string[]}
      */
     public function toArray(): array
     {
@@ -1053,7 +1067,6 @@ final class ServerOptions
             'idle_timeout' => $this->getIdleTimeout(),
             'require_authentication' => $this->isRequireAuthentication(),
             'allow_anonymous' => $this->isAllowAnonymous(),
-            'backend' => $this->getBackend(),
             'rootdse_handler' => $this->getRootDseHandler(),
             'logger' => $this->getLogger(),
             'use_ssl' => $this->isUseSsl(),

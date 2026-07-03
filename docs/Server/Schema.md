@@ -19,10 +19,9 @@ schema in `Strict` mode.
 
 ```php
 use FreeDSx\Ldap\LdapServer;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
+use FreeDSx\Ldap\ServerOptions;
 
-$server = new LdapServer();
-$server->useStorage(new InMemoryStorage());
+$server = new LdapServer((new ServerOptions())->useInMemoryStorage());
 ```
 
 ## What Gets Validated
@@ -95,9 +94,10 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\ServerOptions;
 
 $server = new LdapServer(
-    (new ServerOptions())->setSchemaValidationMode(SchemaValidationMode::Lenient)
+    (new ServerOptions())
+        ->setSchemaValidationMode(SchemaValidationMode::Lenient)
+        ->setStorage(new InMemoryStorage())
 );
-$server->useStorage(new InMemoryStorage());
 ```
 
 Beyond the server-wide mode, an authorized client can relax validation for a *single* Add/Modify with the Relax Rules

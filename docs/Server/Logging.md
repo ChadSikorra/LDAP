@@ -19,22 +19,14 @@ Without a configured logger, the server runs silently.
 
 ## Wiring a Logger
 
-Any PSR-3 `LoggerInterface` works:
+Any PSR-3 `LoggerInterface` works — set it on `ServerOptions`:
 
 ```php
 use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\ServerOptions;
 use Psr\Log\LoggerInterface;
 
-$server = new LdapServer();
-$server->useLogger($logger);
-```
-
-Or via `ServerOptions`:
-
-```php
-use FreeDSx\Ldap\ServerOptions;
-
-$options = (new ServerOptions())->setLogger($logger);
+$server = new LdapServer((new ServerOptions())->setLogger($logger));
 ```
 
 ## Event Catalog

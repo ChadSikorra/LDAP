@@ -16,7 +16,6 @@ namespace Tests\Unit\FreeDSx\Ldap\Server\RequestHandler;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticator;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\RequestHandler\HandlerFactory;
 use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\ServerOptions;
@@ -25,47 +24,42 @@ use PHPUnit\Framework\TestCase;
 
 final class HandlerFactoryTest extends TestCase
 {
-    private HandlerFactory $subject;
-
-    public function test_it_should_return_an_in_memory_backend_when_none_is_configured(): void
-    {
-        $this->subject = new HandlerFactory(new ServerOptions());
-
-        self::assertInstanceOf(
-            WritableStorageBackend::class,
-            $this->subject->makeBackend(),
-        );
-    }
-
-    public function test_it_should_allow_a_backend_as_an_object(): void
+    public function test_it_returns_the_backend_it_was_built_with(): void
     {
         $backend = $this->createMock(WritableLdapBackendInterface::class);
-        $this->subject = new HandlerFactory((new ServerOptions())->setBackend($backend));
+        $subject = new HandlerFactory(
+            new ServerOptions(),
+            $backend,
+        );
 
         self::assertSame(
             $backend,
-            $this->subject->makeBackend(),
+            $subject->makeBackend(),
         );
     }
 
     public function test_it_should_allow_a_rootdse_handler_as_an_object(): void
     {
         $rootDseHandler = $this->createMock(RootDseHandlerInterface::class);
-        $this->subject = new HandlerFactory((new ServerOptions())->setRootDseHandler($rootDseHandler));
+        $subject = new HandlerFactory(
+            (new ServerOptions())->setRootDseHandler($rootDseHandler),
+            $this->backend(),
+        );
 
         self::assertSame(
             $rootDseHandler,
-            $this->subject->makeRootDseHandler(),
+            $subject->makeRootDseHandler(),
         );
     }
 
     public function test_it_should_allow_a_null_rootdse_handler(): void
     {
-        $this->subject = new HandlerFactory(
+        $subject = new HandlerFactory(
             (new ServerOptions())->setRootDseHandler(null),
+            $this->backend(),
         );
 
-        self::assertNull($this->subject->makeRootDseHandler());
+        self::assertNull($subject->makeRootDseHandler());
     }
 
     public function test_it_should_return_the_backend_as_rootdse_handler_if_it_implements_the_interface(): void
@@ -76,11 +70,14 @@ final class HandlerFactoryTest extends TestCase
             RootDseHandlerInterface::class,
         ]);
 
-        $this->subject = new HandlerFactory((new ServerOptions())->setBackend($backend));
+        $subject = new HandlerFactory(
+            new ServerOptions(),
+            $backend,
+        );
 
         self::assertSame(
             $backend,
-            $this->subject->makeRootDseHandler(),
+            $subject->makeRootDseHandler(),
         );
     }
 
@@ -93,20 +90,28 @@ final class HandlerFactoryTest extends TestCase
         ]);
         $explicit = $this->createMock(RootDseHandlerInterface::class);
 
-        $this->subject = new HandlerFactory(
-            (new ServerOptions())
-                ->setBackend($backend)
-                ->setRootDseHandler($explicit),
+        $subject = new HandlerFactory(
+            (new ServerOptions())->setRootDseHandler($explicit),
+            $backend,
         );
 
-        self::assertSame($explicit, $this->subject->makeRootDseHandler());
+        self::assertSame(
+            $explicit,
+            $subject->makeRootDseHandler(),
+        );
     }
 
     public function test_it_returns_default_password_authenticator_when_none_is_configured(): void
     {
-        $subject = new HandlerFactory(new ServerOptions());
+        $subject = new HandlerFactory(
+            new ServerOptions(),
+            $this->backend(),
+        );
 
-        self::assertInstanceOf(PasswordAuthenticator::class, $subject->makePasswordAuthenticator());
+        self::assertInstanceOf(
+            PasswordAuthenticator::class,
+            $subject->makePasswordAuthenticator(),
+        );
     }
 
     public function test_it_prefers_explicitly_configured_password_authenticator(): void
@@ -115,9 +120,13 @@ final class HandlerFactoryTest extends TestCase
 
         $subject = new HandlerFactory(
             (new ServerOptions())->setPasswordAuthenticator($authenticator),
+            $this->backend(),
         );
 
-        self::assertSame($authenticator, $subject->makePasswordAuthenticator());
+        self::assertSame(
+            $authenticator,
+            $subject->makePasswordAuthenticator(),
+        );
     }
 
     public function test_it_returns_backend_as_password_authenticator_if_it_implements_the_interface(): void
@@ -128,9 +137,15 @@ final class HandlerFactoryTest extends TestCase
             PasswordAuthenticatableInterface::class,
         ]);
 
-        $subject = new HandlerFactory((new ServerOptions())->setBackend($backend));
+        $subject = new HandlerFactory(
+            new ServerOptions(),
+            $backend,
+        );
 
-        self::assertSame($backend, $subject->makePasswordAuthenticator());
+        self::assertSame(
+            $backend,
+            $subject->makePasswordAuthenticator(),
+        );
     }
 
     public function test_explicit_password_authenticator_takes_precedence_over_backend(): void
@@ -144,11 +159,18 @@ final class HandlerFactoryTest extends TestCase
         ]);
 
         $subject = new HandlerFactory(
-            (new ServerOptions())
-                ->setBackend($backend)
-                ->setPasswordAuthenticator($authenticator),
+            (new ServerOptions())->setPasswordAuthenticator($authenticator),
+            $backend,
         );
 
-        self::assertSame($authenticator, $subject->makePasswordAuthenticator());
+        self::assertSame(
+            $authenticator,
+            $subject->makePasswordAuthenticator(),
+        );
+    }
+
+    private function backend(): WritableLdapBackendInterface
+    {
+        return $this->createMock(WritableLdapBackendInterface::class);
     }
 }

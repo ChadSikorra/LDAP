@@ -17,6 +17,7 @@ use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Metrics\File\SnapshotPublisher;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
@@ -90,6 +91,7 @@ class PcntlServerRunner implements ServerRunnerInterface
         private readonly MetricsRecorderInterface $metricsRecorder = new NullMetricsRecorder(),
         private readonly ?SnapshotPublisher $snapshotPublisher = null,
         private readonly ?OperationRollupCoordinator $operationRollup = null,
+        private readonly ?WritableLdapBackendInterface $backend = null,
     ) {
         if (!extension_loaded('pcntl')) {
             throw new RuntimeException(
@@ -483,10 +485,9 @@ class PcntlServerRunner implements ServerRunnerInterface
 
         $context = ['pid' => $pid];
         $this->isMainProcess = false;
-        $backend = $this->options->getBackend();
 
-        if ($backend instanceof ResettableInterface) {
-            $backend->reset();
+        if ($this->backend instanceof ResettableInterface) {
+            $this->backend->reset();
         }
 
         $serverProtocolHandler = $this->serverProtocolFactory->make(

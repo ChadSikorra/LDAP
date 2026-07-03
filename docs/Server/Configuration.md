@@ -16,7 +16,7 @@ LDAP Server Configuration
     * [ServerOptions:setAclRules](#setaclrules)
     * [ServerOptions:setAccessControl](#setaccesscontrol)
 * [Backend](#backend)
-    * [ServerOptions:setBackend](#setbackend)
+    * [ServerOptions:setStorage](#setstorage)
     * [ServerOptions:setFilterEvaluator](#setfilterevaluator)
     * [ServerOptions:setRootDseHandler](#setrootdsehandler)
     * [ServerOptions:setPasswordAuthenticator](#setpasswordauthenticator)
@@ -109,16 +109,13 @@ Specify a PSR-3 compatible logging instance to use. The server emits structured 
 (bind outcomes, authorization details, schema violations, etc.) through this logger. See
 [Server Logging](Logging.md) for the full event catalog and log properties.
 
-You can also set the logger after instantiating the server and before running it:
+You can also set the logger on your options instance before running the server:
 
 ```php
-use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\ServerOptions;
 
-$server = new LdapServer();
-
-// instantiate some logger class...
-
-$server->useLogger($logger);
+// with your current options instance
+$options->setLogger($logger);
 ```
 
 **Default**: `null`
@@ -252,35 +249,23 @@ The LDAP server works by being provided a backend that implements `LdapBackendIn
 optionally write operations). You can also plug in a custom filter evaluator or a custom RootDSE handler.
 
 ------------------
-#### setBackend
+#### setStorage
 
-This should be an object instance that implements `FreeDSx\Ldap\Server\Backend\LdapBackendInterface`. All directory
-operations (search, authenticate, and optionally write) are dispatched to this backend. Paging is handled automatically — no separate paging handler is needed.
-
-You can also use the fluent `useBackend()` method on `LdapServer` instead of setting it in `ServerOptions`:
+The storage backend is configured on `ServerOptions` via `setStorage()` (or `useInMemoryStorage()` for a
+transient in-memory directory). All directory operations (search, authenticate, and optionally write) are
+dispatched to it.
 
 ```php
 use FreeDSx\Ldap\LdapServer;
-use App\MyDirectoryBackend;
-
-$server = (new LdapServer())
-    ->useBackend(new MyDirectoryBackend());
-```
-
-Or via `ServerOptions`:
-
-```php
 use FreeDSx\Ldap\ServerOptions;
-use FreeDSx\Ldap\LdapServer;
-use App\MyDirectoryBackend;
 
-$server = new LdapServer(
-    (new ServerOptions)
-        ->setBackend(new MyDirectoryBackend())
-);
+$server = new LdapServer((new ServerOptions())->useInMemoryStorage());
 ```
 
-**Default**: `null` (falls back to an empty in-memory backend: searches return no entries, writes are rejected with `unwillingToPerform`)
+For a custom source, pass your own `EntryStorageInterface` implementation to `setStorage()`.
+
+**Note**: a non-proxy server started without a configured storage throws at startup rather than silently
+serving an empty directory.
 
 ------------------
 #### setFilterEvaluator
@@ -295,8 +280,7 @@ use FreeDSx\Ldap\ServerOptions;
 use FreeDSx\Ldap\LdapServer;
 use App\MyFilterEvaluator;
 
-$server = (new LdapServer())
-    ->useFilterEvaluator(new MyFilterEvaluator());
+$server = new LdapServer((new ServerOptions())->setFilterEvaluator(new MyFilterEvaluator()));
 ```
 
 **Default**: `FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator`

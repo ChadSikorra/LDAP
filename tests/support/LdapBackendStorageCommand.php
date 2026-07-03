@@ -232,7 +232,7 @@ final class LdapBackendStorageCommand extends Command
         $server = new LdapServer($serverOptions);
 
         if ($storage === 'memory') {
-            $server->useStorage(new InMemoryStorage($entries));
+            $server->getOptions()->setStorage(new InMemoryStorage($entries));
         } elseif ($storage === 'json') {
             $filePath = sys_get_temp_dir() . '/ldap_test_backend_storage.json';
 
@@ -252,7 +252,7 @@ final class LdapBackendStorageCommand extends Command
                 $importer->importEntries($entries);
             }
 
-            $server->useStorage($adapter);
+            $server->getOptions()->setStorage($adapter);
         } elseif ($storage === 'sqlite') {
             $dbPath = sys_get_temp_dir() . '/ldap_test_backend_storage.sqlite';
 
@@ -274,7 +274,7 @@ final class LdapBackendStorageCommand extends Command
                 $importer->importEntries($entries);
             }
 
-            $server->useStorage($adapter);
+            $server->getOptions()->setStorage($adapter);
         } else {
             $dsn = getenv('MYSQL_DSN') ?: 'mysql:host=127.0.0.1;port=3306;dbname=freedsx';
             $user = getenv('MYSQL_USER') ?: 'root';
@@ -302,11 +302,11 @@ final class LdapBackendStorageCommand extends Command
                 $importer->importEntries($entries);
             }
 
-            $server->useStorage($adapter);
+            $server->getOptions()->setStorage($adapter);
         }
 
         if ($runner === 'swoole') {
-            $server->useSwooleRunner();
+            $server->getOptions()->setUseSwooleRunner(true);
         }
 
         $server->run();

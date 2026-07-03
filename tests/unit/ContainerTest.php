@@ -21,6 +21,7 @@ use FreeDSx\Ldap\Protocol\Factory\ClientProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ClientQueueInstantiator;
 use FreeDSx\Ldap\Protocol\RootDseLoader;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
+use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Metrics\File\FileSnapshotProvider;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
@@ -45,13 +46,21 @@ class ContainerTest extends TestCase
         parent::setUp();
 
         $client = new LdapClient();
-        $serverOptions = new ServerOptions();
+        $serverOptions = (new ServerOptions())->useInMemoryStorage();
 
         $this->subject = new Container([
             LdapClient::class => $client,
             ClientOptions::class => $client->getOptions(),
             ServerOptions::class => $serverOptions,
         ]);
+    }
+
+    public function test_it_assembles_the_backend_from_the_configured_storage(): void
+    {
+        self::assertInstanceOf(
+            WritableStorageBackend::class,
+            $this->subject->get(HandlerFactoryInterface::class)->makeBackend(),
+        );
     }
 
     /**
@@ -159,6 +168,8 @@ class ContainerTest extends TestCase
 
     private function containerFor(ServerOptions $options): Container
     {
-        return new Container([ServerOptions::class => $options]);
+        return new Container([
+            ServerOptions::class => $options->useInMemoryStorage(),
+        ]);
     }
 }
