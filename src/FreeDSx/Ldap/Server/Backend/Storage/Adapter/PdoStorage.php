@@ -21,7 +21,13 @@ use FreeDSx\Ldap\Schema\Text;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConnectionProviderInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoListQueryBuilder;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoTransactor;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PooledStatement;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingTrait;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\PdoChangeJournal;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\DnTooLongException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterface;
@@ -43,8 +49,10 @@ use Throwable;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class PdoStorage implements EntryStorageInterface, ResettableInterface
+final class PdoStorage implements EntryStorageInterface, ResettableInterface, ChangeJournalingInterface
 {
+    use ChangeJournalingTrait;
+
     private const STATEMENT_CACHE_MAX = 64;
 
     /**
@@ -53,6 +61,8 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
     private array $statementCache = [];
 
     private readonly PdoListQueryBuilder $queryBuilder;
+
+    private readonly PdoTransactor $transactor;
 
     public function __construct(
         private readonly PdoConnectionProviderInterface $provider,
@@ -66,6 +76,10 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
         }
 
         $this->queryBuilder = new PdoListQueryBuilder($dialect);
+        $this->transactor = new PdoTransactor(
+            $provider,
+            $dialect,
+        );
     }
 
     public function reset(): void
@@ -99,6 +113,15 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
         foreach ($dialect->ddlCreateSidecarIndexes() as $indexSql) {
             $pdo->exec($indexSql);
         }
+
+        $pdo->exec($dialect->ddlCreateJournalTable());
+
+        foreach ($dialect->ddlCreateJournalIndexes() as $indexSql) {
+            $pdo->exec($indexSql);
+        }
+
+        $pdo->exec($dialect->ddlCreateJournalSeqTable());
+        $pdo->exec($dialect->queryJournalSeqInit());
     }
 
     public function find(Dn $dn): ?Entry
@@ -221,48 +244,16 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
 
     public function atomic(callable $operation): void
     {
-        $pdo = $this->provider->get();
-        $txState = $this->provider->txState();
+        $this->transactor->atomic(fn() => $operation($this));
+    }
 
-        $depth = $txState->depth++;
-        $savepointCreated = false;
-        $transactionStarted = false;
-
-        try {
-            if ($depth === 0) {
-                $this->dialect->beginTransaction($pdo);
-                $transactionStarted = true;
-            } else {
-                $pdo->exec("SAVEPOINT {$this->savepointName($depth)}");
-                $savepointCreated = true;
-            }
-
-            $operation($this);
-
-            if ($depth === 0 && $txState->broken) {
-                $this->dialect->rollBack($pdo);
-            } elseif ($depth === 0) {
-                $this->dialect->commit($pdo);
-            } else {
-                $pdo->exec("RELEASE SAVEPOINT {$this->savepointName($depth)}");
-            }
-        } catch (Throwable $e) {
-            if ($transactionStarted) {
-                $this->dialect->rollBack($pdo);
-            } elseif ($savepointCreated) {
-                $pdo->exec("ROLLBACK TO SAVEPOINT {$this->savepointName($depth)}");
-            } elseif ($depth > 0) {
-                // Savepoint creation itself failed; the outer transaction is now in an unknown state and must not be committed.
-                $txState->broken = true;
-            }
-
-            throw $e;
-        } finally {
-            $txState->depth--;
-            if ($txState->depth === 0) {
-                $txState->broken = false;
-            }
-        }
+    protected function buildJournal(ChangeJournalConfig $config): ChangeJournalInterface
+    {
+        return new PdoChangeJournal(
+            $this->transactor,
+            $this->dialect,
+            $config->origin,
+        );
     }
 
     /**
@@ -479,10 +470,5 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface
         }
 
         $this->statementCache[$key][$query][] = $stmt;
-    }
-
-    private function savepointName(int $depth): string
-    {
-        return "sp_{$depth}";
     }
 }

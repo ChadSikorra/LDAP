@@ -23,6 +23,7 @@ use PDO;
 final class SqliteDialect implements PdoDialectInterface
 {
     use PdoDialectTrait;
+    use PdoJournalDialectTrait;
 
     /**
      * `BEGIN IMMEDIATE` acquires the reserved lock up front so concurrent writers wait (honoring `busy_timeout`)
@@ -115,5 +116,48 @@ final class SqliteDialect implements PdoDialectInterface
             SQL,
             [$attributeLower],
         );
+    }
+
+    public function ddlCreateJournalTable(): string
+    {
+        return <<<SQL
+            CREATE TABLE IF NOT EXISTS ldap_change_journal (
+                seq          INTEGER NOT NULL PRIMARY KEY,
+                origin       TEXT NOT NULL,
+                created_at   INTEGER NOT NULL,
+                change_type  TEXT NOT NULL,
+                dn           TEXT NOT NULL,
+                lc_dn        TEXT NOT NULL,
+                lc_parent_dn TEXT NOT NULL DEFAULT '',
+                entry_uuid   TEXT NOT NULL,
+                authz_id     TEXT NOT NULL,
+                previous_dn  TEXT,
+                pre_image    BLOB
+            )
+        SQL;
+    }
+
+    public function ddlCreateJournalIndexes(): array
+    {
+        return [
+            'CREATE INDEX IF NOT EXISTS idx_journal_created_at ON ldap_change_journal (created_at)',
+            'CREATE INDEX IF NOT EXISTS idx_journal_lc_dn ON ldap_change_journal (lc_dn)',
+            'CREATE INDEX IF NOT EXISTS idx_journal_lc_parent_dn ON ldap_change_journal (lc_parent_dn)',
+        ];
+    }
+
+    public function ddlCreateJournalSeqTable(): string
+    {
+        return <<<SQL
+            CREATE TABLE IF NOT EXISTS ldap_change_journal_seq (
+                id   INTEGER NOT NULL PRIMARY KEY,
+                seq  INTEGER NOT NULL DEFAULT 0
+            )
+        SQL;
+    }
+
+    public function queryJournalSeqInit(): string
+    {
+        return 'INSERT OR IGNORE INTO ldap_change_journal_seq (id, seq) VALUES (1, 0)';
     }
 }
