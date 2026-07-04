@@ -74,6 +74,10 @@ final class EventContext
 
     public const ENTRIES_RETURNED = 'entries_returned';
 
+    public const REMOVED = 'removed';
+
+    public const DURATION_SECONDS = 'duration_seconds';
+
     public const NEW_RDN = 'new_rdn';
 
     public const NEW_SUPERIOR_DN = 'new_superior_dn';

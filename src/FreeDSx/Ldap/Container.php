@@ -28,6 +28,9 @@ use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeRecorder;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionPolicy;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionSweeper;
+use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Backend\Storage\OperationalAttributeGenerator;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use Psr\Log\NullLogger;
@@ -535,6 +538,7 @@ class Container
                 socketServerFactory: $this->get(SocketServerFactory::class),
                 protocolFactoryProvider: $protocolFactoryProvider,
                 metricsRecorder: $metricsRecorder,
+                retentionSweeper: $this->makeRetentionSweeper(),
             );
         }
 
@@ -547,6 +551,63 @@ class Container
             snapshotPublisher: $this->makeSnapshotPublisher(),
             operationRollup: $this->makeOperationRollup(),
             backend: $this->backendOrNull(),
+            journalRetentionPolicy: $this->journalRetentionPolicyIfSweepable(),
+        );
+    }
+
+    /**
+     * The retention policy to sweep on, or null when journaling is off / has no limits.
+     */
+    private function journalRetentionPolicyIfSweepable(): ?RetentionPolicy
+    {
+        $options = $this->get(ServerOptions::class);
+        $backend = $this->backendOrNull();
+
+        if ($backend === null || !$options->isSyncEnabled()) {
+            return null;
+        }
+
+        $journal = $backend->changeJournal();
+
+        if ($journal === null) {
+            return null;
+        }
+
+        $policy = $options->getChangeJournalConfig()->retention;
+
+        return RetentionSweeper::isSweepable(
+            $policy,
+            $journal,
+            $options->getUseSwooleRunner(),
+        )
+            ? $policy
+            : null;
+    }
+
+    private function makeRetentionSweeper(): ?RetentionSweeper
+    {
+        $policy = $this->journalRetentionPolicyIfSweepable();
+
+        if ($policy === null) {
+            return null;
+        }
+
+        // Safe to resolve now: a non-null policy means sync is enabled and the journal is configured.
+        $journal = $this->backendOrNull()?->changeJournal();
+
+        if ($journal === null) {
+            return null;
+        }
+
+        $options = $this->get(ServerOptions::class);
+
+        return new RetentionSweeper(
+            $journal,
+            $policy,
+            new EventLogger(
+                $options->getLogger(),
+                $options->getEventLogPolicy(),
+            ),
         );
     }
 

@@ -21,6 +21,8 @@ use FreeDSx\Ldap\Protocol\Factory\ClientProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ClientQueueInstantiator;
 use FreeDSx\Ldap\Protocol\RootDseLoader;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionPolicy;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Metrics\File\FileSnapshotProvider;
@@ -164,6 +166,45 @@ class ContainerTest extends TestCase
             FileSnapshotProvider::class,
             $container->get(MetricsSnapshotProvider::class),
         );
+    }
+
+    public function test_the_pcntl_runner_builds_with_journaling_and_retention_configured(): void
+    {
+        if (str_starts_with(strtoupper(PHP_OS), 'WIN')) {
+            self::markTestSkipped('Cannot construct the default PCNTL runner on Windows.');
+        }
+
+        $container = $this->containerFor($this->journalingOptions());
+
+        self::assertInstanceOf(
+            ServerRunnerInterface::class,
+            $container->get(ServerRunnerInterface::class),
+        );
+    }
+
+    public function test_the_swoole_runner_builds_with_a_retention_sweeper(): void
+    {
+        if (!extension_loaded('swoole')) {
+            self::markTestSkipped('The swoole extension is required to construct the Swoole runner.');
+        }
+
+        $container = $this->containerFor(
+            $this->journalingOptions()->setUseSwooleRunner(true),
+        );
+
+        self::assertInstanceOf(
+            ServerRunnerInterface::class,
+            $container->get(ServerRunnerInterface::class),
+        );
+    }
+
+    private function journalingOptions(): ServerOptions
+    {
+        return (new ServerOptions())
+            ->setSyncEnabled(true)
+            ->setChangeJournalConfig(new ChangeJournalConfig(
+                retention: new RetentionPolicy(maxRecords: 100),
+            ));
     }
 
     private function containerFor(ServerOptions $options): Container

@@ -38,4 +38,12 @@ final readonly class RetentionPolicy
             throw new InvalidArgumentException('maxAgeSeconds must be at least 1 when set.');
         }
     }
+
+    /**
+     * Whether any limit is set.
+     */
+    public function hasLimits(): bool
+    {
+        return $this->maxRecords !== null || $this->maxAgeSeconds !== null;
+    }
 }

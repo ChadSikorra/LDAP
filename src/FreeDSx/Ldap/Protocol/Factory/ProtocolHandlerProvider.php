@@ -20,7 +20,6 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerProtocolHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
@@ -200,13 +199,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
             return null;
         }
 
-        $storage = $backend->getStorage();
-
-        if (!$storage instanceof ChangeJournalingInterface) {
-            return null;
-        }
-
-        return $storage->changeJournal();
+        return $backend->changeJournal();
     }
 
     private function getDispatchHandler(): ServerProtocolHandler\ServerDispatchHandler
