@@ -45,7 +45,7 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
 final readonly class OperationAuthorizationMiddleware implements MiddlewareInterface
 {
     /**
-     * @param list<string> $privilegedControls Control OIDs that require an explicit ControlRule grant before use on a write.
+     * @param list<string> $privilegedControls Control OIDs that require an explicit ControlRule grant before use.
      */
     public function __construct(
         private HandlerRouteResolverInterface $routeResolver,
@@ -67,6 +67,11 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
 
         if ($routeId === HandlerId::Search || $routeId === HandlerId::Paging) {
             $this->authorizeSearch(
+                $context->message,
+                $context->tokenOrFail(),
+            );
+        } elseif ($routeId === HandlerId::Sync) {
+            $this->authorizeSync(
                 $context->message,
                 $context->tokenOrFail(),
             );
@@ -113,6 +118,28 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
     }
 
     /**
+     * Gates a content-synchronization search on the privileged sync-request control, targeted at its base DN.
+     *
+     * @throws OperationException
+     */
+    private function authorizeSync(
+        LdapMessageRequest $message,
+        TokenInterface $token,
+    ): void {
+        $request = $message->getRequest();
+
+        if (!$request instanceof SearchRequest) {
+            return;
+        }
+
+        $this->authorizeControls(
+            $request->getBaseDn(),
+            $message->controls(),
+            $token,
+        );
+    }
+
+    /**
      * @throws OperationException
      */
     private function authorizeDispatch(
@@ -141,7 +168,7 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
         }
 
         $this->authorizeControls(
-            $request,
+            OperationTargetDn::of($request),
             $message->controls(),
             $token,
         );
@@ -241,17 +268,15 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
     }
 
     /**
-     * Authorizes any privileged control attached to a write before it is dispatched.
+     * Authorizes any privileged control attached to the request before it is dispatched.
      *
      * @throws OperationException
      */
     private function authorizeControls(
-        RequestInterface $request,
+        ?Dn $dn,
         ControlBag $controls,
         TokenInterface $token,
     ): void {
-        $dn = OperationTargetDn::of($request);
-
         if ($dn === null) {
             return;
         }

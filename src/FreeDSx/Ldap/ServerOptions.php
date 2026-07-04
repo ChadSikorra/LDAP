@@ -183,7 +183,10 @@ final class ServerOptions
     /**
      * @var list<string>
      */
-    private array $privilegedControls = [Control::OID_RELAX_RULES];
+    private array $privilegedControls = [
+        Control::OID_RELAX_RULES,
+        Control::OID_SYNC_REQUEST,
+    ];
 
     private ?PasswordPolicy $passwordPolicy = null;
 
