@@ -20,14 +20,14 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\Response\SearchResultDone;
+use FreeDSx\Ldap\Operation\Response\SyncInfo\SyncRefreshDelete;
+use FreeDSx\Ldap\Operation\Response\SyncInfo\SyncRefreshPresent;
+use FreeDSx\Ldap\Operation\Response\SyncInfoMessage;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeType;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeScope;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Operation\SearchOperationResult;
@@ -35,12 +35,13 @@ use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Ldap\Sync\Provider\Exception\MalformedSyncCookieException;
 use FreeDSx\Ldap\Sync\Provider\SyncCookie;
+use FreeDSx\Ldap\Sync\Provider\SyncPersistStreamer;
 use FreeDSx\Ldap\Sync\Provider\SyncResult;
 use FreeDSx\Ldap\Sync\Provider\SyncResultProjector;
 use Generator;
 
 /**
- * Serves RFC 4533 content-synchronization (refreshOnly) from the change journal.
+ * Serves RFC 4533 content-synchronization (refreshOnly and refreshAndPersist) from the change journal.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -54,6 +55,8 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
         private readonly SyncResultProjector $projector,
         private readonly SearchLimits $limits = new SearchLimits(),
         private readonly ?ChangeStream $changeStream = null,
+        private readonly ?SyncPersistStreamer $persistStreamer = null,
+        private readonly bool $persistSupported = false,
     ) {}
 
     /**
@@ -66,20 +69,17 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
         $request = $this->getSearchRequestFromMessage($message);
         $control = $this->syncRequestControl($message);
         $stream = $this->changeStream;
+        $streamer = $this->persistStreamer;
 
-        if ($stream === null) {
+        if ($stream === null || $streamer === null) {
             throw new OperationException(
                 'Content synchronization is not supported.',
                 ResultCode::UNWILLING_TO_PERFORM,
             );
         }
 
-        if ($control->getMode() !== SyncRequestControl::MODE_REFRESH_ONLY) {
-            throw new OperationException(
-                'Only refreshOnly content synchronization is supported.',
-                ResultCode::UNWILLING_TO_PERFORM,
-            );
-        }
+        $mode = $control->getMode();
+        $this->assertModeSupported($mode);
 
         $baseDn = $this->assertBaseDnProvided($request);
         $latestSeq = $stream->latestSeq();
@@ -88,25 +88,60 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
 
         $entries = $sinceSeq === null
             ? $this->fullRefreshEntries($message, $request, $token, $state)
-            : $this->incrementalEntries($message, $request, $token, $stream, $sinceSeq, $state);
+            : $this->incrementalEntries($message, $request, $token, $streamer, $sinceSeq, $state);
 
-        // refreshDeletes: a delete phase (true) only for an incremental sync that sent explicit
-        // deletes; a full refresh is a present phase (false) the consumer reconciles by absence.
-        $doneControl = new SyncDoneControl(
-            (new SyncCookie($stream->origin(), $latestSeq))->encode(),
-            $sinceSeq !== null,
-        );
-        $this->queue->sendMessages($this->withSyncDone(
-            $entries,
-            $message->getMessageId(),
-            $baseDn,
-            $doneControl,
-        ));
+        $cookie = (new SyncCookie($stream->origin(), $latestSeq))->encode();
+
+        if ($mode === SyncRequestControl::MODE_REFRESH_AND_PERSIST) {
+            $this->queue->sendMessages($this->withRefreshDone(
+                $entries,
+                $message->getMessageId(),
+                $sinceSeq === null
+                    ? new SyncRefreshPresent(true, $cookie)
+                    : new SyncRefreshDelete(true, $cookie),
+            ));
+            $streamer->persist(
+                $latestSeq,
+                $request,
+                $token,
+                $message->getMessageId(),
+                $baseDn,
+            );
+        } else {
+            // refreshDeletes: a delete phase (true) only for an incremental sync that sent explicit
+            // deletes; a full refresh is a present phase (false) the consumer reconciles by absence.
+            $this->queue->sendMessages($this->withSyncDone(
+                $entries,
+                $message->getMessageId(),
+                $baseDn,
+                new SyncDoneControl($cookie, $sinceSeq !== null),
+            ));
+        }
 
         return SearchOperationResult::success(
             $message,
             $state->entriesReturned,
         );
+    }
+
+    /**
+     * @throws OperationException
+     */
+    private function assertModeSupported(int $mode): void
+    {
+        if ($mode !== SyncRequestControl::MODE_REFRESH_ONLY && $mode !== SyncRequestControl::MODE_REFRESH_AND_PERSIST) {
+            throw new OperationException(
+                'The requested content synchronization mode is not supported.',
+                ResultCode::UNWILLING_TO_PERFORM,
+            );
+        }
+
+        if ($mode === SyncRequestControl::MODE_REFRESH_AND_PERSIST && !$this->persistSupported) {
+            throw new OperationException(
+                'The refreshAndPersist synchronization mode is not supported by this server.',
+                ResultCode::UNWILLING_TO_PERFORM,
+            );
+        }
     }
 
     /**
@@ -128,6 +163,25 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
                 $baseDn->toString(),
             ),
             $doneControl,
+        );
+    }
+
+    /**
+     * refreshAndPersist ends its refresh phase with a SyncInfo boundary instead of a SearchResultDone.
+     *
+     * @param Generator<LdapMessageResponse> $entries
+     * @return Generator<LdapMessageResponse>
+     */
+    private function withRefreshDone(
+        Generator $entries,
+        int $messageId,
+        SyncInfoMessage $boundary,
+    ): Generator {
+        yield from $entries;
+
+        yield new LdapMessageResponse(
+            $messageId,
+            $boundary,
         );
     }
 
@@ -168,47 +222,16 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
         LdapMessageRequest $message,
         SearchRequest $request,
         TokenInterface $token,
-        ChangeStream $stream,
+        SyncPersistStreamer $streamer,
         int $sinceSeq,
         SearchResultState $state,
     ): Generator {
-        $netByUuid = [];
-
-        foreach ($stream->since($sinceSeq, $this->scopeFor($request)) as $record) {
-            $netByUuid[$record->change->entryUuid] = $record->change;
-        }
-
-        foreach ($netByUuid as $change) {
-            $result = $change->changeType === ChangeType::Delete
-                ? $this->projector->projectDeleted($change, $request, $token)
-                : $this->changedResult($request, $token, $change);
-
+        foreach ($streamer->projectSince($sinceSeq, $request, $token) as $result) {
             yield from $this->emit(
                 $this->toResponse($message->getMessageId(), $result),
                 $state,
             );
         }
-    }
-
-    /**
-     * Re-reads the live entry for a non-delete change; null when it is gone or no longer matches.
-     */
-    private function changedResult(
-        SearchRequest $request,
-        TokenInterface $token,
-        PendingChange $change,
-    ): ?SyncResult {
-        $entry = $this->backend->get($change->dn);
-
-        if ($entry === null) {
-            return null;
-        }
-
-        return $this->projector->projectFetched(
-            $entry,
-            $request,
-            $token,
-        );
     }
 
     private function toResponse(
@@ -270,17 +293,6 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
         }
 
         return $decoded->seq;
-    }
-
-    private function scopeFor(SearchRequest $request): ChangeScope
-    {
-        $baseDn = $request->getBaseDn() ?? new Dn('');
-
-        return match ($request->getScope()) {
-            SearchRequest::SCOPE_BASE_OBJECT => ChangeScope::baseObject($baseDn),
-            SearchRequest::SCOPE_SINGLE_LEVEL => ChangeScope::oneLevel($baseDn),
-            default => ChangeScope::wholeSubtree($baseDn),
-        };
     }
 
     /**

@@ -80,6 +80,11 @@ final class InMemoryChangeJournal implements ChangeJournalInterface
         return $this->origin;
     }
 
+    public function sharesAcrossProcesses(): bool
+    {
+        return false;
+    }
+
     public function prune(RetentionPolicy $policy): int
     {
         $before = count($this->records);

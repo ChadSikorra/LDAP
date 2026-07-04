@@ -131,6 +131,11 @@ final readonly class PdoChangeJournal implements ChangeJournalInterface
         return $this->origin;
     }
 
+    public function sharesAcrossProcesses(): bool
+    {
+        return true;
+    }
+
     private function pruneToRecordCap(int $maxRecords): int
     {
         $pdo = $this->transactor->pdo();

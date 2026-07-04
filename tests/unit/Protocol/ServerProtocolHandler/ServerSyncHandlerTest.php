@@ -20,9 +20,11 @@ use FreeDSx\Ldap\Control\Sync\SyncStateControl;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
+use FreeDSx\Ldap\Operation\Request\CancelRequest;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\Response\SearchResultDone;
 use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
+use FreeDSx\Ldap\Operation\Response\SyncInfo\SyncRefreshPresent;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
@@ -43,7 +45,9 @@ use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionPolicy;
 use FreeDSx\Ldap\Server\Operation\OperationOutcome;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
+use FreeDSx\Ldap\Server\Clock\BlockingSleeper;
 use FreeDSx\Ldap\Sync\Provider\SyncCookie;
+use FreeDSx\Ldap\Sync\Provider\SyncPersistStreamer;
 use FreeDSx\Ldap\Sync\Provider\SyncResultProjector;
 use Generator;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -70,7 +74,18 @@ final class ServerSyncHandlerTest extends TestCase
 
     private InMemoryChangeJournal $journal;
 
+    private ChangeStream $changeStream;
+
+    private SyncResultProjector $syncProjector;
+
+    private SyncPersistStreamer $persistStreamer;
+
     private ServerSyncHandler $subject;
+
+    /**
+     * @var list<?LdapMessageRequest> cancel/abandon signals the persist loop peeks, in order
+     */
+    private array $cancelSignals = [];
 
     /**
      * @var list<LdapMessageResponse>
@@ -132,15 +147,38 @@ final class ServerSyncHandlerTest extends TestCase
 
                 return $this->queue;
             });
+        $this->queue
+            ->method('sendMessage')
+            ->willReturnCallback(function (LdapMessageResponse ...$responses): ServerQueue {
+                foreach ($responses as $response) {
+                    $this->sent[] = $response;
+                }
+
+                return $this->queue;
+            });
+        $this->queue
+            ->method('peekForCancelSignal')
+            ->willReturnCallback(fn(): ?LdapMessageRequest => array_shift($this->cancelSignals));
+
+        $this->changeStream = new ChangeStream($this->journal);
+        $this->syncProjector = new SyncResultProjector(
+            accessControl: $this->accessControl,
+            filterEvaluator: $this->filterEvaluator,
+        );
+        $this->persistStreamer = new SyncPersistStreamer(
+            queue: $this->queue,
+            backend: $this->backend,
+            projector: $this->syncProjector,
+            stream: $this->changeStream,
+            sleeper: new BlockingSleeper(),
+        );
 
         $this->subject = new ServerSyncHandler(
             queue: $this->queue,
             backend: $this->backend,
-            projector: new SyncResultProjector(
-                accessControl: $this->accessControl,
-                filterEvaluator: $this->filterEvaluator,
-            ),
-            changeStream: new ChangeStream($this->journal),
+            projector: $this->syncProjector,
+            changeStream: $this->changeStream,
+            persistStreamer: $this->persistStreamer,
         );
     }
 
@@ -407,12 +445,39 @@ final class ServerSyncHandlerTest extends TestCase
         self::assertTrue($this->doneControl()->getRefreshDeletes());
     }
 
-    public function test_refresh_and_persist_is_declined(): void
+    public function test_refresh_and_persist_is_declined_when_persist_is_unsupported(): void
     {
         self::expectException(OperationException::class);
         self::expectExceptionCode(ResultCode::UNWILLING_TO_PERFORM);
 
         $this->handle(null, mode: SyncRequestControl::MODE_REFRESH_AND_PERSIST);
+    }
+
+    public function test_refresh_and_persist_full_refresh_ends_the_refresh_phase_with_a_present_boundary(): void
+    {
+        $this->searchEntries = [$this->entry('cn=a,dc=example,dc=com', self::UUID_A)];
+        // A pending cancel terminates the persist loop after the boundary is emitted.
+        $this->cancelSignals = [new LdapMessageRequest(9, new CancelRequest(1))];
+
+        $this->persistHandler()->handleRequest(
+            $this->syncMessage(null, SyncRequestControl::MODE_REFRESH_AND_PERSIST),
+            $this->token,
+        );
+
+        $boundary = null;
+        foreach ($this->sent as $message) {
+            if ($message->getResponse() instanceof SyncRefreshPresent) {
+                $boundary = $message->getResponse();
+
+                break;
+            }
+        }
+
+        self::assertInstanceOf(
+            SyncRefreshPresent::class,
+            $boundary,
+        );
+        self::assertTrue($boundary->getRefreshDone());
     }
 
     public function test_sync_is_declined_when_no_change_stream_is_available(): void
@@ -432,6 +497,18 @@ final class ServerSyncHandlerTest extends TestCase
         $handler->handleRequest(
             $this->syncMessage(null),
             $this->token,
+        );
+    }
+
+    private function persistHandler(): ServerSyncHandler
+    {
+        return new ServerSyncHandler(
+            queue: $this->queue,
+            backend: $this->backend,
+            projector: $this->syncProjector,
+            changeStream: $this->changeStream,
+            persistStreamer: $this->persistStreamer,
+            persistSupported: true,
         );
     }
 
