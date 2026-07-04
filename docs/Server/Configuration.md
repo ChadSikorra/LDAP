@@ -44,6 +44,9 @@ LDAP Server Configuration
     * [ServerOptions:setMaxSearchLookthrough](#setmaxsearchlookthrough)
     * [ServerOptions:setMaxSearchPagedLookthrough](#setmaxsearchpagedlookthrough)
     * [ServerOptions:setSearchLimitRules](#setsearchlimitrules)
+* [Directory Synchronization](#directory-synchronization)
+    * [ServerOptions:setSyncEnabled](#setsyncenabled)
+    * [ServerOptions:setChangeJournalConfig](#setchangejournalconfig)
 * [SASL Options](#sasl-options)
     * [ServerOptions:setSaslMechanisms](#setsaslmechanisms)
     * [ServerOptions:setExternalCredentialMapper](#setexternalcredentialmapper)
@@ -636,6 +639,42 @@ $options->setSearchLimitRules($rules);
 > get a larger one.
 
 **Default**: none (all identities use the global limits)
+
+## Directory Synchronization
+
+Record directory changes and serve them to RFC 4533 sync consumers. See [Directory Synchronization](Replication.md) for
+the full guide, including the storage and runner requirements and the required access-control grant.
+
+------------------
+#### setSyncEnabled
+
+Whether the server records writes in a change journal and answers content-sync requests. The storage must support
+journaling (all built-in storage does), and consumers must be granted the privileged sync control through access
+control. See [Directory Synchronization](Replication.md).
+
+**Default**: `false`
+
+------------------
+#### setChangeJournalConfig
+
+The change journal configuration: the origin id stamped into sync cookies, and the retention policy that limits journal
+growth. When the policy sets at least one limit, the journal is pruned on a cadence. See
+[Retention](Replication.md#retention).
+
+```php
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ReplicaId;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionPolicy;
+
+$journalConfig = new ChangeJournalConfig(
+    origin: new ReplicaId('dc1'),
+    retention: new RetentionPolicy(maxRecords: 1_000_000),
+);
+
+$options->setChangeJournalConfig($journalConfig);
+```
+
+**Default**: origin `local` with no retention limits (the journal is not pruned).
 
 ## Monitoring
 
