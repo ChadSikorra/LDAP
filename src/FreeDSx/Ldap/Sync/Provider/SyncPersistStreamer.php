@@ -31,7 +31,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ReplicaId;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeScope;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
-use FreeDSx\Ldap\Server\Clock\Sleeper;
+use FreeDSx\Ldap\Server\Clock\Sleeper\SleeperInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -51,7 +51,7 @@ final readonly class SyncPersistStreamer
         private LdapBackendInterface $backend,
         private SyncResultProjector $projector,
         private ChangeStream $stream,
-        private Sleeper $sleeper,
+        private SleeperInterface $sleeper,
         private float $pollInterval = self::DEFAULT_POLL_INTERVAL,
     ) {}
 

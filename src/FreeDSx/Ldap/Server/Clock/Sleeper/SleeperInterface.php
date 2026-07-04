@@ -11,12 +11,12 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace FreeDSx\Ldap\Server\Clock;
+namespace FreeDSx\Ldap\Server\Clock\Sleeper;
 
 /**
- * Pauses execution for a duration, cooperating with the runner.
+ * Pauses execution for a duration (which has runner-specific requirements).
  */
-interface Sleeper
+interface SleeperInterface
 {
     public function sleep(float $seconds): void;
 }

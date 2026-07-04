@@ -32,6 +32,8 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
+use function Swoole\Coroutine\run;
+
 final class LdapServerCommand extends Command
 {
     use ConsoleOptionsTrait;
@@ -62,6 +64,13 @@ final class LdapServerCommand extends Command
                 InputOption::VALUE_REQUIRED,
                 'Port to listen on',
                 '10389',
+            )
+            ->addOption(
+                'runner',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Server runner (pcntl, swoole)',
+                'pcntl',
             )
             ->addOption(
                 'storage',
@@ -166,6 +175,7 @@ final class LdapServerCommand extends Command
         $transport = $this->getStringOption($input, 'transport');
         $port = (int) $this->getStringOption($input, 'port');
         $storageType = $this->getStringOption($input, 'storage');
+        $runner = $this->getStringOption($input, 'runner');
         $entryCount = (int) $this->getStringOption($input, 'entries');
         $sasl = $input->getOption('sasl') === true;
         $external = $input->getOption('external') === true;
@@ -178,6 +188,12 @@ final class LdapServerCommand extends Command
 
         if (!in_array($storageType, self::VALID_STORAGE, true)) {
             $io->error("Invalid --storage value: {$storageType}. Expected one of: " . implode(', ', self::VALID_STORAGE) . '.');
+
+            return Command::FAILURE;
+        }
+
+        if (!in_array($runner, ['pcntl', 'swoole'], true)) {
+            $io->error("Invalid --runner value: {$runner}. Expected one of: pcntl, swoole.");
 
             return Command::FAILURE;
         }
@@ -213,7 +229,7 @@ final class LdapServerCommand extends Command
             );
         }
 
-        $storage = $this->createStorage($storageType);
+        $storage = $this->createStorage($storageType, $runner);
 
         $options = (new ServerOptions())
             ->setPort($port)
@@ -222,6 +238,7 @@ final class LdapServerCommand extends Command
             ->setSslCert(self::SSL_CERT)
             ->setSslCertKey(self::SSL_KEY)
             ->setUseSsl($useSsl)
+            ->setUseSwooleRunner($runner === 'swoole')
             ->setAllowAnonymous($allowAnonymous)
             ->setSocketAcceptTimeout(0.1)
             ->setMaxSearchLookthrough((int) $this->getStringOption($input, 'max-search-lookthrough'))
@@ -287,18 +304,26 @@ final class LdapServerCommand extends Command
 
         $server->getOptions()->setStorage($storage);
 
-        if ($seedFile !== '') {
-            $server->seed(new FileLdifLoader($seedFile));
+        $loadData = function () use ($server, $storage, $seedFile, $entries, $changesFile, $dumpFile): void {
+            if ($seedFile !== '') {
+                $server->seed(new FileLdifLoader($seedFile));
+            } else {
+                (new LdapImporter($storage))->importEntries($entries);
+            }
+
+            if ($changesFile !== '') {
+                $server->applyChanges(new FileLdifLoader($changesFile));
+            }
+
+            if ($dumpFile !== '') {
+                $server->dump(new FileLdifOutput($dumpFile));
+            }
+        };
+
+        if ($runner === 'swoole') {
+            run($loadData);
         } else {
-            (new LdapImporter($storage))->importEntries($entries);
-        }
-
-        if ($changesFile !== '') {
-            $server->applyChanges(new FileLdifLoader($changesFile));
-        }
-
-        if ($dumpFile !== '') {
-            $server->dump(new FileLdifOutput($dumpFile));
+            $loadData();
         }
 
         $server->run();
@@ -306,8 +331,12 @@ final class LdapServerCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function createStorage(string $storageType): EntryStorageInterface
-    {
+    private function createStorage(
+        string $storageType,
+        string $runner,
+    ): EntryStorageInterface {
+        $swoole = $runner === 'swoole';
+
         if ($storageType === 'json') {
             $filePath = sys_get_temp_dir() . '/ldap_test_server.json';
 
@@ -315,7 +344,9 @@ final class LdapServerCommand extends Command
                 unlink($filePath);
             }
 
-            return JsonFileStorage::forPcntl($filePath);
+            return $swoole
+                ? JsonFileStorage::forSwoole($filePath)
+                : JsonFileStorage::forPcntl($filePath);
         }
 
         if ($storageType === 'sqlite') {
@@ -327,7 +358,9 @@ final class LdapServerCommand extends Command
                 }
             }
 
-            return SqliteStorage::forPcntl($dbPath);
+            return $swoole
+                ? SqliteStorage::forSwoole($dbPath)
+                : SqliteStorage::forPcntl($dbPath);
         }
 
         if ($storageType === 'mysql') {
@@ -345,7 +378,9 @@ final class LdapServerCommand extends Command
             $cleanup->exec('DROP TABLE IF EXISTS entries');
             unset($cleanup);
 
-            return MysqlStorage::forPcntl($dsn, $user, $password);
+            return $swoole
+                ? MysqlStorage::forSwoole($dsn, $user, $password)
+                : MysqlStorage::forPcntl($dsn, $user, $password);
         }
 
         return new InMemoryStorage();
