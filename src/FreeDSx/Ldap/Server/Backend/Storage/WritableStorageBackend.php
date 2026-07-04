@@ -24,7 +24,9 @@ use FreeDSx\Ldap\Exception\SchemaRuleException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Operation\WriteEntryOperationHandler;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeRecorder;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
 use FreeDSx\Ldap\Server\Backend\Write\Command\AddCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\MoveCommand;
@@ -89,6 +91,16 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
     public function getStorage(): EntryStorageInterface
     {
         return $this->storage;
+    }
+
+    /**
+     * The storage's change journal, or null when the storage is not journaling-capable.
+     */
+    public function changeJournal(): ?ChangeJournalInterface
+    {
+        return $this->storage instanceof ChangeJournalingInterface
+            ? $this->storage->changeJournal()
+            : null;
     }
 
     /**

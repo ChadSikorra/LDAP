@@ -60,6 +60,8 @@ final readonly class EventLogPolicy
             ServerEvent::CriticalControlRejected,
             ServerEvent::SchemaViolation,
             ServerEvent::SyncEntrySkipped,
+            ServerEvent::JournalPruned,
+            ServerEvent::JournalPruneFailed,
             ServerEvent::NoticeOfDisconnectSent,
             ServerEvent::WriteTimeout,
             ServerEvent::IdleTimeout,
