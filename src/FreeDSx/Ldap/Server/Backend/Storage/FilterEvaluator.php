@@ -110,7 +110,7 @@ final class FilterEvaluator implements FilterEvaluatorInterface
             $filter instanceof ApproximateFilter => $this->evaluateApproximate($entry, $filter),
             $filter instanceof MatchingRuleFilter => $this->evaluateMatchingRule($entry, $filter),
             default => throw new OperationException(
-                sprintf('Unrecognized filter type: %s', get_class($filter)),
+                'Unrecognized filter type.',
                 ResultCode::PROTOCOL_ERROR,
             ),
         };

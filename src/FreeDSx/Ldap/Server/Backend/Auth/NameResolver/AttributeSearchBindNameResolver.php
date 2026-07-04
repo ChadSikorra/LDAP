@@ -65,7 +65,7 @@ final class AttributeSearchBindNameResolver implements BindNameResolverInterface
 
         if (count($entries) > 1) {
             throw new OperationException(
-                sprintf('Ambiguous SASL identity: multiple entries match "%s=%s".', $this->attribute, $name),
+                sprintf('Ambiguous SASL identity: multiple entries match on the "%s" attribute.', $this->attribute),
                 ResultCode::OTHER,
             );
         }
