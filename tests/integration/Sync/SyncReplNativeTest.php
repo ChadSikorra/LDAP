@@ -38,7 +38,10 @@ final class SyncReplNativeTest extends ServerTestCase
         static::initSharedServer(
             'ldap-server',
             'tcp',
-            ['--seed=' . self::SEED_LDIF],
+            [
+                '--seed=' . self::SEED_LDIF,
+                '--allow-sync',
+            ],
         );
     }
 

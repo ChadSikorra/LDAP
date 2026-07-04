@@ -312,6 +312,74 @@ final class OperationAuthorizationMiddlewareTest extends TestCase
         self::assertNotNull($this->next->received);
     }
 
+    public function test_sync_route_authorizes_the_sync_control_against_the_base_dn(): void
+    {
+        $subject = new OperationAuthorizationMiddleware(
+            $this->resolver,
+            $this->accessControl,
+            [Control::OID_SYNC_REQUEST],
+        );
+        $this->routeResolvesTo(HandlerId::Sync);
+        $this->accessControl
+            ->expects(self::once())
+            ->method('authorizeControl')
+            ->with(
+                $this->token,
+                self::isInstanceOf(Dn::class),
+                Control::OID_SYNC_REQUEST,
+            );
+
+        $message = new LdapMessageRequest(
+            1,
+            (new SearchRequest(Filters::present('objectClass')))->base('dc=foo,dc=bar'),
+            new Control(Control::OID_SYNC_REQUEST, criticality: true),
+        );
+
+        $subject->process(
+            new ServerRequestContext($message, $this->token),
+            $this->next,
+        );
+
+        self::assertNotNull($this->next->received);
+    }
+
+    public function test_sync_route_control_denial_blocks_dispatch(): void
+    {
+        $subject = new OperationAuthorizationMiddleware(
+            $this->resolver,
+            $this->accessControl,
+            [Control::OID_SYNC_REQUEST],
+        );
+        $this->routeResolvesTo(HandlerId::Sync);
+        $this->accessControl
+            ->method('authorizeControl')
+            ->willThrowException($this->denied());
+
+        $message = new LdapMessageRequest(
+            1,
+            (new SearchRequest(Filters::present('objectClass')))->base('dc=foo,dc=bar'),
+            new Control(Control::OID_SYNC_REQUEST, criticality: true),
+        );
+
+        try {
+            $subject->process(
+                new ServerRequestContext($message, $this->token),
+                $this->next,
+            );
+            self::fail('Expected an OperationException.');
+        } catch (OperationException $e) {
+            self::assertSame(
+                ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+                $e->getCode(),
+            );
+        }
+
+        self::assertNull(
+            $this->next->received,
+            'Dispatch must be blocked when the sync control is denied.',
+        );
+    }
+
     #[DataProvider('unauthorizedRoutes')]
     public function test_routes_without_operation_authorization_are_not_gated(HandlerId $routeId): void
     {

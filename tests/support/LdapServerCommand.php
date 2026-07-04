@@ -123,6 +123,12 @@ final class LdapServerCommand extends Command
                 'Grant the EXTERNAL cert identity (cn=extuser) the Proxied Authorization control over dc=foo,dc=bar',
             )
             ->addOption(
+                'allow-sync',
+                null,
+                InputOption::VALUE_NONE,
+                'Grant authenticated identities the (privileged) content-sync control over dc=foo,dc=bar',
+            )
+            ->addOption(
                 'seed',
                 null,
                 InputOption::VALUE_REQUIRED,
@@ -263,6 +269,18 @@ final class LdapServerCommand extends Command
                         Subject::dn('cn=extuser,dc=foo,dc=bar'),
                         Target::subtree('dc=foo,dc=bar'),
                         Control::OID_PROXY_AUTHORIZATION,
+                    )),
+            );
+        }
+
+        if ($input->getOption('allow-sync') === true) {
+            $options->setAclRules(
+                (new AclRules())
+                    ->withOperationRules(OperationRule::allow(Subject::authenticated()))
+                    ->withControlRules(ControlRule::allow(
+                        Subject::authenticated(),
+                        Target::subtree('dc=foo,dc=bar'),
+                        Control::OID_SYNC_REQUEST,
                     )),
             );
         }

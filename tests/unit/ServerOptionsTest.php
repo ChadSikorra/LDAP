@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap;
 
+use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
@@ -50,6 +51,17 @@ final class ServerOptionsTest extends TestCase
     protected function setUp(): void
     {
         $this->subject = new ServerOptions();
+    }
+
+    public function test_privileged_controls_have_the_expected_defaults(): void
+    {
+        self::assertSame(
+            [
+                Control::OID_RELAX_RULES,
+                Control::OID_SYNC_REQUEST,
+            ],
+            $this->subject->getPrivilegedControls(),
+        );
     }
 
     public function test_sasl_mechanisms_are_empty_by_default(): void
