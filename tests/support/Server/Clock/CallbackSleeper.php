@@ -14,13 +14,13 @@ declare(strict_types=1);
 namespace Tests\Support\FreeDSx\Ldap\Server\Clock;
 
 use Closure;
-use FreeDSx\Ldap\Server\Clock\Sleeper;
+use FreeDSx\Ldap\Server\Clock\Sleeper\SleeperInterface;
 use RuntimeException;
 
 /**
  * Test sleeper that runs an optional callback each tick and caps iterations so a runaway loop fails fast.
  */
-final class CallbackSleeper implements Sleeper
+final class CallbackSleeper implements SleeperInterface
 {
     private int $ticks = 0;
 

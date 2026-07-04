@@ -11,16 +11,14 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace FreeDSx\Ldap\Server\Clock;
+namespace FreeDSx\Ldap\Server\Clock\Sleeper;
 
-use function usleep;
+use Swoole\Coroutine;
 
 /**
- * Blocking sleeper.
- *
- * PCNTL runs per-process, so it's fine. Yields under coroutines like Swoole (via the SWOOLE_HOOK_SLEEP runtime hook).
+ * Yields the current coroutine for a swoole safe sleeper.
  */
-final class BlockingSleeper implements Sleeper
+final class CoroutineSleeper implements SleeperInterface
 {
     public function sleep(float $seconds): void
     {
@@ -28,6 +26,6 @@ final class BlockingSleeper implements Sleeper
             return;
         }
 
-        usleep((int) ($seconds * 1_000_000));
+        Coroutine::sleep($seconds);
     }
 }

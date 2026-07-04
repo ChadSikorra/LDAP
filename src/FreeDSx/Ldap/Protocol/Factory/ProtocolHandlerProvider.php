@@ -25,7 +25,8 @@ use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
-use FreeDSx\Ldap\Server\Clock\BlockingSleeper;
+use FreeDSx\Ldap\Server\Clock\Sleeper\BlockingSleeper;
+use FreeDSx\Ldap\Server\Clock\Sleeper\CoroutineSleeper;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
@@ -163,7 +164,9 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
                 backend: $backend,
                 projector: $projector,
                 stream: $stream,
-                sleeper: new BlockingSleeper(),
+                sleeper: $this->options->getUseSwooleRunner()
+                    ? new CoroutineSleeper()
+                    : new BlockingSleeper(),
             );
             // Persist can only deliver writes made on other connections: a single process (Swoole)
             // shares them in memory, otherwise the journal itself must be cross-process.

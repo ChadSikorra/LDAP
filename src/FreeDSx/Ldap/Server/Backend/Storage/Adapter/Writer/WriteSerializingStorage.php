@@ -15,9 +15,14 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Writer;
 
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Exception\InvalidArgumentException;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
 
 /**
@@ -25,7 +30,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final readonly class WriteSerializingStorage implements EntryStorageInterface, ResettableInterface
+final readonly class WriteSerializingStorage implements EntryStorageInterface, ResettableInterface, ChangeJournalingInterface
 {
     public function __construct(
         private EntryStorageInterface $reads,
@@ -91,5 +96,43 @@ final readonly class WriteSerializingStorage implements EntryStorageInterface, R
         if ($this->writes instanceof ResettableInterface) {
             $this->writes->reset();
         }
+    }
+
+    /**
+     * Configures the journal on both storages.
+     *
+     * The writer captures changes and the reader serves sync polls.
+     */
+    public function configureJournal(ChangeJournalConfig $config): void
+    {
+        $this->journaling($this->writes)->configureJournal($config);
+        $this->journaling($this->reads)->configureJournal($config);
+    }
+
+    /**
+     * Defensive delegate.
+     *
+     * The journal appends actually run on the write storage.
+     */
+    public function appendChange(PendingChange $change): void
+    {
+        $this->journaling($this->writes)->appendChange($change);
+    }
+
+    /**
+     * Reads through the per-coroutine storage so sync polls never contend with the serialized writer.
+     */
+    public function changeJournal(): ChangeJournalInterface
+    {
+        return $this->journaling($this->reads)->changeJournal();
+    }
+
+    private function journaling(EntryStorageInterface $storage): ChangeJournalingInterface
+    {
+        if (!$storage instanceof ChangeJournalingInterface) {
+            throw new InvalidArgumentException('The underlying storage does not support change journaling.');
+        }
+
+        return $storage;
     }
 }
