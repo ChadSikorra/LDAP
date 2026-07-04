@@ -47,10 +47,7 @@ final readonly class ServerUnsupportedExtendedHandler implements ServerProtocolH
         $request = $message->getRequest();
 
         if (!$request instanceof ExtendedRequest) {
-            throw new RuntimeException(sprintf(
-                'Expected an ExtendedRequest, got: %s',
-                get_class($request),
-            ));
+            throw new RuntimeException('The extended operation handler was routed a non-extended request.');
         }
 
         $this->queue->sendMessage(new LdapMessageResponse(

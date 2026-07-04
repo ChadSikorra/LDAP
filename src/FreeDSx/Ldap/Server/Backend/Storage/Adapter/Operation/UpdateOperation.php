@@ -64,7 +64,7 @@ final class UpdateOperation
         foreach ($attribute->getValues() as $value) {
             if ($existing->has($value, caseSensitive: false)) {
                 throw new OperationException(
-                    sprintf('Attribute "%s" already contains the value "%s".', $attrName, $value),
+                    sprintf('Attribute "%s" already contains the given value.', $attrName),
                     ResultCode::ATTRIBUTE_OR_VALUE_EXISTS,
                 );
             }
@@ -142,7 +142,7 @@ final class UpdateOperation
         foreach ($values as $value) {
             if (!$existing->has($value, caseSensitive: false)) {
                 throw new OperationException(
-                    sprintf('Value "%s" does not exist in attribute "%s".', $value, $attrName),
+                    sprintf('The given value does not exist in attribute "%s".', $attrName),
                     ResultCode::NO_SUCH_ATTRIBUTE,
                 );
             }
@@ -150,8 +150,7 @@ final class UpdateOperation
             if ($rdnValue !== null && strcasecmp($value, $rdnValue) === 0) {
                 throw new OperationException(
                     sprintf(
-                        'Value "%s" is the RDN value for attribute "%s" and cannot be removed.',
-                        $value,
+                        'The RDN value of attribute "%s" cannot be removed.',
                         $attrName,
                     ),
                     ResultCode::NOT_ALLOWED_ON_RDN,
@@ -188,9 +187,8 @@ final class UpdateOperation
         if ($rdnValue !== null && !$attribute->has($rdnValue, caseSensitive: false)) {
             throw new OperationException(
                 sprintf(
-                    'Replacing attribute "%s" must retain the RDN value "%s".',
+                    'Replacing attribute "%s" must retain its RDN value.',
                     $attrName,
-                    $rdnValue,
                 ),
                 ResultCode::NOT_ALLOWED_ON_RDN,
             );
