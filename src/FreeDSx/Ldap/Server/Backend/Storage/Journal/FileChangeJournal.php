@@ -155,6 +155,11 @@ final readonly class FileChangeJournal implements ChangeJournalInterface
         return $this->origin;
     }
 
+    public function sharesAcrossProcesses(): bool
+    {
+        return true;
+    }
+
     private function decodeLine(string $line): ?ChangeRecord
     {
         $row = $this->serializer->decode($line);

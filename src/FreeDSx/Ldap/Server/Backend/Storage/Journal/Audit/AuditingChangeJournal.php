@@ -80,4 +80,9 @@ final class AuditingChangeJournal implements ChangeJournalInterface
     {
         return $this->journal->origin();
     }
+
+    public function sharesAcrossProcesses(): bool
+    {
+        return $this->journal->sharesAcrossProcesses();
+    }
 }

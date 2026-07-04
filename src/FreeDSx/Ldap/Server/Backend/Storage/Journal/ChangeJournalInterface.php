@@ -65,4 +65,11 @@ interface ChangeJournalInterface
      * @api
      */
     public function origin(): ReplicaId;
+
+    /**
+     * Whether appends are observable from a separate OS process.
+     *
+     * @api
+     */
+    public function sharesAcrossProcesses(): bool;
 }

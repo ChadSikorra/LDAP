@@ -21,9 +21,11 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerProtocolHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
+use FreeDSx\Ldap\Server\Clock\BlockingSleeper;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
@@ -35,6 +37,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\ServerOptions;
+use FreeDSx\Ldap\Sync\Provider\SyncPersistStreamer;
 use FreeDSx\Ldap\Sync\Provider\SyncResultProjector;
 
 /**
@@ -142,21 +145,53 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
     private function getSyncHandler(?SearchLimits $searchLimits): ServerProtocolHandler\ServerSyncHandler
     {
         $backend = $this->handlerFactory->makeBackend();
+        $journal = $this->syncJournalFor($backend);
+        $projector = new SyncResultProjector(
+            accessControl: $this->options->getAccessControl(),
+            filterEvaluator: $this->options->getFilterEvaluator(),
+            eventLogger: $this->eventLogger,
+        );
+
+        $stream = null;
+        $streamer = null;
+        $persistSupported = false;
+
+        if ($journal !== null) {
+            $stream = new ChangeStream($journal);
+            $streamer = new SyncPersistStreamer(
+                queue: $this->queue,
+                backend: $backend,
+                projector: $projector,
+                stream: $stream,
+                sleeper: new BlockingSleeper(),
+            );
+            // Persist can only deliver writes made on other connections: a single process (Swoole)
+            // shares them in memory, otherwise the journal itself must be cross-process.
+            $persistSupported = $this->options->getUseSwooleRunner()
+                || $journal->sharesAcrossProcesses();
+        }
 
         return new ServerProtocolHandler\ServerSyncHandler(
             queue: $this->queue,
             backend: $backend,
-            projector: new SyncResultProjector(
-                accessControl: $this->options->getAccessControl(),
-                filterEvaluator: $this->options->getFilterEvaluator(),
-                eventLogger: $this->eventLogger,
-            ),
+            projector: $projector,
             limits: $searchLimits ?? $this->options->makeSearchLimits(),
-            changeStream: $this->changeStreamFor($backend),
+            changeStream: $stream,
+            persistStreamer: $streamer,
+            persistSupported: $persistSupported,
         );
     }
 
     private function changeStreamFor(LdapBackendInterface $backend): ?ChangeStream
+    {
+        $journal = $this->syncJournalFor($backend);
+
+        return $journal !== null
+            ? new ChangeStream($journal)
+            : null;
+    }
+
+    private function syncJournalFor(LdapBackendInterface $backend): ?ChangeJournalInterface
     {
         if (!$this->options->isSyncEnabled() || !$backend instanceof WritableStorageBackend) {
             return null;
@@ -168,7 +203,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
             return null;
         }
 
-        return new ChangeStream($storage->changeJournal());
+        return $storage->changeJournal();
     }
 
     private function getDispatchHandler(): ServerProtocolHandler\ServerDispatchHandler
