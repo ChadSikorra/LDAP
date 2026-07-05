@@ -25,6 +25,7 @@ use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Sync\Result\SyncEntryResult;
 use FreeDSx\Ldap\Sync\Result\SyncIdSetResult;
 use FreeDSx\Ldap\Sync\Result\SyncReferralResult;
+use FreeDSx\Ldap\Sync\Session;
 use FreeDSx\Ldap\Sync\SyncRepl;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -222,6 +223,88 @@ final class SyncReplTest extends TestCase
             ));
 
         $this->subject->poll();
+    }
+
+    public function test_it_should_use_the_refresh_done_handler_specified(): void
+    {
+        $handler = fn(Session $session) => $session->getCookie();
+
+        $this->subject->useRefreshDoneHandler($handler);
+
+        $this->mockClient
+            ->expects(self::once())
+            ->method('sendAndReceive')
+            ->with(
+                self::callback(
+                    fn(SyncRequest $request) => $request->getRefreshDoneHandler() === $handler,
+                ),
+                self::anything(),
+                self::anything(),
+            )->willReturn(new LdapMessageResponse(
+                1,
+                new SearchResultDone(0),
+                new SyncDoneControl('foo'),
+            ));
+
+        $this->subject->poll();
+    }
+
+    public function test_it_tracks_the_latest_cookie_and_exposes_it(): void
+    {
+        $this->mockClient
+            ->method('sendAndReceive')
+            ->willReturnCallback(function (SyncRequest $request): LdapMessageResponse {
+                // Simulate the protocol handler delivering a fresh cookie mid-sync.
+                $cookieHandler = $request->getCookieHandler();
+                self::assertNotNull($cookieHandler);
+                $cookieHandler('fresh-cookie');
+
+                return new LdapMessageResponse(
+                    1,
+                    new SearchResultDone(0),
+                    new SyncDoneControl('fresh-cookie'),
+                );
+            });
+
+        $this->subject->poll();
+
+        self::assertSame(
+            'fresh-cookie',
+            $this->subject->getCookie(),
+        );
+    }
+
+    public function test_it_forwards_cookie_updates_to_a_user_cookie_handler(): void
+    {
+        $seen = null;
+        $this->subject->useCookieHandler(function (?string $cookie) use (&$seen): void {
+            $seen = $cookie;
+        });
+
+        $this->mockClient
+            ->method('sendAndReceive')
+            ->willReturnCallback(function (SyncRequest $request): LdapMessageResponse {
+                $cookieHandler = $request->getCookieHandler();
+                self::assertNotNull($cookieHandler);
+                $cookieHandler('handed-over');
+
+                return new LdapMessageResponse(
+                    1,
+                    new SearchResultDone(0),
+                    new SyncDoneControl('handed-over'),
+                );
+            });
+
+        $this->subject->poll();
+
+        self::assertSame(
+            'handed-over',
+            $seen,
+        );
+        self::assertSame(
+            'handed-over',
+            $this->subject->getCookie(),
+        );
     }
 
     public function test_it_should_use_the_continue_strategy_if_specified(): void

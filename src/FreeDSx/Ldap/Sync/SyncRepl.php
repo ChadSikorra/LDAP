@@ -42,6 +42,8 @@ class SyncRepl
 
     private ?string $cookie = null;
 
+    private ?Closure $cookieHandler = null;
+
     public function __construct(
         LdapClient $client,
         ?FilterInterface $filter = null,
@@ -70,7 +72,7 @@ class SyncRepl
      */
     public function useCookieHandler(Closure $handler): self
     {
-        $this->syncRequest->useCookieHandler($handler);
+        $this->cookieHandler = $handler;
 
         return $this;
     }
@@ -115,6 +117,19 @@ class SyncRepl
     }
 
     /**
+     * Define a closure that fires once the initial refresh phase completes, receiving the {@see Session}.
+     *
+     * This is the deterministic point to reconcile a full refresh, such as deleting local entries not seen during the
+     * present phase, before persist notifications begin.
+     */
+    public function useRefreshDoneHandler(Closure $handler): self
+    {
+        $this->syncRequest->useRefreshDoneHandler($handler);
+
+        return $this;
+    }
+
+    /**
      * A convenience method to set the filter to use for this sync. This can also be set using {@see self::request()}.
      */
     public function useFilter(FilterInterface $filter): self
@@ -133,6 +148,16 @@ class SyncRepl
         $this->cookie = $cookie;
 
         return $this;
+    }
+
+    /**
+     * The most recent cookie seen during the sync.
+     *
+     * After a poll or listen this is the resume point to persist and pass to a later {@see self::useCookie()}.
+     */
+    public function getCookie(): ?string
+    {
+        return $this->cookie;
     }
 
     /**
@@ -188,6 +213,8 @@ class SyncRepl
             $this->useEntryHandler($entryHandler);
         }
 
+        $this->syncRequest->useCookieHandler($this->trackCookie(...));
+
         $this->client->sendAndReceive(
             $this->syncRequest,
             Controls::syncRequest(
@@ -197,5 +224,20 @@ class SyncRepl
             Controls::manageDsaIt(),
             ...$this->controls->toArray(),
         );
+    }
+
+    /**
+     * Track the latest cookie internally and forward it to any user cookie handler.
+     */
+    private function trackCookie(?string $cookie): void
+    {
+        $this->cookie = $cookie;
+
+        if ($this->cookieHandler !== null) {
+            call_user_func(
+                $this->cookieHandler,
+                $cookie,
+            );
+        }
     }
 }

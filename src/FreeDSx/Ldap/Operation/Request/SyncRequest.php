@@ -24,6 +24,8 @@ class SyncRequest extends SearchRequest
 
     private ?Closure $cookieHandler = null;
 
+    private ?Closure $refreshDoneHandler = null;
+
     public function __construct(
         ?FilterInterface $filter = null,
         string|Attribute ...$attributes,
@@ -56,5 +58,17 @@ class SyncRequest extends SearchRequest
     public function getCookieHandler(): ?Closure
     {
         return $this->cookieHandler;
+    }
+
+    public function useRefreshDoneHandler(?Closure $refreshDoneHandler): self
+    {
+        $this->refreshDoneHandler = $refreshDoneHandler;
+
+        return $this;
+    }
+
+    public function getRefreshDoneHandler(): ?Closure
+    {
+        return $this->refreshDoneHandler;
     }
 }
