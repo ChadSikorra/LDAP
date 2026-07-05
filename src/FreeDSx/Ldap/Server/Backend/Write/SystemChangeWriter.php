@@ -23,7 +23,7 @@ use FreeDSx\Ldap\Server\Token\SystemToken;
 /**
  * Applies server-generated writes, bypassing schema NO-USER-MODIFICATION and ACL checks.
  */
-final readonly class SystemChangeWriter
+final readonly class SystemChangeWriter implements SystemChangeWriterInterface
 {
     public function __construct(private WriteOperationDispatcher $writeDispatcher) {}
 

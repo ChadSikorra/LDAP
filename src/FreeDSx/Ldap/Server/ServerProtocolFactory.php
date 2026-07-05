@@ -41,7 +41,9 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Sasl\External\SubjectDnCredentialMapper;
 use FreeDSx\Ldap\Server\Backend\Auth\SaslBindPolicyEnforcer;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\NullSystemChangeWriter;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriterInterface;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\OperationAuditor;
@@ -59,6 +61,7 @@ use FreeDSx\Ldap\Server\Middleware\CriticalControlMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationAuditMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationAuthorizationMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationErrorMiddleware;
+use FreeDSx\Ldap\Server\Middleware\ReadOnlyMiddleware;
 use FreeDSx\Ldap\Server\Middleware\RequestValidationMiddleware;
 use FreeDSx\Ldap\Server\Middleware\ResourceLimitMiddleware;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\HandlerInvoker;
@@ -204,6 +207,8 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
             metricsSnapshots: $this->metricsSnapshots,
         );
 
+        $replicaConfig = $this->options->getReplicaConfig();
+
         return new ServerProtocolHandler(
             queue: $serverQueue,
             requestPipeline: new MiddlewareChain(
@@ -232,6 +237,14 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
                         $this->options->getAccessControl(),
                     ),
                     new OperationAuditMiddleware(new OperationAuditor($eventLogger)),
+                    // Only present on a read-only replica; sits below OperationErrorMiddleware so a rejection renders,
+                    // and before the ACL loop so a write short-circuits early.
+                    ...($replicaConfig !== null
+                        ? [new ReadOnlyMiddleware(
+                            $serverQueue,
+                            $replicaConfig,
+                        )]
+                        : []),
                     new CriticalControlMiddleware($this->routeResolver),
                     new OperationAuthorizationMiddleware(
                         $this->routeResolver,
@@ -299,10 +312,19 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
     ): PasswordPolicyBindGuard {
         return new PasswordPolicyBindGuard(
             $this->passwordPolicyEngine,
-            new SystemChangeWriter($this->handlerFactory->makeWriteDispatcher()),
+            $this->systemChangeWriter(),
             $policyContext,
             $eventLogger,
         );
+    }
+
+    private function systemChangeWriter(): SystemChangeWriterInterface
+    {
+        if ($this->options->isReadOnly()) {
+            return new NullSystemChangeWriter();
+        }
+
+        return new SystemChangeWriter($this->handlerFactory->makeWriteDispatcher());
     }
 
     /**

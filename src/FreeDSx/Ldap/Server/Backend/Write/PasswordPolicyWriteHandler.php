@@ -40,7 +40,7 @@ final readonly class PasswordPolicyWriteHandler implements WriteHandlerInterface
     public function __construct(
         private LdapBackendInterface&WriteHandlerInterface $backend,
         private PasswordPolicyChangeGuard $changeGuard,
-        private SystemChangeWriter $systemChangeWriter,
+        private SystemChangeWriterInterface $systemChangeWriter,
         private PasswordHashService $hashService = new PasswordHashService(),
     ) {}
 
