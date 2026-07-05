@@ -15,7 +15,7 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Guard;
 
 use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Exception\OperationException;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriterInterface;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
@@ -31,7 +31,7 @@ final readonly class PasswordPolicyBindGuard
 {
     public function __construct(
         private PasswordPolicyEngine $engine,
-        private SystemChangeWriter $writer,
+        private SystemChangeWriterInterface $writer,
         private PasswordPolicyContext $context,
         private EventLogger $eventLogger,
     ) {}

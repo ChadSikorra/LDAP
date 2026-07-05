@@ -15,7 +15,9 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy;
 
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Server\Backend\Write\PasswordPolicyWriteHandler;
+use FreeDSx\Ldap\Server\Backend\Write\NullSystemChangeWriter;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriterInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
@@ -63,7 +65,7 @@ final readonly class PasswordPolicyComponentFactory
         return new PasswordPolicyWriteHandler(
             $backend,
             $guard,
-            new SystemChangeWriter($this->writeDispatcher),
+            $this->systemChangeWriter(),
         );
     }
 
@@ -85,5 +87,14 @@ final readonly class PasswordPolicyComponentFactory
             $passwordPolicyContext,
             $eventLogger,
         );
+    }
+
+    private function systemChangeWriter(): SystemChangeWriterInterface
+    {
+        if ($this->options->isReadOnly()) {
+            return new NullSystemChangeWriter();
+        }
+
+        return new SystemChangeWriter($this->writeDispatcher);
     }
 }

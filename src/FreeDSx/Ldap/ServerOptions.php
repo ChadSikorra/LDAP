@@ -210,6 +210,8 @@ final class ServerOptions
 
     private ?ChangeJournalConfig $changeJournalConfig = null;
 
+    private ?ReplicaConfig $replicaConfig = null;
+
     private ?string $monitorSnapshotPath = null;
 
     private ?MetricsRecorderInterface $metricsRecorder = null;
@@ -872,6 +874,26 @@ final class ServerOptions
         $this->changeJournalConfig = $changeJournalConfig;
 
         return $this;
+    }
+
+    public function getReplicaConfig(): ?ReplicaConfig
+    {
+        return $this->replicaConfig;
+    }
+
+    public function setReplicaConfig(ReplicaConfig $replicaConfig): self
+    {
+        $this->replicaConfig = $replicaConfig;
+
+        return $this;
+    }
+
+    /**
+     * Whether this server is a read-only replica, derived from having a replica config.
+     */
+    public function isReadOnly(): bool
+    {
+        return $this->replicaConfig !== null;
     }
 
     public function getMonitorSnapshotPath(): ?string
