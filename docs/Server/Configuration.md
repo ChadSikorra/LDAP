@@ -267,6 +267,9 @@ $server = new LdapServer((new ServerOptions())->useInMemoryStorage());
 
 For a custom source, pass your own `EntryStorageInterface` implementation to `setStorage()`.
 
+The bundled SQLite and MySQL backends create their tables automatically on first connect. For managing that schema
+yourself, see [Database Schema](Database-Schema.md).
+
 **Note**: a non-proxy server started without a configured storage throws at startup rather than silently
 serving an empty directory.
 

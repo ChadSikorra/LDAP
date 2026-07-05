@@ -80,6 +80,78 @@ final class SqliteStorageTest extends TestCase
         );
     }
 
+    public function test_initialize_creates_the_baseline_schema(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+
+        PdoStorage::initialize(
+            $pdo,
+            new SqliteDialect(),
+        );
+        // Re-running must be a no-op (the baseline is idempotent).
+        PdoStorage::initialize(
+            $pdo,
+            new SqliteDialect(),
+        );
+
+        self::assertSame(
+            [
+                'entries',
+                'entry_attribute_values',
+                'ldap_change_journal',
+                'ldap_change_journal_seq',
+            ],
+            $this->tableNames($pdo),
+        );
+    }
+
+    public function test_schema_ddl_exports_the_sqlite_baseline(): void
+    {
+        $ddl = SqliteStorage::schemaDdl();
+
+        self::assertStringContainsString(
+            'CREATE TABLE IF NOT EXISTS entries',
+            $ddl,
+        );
+        self::assertStringContainsString(
+            'ldap_change_journal',
+            $ddl,
+        );
+    }
+
+    public function test_disabling_initialize_skips_schema_creation(): void
+    {
+        // A named shared-cache in-memory database, so a probe connection sees the same schema.
+        $dsn = 'file:freedsx_init_off?mode=memory&cache=shared';
+
+        // Hold the storage's connection open so the shared in-memory database survives the probe read.
+        $storage = SqliteStorage::forPcntl(
+            $dsn,
+            false,
+        );
+
+        $probe = new PDO(
+            'sqlite:' . $dsn,
+            null,
+            null,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION],
+        );
+
+        self::assertNotContains(
+            'entries',
+            $this->tableNames($probe),
+        );
+        unset($storage);
+    }
+
+    public function test_schema_version_is_a_positive_integer(): void
+    {
+        self::assertGreaterThanOrEqual(
+            1,
+            PdoStorage::SCHEMA_VERSION,
+        );
+    }
+
     public function test_get_returns_entry_by_dn(): void
     {
         $entry = $this->subject->get(new Dn('cn=Alice,dc=example,dc=com'));
@@ -819,6 +891,29 @@ final class SqliteStorageTest extends TestCase
         return SqliteStorage::forPcntl(':memory:');
     }
 
+    /**
+     * @return list<string>
+     */
+    private function tableNames(PDO $pdo): array
+    {
+        $stmt = $pdo->query(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+        );
+
+        if ($stmt === false) {
+            return [];
+        }
+
+        $names = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $name) {
+            if (is_string($name)) {
+                $names[] = $name;
+            }
+        }
+
+        return $names;
+    }
+
     private function context(): WriteContext
     {
         return new WriteContext(
@@ -841,22 +936,8 @@ final class SqliteStorageTest extends TestCase
 
         $sqlite = new SqliteDialect();
         $dialect = $this->createMock(PdoDialectInterface::class);
-        $dialect->method('ddlCreateTable')
-            ->willReturn($sqlite->ddlCreateTable());
-        $dialect->method('ddlCreateIndex')
-            ->willReturn($sqlite->ddlCreateIndex());
-        $dialect->method('ddlCreateSidecarTable')
-            ->willReturn($sqlite->ddlCreateSidecarTable());
-        $dialect->method('ddlCreateSidecarIndexes')
-            ->willReturn($sqlite->ddlCreateSidecarIndexes());
-        $dialect->method('ddlCreateJournalTable')
-            ->willReturn($sqlite->ddlCreateJournalTable());
-        $dialect->method('ddlCreateJournalIndexes')
-            ->willReturn($sqlite->ddlCreateJournalIndexes());
-        $dialect->method('ddlCreateJournalSeqTable')
-            ->willReturn($sqlite->ddlCreateJournalSeqTable());
-        $dialect->method('queryJournalSeqInit')
-            ->willReturn($sqlite->queryJournalSeqInit());
+        $dialect->method('schemaStatements')
+            ->willReturn($sqlite->schemaStatements());
         $dialect->method('queryUpsert')
             ->willReturn($sqlite->queryUpsert());
         $dialect->method('queryExists')

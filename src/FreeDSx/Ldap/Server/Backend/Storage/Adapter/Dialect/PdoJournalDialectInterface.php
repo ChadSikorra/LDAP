@@ -21,29 +21,6 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect;
 interface PdoJournalDialectInterface
 {
     /**
-     * DDL for the `ldap_change_journal` table. Columns: seq (PK), origin, created_at (unix seconds),
-     * change_type, dn, entry_uuid, authz_id, previous_dn (null), pre_image (null; base64 of a serialized Entry).
-     */
-    public function ddlCreateJournalTable(): string;
-
-    /**
-     * DDL statements creating journal indexes; empty when indexes are defined inline in ddlCreateJournalTable().
-     *
-     * @return list<string>
-     */
-    public function ddlCreateJournalIndexes(): array;
-
-    /**
-     * DDL for the single-row `ldap_change_journal_seq` counter table holding the monotonic high-water seq.
-     */
-    public function ddlCreateJournalSeqTable(): string;
-
-    /**
-     * Seeds the counter row (id=1, seq=0) if absent; safe to run on every initialize().
-     */
-    public function queryJournalSeqInit(): string;
-
-    /**
      * Inserts one journal record. Parameters: [seq, origin, created_at, change_type, dn, entry_uuid, authz_id, previous_dn, pre_image]
      */
     public function queryJournalInsert(): string;

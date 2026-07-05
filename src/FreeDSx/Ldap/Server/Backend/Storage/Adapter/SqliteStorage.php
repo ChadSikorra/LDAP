@@ -47,16 +47,23 @@ final class SqliteStorage implements PdoStorageFactoryInterface
 
     private const PRAGMA_FOREIGN_KEYS_ON = 'PRAGMA foreign_keys = ON';
 
-    public function __construct(private readonly string $dbPath) {}
+    public function __construct(
+        private readonly string $dbPath,
+        private readonly bool $initializeSchema = true,
+    ) {}
 
-    public static function forPcntl(string $dbPath): PdoStorage
-    {
-        return (new self($dbPath))->createShared();
+    public static function forPcntl(
+        string $dbPath,
+        bool $initializeSchema = true,
+    ): PdoStorage {
+        return (new self($dbPath, $initializeSchema))->createShared();
     }
 
-    public static function forSwoole(string $dbPath): EntryStorageInterface
-    {
-        $factory = new self($dbPath);
+    public static function forSwoole(
+        string $dbPath,
+        bool $initializeSchema = true,
+    ): EntryStorageInterface {
+        $factory = new self($dbPath, $initializeSchema);
         $writesStorage = $factory->createShared();
 
         return new WriteSerializingStorage(
@@ -66,6 +73,14 @@ final class SqliteStorage implements PdoStorageFactoryInterface
                 batchWrapper: static fn(Closure $cb) => $writesStorage->atomic(static fn() => $cb()),
             ),
         );
+    }
+
+    /**
+     * The SQLite schema as a runnable SQL script, to export or apply with your own migration tooling.
+     */
+    public static function schemaDdl(): string
+    {
+        return PdoStorage::schemaDdl(new SqliteDialect());
     }
 
     protected function dialect(): PdoDialectInterface
@@ -97,7 +112,12 @@ final class SqliteStorage implements PdoStorageFactoryInterface
         $pdo->exec(self::PRAGMA_JOURNAL_MODE_WAL);
         $pdo->exec(self::PRAGMA_FOREIGN_KEYS_ON);
 
-        PdoStorage::initialize($pdo, $dialect);
+        if ($this->initializeSchema) {
+            PdoStorage::initialize(
+                $pdo,
+                $dialect,
+            );
+        }
 
         return $pdo;
     }

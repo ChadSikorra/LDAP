@@ -53,6 +53,11 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
 {
     use ChangeJournalingTrait;
 
+    /**
+     * The current schema revision shipped in resources/schema.
+     */
+    public const SCHEMA_VERSION = 1;
+
     private const STATEMENT_CACHE_MAX = 64;
 
     /**
@@ -101,27 +106,17 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
             PDO::FETCH_ASSOC,
         );
 
-        $pdo->exec($dialect->ddlCreateTable());
-
-        $indexDdl = $dialect->ddlCreateIndex();
-        if ($indexDdl !== null) {
-            $pdo->exec($indexDdl);
+        foreach ($dialect->schemaStatements() as $statement) {
+            $pdo->exec($statement);
         }
+    }
 
-        $pdo->exec($dialect->ddlCreateSidecarTable());
-
-        foreach ($dialect->ddlCreateSidecarIndexes() as $indexSql) {
-            $pdo->exec($indexSql);
-        }
-
-        $pdo->exec($dialect->ddlCreateJournalTable());
-
-        foreach ($dialect->ddlCreateJournalIndexes() as $indexSql) {
-            $pdo->exec($indexSql);
-        }
-
-        $pdo->exec($dialect->ddlCreateJournalSeqTable());
-        $pdo->exec($dialect->queryJournalSeqInit());
+    /**
+     * The full schema for a dialect as a runnable SQL script, to export to a file or feed to a migration tool.
+     */
+    public static function schemaDdl(PdoDialectInterface $dialect): string
+    {
+        return $dialect->schemaSql();
     }
 
     public function find(Dn $dn): ?Entry
