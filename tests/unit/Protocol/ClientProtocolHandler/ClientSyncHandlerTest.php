@@ -364,6 +364,44 @@ final class ClientSyncHandlerTest extends TestCase
         self::assertTrue($capturedSession?->isRefreshComplete());
     }
 
+    public function test_the_refresh_done_handler_fires_when_the_refresh_completes(): void
+    {
+        $capturedSession = null;
+        $messageTo = new LdapMessageRequest(
+            1,
+            (new SyncRequest())
+                ->useRefreshDoneHandler(function (Session $session) use (&$capturedSession): void {
+                    $capturedSession = $session;
+                }),
+            new SyncRequestControl(),
+        );
+
+        $this->mockQueue
+            ->expects($this->exactly(2))
+            ->method('getMessage')
+            ->with(1)
+            ->willReturnOnConsecutiveCalls(
+                new LdapMessageResponse(
+                    1,
+                    new SearchResultEntry(new Entry('bar')),
+                    new SyncStateControl(SyncStateControl::STATE_ADD, 'foo'),
+                ),
+                new LdapMessageResponse(
+                    1,
+                    new SearchResultDone(0, '', ''),
+                    new SyncDoneControl(),
+                ),
+            );
+
+        $this->subject->handleResponse(
+            $messageTo,
+            new LdapMessageResponse(1, new SyncRefreshDelete(refreshDone: true)),
+        );
+
+        self::assertTrue($capturedSession?->isRefreshComplete());
+        self::assertTrue($capturedSession?->hasRefreshDeletes());
+    }
+
     public function test_a_refresh_present_in_progress_sets_phase_present_and_refresh_is_not_complete(): void
     {
         $capturedSession = null;
@@ -441,6 +479,7 @@ final class ClientSyncHandlerTest extends TestCase
 
         self::assertNull($capturedSession?->getPhase());
         self::assertTrue($capturedSession?->isRefreshComplete());
+        self::assertFalse($capturedSession?->hasRefreshDeletes());
     }
 
     public function test_it_should_process_a_sync_referral(): void

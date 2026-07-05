@@ -28,6 +28,8 @@ final class Session
 
     public const MODE_LISTEN = SyncRequestControl::MODE_REFRESH_AND_PERSIST;
 
+    private bool $refreshDeletes = false;
+
     public function __construct(
         private readonly int $mode,
         private ?string $cookie,
@@ -77,6 +79,17 @@ final class Session
     }
 
     /**
+     * Whether the completed refresh conveyed deletes explicitly (a delete-phase incremental refresh).
+     *
+     * When false, the refresh was a present phase whose deletes are implied by absence, so a consumer maintaining a
+     * replica must delete local entries not seen during it. Only meaningful once {@see self::isRefreshComplete()}.
+     */
+    public function hasRefreshDeletes(): bool
+    {
+        return $this->refreshDeletes;
+    }
+
+    /**
      * @internal
      */
     public function updatePhase(?int $phase): self
@@ -89,9 +102,10 @@ final class Session
     /**
      * @internal
      */
-    public function markRefreshComplete(): self
+    public function markRefreshComplete(bool $refreshDeletes = false): self
     {
         $this->refreshComplete = true;
+        $this->refreshDeletes = $refreshDeletes;
 
         return $this;
     }
@@ -103,6 +117,7 @@ final class Session
     {
         $this->phase = null;
         $this->refreshComplete = false;
+        $this->refreshDeletes = false;
 
         return $this;
     }

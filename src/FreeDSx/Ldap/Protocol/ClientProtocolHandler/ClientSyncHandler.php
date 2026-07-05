@@ -55,6 +55,8 @@ class ClientSyncHandler extends ClientBasicHandler
 
     private ?Closure $cookieHandler = null;
 
+    private ?Closure $refreshDoneHandler = null;
+
     public function __construct(
         private readonly ClientQueue $queue,
         private readonly ClientOptions $options,
@@ -155,6 +157,7 @@ class ClientSyncHandler extends ClientBasicHandler
         $this->syncReferralHandler = $this->syncRequest->getReferralHandler();
         $this->syncIdSetHandler = $this->syncRequest->getIdSetHandler();
         $this->cookieHandler = $this->syncRequest->getCookieHandler();
+        $this->refreshDoneHandler = $this->syncRequest->getRefreshDoneHandler();
 
         $this->syncRequest->useEntryHandler($this->processSyncEntry(...));
         $this->syncRequest->useReferralHandler($this->processSyncReferral(...));
@@ -211,14 +214,14 @@ class ClientSyncHandler extends ClientBasicHandler
         if ($response instanceof SyncRefreshDelete) {
             $this->updateCookie($response->getCookie());
             if ($response->getRefreshDone()) {
-                $this->session->updatePhase(null)->markRefreshComplete();
+                $this->completeRefresh(refreshDeletes: true);
             } else {
                 $this->session->updatePhase(Session::PHASE_DELETE);
             }
         } elseif ($response instanceof SyncRefreshPresent) {
             $this->updateCookie($response->getCookie());
             if ($response->getRefreshDone()) {
-                $this->session->updatePhase(null)->markRefreshComplete();
+                $this->completeRefresh(refreshDeletes: false);
             } else {
                 $this->session->updatePhase(Session::PHASE_PRESENT);
             }
@@ -259,6 +262,24 @@ class ClientSyncHandler extends ClientBasicHandler
         $result = $response->getResponse();
 
         return $result->getResultCode() === ResultCode::SYNCHRONIZATION_REFRESH_REQUIRED;
+    }
+
+    /**
+     * Mark the refresh phase complete and fire the refresh-done handler.
+     *
+     * The refresh-done handler is the deterministic boundary a consumer uses to reconcile a present-phase refresh
+     * before persist notifications begin.
+     */
+    private function completeRefresh(bool $refreshDeletes): void
+    {
+        $this->session->updatePhase(null)->markRefreshComplete($refreshDeletes);
+
+        if ($this->refreshDoneHandler !== null) {
+            call_user_func(
+                $this->refreshDoneHandler,
+                $this->session,
+            );
+        }
     }
 
     /**
