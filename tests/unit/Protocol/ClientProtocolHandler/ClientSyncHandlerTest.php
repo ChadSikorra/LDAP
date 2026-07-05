@@ -399,7 +399,7 @@ final class ClientSyncHandlerTest extends TestCase
         );
 
         self::assertTrue($capturedSession?->isRefreshComplete());
-        self::assertTrue($capturedSession?->hasRefreshDeletes());
+        self::assertTrue($capturedSession->hasRefreshDeletes());
     }
 
     public function test_a_refresh_present_in_progress_sets_phase_present_and_refresh_is_not_complete(): void
@@ -479,7 +479,7 @@ final class ClientSyncHandlerTest extends TestCase
 
         self::assertNull($capturedSession?->getPhase());
         self::assertTrue($capturedSession?->isRefreshComplete());
-        self::assertFalse($capturedSession?->hasRefreshDeletes());
+        self::assertFalse($capturedSession->hasRefreshDeletes());
     }
 
     public function test_it_should_process_a_sync_referral(): void
