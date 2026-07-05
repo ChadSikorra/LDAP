@@ -37,6 +37,7 @@ It supports encryption of the LDAP connection through TLS via the OpenSSL extens
   * [Access Control](/docs/Server/Access-Control.md)
   * [Password Policy](/docs/Server/Password-Policy.md)
   * [Directory Synchronization](/docs/Server/Replication.md)
+  * [Database Schema](/docs/Server/Database-Schema.md)
 
 # Getting Started
 

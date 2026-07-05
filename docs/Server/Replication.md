@@ -134,6 +134,9 @@ There is a sizing trade-off. Pruning moves the oldest point the journal can stil
 is older than that point cannot be brought up to date incrementally, so it receives a full refresh on its next sync.
 Choose retention limits that cover the longest window a consumer might be offline.
 
+On a PDO backend the journal lives in tables that are part of the storage schema. See
+[Database Schema](Database-Schema.md) for creating and managing it.
+
 ## Origin and Cookies
 
 Each journal has an origin, which defaults to `local`. Set a stable, unique origin for each provider through the

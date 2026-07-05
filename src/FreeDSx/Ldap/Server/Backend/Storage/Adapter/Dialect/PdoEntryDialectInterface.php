@@ -38,36 +38,6 @@ interface PdoEntryDialectInterface
     public function rollBack(PDO $pdo): void;
 
     /**
-     * DDL for the `entries` table. Required columns:
-     *   lc_dn         — PK, lowercased DN
-     *   dn            — original-case DN
-     *   lc_parent_dn  — lowercased parent DN ('' for root)
-     *   attributes    — JSON object mapping lowercased attribute names to string-value arrays
-     */
-    public function ddlCreateTable(): string;
-
-    /**
-     * DDL to create an index on lc_parent_dn; return null when already defined inline in ddlCreateTable().
-     */
-    public function ddlCreateIndex(): ?string;
-
-    /**
-     * DDL for the `entry_attribute_values` sidecar index table. Required columns:
-     *   entry_lc_dn      — FK to entries.lc_dn ON DELETE CASCADE
-     *   attr_name_lower  — lowercased attribute description (stripped of options)
-     *   value_lower      — lowercased value, truncated to 255 chars (indexed)
-     *   value_original   — original-case full value (not indexed; retained for debugging)
-     */
-    public function ddlCreateSidecarTable(): string;
-
-    /**
-     * DDL statements creating sidecar indexes; empty when indexes are defined inline in ddlCreateSidecarTable().
-     *
-     * @return list<string>
-     */
-    public function ddlCreateSidecarIndexes(): array;
-
-    /**
      * Existence check: `SELECT 1 FROM entries WHERE lc_dn = ? LIMIT 1`. Parameters: [lc_dn]
      */
     public function queryExists(): string;

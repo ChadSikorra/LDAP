@@ -39,6 +39,7 @@ final class MysqlStorage implements PdoStorageFactoryInterface
         private readonly string $username,
         #[SensitiveParameter]
         private readonly string $password,
+        private readonly bool $initializeSchema = true,
     ) {}
 
     public static function forPcntl(
@@ -46,11 +47,13 @@ final class MysqlStorage implements PdoStorageFactoryInterface
         string $username,
         #[SensitiveParameter]
         string $password,
+        bool $initializeSchema = true,
     ): PdoStorage {
         return (new self(
             $dsn,
             $username,
             $password,
+            $initializeSchema,
         ))->createShared();
     }
 
@@ -59,12 +62,22 @@ final class MysqlStorage implements PdoStorageFactoryInterface
         string $username,
         #[SensitiveParameter]
         string $password,
+        bool $initializeSchema = true,
     ): PdoStorage {
         return (new self(
             $dsn,
             $username,
             $password,
+            $initializeSchema,
         ))->createPerCoroutine();
+    }
+
+    /**
+     * The MySQL schema as a runnable SQL script, to export or apply with your own migration tooling.
+     */
+    public static function schemaDdl(): string
+    {
+        return PdoStorage::schemaDdl(new MysqlDialect());
     }
 
     protected function dialect(): PdoDialectInterface
@@ -97,7 +110,12 @@ final class MysqlStorage implements PdoStorageFactoryInterface
         $pdo->exec("SET NAMES utf8mb4");
         $pdo->exec("SET time_zone = '+00:00'");
 
-        PdoStorage::initialize($pdo, $dialect);
+        if ($this->initializeSchema) {
+            PdoStorage::initialize(
+                $pdo,
+                $dialect,
+            );
+        }
 
         return $pdo;
     }
