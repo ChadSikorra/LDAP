@@ -45,4 +45,12 @@ class ClientQueueInstantiator
         return $this->clientQueue !== null
             && $this->clientQueue->isConnected();
     }
+
+    /**
+     * Close the connection socket if the queue was instantiated. It will reconnect on next use.
+     */
+    public function close(): void
+    {
+        $this->clientQueue?->close();
+    }
 }

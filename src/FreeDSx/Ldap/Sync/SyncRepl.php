@@ -205,6 +205,14 @@ class SyncRepl
         );
     }
 
+    /**
+     * Close the sync connection, ending any in-progress {@see listen()}.
+     */
+    public function disconnect(): void
+    {
+        $this->client->disconnect();
+    }
+
     private function sync(
         int $mode,
         ?Closure $entryHandler,

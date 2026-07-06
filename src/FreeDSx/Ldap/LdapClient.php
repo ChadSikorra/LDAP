@@ -437,6 +437,18 @@ class LdapClient
     }
 
     /**
+     * Immediately close the connection socket without a graceful unbind. Interrupts any in-progress operation.
+     */
+    public function disconnect(): self
+    {
+        $this->container
+            ->get(ClientQueueInstantiator::class)
+            ->close();
+
+        return $this;
+    }
+
+    /**
      * Perform a whoami request and get the returned value.
      *
      * @throws OperationException
