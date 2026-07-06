@@ -26,6 +26,7 @@ use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\BackendAwareInterface;
 use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DirectoryDumper;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DumpOptions;
 use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
@@ -194,6 +195,7 @@ class LdapServer
     private function init(): void
     {
         $this->requireBackendUnlessProxy();
+        $this->requireSharedStorageForForkingReplica();
         $this->options->setAccessControl($this->resolveAccessControl());
     }
 
@@ -205,6 +207,26 @@ class LdapServer
 
         throw new RuntimeException(
             'No storage is configured. Set ServerOptions::setStorage() (or useInMemoryStorage()) before running.',
+        );
+    }
+
+    /**
+     * A forking replica's daemon and connection workers are separate processes, so its storage must be shared;
+     * the in-memory adapter is not.
+     */
+    private function requireSharedStorageForForkingReplica(): void
+    {
+        if ($this->options->getReplicaConfig() === null || $this->options->getUseSwooleRunner()) {
+            return;
+        }
+
+        if (!$this->options->getStorage() instanceof InMemoryStorage) {
+            return;
+        }
+
+        throw new RuntimeException(
+            'A forking (PCNTL) replica requires process-shared storage, but InMemoryStorage is not shared across the '
+            . 'daemon and connection workers. Use PDO/SQLite storage, or run under Swoole.',
         );
     }
 

@@ -17,17 +17,16 @@ use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionPolicy;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionSweeper;
-use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
-use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Metrics\File\SnapshotPublisher;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\Server\Metrics\Rollup\OperationRollupCoordinator;
+use FreeDSx\Ldap\Server\Process\BackgroundTask\BackgroundTasksInterface;
+use FreeDSx\Ldap\Server\Process\BackgroundTask\PcntlBackgroundTasks;
 use FreeDSx\Ldap\Server\Process\ChildChannel;
 use FreeDSx\Ldap\Server\Process\ChildProcess;
 use FreeDSx\Ldap\Server\ServerProtocolFactoryInterface;
@@ -75,16 +74,9 @@ class PcntlServerRunner implements ServerRunnerInterface
      */
     private array $handledSignals = [];
 
-    private bool $isPosixExtLoaded;
-
     private bool $isShuttingDown = false;
 
-    /**
-     * PID of the in-flight retention-sweep child, or null when none is running.
-     */
-    private ?int $pruneChildPid = null;
-
-    private float $lastSweepAt = 0.0;
+    private readonly BackgroundTasksInterface $backgroundTasks;
 
     /**
      * @var array<string, mixed>
@@ -103,11 +95,15 @@ class PcntlServerRunner implements ServerRunnerInterface
         private readonly ?SnapshotPublisher $snapshotPublisher = null,
         private readonly ?OperationRollupCoordinator $operationRollup = null,
         private readonly ?WritableLdapBackendInterface $backend = null,
-        private readonly ?RetentionPolicy $journalRetentionPolicy = null,
+        BackgroundTasksInterface $backgroundTasks = new PcntlBackgroundTasks(
+            makeSweeper: null,
+            makeDaemon: null,
+            sweepIntervalSeconds: RetentionSweeper::DEFAULT_INTERVAL_SECONDS,
+        ),
     ) {
-        if (!extension_loaded('pcntl')) {
+        if (!extension_loaded('pcntl') || !extension_loaded('posix')) {
             throw new RuntimeException(
-                'The PCNTL extension is needed to fork incoming requests, which is only available on Linux.',
+                'The pcntl and posix extensions are required to fork and manage child processes (Linux only).',
             );
         }
 
@@ -115,8 +111,6 @@ class PcntlServerRunner implements ServerRunnerInterface
         $this->options = $options;
         $this->protocolFactoryProvider = $protocolFactoryProvider;
 
-        // posix_kill needs this...we cannot clean up child processes without it on shutdown...
-        $this->isPosixExtLoaded = extension_loaded('posix');
         // We need to be able to handle signals as they come in, regardless of what is going on...
         pcntl_async_signals(true);
 
@@ -128,6 +122,9 @@ class PcntlServerRunner implements ServerRunnerInterface
         $this->defaultContext = [
             'pid' => posix_getpid(),
         ];
+
+        $backgroundTasks->onChildStart($this->enterChild(...));
+        $this->backgroundTasks = $backgroundTasks;
     }
 
     /**
@@ -269,11 +266,11 @@ class PcntlServerRunner implements ServerRunnerInterface
         $this->logServerStarted($this->defaultContext);
         $this->metricsRecorder->serverStarted(time());
         $this->publishMetricsSnapshot();
-        $this->lastSweepAt = microtime(true);
         $this->options->getOnServerReady()?->__invoke();
+        $this->backgroundTasks->start();
 
         do {
-            $this->runRetentionSweepMaintenance();
+            $this->backgroundTasks->tick();
             $socket = $this->server->accept($this->options->getSocketAcceptTimeout());
 
             if ($this->isShuttingDown) {
@@ -416,14 +413,8 @@ class PcntlServerRunner implements ServerRunnerInterface
         $this->isShuttingDown = true;
         $this->logShutdownStarted($this->defaultContext);
 
-        // We can't do anything else without the posix ext ... :(
-        if (!$this->isPosixExtLoaded) {
-            $this->cleanUpChildProcesses();
-
-            return;
-        }
         // Ask nicely first...
-        $this->endRetentionSweepChild();
+        $this->backgroundTasks->stop();
         $this->endChildProcesses(SIGTERM);
 
         $waitTime = 0;
@@ -537,78 +528,16 @@ class PcntlServerRunner implements ServerRunnerInterface
     }
 
     /**
-     * On a fixed cadence, fork a short-lived child to prune the shared journal so the parent keeps accepting.
+     * Prepare a freshly forked background-task child: drop the inherited server socket, channels and signal
+     * handlers, then reset the backend for a fresh connection.
      */
-    private function runRetentionSweepMaintenance(): void
-    {
-        if ($this->journalRetentionPolicy === null) {
-            return;
-        }
-
-        $this->reapRetentionSweepChild();
-
-        if (!$this->isRetentionSweepDue()) {
-            return;
-        }
-
-        $this->lastSweepAt = microtime(true);
-        $this->forkRetentionSweepChild();
-    }
-
-    private function isRetentionSweepDue(): bool
-    {
-        return $this->pruneChildPid === null
-            && (microtime(true) - $this->lastSweepAt) >= RetentionSweeper::DEFAULT_INTERVAL_SECONDS;
-    }
-
-    private function reapRetentionSweepChild(): void
-    {
-        if ($this->pruneChildPid === null) {
-            return;
-        }
-
-        $status = 0;
-        $result = pcntl_waitpid(
-            $this->pruneChildPid,
-            $status,
-            WNOHANG,
-        );
-
-        if ($result === -1 || $result > 0) {
-            $this->pruneChildPid = null;
-        }
-    }
-
-    private function forkRetentionSweepChild(): void
-    {
-        $pid = pcntl_fork();
-
-        if ($pid === -1) {
-            $this->logInfo(
-                'Unable to fork the journal retention sweep.',
-                $this->defaultContext,
-            );
-
-            return;
-        }
-
-        if ($pid === 0) {
-            $this->runRetentionSweepThenExit();
-        }
-
-        $this->pruneChildPid = $pid;
-    }
-
-    /**
-     * In the sweep child: drop inherited FDs, reset the backend for a fresh connection, prune once, and exit.
-     */
-    private function runRetentionSweepThenExit(): never
+    private function enterChild(): void
     {
         $this->server->close(shutdown: false);
         $this->closeInheritedChannels();
         $this->isMainProcess = false;
 
-        // The child inherited the parent's shutdown/reload handlers; make stop signals just terminate it.
+        // A sweep child is terminated by SIGTERM; the replica daemon installs its own handlers when it runs.
         foreach ($this->handledSignals as $signal) {
             pcntl_signal(
                 $signal,
@@ -623,41 +552,6 @@ class PcntlServerRunner implements ServerRunnerInterface
         if ($this->backend instanceof ResettableInterface) {
             $this->backend->reset();
         }
-
-        $journal = $this->backend instanceof WritableStorageBackend
-            ? $this->backend->changeJournal()
-            : null;
-
-        if ($journal !== null && $this->journalRetentionPolicy !== null) {
-            (new RetentionSweeper(
-                $journal,
-                $this->journalRetentionPolicy,
-                new EventLogger(
-                    $this->options->getLogger(),
-                    $this->options->getEventLogPolicy(),
-                ),
-            ))->sweep();
-        }
-
-        exit(0);
-    }
-
-    private function endRetentionSweepChild(): void
-    {
-        if ($this->pruneChildPid === null || !$this->isPosixExtLoaded) {
-            return;
-        }
-
-        posix_kill(
-            $this->pruneChildPid,
-            SIGTERM,
-        );
-        $status = 0;
-        pcntl_waitpid(
-            $this->pruneChildPid,
-            $status,
-        );
-        $this->pruneChildPid = null;
     }
 
     /**
