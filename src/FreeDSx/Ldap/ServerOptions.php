@@ -876,6 +876,14 @@ final class ServerOptions
         return $this;
     }
 
+    /**
+     * Named constructor for a read-only replica that mirrors an upstream primary over RFC 4533.
+     */
+    public static function forReplica(ReplicaConfig $replicaConfig): self
+    {
+        return (new self())->setReplicaConfig($replicaConfig);
+    }
+
     public function getReplicaConfig(): ?ReplicaConfig
     {
         return $this->replicaConfig;

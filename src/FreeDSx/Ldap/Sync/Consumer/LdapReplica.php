@@ -43,6 +43,8 @@ final class LdapReplica
 {
     private bool $stopping = false;
 
+    private ?SyncRepl $activeSync = null;
+
     /**
      * @param Closure(): SyncRepl $connect opens a fresh, authenticated sync connection to the primary
      */
@@ -51,7 +53,7 @@ final class LdapReplica
         private readonly ChangeApplierInterface $applier,
         private readonly ReplicationCheckpointInterface $checkpoint,
         private readonly SleeperInterface $sleeper,
-        private readonly ShutdownSignalsInterface $signals,
+        private readonly ?ShutdownSignalsInterface $signals = null,
         private readonly ?LoggerInterface $logger = null,
         private readonly ReconnectBackoff $backoff = new ReconnectBackoff(),
     ) {}
@@ -70,16 +72,20 @@ final class LdapReplica
         );
     }
 
+    /**
+     * @param ?ShutdownSignalsInterface $signals null when a host server owns SIGTERM and drives {@see stop()} instead
+     */
     public static function forSwoole(
         ReplicaConfig $config,
         EntryStorageInterface $storage,
         ?LoggerInterface $logger = null,
+        ?ShutdownSignalsInterface $signals = new SwooleShutdownSignals(),
     ): self {
         return self::create(
             $config,
             $storage,
             new CoroutineSleeper(),
-            new SwooleShutdownSignals(),
+            $signals,
             $logger,
         );
     }
@@ -89,9 +95,7 @@ final class LdapReplica
      */
     public function run(): void
     {
-        $this->signals->onShutdown(function (): void {
-            $this->stopping = true;
-        });
+        $this->signals?->onShutdown($this->stop(...));
         $this->logger?->info('Starting replica synchronization.');
 
         $delay = $this->backoff->initial();
@@ -119,11 +123,20 @@ final class LdapReplica
         $this->logger?->info('Replica synchronization stopped.');
     }
 
+    /**
+     * Stop the daemon and break any in-progress listen; safe to call from a signal handler or another coroutine.
+     */
+    public function stop(): void
+    {
+        $this->stopping = true;
+        $this->activeSync?->disconnect();
+    }
+
     private static function create(
         ReplicaConfig $config,
         EntryStorageInterface $storage,
         SleeperInterface $sleeper,
-        ShutdownSignalsInterface $signals,
+        ?ShutdownSignalsInterface $signals,
         ?LoggerInterface $logger,
     ): self {
         // listen() must not time out its blocking read, or the persist phase would abort each interval.
@@ -165,8 +178,14 @@ final class LdapReplica
             ->useCookieHandler($this->persistCookie(...))
             ->useRefreshDoneHandler($this->reconcileRefresh(...));
 
-        $this->applier->beginRefresh();
-        $syncRepl->listen($this->applyEntry(...));
+        $this->activeSync = $syncRepl;
+
+        try {
+            $this->applier->beginRefresh();
+            $syncRepl->listen($this->applyEntry(...));
+        } finally {
+            $this->activeSync = null;
+        }
     }
 
     private function applyEntry(

@@ -15,11 +15,12 @@ namespace FreeDSx\Ldap\Server\ServerRunner;
 
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionSweeper;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
 use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
+use FreeDSx\Ldap\Server\Process\BackgroundTask\BackgroundTasksInterface;
+use FreeDSx\Ldap\Server\Process\BackgroundTask\SwooleBackgroundTasks;
 use FreeDSx\Ldap\Server\ServerProtocolFactoryInterface;
 use FreeDSx\Ldap\Server\SocketServerFactory;
 use FreeDSx\Ldap\ServerOptions;
@@ -28,7 +29,6 @@ use FreeDSx\Socket\SocketServer;
 use Closure;
 use Psr\Log\LoggerInterface;
 use Swoole\Coroutine;
-use Swoole\Coroutine\Channel;
 use Swoole\Coroutine\WaitGroup;
 use Swoole\Process;
 use Swoole\Runtime;
@@ -60,13 +60,6 @@ class SwooleServerRunner implements CoroutineServerRunnerInterface
     private bool $isShuttingDown = false;
 
     /**
-     * Wakes the retention-sweep coroutine so shutdown does not wait out its sleep interval.
-     *
-     * @var ?Channel<bool>
-     */
-    private ?Channel $sweepWakeup = null;
-
-    /**
      * Active client sockets keyed by spl_object_id.
      *
      * Used to force-close lingering connections when the drain timeout expires.
@@ -92,7 +85,7 @@ class SwooleServerRunner implements CoroutineServerRunnerInterface
         private readonly SocketServerFactory $socketServerFactory,
         Closure $protocolFactoryProvider,
         private readonly MetricsRecorderInterface $metricsRecorder = new NullMetricsRecorder(),
-        private readonly ?RetentionSweeper $retentionSweeper = null,
+        private readonly BackgroundTasksInterface $backgroundTasks = new SwooleBackgroundTasks(),
     ) {
         if (!extension_loaded('swoole')) {
             throw new RuntimeException(
@@ -115,7 +108,7 @@ class SwooleServerRunner implements CoroutineServerRunnerInterface
         Coroutine\run(function (): void {
             $this->server = $this->socketServerFactory->makeAndBind();
             $this->registerShutdownSignals();
-            $this->startRetentionSweep();
+            $this->backgroundTasks->start();
             $this->acceptClients();
         });
 
@@ -144,37 +137,13 @@ class SwooleServerRunner implements CoroutineServerRunnerInterface
         $this->reloadConfiguration(['signal' => $signal]);
     }
 
-    /**
-     * Runs the journal retention sweep in a background coroutine, sleeping between prunes and yielding on I/O.
-     */
-    private function startRetentionSweep(): void
-    {
-        if ($this->retentionSweeper === null) {
-            return;
-        }
-
-        $sweeper = $this->retentionSweeper;
-        $wakeup = $this->sweepWakeup = new Channel(1);
-
-        Coroutine::create(function () use ($sweeper, $wakeup): void {
-            while (!$this->isShuttingDown) {
-                // pop() returns the pushed value on shutdown, or false after the interval elapses.
-                if ($wakeup->pop(RetentionSweeper::DEFAULT_INTERVAL_SECONDS) !== false) {
-                    break;
-                }
-
-                $sweeper->sweep();
-            }
-        });
-    }
-
     private function handleShutdownSignal(int $signal): void
     {
         if ($this->isShuttingDown) {
             return;
         }
         $this->isShuttingDown = true;
-        $this->sweepWakeup?->push(true);
+        $this->backgroundTasks->stop();
         $this->logShutdownStarted(['signal' => $signal]);
         $this->server->close();
         $this->notifyClientsOfShutdown();
@@ -220,6 +189,8 @@ class SwooleServerRunner implements CoroutineServerRunnerInterface
         $this->options->getOnServerReady()?->__invoke();
 
         while (!$this->isShuttingDown) {
+            $this->backgroundTasks->tick();
+
             try {
                 $socket = $this->server->accept($this->options->getSocketAcceptTimeout());
             } catch (Throwable $e) {

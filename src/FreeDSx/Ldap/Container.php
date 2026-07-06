@@ -26,6 +26,9 @@ use FreeDSx\Ldap\Server\Clock\SystemClock;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
+use FreeDSx\Ldap\Server\Process\BackgroundTask\PcntlBackgroundTasks;
+use FreeDSx\Ldap\Server\Process\BackgroundTask\SwooleBackgroundTasks;
+use FreeDSx\Ldap\Sync\Consumer\LdapReplica;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeRecorder;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionPolicy;
@@ -538,7 +541,7 @@ class Container
                 socketServerFactory: $this->get(SocketServerFactory::class),
                 protocolFactoryProvider: $protocolFactoryProvider,
                 metricsRecorder: $metricsRecorder,
-                retentionSweeper: $this->makeRetentionSweeper(),
+                backgroundTasks: $this->makeSwooleBackgroundTasks(),
             );
         }
 
@@ -551,7 +554,7 @@ class Container
             snapshotPublisher: $this->makeSnapshotPublisher(),
             operationRollup: $this->makeOperationRollup(),
             backend: $this->backendOrNull(),
-            journalRetentionPolicy: $this->journalRetentionPolicyIfSweepable(),
+            backgroundTasks: $this->makePcntlBackgroundTasks(),
         );
     }
 
@@ -609,6 +612,52 @@ class Container
                 $options->getEventLogPolicy(),
             ),
         );
+    }
+
+    private function makeSwooleBackgroundTasks(): SwooleBackgroundTasks
+    {
+        return new SwooleBackgroundTasks(
+            $this->makeRetentionSweeper(),
+            $this->makeReplicaDaemon(hostManagedShutdown: true),
+        );
+    }
+
+    private function makePcntlBackgroundTasks(): PcntlBackgroundTasks
+    {
+        $options = $this->get(ServerOptions::class);
+        $hasSweep = $this->journalRetentionPolicyIfSweepable() !== null;
+        $hasDaemon = $options->getReplicaConfig() !== null;
+
+        return new PcntlBackgroundTasks(
+            makeSweeper: $hasSweep
+                ? fn(): ?RetentionSweeper => $this->makeRetentionSweeper()
+                : null,
+            makeDaemon: $hasDaemon
+                ? fn(): ?LdapReplica => $this->makeReplicaDaemon(hostManagedShutdown: false)
+                : null,
+            sweepIntervalSeconds: RetentionSweeper::DEFAULT_INTERVAL_SECONDS,
+            logger: $options->getLogger(),
+        );
+    }
+
+    /**
+     * The replica sync daemon when replica mode is configured, else null.
+     *
+     * @param bool $hostManagedShutdown true under Swoole (the runner calls stop()), false under PCNTL (the forked child owns its signals)
+     */
+    private function makeReplicaDaemon(bool $hostManagedShutdown): ?LdapReplica
+    {
+        $options = $this->get(ServerOptions::class);
+        $config = $options->getReplicaConfig();
+        $storage = $options->getStorage();
+
+        if ($config === null || $storage === null) {
+            return null;
+        }
+
+        return $hostManagedShutdown
+            ? LdapReplica::forSwoole($config, $storage, $options->getLogger(), signals: null)
+            : LdapReplica::forPcntl($config, $storage, $options->getLogger());
     }
 
     /**
