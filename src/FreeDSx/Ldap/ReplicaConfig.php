@@ -13,9 +13,11 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap;
 
+use FreeDSx\Ldap\Operation\Request\BindRequest;
 use FreeDSx\Ldap\Search\Filter\FilterInterface;
 use FreeDSx\Ldap\Sync\Consumer\Checkpoint\InMemoryReplicationCheckpoint;
 use FreeDSx\Ldap\Sync\Consumer\Checkpoint\ReplicationCheckpointInterface;
+use FreeDSx\Ldap\Sync\Consumer\ReconnectBackoff;
 
 /**
  * Configures a server as a replica of an upstream primary.
@@ -28,19 +30,68 @@ use FreeDSx\Ldap\Sync\Consumer\Checkpoint\ReplicationCheckpointInterface;
  */
 final class ReplicaConfig
 {
+    private ?ReconnectBackoff $reconnectBackoff = null;
+
     public function __construct(
         private readonly ClientOptions $primary,
         private readonly ReplicationCheckpointInterface $checkpoint = new InMemoryReplicationCheckpoint(),
         private ?FilterInterface $filter = null,
         private bool $referWrites = true,
+        private ?BindRequest $bind = null,
+        private bool $useStartTls = false,
     ) {}
 
     /**
-     * The client options for connecting to the upstream primary (servers, TLS, credentials, base DN).
+     * The client options for connecting to the upstream primary (servers, LDAPS/mTLS, base DN).
      */
     public function getPrimary(): ClientOptions
     {
         return $this->primary;
+    }
+
+    /**
+     * How the replica authenticates to the primary (via Operations::bind() or Operations::bindSasl()), or null for none.
+     */
+    public function getBind(): ?BindRequest
+    {
+        return $this->bind;
+    }
+
+    public function setBind(BindRequest $bind): self
+    {
+        $this->bind = $bind;
+
+        return $this;
+    }
+
+    /**
+     * Whether the replica issues StartTLS on the primary connection before binding (LDAPS is set on the primary options).
+     */
+    public function getUseStartTls(): bool
+    {
+        return $this->useStartTls;
+    }
+
+    public function setUseStartTls(bool $useStartTls): self
+    {
+        $this->useStartTls = $useStartTls;
+
+        return $this;
+    }
+
+    /**
+     * The bounded backoff applied between reconnect attempts to the primary.
+     */
+    public function getReconnectBackoff(): ReconnectBackoff
+    {
+        return $this->reconnectBackoff ??= new ReconnectBackoff();
+    }
+
+    public function setReconnectBackoff(ReconnectBackoff $reconnectBackoff): self
+    {
+        $this->reconnectBackoff = $reconnectBackoff;
+
+        return $this;
     }
 
     /**
