@@ -17,6 +17,7 @@ Sync is off by default.
 * [Retention](#retention)
 * [Origin and Cookies](#origin-and-cookies)
 * [Operational Notes](#operational-notes)
+* [Read-Only Replica](#read-only-replica)
 
 ## Quick Start
 
@@ -154,3 +155,82 @@ with it. Neither side should try to read or build it by hand; treat it as a toke
   and no window where a change is stored without its record.
 * Consuming the feed: a client uses the [SyncRepl](../Client/SyncRepl.md) helper to poll or listen.
 * Sync has no dedicated `cn=monitor` counters yet. Journal prunes appear in the event log rather than in metrics.
+
+## Read-Only Replica
+
+A FreeDSx server can run as a read-only replica of a provider. It serves reads from a local copy of the directory and
+runs a background daemon that keeps that copy in step with the provider over RFC 4533. Client writes to a replica are not
+accepted; by default they are referred to the provider.
+
+Build the server with `ServerOptions::forReplica(...)`. A `ReplicaConfig` describes how to reach and authenticate to the
+provider; the replica's own listener and storage are configured as usual.
+
+```php
+use FreeDSx\Ldap\ClientOptions;
+use FreeDSx\Ldap\LdapServer;
+use FreeDSx\Ldap\Operations;
+use FreeDSx\Ldap\ReplicaConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\Sync\Consumer\Checkpoint\FileReplicationCheckpoint;
+use FreeDSx\Ldap\ServerOptions;
+
+// Persist the sync cookie so the replica resumes across restarts (the default is in-memory).
+$checkpoint = new FileReplicationCheckpoint('/var/lib/freedsx/replica.cookie');
+
+$replicaConfig = new ReplicaConfig(
+    (new ClientOptions())
+        ->setServers(['provider.example.com'])
+        ->setPort(636)
+        ->setUseSsl(true)
+        ->setBaseDn('dc=example,dc=com'),
+    $checkpoint,
+);
+
+// How the replica authenticates to the provider (a simple bind here; use Operations::bindSasl() for SASL/EXTERNAL).
+$replicaConfig->setBind(Operations::bind('cn=replica,dc=example,dc=com', 'secret'));
+
+$options = ServerOptions::forReplica($replicaConfig)
+    ->setStorage(SqliteStorage::forPcntl('/var/lib/freedsx/replica.sqlite'));
+
+(new LdapServer($options))->run();
+```
+
+The base DN on the primary `ClientOptions` is the subtree the replica mirrors; it must fall within the sync grant the
+provider gives the replica's bind identity.
+
+### How It Works
+
+The replica serves client reads and runs the sync daemon as a managed background task. The daemon connects to the
+provider, performs an initial refresh, then listens for changes and applies them verbatim to the replica's storage,
+preserving the provider's UUIDs and timestamps. It checkpoints its cookie so it resumes where it left off, reconciles
+deletions on a full refresh, and reconnects with bounded backoff if the connection drops. Changes are applied as a leaf;
+the replica does not re-journal them.
+
+### Writes Are Refused
+
+Any client write to a replica (add, modify, delete, rename, password modify) is refused. By default it is returned as a
+referral to the provider; call `ReplicaConfig::setReferWrites(false)` to reject it with `unwillingToPerform` instead.
+Reads, binds, compares, and StartTLS are served normally.
+
+### Storage Requirement
+
+Under the PCNTL runner the sync daemon and the connection workers are separate processes, so the replica's storage must
+be shared across processes (SQLite, MySQL, or JSON file); a forking replica on in-memory storage fails at startup. Under
+Swoole (one process) any storage works.
+
+### Security: Two Gates, and ACLs Do Not Replicate
+
+Access control is enforced independently on each side, and FreeDSx ACL is server configuration that does not replicate:
+
+* On the provider, the read access granted to the replica's bind identity bounds what data reaches the replica.
+* On the replica, its own access control bounds what clients reading from it may see. A replica with a more permissive
+  policy than the provider can expose data the provider would not.
+
+Because the two are separate, configure and review both. A replica does not inherit the provider's policy.
+
+### Password Policy
+
+A replica enforces the password-policy state it receives from the provider (lockout, expiry, grace) but records none of
+its own, so bind failures against a replica are not counted toward lockout there. Account lockout is not a real-time
+defense on a replica; put replicas behind connection rate limiting and/or deploy them in already isolated or trusted
+areas.

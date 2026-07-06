@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DumpOptions;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\ClientOptions;
+use FreeDSx\Ldap\ReplicaConfig;
 use FreeDSx\Ldap\ProxyOptions;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use FreeDSx\Ldap\ServerOptions;
@@ -72,6 +73,17 @@ class LdapServerTest extends TestCase
 
     public function test_run_throws_when_no_storage_is_configured(): void
     {
+        $this->expectException(RuntimeException::class);
+
+        $this->subject->run();
+    }
+
+    public function test_run_throws_for_a_forking_replica_on_in_memory_storage(): void
+    {
+        $this->options
+            ->setReplicaConfig(new ReplicaConfig(new ClientOptions()))
+            ->useInMemoryStorage();
+
         $this->expectException(RuntimeException::class);
 
         $this->subject->run();

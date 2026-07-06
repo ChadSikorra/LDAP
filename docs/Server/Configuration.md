@@ -47,6 +47,13 @@ LDAP Server Configuration
 * [Directory Synchronization](#directory-synchronization)
     * [ServerOptions:setSyncEnabled](#setsyncenabled)
     * [ServerOptions:setChangeJournalConfig](#setchangejournalconfig)
+* [Read-Only Replica](#read-only-replica)
+    * [ServerOptions:setReplicaConfig](#setreplicaconfig)
+    * [ReplicaConfig:setBind](#setbind)
+    * [ReplicaConfig:setUseStartTls](#setusestarttls)
+    * [ReplicaConfig:setReferWrites](#setreferwrites)
+    * [ReplicaConfig:setFilter](#setfilter)
+    * [ReplicaConfig:setReconnectBackoff](#setreconnectbackoff)
 * [SASL Options](#sasl-options)
     * [ServerOptions:setSaslMechanisms](#setsaslmechanisms)
     * [ServerOptions:setExternalCredentialMapper](#setexternalcredentialmapper)
@@ -678,6 +685,63 @@ $options->setChangeJournalConfig($journalConfig);
 ```
 
 **Default**: origin `local` with no retention limits (the journal is not pruned).
+
+## Read-Only Replica
+
+Run the server as a read-only replica that mirrors a provider over RFC 4533. See
+[Read-Only Replica](Replication.md#read-only-replica) for the full guide.
+
+The `ReplicaConfig` is constructed with the provider's `ClientOptions` (servers, TLS, and the base DN of the subtree to
+mirror) and, optionally, a `ReplicationCheckpointInterface` where the sync cookie is persisted. The checkpoint defaults
+to in-memory; use `FileReplicationCheckpoint` in production so the replica resumes across restarts. The setters below
+configure the rest.
+
+------------------
+#### setReplicaConfig
+
+A `ServerOptions` setter that puts the server into read-only replica mode against the given `ReplicaConfig`. Client
+writes are refused and a background daemon keeps the local storage in step with the provider.
+`ServerOptions::forReplica($config)` is a shortcut that constructs the options with this already set.
+
+**Default**: `null` (the server is a normal read-write directory).
+
+------------------
+#### setBind
+
+A `ReplicaConfig` setter for how the replica authenticates to the provider, as a `BindRequest` from `Operations::bind()`
+(simple) or `Operations::bindSasl()` (SASL, including EXTERNAL for client-certificate auth).
+
+**Default**: none
+
+------------------
+#### setUseStartTls
+
+A `ReplicaConfig` setter for whether to issue StartTLS on the provider connection before binding. LDAPS is configured on
+the primary `ClientOptions` instead.
+
+**Default**: `false`
+
+------------------
+#### setReferWrites
+
+A `ReplicaConfig` setter for whether a client write to the replica is referred to the provider (`true`) or rejected with
+`unwillingToPerform` (`false`).
+
+**Default**: `true`
+
+------------------
+#### setFilter
+
+A `ReplicaConfig` setter for an optional filter restricting which entries are replicated.
+
+**Default**: `null` (all in-scope entries).
+
+------------------
+#### setReconnectBackoff
+
+A `ReplicaConfig` setter for the bounded exponential backoff applied between reconnect attempts to the provider.
+
+**Default**: `new ReconnectBackoff()` (starts at 1s, doubling to a 30s ceiling).
 
 ## Monitoring
 

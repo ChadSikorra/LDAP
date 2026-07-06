@@ -40,6 +40,8 @@ use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRule;
 use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRules;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\TlsVersion;
+use FreeDSx\Ldap\ClientOptions;
+use FreeDSx\Ldap\ReplicaConfig;
 use FreeDSx\Ldap\ServerOptions;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -51,6 +53,24 @@ final class ServerOptionsTest extends TestCase
     protected function setUp(): void
     {
         $this->subject = new ServerOptions();
+    }
+
+    public function test_a_default_server_is_not_a_read_only_replica(): void
+    {
+        self::assertFalse($this->subject->isReadOnly());
+        self::assertNull($this->subject->getReplicaConfig());
+    }
+
+    public function test_for_replica_configures_a_read_only_replica(): void
+    {
+        $config = new ReplicaConfig(new ClientOptions());
+        $options = ServerOptions::forReplica($config);
+
+        self::assertTrue($options->isReadOnly());
+        self::assertSame(
+            $config,
+            $options->getReplicaConfig(),
+        );
     }
 
     public function test_privileged_controls_have_the_expected_defaults(): void
