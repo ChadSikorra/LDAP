@@ -90,6 +90,7 @@ final readonly class PasswordPolicyEngine
         return new RecordedOutcome(
             $outcome,
             OperationalChanges::of(...$changes),
+            $this->bindFailureDelay($policy, count($retained)),
         );
     }
 
@@ -336,6 +337,30 @@ final readonly class PasswordPolicyEngine
             $this->isLockoutEffective($state, $policy) => false,
             default => count($retained) >= $policy->lockout->maxFailure,
         };
+    }
+
+    /**
+     * Response delay after a failed bind (draft-behera-10 §5.2.11-5.2.12): starts at pwdMinDelay and doubles per
+     * consecutive failure, capped at pwdMaxDelay. Disabled unless both delays are positive.
+     */
+    private function bindFailureDelay(
+        PasswordPolicy $policy,
+        int $failureCount,
+    ): float {
+        $minDelay = $policy->lockout->minDelay ?? 0;
+        $maxDelay = $policy->lockout->maxDelay ?? 0;
+
+        if ($minDelay <= 0 || $maxDelay <= 0 || $failureCount < 1) {
+            return 0.0;
+        }
+
+        // Cap the exponent so the doubling cannot overflow before the maxDelay clamp applies.
+        $doublings = min($failureCount - 1, 30);
+
+        return (float) min(
+            $minDelay * (2 ** $doublings),
+            $maxDelay,
+        );
     }
 
     /**

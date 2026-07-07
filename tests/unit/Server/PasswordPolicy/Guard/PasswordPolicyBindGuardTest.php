@@ -39,6 +39,7 @@ use PHPUnit\Framework\TestCase;
 use Tests\Support\FreeDSx\Ldap\Backend\RecordingWriteHandler;
 use Tests\Support\FreeDSx\Ldap\Clock\FrozenClock;
 use Tests\Support\FreeDSx\Ldap\Logging\RecordingLogger;
+use Tests\Support\FreeDSx\Ldap\Server\Clock\RecordingSleeper;
 
 final class PasswordPolicyBindGuardTest extends TestCase
 {
@@ -54,6 +55,8 @@ final class PasswordPolicyBindGuardTest extends TestCase
 
     private PasswordPolicyContext $context;
 
+    private RecordingSleeper $sleeper;
+
     private PasswordPolicyBindGuard $subject;
 
     protected function setUp(): void
@@ -62,6 +65,7 @@ final class PasswordPolicyBindGuardTest extends TestCase
         $this->writeHandler = new RecordingWriteHandler();
         $this->logger = new RecordingLogger();
         $this->context = new PasswordPolicyContext();
+        $this->sleeper = new RecordingSleeper();
 
         $engine = new PasswordPolicyEngine(
             clock: $this->clock,
@@ -75,6 +79,7 @@ final class PasswordPolicyBindGuardTest extends TestCase
                 $this->logger,
                 EventLogPolicy::all(),
             ),
+            $this->sleeper,
         );
     }
 
@@ -146,6 +151,42 @@ final class PasswordPolicyBindGuardTest extends TestCase
         );
         $this->assertWroteAttribute(PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME);
         $this->assertEventRecorded(ServerEvent::PasswordPolicyAccountLocked);
+    }
+
+    public function test_recordFailure_delays_the_response_by_the_configured_delay(): void
+    {
+        $this->subject->recordFailure($this->attempt(
+            new UserPasswordState(),
+            new PasswordPolicy(
+                lockout: new PasswordLockoutRules(
+                    minDelay: 3,
+                    maxDelay: 60,
+                ),
+            ),
+        ));
+
+        self::assertSame(
+            [3.0],
+            $this->sleeper->durations,
+        );
+    }
+
+    public function test_recordFailure_requests_no_delay_when_unconfigured(): void
+    {
+        $this->subject->recordFailure($this->attempt(
+            new UserPasswordState(),
+            new PasswordPolicy(
+                lockout: new PasswordLockoutRules(
+                    enabled: true,
+                    maxFailure: 3,
+                ),
+            ),
+        ));
+
+        self::assertSame(
+            [0.0],
+            $this->sleeper->durations,
+        );
     }
 
     public function test_recordSuccess_clean_state_stamps_last_success(): void

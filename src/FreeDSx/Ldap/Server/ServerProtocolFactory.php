@@ -67,6 +67,9 @@ use FreeDSx\Ldap\Server\Middleware\ResourceLimitMiddleware;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\HandlerInvoker;
 use FreeDSx\Ldap\Server\SearchLimit\SearchLimitResolver;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareChain;
+use FreeDSx\Ldap\Server\Clock\Sleeper\BlockingSleeper;
+use FreeDSx\Ldap\Server\Clock\Sleeper\CoroutineSleeper;
+use FreeDSx\Ldap\Server\Clock\Sleeper\SleeperInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
 use FreeDSx\Ldap\Protocol\Queue\Response\MetricsResponseInterceptor;
 use FreeDSx\Ldap\Protocol\Queue\Response\PasswordPolicyResponseInterceptor;
@@ -315,7 +318,15 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
             $this->systemChangeWriter(),
             $policyContext,
             $eventLogger,
+            $this->makeSleeper(),
         );
+    }
+
+    private function makeSleeper(): SleeperInterface
+    {
+        return $this->options->getUseSwooleRunner()
+            ? new CoroutineSleeper()
+            : new BlockingSleeper();
     }
 
     private function systemChangeWriter(): SystemChangeWriterInterface

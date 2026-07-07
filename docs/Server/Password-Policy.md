@@ -217,6 +217,14 @@ recent window.
 
 A locked bind returns `INVALID_CREDENTIALS` with the `accountLocked` error.
 
+### Failed Bind Delay
+
+When both `pwdMinDelay` and `pwdMaxDelay` are set to positive values, the server delays the response to a failed
+bind to slow brute-force attempts. The delay starts at `pwdMinDelay` seconds on the first consecutive failure and
+doubles with each subsequent failure, capped at `pwdMaxDelay`.
+
+Note: Either value unset or `0` disables the delay (the default).
+
 ### Idle Lockout
 
 When `pwdMaxIdle` is set, an account with no successful bind within that many seconds is locked, returning
@@ -315,10 +323,6 @@ clients:
 `pwdPolicySubentry`, `pwdStartTime`, and `pwdEndTime` are read from the user entry but managed by the operator.
 
 ## Not Yet Enforced / Limitations
-
-`pwdMinDelay` / `pwdMaxDelay` and not yet supported. No artificial delay is applied after a failed bind.
-
-Additional notes:
 
 - Policy is assumed to apply to `userPassword`. Custom password attributes are not supported.
 - A plain `ldapmodify` stores the submitted value verbatim. Pre-hashed value cannot be inspected.

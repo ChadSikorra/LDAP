@@ -29,6 +29,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
+use FreeDSx\Ldap\Server\Clock\Sleeper\BlockingSleeper;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordLockoutRules;
@@ -208,6 +209,7 @@ final class PasswordPolicyAwareAuthenticatorTest extends TestCase
             new SystemChangeWriter(new WriteOperationDispatcher($this->writeHandler)),
             $this->context,
             new EventLogger(null),
+            new BlockingSleeper(),
         );
 
         return new PasswordPolicyAwareAuthenticator(

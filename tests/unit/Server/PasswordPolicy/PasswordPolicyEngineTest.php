@@ -316,6 +316,104 @@ final class PasswordPolicyEngineTest extends TestCase
         ));
     }
 
+    public function test_recordBindFailure_first_failure_delays_by_min_delay(): void
+    {
+        $result = $this->subject->recordBindFailure(
+            new UserPasswordState(),
+            new PasswordPolicy(
+                lockout: new PasswordLockoutRules(
+                    minDelay: 2,
+                    maxDelay: 60,
+                ),
+            ),
+        );
+
+        self::assertSame(
+            2.0,
+            $result->delaySeconds,
+        );
+    }
+
+    public function test_recordBindFailure_delay_doubles_with_each_failure(): void
+    {
+        $result = $this->subject->recordBindFailure(
+            new UserPasswordState(failureTimes: [
+                $this->minutesAgo(3),
+                $this->minutesAgo(2),
+            ]),
+            new PasswordPolicy(
+                lockout: new PasswordLockoutRules(
+                    minDelay: 2,
+                    maxDelay: 60,
+                ),
+            ),
+        );
+
+        self::assertSame(
+            8.0,
+            $result->delaySeconds,
+        );
+    }
+
+    public function test_recordBindFailure_delay_is_capped_at_max_delay(): void
+    {
+        $result = $this->subject->recordBindFailure(
+            new UserPasswordState(failureTimes: [
+                $this->minutesAgo(6),
+                $this->minutesAgo(5),
+                $this->minutesAgo(4),
+                $this->minutesAgo(3),
+                $this->minutesAgo(2),
+            ]),
+            new PasswordPolicy(
+                lockout: new PasswordLockoutRules(
+                    minDelay: 5,
+                    maxDelay: 20,
+                ),
+            ),
+        );
+
+        self::assertSame(
+            20.0,
+            $result->delaySeconds,
+        );
+    }
+
+    public function test_recordBindFailure_no_delay_when_delays_unset(): void
+    {
+        $result = $this->subject->recordBindFailure(
+            new UserPasswordState(),
+            new PasswordPolicy(
+                lockout: new PasswordLockoutRules(
+                    enabled: true,
+                    maxFailure: 3,
+                ),
+            ),
+        );
+
+        self::assertSame(
+            0.0,
+            $result->delaySeconds,
+        );
+    }
+
+    public function test_recordBindFailure_no_delay_when_max_delay_unset(): void
+    {
+        $result = $this->subject->recordBindFailure(
+            new UserPasswordState(),
+            new PasswordPolicy(
+                lockout: new PasswordLockoutRules(
+                    minDelay: 5,
+                ),
+            ),
+        );
+
+        self::assertSame(
+            0.0,
+            $result->delaySeconds,
+        );
+    }
+
     public function test_recordBindSuccess_stamps_last_success(): void
     {
         $result = $this->subject->recordBindSuccess(
