@@ -21,5 +21,6 @@ final readonly class RecordedOutcome
     public function __construct(
         public PasswordPolicyOutcome $outcome,
         public OperationalChanges $changes,
+        public float $delaySeconds = 0.0,
     ) {}
 }

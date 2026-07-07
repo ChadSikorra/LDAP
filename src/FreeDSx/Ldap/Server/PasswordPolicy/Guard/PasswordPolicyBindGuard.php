@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Guard;
 use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriterInterface;
+use FreeDSx\Ldap\Server\Clock\Sleeper\SleeperInterface;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
@@ -34,6 +35,7 @@ final readonly class PasswordPolicyBindGuard
         private SystemChangeWriterInterface $writer,
         private PasswordPolicyContext $context,
         private EventLogger $eventLogger,
+        private SleeperInterface $sleeper,
     ) {}
 
     /**
@@ -62,7 +64,8 @@ final readonly class PasswordPolicyBindGuard
     }
 
     /**
-     * Surfaces a lockout outcome but never throws (the caller re-throws the credential error).
+     * Surfaces a lockout outcome but never throws (the caller re-throws the credential error), then applies the
+     * configured pwdMinDelay/pwdMaxDelay response delay.
      */
     public function recordFailure(PasswordBindAttempt $attempt): void
     {
@@ -75,15 +78,15 @@ final readonly class PasswordPolicyBindGuard
             $recorded->changes,
         );
 
-        if (!$recorded->outcome->denied) {
-            return;
+        if ($recorded->outcome->denied) {
+            $this->context->setOutcome($recorded->outcome);
+            $this->eventLogger->record(
+                ServerEvent::PasswordPolicyAccountLocked,
+                $this->subjectFor($attempt),
+            );
         }
 
-        $this->context->setOutcome($recorded->outcome);
-        $this->eventLogger->record(
-            ServerEvent::PasswordPolicyAccountLocked,
-            $this->subjectFor($attempt),
-        );
+        $this->sleeper->sleep($recorded->delaySeconds);
     }
 
     /**
