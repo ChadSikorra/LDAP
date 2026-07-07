@@ -303,6 +303,25 @@ final class MysqlFilterTranslatorTest extends TestCase
         );
     }
 
+    public function test_option_bearing_equality_filter_is_inexact(): void
+    {
+        $result = $this->subject->translate(new EqualityFilter(
+            'cn;lang-en',
+            'x',
+        ));
+
+        self::assertNotNull($result);
+        self::assertFalse($result->isExact);
+    }
+
+    public function test_option_bearing_present_filter_is_inexact(): void
+    {
+        $result = $this->subject->translate(new PresentFilter('cn;lang-en'));
+
+        self::assertNotNull($result);
+        self::assertFalse($result->isExact);
+    }
+
     public function test_numericoid_attribute_translates(): void
     {
         $result = $this->subject->translate(new PresentFilter('2.5.4.3'));

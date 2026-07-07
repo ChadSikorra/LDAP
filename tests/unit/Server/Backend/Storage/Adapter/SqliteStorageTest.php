@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Search\Filter\AndFilter;
+use FreeDSx\Ldap\Search\Filter\FilterInterface;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\SqliteDialect;
@@ -325,6 +326,72 @@ final class SqliteStorageTest extends TestCase
         self::assertNotNull($entry);
         self::assertSame(['Alice'], $entry->get('cn')?->getValues());
         self::assertSame(['secret'], $entry->get('userPassword')?->getValues());
+    }
+
+    public function test_attribute_options_round_trip_through_storage(): void
+    {
+        $dn = new Dn('uid=tagged,dc=example,dc=com');
+        $this->subject->add(
+            new AddCommand(
+                new Entry(
+                    $dn,
+                    new Attribute('uid', 'tagged'),
+                    new Attribute('cn', 'Common'),
+                    new Attribute('cn;lang-en', 'English'),
+                    new Attribute('userCertificate;binary', 'CERTDATA'),
+                ),
+            ),
+            $this->context(),
+        );
+
+        $entry = $this->subject->get($dn);
+
+        self::assertNotNull($entry);
+        self::assertSame(
+            ['Common'],
+            $entry->get(new Attribute('cn'), true)?->getValues(),
+        );
+        self::assertSame(
+            ['English'],
+            $entry->get(new Attribute('cn;lang-en'), true)?->getValues(),
+        );
+        self::assertSame(
+            ['CERTDATA'],
+            $entry->get(new Attribute('userCertificate;binary'), true)?->getValues(),
+        );
+    }
+
+    public function test_option_bearing_equality_filter_matches_only_the_subtype(): void
+    {
+        $this->subject->add(
+            new AddCommand(
+                new Entry(
+                    new Dn('uid=tagged,dc=example,dc=com'),
+                    new Attribute('uid', 'tagged'),
+                    new Attribute('cn;lang-en', 'shared'),
+                ),
+            ),
+            $this->context(),
+        );
+        $this->subject->add(
+            new AddCommand(
+                new Entry(
+                    new Dn('uid=plain,dc=example,dc=com'),
+                    new Attribute('uid', 'plain'),
+                    new Attribute('cn', 'shared'),
+                ),
+            ),
+            $this->context(),
+        );
+
+        self::assertSame(
+            ['uid=tagged,dc=example,dc=com'],
+            $this->searchDns(Filters::equal('cn;lang-en', 'shared')),
+        );
+        self::assertEqualsCanonicalizing(
+            ['uid=tagged,dc=example,dc=com', 'uid=plain,dc=example,dc=com'],
+            $this->searchDns(Filters::equal('cn', 'shared')),
+        );
     }
 
     public function test_attribute_name_casing_is_preserved_on_round_trip(): void
@@ -912,6 +979,23 @@ final class SqliteStorageTest extends TestCase
         }
 
         return $names;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function searchDns(FilterInterface $filter): array
+    {
+        $request = (new SearchRequest($filter))
+            ->base('dc=example,dc=com')
+            ->useSubtreeScope();
+
+        $dns = [];
+        foreach ($this->subject->search($request)->entries as $entry) {
+            $dns[] = $entry->getDn()->toString();
+        }
+
+        return $dns;
     }
 
     private function context(): WriteContext

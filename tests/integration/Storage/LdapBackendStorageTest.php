@@ -15,6 +15,7 @@ namespace Tests\Integration\FreeDSx\Ldap\Storage;
 
 use FreeDSx\Ldap\Control\Sorting\SortingControl;
 use FreeDSx\Ldap\Control\Sorting\SortKey;
+use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\BindException;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -187,6 +188,38 @@ class LdapBackendStorageTest extends ServerTestCase
                 ->useSubtreeScope(),
         );
         self::assertCount(1, $entries);
+    }
+
+    public function testAddPreservesAttributeOptionsOnRoundTrip(): void
+    {
+        $this->authenticateUser();
+
+        $this->ldapClient()->create(Entry::fromArray(
+            'cn=tagged,dc=foo,dc=bar',
+            [
+                'cn' => 'tagged',
+                'cn;lang-en' => 'Tagged EN',
+                'sn' => 'Tag',
+                'objectClass' => 'inetOrgPerson',
+            ],
+        ));
+
+        $entries = $this->ldapClient()->search(
+            Operations::search(Filters::equal('cn;lang-en', 'Tagged EN'))
+                ->base('dc=foo,dc=bar')
+                ->useSubtreeScope(),
+        );
+
+        $tagged = $entries->first();
+        self::assertNotNull($tagged);
+        self::assertSame(
+            ['Tagged EN'],
+            $tagged->get(new Attribute('cn;lang-en'), true)?->getValues(),
+        );
+        self::assertSame(
+            ['tagged'],
+            $tagged->get(new Attribute('cn'), true)?->getValues(),
+        );
     }
 
     public function testAddDuplicateDnFails(): void
