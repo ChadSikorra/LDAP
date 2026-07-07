@@ -171,6 +171,9 @@ final class Worker
             'search-read' => $this->doSearchRead($client),
             'search-eq' => $this->doSearchEq($client),
             'search-sub' => $this->doSearchSub($client),
+            'search-substr' => $this->doSearchSubstr($client),
+            'search-suffix' => $this->doSearchSuffix($client),
+            'search-range' => $this->doSearchRange($client),
             'search-list' => $this->doSearchList($client),
             'compare' => $this->doCompare($client),
             'add' => $this->doAdd($client),
@@ -230,6 +233,53 @@ final class Worker
             ->useSubtreeScope();
 
         $client->search($request);
+    }
+
+    private function doSearchSubstr(LdapClient $client): void
+    {
+        $filter = $this->config->seedEntries > 0
+            ? Filters::contains('mail', "seed-{$this->randomSeedIdx()}@")
+            : Filters::contains('mail', '@');
+
+        $client->search(
+            Operations::search($filter)
+                ->base($this->config->baseDn)
+                ->useSubtreeScope(),
+        );
+    }
+
+    private function doSearchSuffix(LdapClient $client): void
+    {
+        $filter = $this->config->seedEntries > 0
+            ? Filters::endsWith('cn', "d-{$this->randomSeedIdx()}")
+            : Filters::endsWith('cn', 'e');
+
+        $client->search(
+            Operations::search($filter)
+                ->base($this->config->baseDn)
+                ->useSubtreeScope(),
+        );
+    }
+
+    private function doSearchRange(LdapClient $client): void
+    {
+        $threshold = $this->config->seedEntries > 0
+            ? 1000 + max(1, $this->config->seedEntries - 99)
+            : 1000;
+
+        $client->search(
+            Operations::search(Filters::greaterThanOrEqual('uidNumber', (string) $threshold))
+                ->base($this->config->baseDn)
+                ->useSubtreeScope(),
+        );
+    }
+
+    private function randomSeedIdx(): int
+    {
+        return mt_rand(
+            1,
+            $this->config->seedEntries,
+        );
     }
 
     private function randomReadDn(): string

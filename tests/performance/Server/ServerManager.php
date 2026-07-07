@@ -46,7 +46,7 @@ final class ServerManager
             throw new RuntimeException('ServerManager::start() called twice.');
         }
 
-        $command = ['php', '-dpcov.enabled=0'];
+        $command = ['php', '-dpcov.enabled=0', '-dmemory_limit=-1'];
         if ($this->config->jit) {
             $command[] = '-dopcache.enable_cli=1';
             $command[] = '-dopcache.jit_buffer_size=128M';
