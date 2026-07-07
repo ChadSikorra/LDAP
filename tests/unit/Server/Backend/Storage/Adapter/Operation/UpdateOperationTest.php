@@ -367,6 +367,98 @@ final class UpdateOperationTest extends TestCase
         ));
     }
 
+    public function test_type_add_targets_the_option_subtype_without_touching_the_base_attribute(): void
+    {
+        $entry = new Entry(
+            new Dn('uid=asmith,dc=example,dc=com'),
+            new Attribute('uid', 'asmith'),
+            new Attribute('cn', 'Alice Smith'),
+            new Attribute('cn;lang-en', 'Alice'),
+        );
+
+        $result = $this->subject->execute($entry, new UpdateCommand(
+            new Dn('uid=asmith,dc=example,dc=com'),
+            [new Change(Change::TYPE_ADD, 'cn;lang-en', 'Ally')],
+        ));
+
+        self::assertSame(
+            ['Alice Smith'],
+            $result->get(new Attribute('cn'), true)?->getValues(),
+        );
+        self::assertSame(
+            ['Alice', 'Ally'],
+            $result->get(new Attribute('cn;lang-en'), true)?->getValues(),
+        );
+    }
+
+    public function test_type_add_creates_a_distinct_subtype_when_only_the_base_exists(): void
+    {
+        $entry = new Entry(
+            new Dn('uid=asmith,dc=example,dc=com'),
+            new Attribute('uid', 'asmith'),
+            new Attribute('cn', 'Alice'),
+        );
+
+        $result = $this->subject->execute($entry, new UpdateCommand(
+            new Dn('uid=asmith,dc=example,dc=com'),
+            [new Change(Change::TYPE_ADD, 'cn;lang-en', 'Ally')],
+        ));
+
+        self::assertSame(
+            ['Alice'],
+            $result->get(new Attribute('cn'), true)?->getValues(),
+        );
+        self::assertSame(
+            ['Ally'],
+            $result->get(new Attribute('cn;lang-en'), true)?->getValues(),
+        );
+    }
+
+    public function test_type_replace_targets_the_option_subtype_only(): void
+    {
+        $entry = new Entry(
+            new Dn('uid=asmith,dc=example,dc=com'),
+            new Attribute('uid', 'asmith'),
+            new Attribute('cn', 'Alice Smith'),
+            new Attribute('cn;lang-en', 'Alice'),
+        );
+
+        $result = $this->subject->execute($entry, new UpdateCommand(
+            new Dn('uid=asmith,dc=example,dc=com'),
+            [new Change(Change::TYPE_REPLACE, 'cn;lang-en', 'Ally')],
+        ));
+
+        self::assertSame(
+            ['Alice Smith'],
+            $result->get(new Attribute('cn'), true)?->getValues(),
+        );
+        self::assertSame(
+            ['Ally'],
+            $result->get(new Attribute('cn;lang-en'), true)?->getValues(),
+        );
+    }
+
+    public function test_type_delete_removes_only_the_option_subtype(): void
+    {
+        $entry = new Entry(
+            new Dn('uid=asmith,dc=example,dc=com'),
+            new Attribute('uid', 'asmith'),
+            new Attribute('cn', 'Alice Smith'),
+            new Attribute('cn;lang-en', 'Alice'),
+        );
+
+        $result = $this->subject->execute($entry, new UpdateCommand(
+            new Dn('uid=asmith,dc=example,dc=com'),
+            [new Change(Change::TYPE_DELETE, 'cn;lang-en')],
+        ));
+
+        self::assertSame(
+            ['Alice Smith'],
+            $result->get(new Attribute('cn'), true)?->getValues(),
+        );
+        self::assertNull($result->get(new Attribute('cn;lang-en'), true));
+    }
+
     public function test_type_add_with_case_differing_value_throws_attribute_or_value_exists(): void
     {
         self::expectException(OperationException::class);

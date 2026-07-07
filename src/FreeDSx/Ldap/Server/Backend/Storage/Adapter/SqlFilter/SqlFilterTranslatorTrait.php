@@ -71,6 +71,7 @@ trait SqlFilterTranslatorTrait
         return new SqlFilterResult(
             $this->buildPresenceCheck($attribute),
             [],
+            isExact: !$this->attributeHasOption($filter->getAttribute()),
         );
     }
 
@@ -84,7 +85,7 @@ trait SqlFilterTranslatorTrait
         return new SqlFilterResult(
             $this->buildValueExists($attribute, "$alias = ?"),
             [$this->prepareMatchValue($value)],
-            isExact: $this->isExactEquality($value),
+            isExact: $this->isExactEquality($value) && !$this->attributeHasOption($filter->getAttribute()),
             referencedAttributes: [$attribute],
         );
     }
@@ -100,7 +101,7 @@ trait SqlFilterTranslatorTrait
         return new SqlFilterResult(
             $this->buildValueExists($attribute, "$alias = ?"),
             [$this->prepareMatchValue($value)],
-            isExact: $this->isExactEquality($value),
+            isExact: $this->isExactEquality($value) && !$this->attributeHasOption($filter->getAttribute()),
             referencedAttributes: [$attribute],
         );
     }
@@ -116,7 +117,7 @@ trait SqlFilterTranslatorTrait
         return new SqlFilterResult(
             $this->buildValueExists($attribute, "$alias >= ?"),
             [$this->prepareMatchValue($value)],
-            isExact: $this->isExactOrdered($value),
+            isExact: $this->isExactOrdered($value) && !$this->attributeHasOption($filter->getAttribute()),
             referencedAttributes: [$attribute],
         );
     }
@@ -168,7 +169,7 @@ trait SqlFilterTranslatorTrait
             $startsWith,
             $contains,
             $endsWith,
-        );
+        ) && !$this->attributeHasOption($filter->getAttribute());
 
         return new SqlFilterResult(
             $sql,
@@ -369,5 +370,13 @@ trait SqlFilterTranslatorTrait
             $lower,
             2,
         )[0];
+    }
+
+    /**
+     * An option-bearing filter is a SQL superset, since the base-keyed sidecar cannot distinguish the subtype.
+     */
+    private function attributeHasOption(string $attribute): bool
+    {
+        return str_contains($attribute, ';');
     }
 }

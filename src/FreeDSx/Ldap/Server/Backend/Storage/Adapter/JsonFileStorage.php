@@ -243,7 +243,7 @@ final class JsonFileStorage implements EntryStorageInterface, ChangeJournalingIn
     {
         $attributes = [];
         foreach ($entry->getAttributes() as $attribute) {
-            $attributes[$attribute->getName()] = array_values($attribute->getValues());
+            $attributes[$attribute->getDescription()] = array_values($attribute->getValues());
         }
 
         return [

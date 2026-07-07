@@ -103,6 +103,39 @@ final class JsonFileStorageTest extends TestCase
         );
     }
 
+    public function test_attribute_options_round_trip_through_storage(): void
+    {
+        $dn = new Dn('cn=Bob,dc=example,dc=com');
+        $this->subject->add(
+            new AddCommand(
+                new Entry(
+                    $dn,
+                    new Attribute('objectClass', 'person'),
+                    new Attribute('cn', 'Bob'),
+                    new Attribute('cn;lang-en', 'Bobby'),
+                    new Attribute('userCertificate;binary', 'CERTDATA'),
+                ),
+            ),
+            $this->context(),
+        );
+
+        $entry = $this->subject->get($dn);
+
+        self::assertNotNull($entry);
+        self::assertSame(
+            ['Bob'],
+            $entry->get(new Attribute('cn'), true)?->getValues(),
+        );
+        self::assertSame(
+            ['Bobby'],
+            $entry->get(new Attribute('cn;lang-en'), true)?->getValues(),
+        );
+        self::assertSame(
+            ['CERTDATA'],
+            $entry->get(new Attribute('userCertificate;binary'), true)?->getValues(),
+        );
+    }
+
     public function test_get_is_case_insensitive(): void
     {
         $entry = $this->subject->get(new Dn('CN=ALICE,DC=EXAMPLE,DC=COM'));

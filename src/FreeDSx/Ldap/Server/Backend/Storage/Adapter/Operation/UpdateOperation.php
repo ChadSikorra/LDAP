@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Operation;
 
+use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -53,8 +54,7 @@ final class UpdateOperation
         Change $change,
     ): void {
         $attribute = $change->getAttribute();
-        $attrName = $attribute->getName();
-        $existing = $entry->get($attrName);
+        $existing = $entry->get($attribute, true);
 
         if ($existing === null) {
             $entry->add($attribute);
@@ -64,7 +64,7 @@ final class UpdateOperation
         foreach ($attribute->getValues() as $value) {
             if ($existing->has($value, caseSensitive: false)) {
                 throw new OperationException(
-                    sprintf('Attribute "%s" already contains the given value.', $attrName),
+                    sprintf('Attribute "%s" already contains the given value.', $attribute->getName()),
                     ResultCode::ATTRIBUTE_OR_VALUE_EXISTS,
                 );
             }
@@ -80,15 +80,15 @@ final class UpdateOperation
         Entry $entry,
         Change $change,
     ): void {
-        $attrName = $change->getAttribute()->getName();
-        $values = $change->getAttribute()->getValues();
+        $attribute = $change->getAttribute();
+        $values = $attribute->getValues();
 
         if (count($values) === 0) {
-            $this->deleteWholeAttribute($entry, $attrName);
+            $this->deleteWholeAttribute($entry, $attribute);
             return;
         }
 
-        $this->deleteSpecificValues($entry, $attrName, $values);
+        $this->deleteSpecificValues($entry, $attribute, $values);
     }
 
     /**
@@ -96,23 +96,23 @@ final class UpdateOperation
      */
     private function deleteWholeAttribute(
         Entry $entry,
-        string $attrName,
+        Attribute $attribute,
     ): void {
-        if ($entry->get($attrName) === null) {
+        if ($entry->get($attribute, true) === null) {
             throw new OperationException(
-                sprintf('Attribute "%s" does not exist.', $attrName),
+                sprintf('Attribute "%s" does not exist.', $attribute->getName()),
                 ResultCode::NO_SUCH_ATTRIBUTE,
             );
         }
 
-        if ($this->isRdnAttribute($entry, $attrName)) {
+        if ($this->isRdnAttribute($entry, $attribute->getName())) {
             throw new OperationException(
-                sprintf('Attribute "%s" is the RDN attribute and cannot be removed.', $attrName),
+                sprintf('Attribute "%s" is the RDN attribute and cannot be removed.', $attribute->getName()),
                 ResultCode::NOT_ALLOWED_ON_RDN,
             );
         }
 
-        $entry->reset($attrName);
+        $entry->reset($attribute);
     }
 
     /**
@@ -122,27 +122,27 @@ final class UpdateOperation
      */
     private function deleteSpecificValues(
         Entry $entry,
-        string $attrName,
+        Attribute $attribute,
         array $values,
     ): void {
-        $existing = $entry->get($attrName);
+        $existing = $entry->get($attribute, true);
 
         if ($existing === null) {
             throw new OperationException(
-                sprintf('Attribute "%s" does not exist.', $attrName),
+                sprintf('Attribute "%s" does not exist.', $attribute->getName()),
                 ResultCode::NO_SUCH_ATTRIBUTE,
             );
         }
 
         $rdnValue = $this->getRdnValueForAttribute(
             $entry,
-            $attrName,
+            $attribute->getName(),
         );
 
         foreach ($values as $value) {
             if (!$existing->has($value, caseSensitive: false)) {
                 throw new OperationException(
-                    sprintf('The given value does not exist in attribute "%s".', $attrName),
+                    sprintf('The given value does not exist in attribute "%s".', $attribute->getName()),
                     ResultCode::NO_SUCH_ATTRIBUTE,
                 );
             }
@@ -151,7 +151,7 @@ final class UpdateOperation
                 throw new OperationException(
                     sprintf(
                         'The RDN value of attribute "%s" cannot be removed.',
-                        $attrName,
+                        $attribute->getName(),
                     ),
                     ResultCode::NOT_ALLOWED_ON_RDN,
                 );
@@ -170,25 +170,24 @@ final class UpdateOperation
     private function applyReplace(Entry $entry, Change $change): void
     {
         $attribute = $change->getAttribute();
-        $attrName = $attribute->getName();
         $values = $attribute->getValues();
 
         if (count($values) === 0) {
             $this->clearAttribute(
                 $entry,
-                $attrName,
+                $attribute,
             );
 
             return;
         }
 
-        $rdnValue = $this->getRdnValueForAttribute($entry, $attrName);
+        $rdnValue = $this->getRdnValueForAttribute($entry, $attribute->getName());
 
         if ($rdnValue !== null && !$attribute->has($rdnValue, caseSensitive: false)) {
             throw new OperationException(
                 sprintf(
                     'Replacing attribute "%s" must retain its RDN value.',
-                    $attrName,
+                    $attribute->getName(),
                 ),
                 ResultCode::NOT_ALLOWED_ON_RDN,
             );
@@ -202,16 +201,16 @@ final class UpdateOperation
      */
     private function clearAttribute(
         Entry $entry,
-        string $attrName,
+        Attribute $attribute,
     ): void {
-        if ($this->isRdnAttribute($entry, $attrName)) {
+        if ($this->isRdnAttribute($entry, $attribute->getName())) {
             throw new OperationException(
-                sprintf('Attribute "%s" is the RDN attribute and cannot be cleared.', $attrName),
+                sprintf('Attribute "%s" is the RDN attribute and cannot be cleared.', $attribute->getName()),
                 ResultCode::NOT_ALLOWED_ON_RDN,
             );
         }
 
-        $entry->reset($attrName);
+        $entry->reset($attribute);
     }
 
     private function isRdnAttribute(
