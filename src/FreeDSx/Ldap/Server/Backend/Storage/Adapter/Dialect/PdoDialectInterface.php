@@ -31,4 +31,11 @@ interface PdoDialectInterface extends PdoEntryDialectInterface, PdoJournalDialec
      * @return list<string>
      */
     public function schemaStatements(): array;
+
+    /**
+     * The statements of a named auxiliary schema (e.g. an optional substring index), for strategies to apply their own DDL.
+     *
+     * @return list<string>
+     */
+    public function schemaStatementsNamed(string $name): array;
 }

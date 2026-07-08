@@ -32,6 +32,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Exception\DnTooLongException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqlFilterUtility;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\SubstringIndexInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\TimeLimitExceededException;
@@ -73,6 +74,7 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
         private readonly PdoConnectionProviderInterface $provider,
         private readonly FilterTranslatorInterface $translator,
         private readonly PdoDialectInterface $dialect,
+        private readonly ?SubstringIndexInterface $substringIndex = null,
     ) {
         if (!extension_loaded('mbstring')) {
             throw new RuntimeException(
@@ -96,6 +98,7 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
     public static function initialize(
         PDO $pdo,
         PdoDialectInterface $dialect,
+        ?SubstringIndexInterface $substringIndex = null,
     ): void {
         $pdo->setAttribute(
             PDO::ATTR_ERRMODE,
@@ -106,7 +109,12 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
             PDO::FETCH_ASSOC,
         );
 
-        foreach ($dialect->schemaStatements() as $statement) {
+        $statements = [
+            ...$dialect->schemaStatements(),
+            ...($substringIndex?->schemaStatements($dialect) ?? []),
+        ];
+
+        foreach ($statements as $statement) {
             $pdo->exec($statement);
         }
     }
@@ -200,6 +208,17 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
             $this->insertSidecarRows(
                 $lcDn,
                 $entry,
+            );
+
+            $this->substringIndex?->maintain(
+                $lcDn,
+                $entry,
+                function (string $sql, array $params): void {
+                    $this->prepareAndExecute(
+                        $sql,
+                        $params,
+                    );
+                },
             );
         });
     }

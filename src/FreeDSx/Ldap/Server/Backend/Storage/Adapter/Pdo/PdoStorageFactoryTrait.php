@@ -16,6 +16,8 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\PdoStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\SubstringIndexInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\TrigramSubstringIndex;
 use PDO;
 
 /**
@@ -37,7 +39,23 @@ trait PdoStorageFactoryTrait
 
     abstract protected function translator(): FilterTranslatorInterface;
 
+    abstract protected function substringIndex(): ?SubstringIndexInterface;
+
     abstract protected function openConnection(PdoDialectInterface $dialect): PDO;
+
+    /**
+     * Resolve a substring-index attribute list into a strategy: null uses the default set, [] disables it.
+     *
+     * @param list<string>|null $attributes
+     */
+    protected static function resolveSubstringIndex(?array $attributes): ?SubstringIndexInterface
+    {
+        if ($attributes === []) {
+            return null;
+        }
+
+        return new TrigramSubstringIndex($attributes ?? TrigramSubstringIndex::DEFAULT_ATTRIBUTES);
+    }
 
     protected function createShared(): PdoStorage
     {
@@ -51,6 +69,7 @@ trait PdoStorageFactoryTrait
             ),
             $this->translator(),
             $dialect,
+            $this->substringIndex(),
         );
     }
 
@@ -62,6 +81,7 @@ trait PdoStorageFactoryTrait
             new CoroutinePdoConnectionProvider(fn(): PDO => $this->openConnection($dialect)),
             $this->translator(),
             $dialect,
+            $this->substringIndex(),
         );
     }
 }
