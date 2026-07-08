@@ -22,9 +22,11 @@ use FreeDSx\Ldap\Resources;
  */
 trait PdoSchemaTrait
 {
+    private const BASELINE_SCHEMA = 'baseline';
+
     public function schemaSql(): string
     {
-        return $this->schemaFile()
+        return $this->schemaFile(self::BASELINE_SCHEMA)
             ->sql();
     }
 
@@ -33,7 +35,16 @@ trait PdoSchemaTrait
      */
     public function schemaStatements(): array
     {
-        return $this->schemaFile()
+        return $this->schemaFile(self::BASELINE_SCHEMA)
+            ->statements();
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function schemaStatementsNamed(string $name): array
+    {
+        return $this->schemaFile($name)
             ->statements();
     }
 
@@ -42,10 +53,10 @@ trait PdoSchemaTrait
      */
     abstract protected function schemaName(): string;
 
-    private function schemaFile(): SchemaFile
+    private function schemaFile(string $name): SchemaFile
     {
         return new SchemaFile(Resources::path(
-            'schema/' . $this->schemaName() . '/baseline.sql',
+            'schema/' . $this->schemaName() . '/' . $name . '.sql',
         ));
     }
 }

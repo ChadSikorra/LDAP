@@ -21,6 +21,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactoryInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactoryTrait;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqliteFilterTranslator;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\SubstringIndexInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Writer\SwooleWriterQueue;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Writer\WriteSerializingStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
@@ -50,20 +51,37 @@ final class SqliteStorage implements PdoStorageFactoryInterface
     public function __construct(
         private readonly string $dbPath,
         private readonly bool $initializeSchema = true,
+        private readonly ?SubstringIndexInterface $substringIndex = null,
     ) {}
 
+    /**
+     * @param list<string>|null $substringIndexedAttributes null uses the default indexed set, [] disables substring indexing
+     */
     public static function forPcntl(
         string $dbPath,
         bool $initializeSchema = true,
+        ?array $substringIndexedAttributes = null,
     ): PdoStorage {
-        return (new self($dbPath, $initializeSchema))->createShared();
+        return (new self(
+            $dbPath,
+            $initializeSchema,
+            self::resolveSubstringIndex($substringIndexedAttributes),
+        ))->createShared();
     }
 
+    /**
+     * @param list<string>|null $substringIndexedAttributes null uses the default indexed set, [] disables substring indexing
+     */
     public static function forSwoole(
         string $dbPath,
         bool $initializeSchema = true,
+        ?array $substringIndexedAttributes = null,
     ): EntryStorageInterface {
-        $factory = new self($dbPath, $initializeSchema);
+        $factory = new self(
+            $dbPath,
+            $initializeSchema,
+            self::resolveSubstringIndex($substringIndexedAttributes),
+        );
         $writesStorage = $factory->createShared();
 
         return new WriteSerializingStorage(
@@ -93,6 +111,11 @@ final class SqliteStorage implements PdoStorageFactoryInterface
         return new SqliteFilterTranslator();
     }
 
+    protected function substringIndex(): ?SubstringIndexInterface
+    {
+        return $this->substringIndex;
+    }
+
     protected function openConnection(PdoDialectInterface $dialect): PDO
     {
         if (!extension_loaded('pdo_sqlite')) {
@@ -116,6 +139,7 @@ final class SqliteStorage implements PdoStorageFactoryInterface
             PdoStorage::initialize(
                 $pdo,
                 $dialect,
+                $this->substringIndex,
             );
         }
 
