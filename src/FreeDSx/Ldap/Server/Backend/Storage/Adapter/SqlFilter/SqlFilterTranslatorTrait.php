@@ -25,6 +25,7 @@ use FreeDSx\Ldap\Search\Filter\NotFilter;
 use FreeDSx\Ldap\Search\Filter\OrFilter;
 use FreeDSx\Ldap\Search\Filter\PresentFilter;
 use FreeDSx\Ldap\Search\Filter\SubstringFilter;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\SubstringIndexInterface;
 
 /**
  * Translates LDAP filters to SQL against the `entry_attribute_values` sidecar index.
@@ -33,6 +34,8 @@ use FreeDSx\Ldap\Search\Filter\SubstringFilter;
  */
 trait SqlFilterTranslatorTrait
 {
+    private ?SubstringIndexInterface $substringIndex = null;
+
     public function translate(FilterInterface $filter): ?SqlFilterResult
     {
         return match (true) {
@@ -150,6 +153,16 @@ trait SqlFilterTranslatorTrait
             return null;
         }
 
+        $indexed = $this->indexedSubstring(
+            $attribute,
+            $startsWith,
+            $contains,
+            $endsWith,
+        );
+        if ($indexed !== null) {
+            return $indexed;
+        }
+
         // Prefix-anchored LIKE is the only valid superset under truncation; other fragments fall back to presence + PHP re-eval.
         $alias = $this->valueAlias();
 
@@ -177,6 +190,48 @@ trait SqlFilterTranslatorTrait
             isExact: $isExact,
             referencedAttributes: [$attribute],
         );
+    }
+
+    /**
+     * The substring index's candidate-narrowing predicate for an infix/suffix filter, or null when it does not apply.
+     *
+     * @param array<string> $contains
+     */
+    private function indexedSubstring(
+        string $attribute,
+        ?string $startsWith,
+        array $contains,
+        ?string $endsWith,
+    ): ?SqlFilterResult {
+        if ($startsWith !== null || $this->substringIndex === null) {
+            return null;
+        }
+
+        return $this->substringIndex->buildSubstringPredicate(
+            $attribute,
+            $this->substringFragments(
+                $contains,
+                $endsWith,
+            ),
+        );
+    }
+
+    /**
+     * @param array<string> $contains
+     *
+     * @return list<string>
+     */
+    private function substringFragments(
+        array $contains,
+        ?string $endsWith,
+    ): array {
+        $fragments = array_values($contains);
+
+        if ($endsWith !== null) {
+            $fragments[] = $endsWith;
+        }
+
+        return $fragments;
     }
 
     private function isExactEquality(string $value): bool

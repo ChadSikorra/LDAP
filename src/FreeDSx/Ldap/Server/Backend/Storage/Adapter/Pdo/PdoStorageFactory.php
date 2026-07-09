@@ -61,7 +61,7 @@ final class PdoStorageFactory
                 $open(),
                 $open,
             ),
-            $config->getTranslator(),
+            $config->getDialect()->createFilterTranslator($config->getSubstringIndex()),
             $config->getDialect(),
             $config->getSubstringIndex(),
         );
@@ -71,7 +71,7 @@ final class PdoStorageFactory
     {
         return new PdoStorage(
             new CoroutinePdoConnectionProvider(static fn(): PDO => self::open($config)),
-            $config->getTranslator(),
+            $config->getDialect()->createFilterTranslator($config->getSubstringIndex()),
             $config->getDialect(),
             $config->getSubstringIndex(),
         );

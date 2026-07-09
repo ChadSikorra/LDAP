@@ -13,6 +13,9 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect;
 
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\SubstringIndexInterface;
+
 /**
  * The full database-specific SQL a PdoStorage needs.
  *
@@ -20,6 +23,11 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect;
  */
 interface PdoDialectInterface extends PdoEntryDialectInterface, PdoJournalDialectInterface
 {
+    /**
+     * The filter translator paired with this dialect, with the (optional) substring index injected for query narrowing.
+     */
+    public function createFilterTranslator(?SubstringIndexInterface $substringIndex): FilterTranslatorInterface;
+
     /**
      * The full schema (all tables) as a runnable SQL script.
      */

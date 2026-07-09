@@ -13,6 +13,10 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect;
 
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\MysqlFilterTranslator;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\SubstringIndexInterface;
+
 /**
  * MySQL/MariaDB SQL for PdoStorage; requires MySQL 8.0+ or MariaDB 10.6+.
  *
@@ -23,6 +27,11 @@ final class MysqlDialect implements PdoDialectInterface
     use PdoDialectTrait;
     use PdoJournalDialectTrait;
     use PdoSchemaTrait;
+
+    public function createFilterTranslator(?SubstringIndexInterface $substringIndex): FilterTranslatorInterface
+    {
+        return new MysqlFilterTranslator($substringIndex);
+    }
 
     /**
      * @todo Replace VALUES() with row alias syntax once MariaDB supports it.

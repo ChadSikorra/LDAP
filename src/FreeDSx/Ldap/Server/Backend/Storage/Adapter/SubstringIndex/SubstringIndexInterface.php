@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex;
 
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqlFilterResult;
 
 /**
  * A pluggable substring-search index for the PDO backend.
@@ -40,4 +41,14 @@ interface SubstringIndexInterface
         Entry $entry,
         callable $execute,
     ): void;
+
+    /**
+     * A candidate-narrowing WHERE fragment for a substring filter on an indexed attribute; null to decline.
+     *
+     * @param list<string> $fragments
+     */
+    public function buildSubstringPredicate(
+        string $attributeLower,
+        array $fragments,
+    ): ?SqlFilterResult;
 }

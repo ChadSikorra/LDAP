@@ -13,6 +13,9 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect;
 
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqliteFilterTranslator;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\SubstringIndexInterface;
 use PDO;
 
 /**
@@ -25,6 +28,11 @@ final class SqliteDialect implements PdoDialectInterface
     use PdoDialectTrait;
     use PdoJournalDialectTrait;
     use PdoSchemaTrait;
+
+    public function createFilterTranslator(?SubstringIndexInterface $substringIndex): FilterTranslatorInterface
+    {
+        return new SqliteFilterTranslator($substringIndex);
+    }
 
     /**
      * `BEGIN IMMEDIATE` acquires the reserved lock up front so concurrent writers wait (honoring `busy_timeout`)

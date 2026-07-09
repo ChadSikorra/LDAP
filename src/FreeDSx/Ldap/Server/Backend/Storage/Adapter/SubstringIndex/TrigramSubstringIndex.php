@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex;
 
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqlFilterResult;
 
 /**
  * Portable substring index: a generic trigram table usable across every PDO dialect.
@@ -48,6 +49,15 @@ final class TrigramSubstringIndex implements SubstringIndexInterface
     private const INSERT_SQL = <<<SQL
         INSERT INTO entry_attribute_trigrams (entry_lc_dn, attr_name_lower, trigram)
         VALUES %s
+        SQL;
+
+    private const PREDICATE_SQL = <<<SQL
+        lc_dn IN (
+            SELECT entry_lc_dn FROM entry_attribute_trigrams
+            WHERE attr_name_lower = ? AND trigram IN (%s)
+            GROUP BY entry_lc_dn
+            HAVING COUNT(DISTINCT trigram) = %d
+        )
         SQL;
 
     /**
@@ -95,6 +105,47 @@ final class TrigramSubstringIndex implements SubstringIndexInterface
                 $this->placeholders(count($rows)),
             ),
             $this->flatten($rows),
+        );
+    }
+
+    public function buildSubstringPredicate(
+        string $attributeLower,
+        array $fragments,
+    ): ?SqlFilterResult {
+        if (!isset($this->attributes[$attributeLower])) {
+            return null;
+        }
+
+        $trigrams = [];
+        foreach ($fragments as $fragment) {
+            foreach (Trigrams::of($fragment) as $trigram) {
+                $trigrams[] = $trigram;
+            }
+        }
+        $trigrams = array_values(array_unique($trigrams));
+
+        if ($trigrams === []) {
+            return null;
+        }
+
+        $markers = implode(
+            ', ',
+            array_fill(
+                0,
+                count($trigrams),
+                '?',
+            ),
+        );
+
+        return new SqlFilterResult(
+            sprintf(
+                self::PREDICATE_SQL,
+                $markers,
+                count($trigrams),
+            ),
+            [$attributeLower, ...$trigrams],
+            isExact: false,
+            referencedAttributes: [$attributeLower],
         );
     }
 
