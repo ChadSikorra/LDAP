@@ -12,8 +12,8 @@ General LDAP Server Usage
   * [Built-In Storage Implementations](#built-in-storage-implementations)
     * [InMemoryStorage](#inmemorystorage)
     * [JsonFileStorage](#jsonfilestorage)
-    * [SqliteStorage](#sqlitestorage)
-    * [MysqlStorage](#mysqlstorage)
+    * [SQLite](#sqlite)
+    * [MySQL](#mysql)
   * [Custom Filter Evaluation](#custom-filter-evaluation)
 * [LDIF Data](#ldif-data)
   * [Seeding Initial Entries](#seeding-initial-entries)
@@ -338,7 +338,7 @@ An in-memory, array-backed storage implementation. Suitable for:
 > Under the PCNTL runner, `InMemoryStorage` is **not safe for multi-client write workloads**. Each forked child receives
 > its own copy of the store at fork time. Written data is not propagated.
 >
-> Use one of `JsonFileStorage`, `SqliteStorage`, or `MysqlStorage` if you need write behavior and use PCNTL.
+> Use `JsonFileStorage` or a `PdoStorage` (via `PdoStorageFactory` with a SQLite/MySQL `PdoConfig`) if you need write behavior and use PCNTL.
 
 ```php
 use FreeDSx\Ldap\Entry\Attribute;
@@ -398,56 +398,64 @@ JSON format:
 }
 ```
 
-#### SqliteStorage
+#### SQLite
 
-A SQLite-backed storage implementation that persists the directory in a SQLite database file via PDO. Suitable for
+A SQLite-backed `PdoStorage` that persists the directory in a SQLite database file via PDO. Suitable for
 use cases that need durable persistence across restarts with support for concurrent access:
 
 - **PCNTL**: a single shared PDO connection is inherited by all forked child processes. SQLite WAL mode handles concurrent access at the OS level.
 - **Swoole**: each coroutine gets its own PDO connection to avoid blocking.
 
-Use the named constructor that matches your server runner:
+Build a `PdoConfig::forSqlite()` and pass it to the `PdoStorageFactory` method that matches your server runner:
 
 ```php
 use FreeDSx\Ldap\LdapServer;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 use FreeDSx\Ldap\ServerOptions;
 
 // PCNTL runner — WAL journal mode, shared connection
-$server = new LdapServer((new ServerOptions())->setStorage(SqliteStorage::forPcntl('/var/lib/myapp/ldap.sqlite')));
+$server = new LdapServer((new ServerOptions())->setStorage(
+    PdoStorageFactory::forPcntl(PdoConfig::forSqlite('/var/lib/myapp/ldap.sqlite'))
+));
 $server->run();
 
 // Swoole runner — WAL journal mode, per-coroutine connection
-$server = new LdapServer((new ServerOptions())->setStorage(SqliteStorage::forSwoole('/var/lib/myapp/ldap.sqlite')));
+$server = new LdapServer((new ServerOptions())->setStorage(
+    PdoStorageFactory::forSwoole(PdoConfig::forSqlite('/var/lib/myapp/ldap.sqlite'))
+));
 $server->run();
 ```
 
 Use `:memory:` as the path to run a non-persistent, in-process SQLite database (useful for testing):
 
 ```php
-$server = new LdapServer((new ServerOptions())->setStorage(SqliteStorage::forPcntl(':memory:')));
+$server = new LdapServer((new ServerOptions())->setStorage(
+    PdoStorageFactory::forPcntl(PdoConfig::forSqlite(':memory:'))
+));
 ```
 
-#### MysqlStorage
+#### MySQL
 
-A MySQL/MariaDB-backed storage implementation. Requires MySQL 8.0+ or MariaDB 10.6+.
+A MySQL/MariaDB-backed `PdoStorage`. Requires MySQL 8.0+ or MariaDB 10.6+.
 
-Use the named constructor that matches your server runner:
+Build a `PdoConfig::forMysql()` and pass it to the `PdoStorageFactory` method that matches your server runner:
 
 ```php
 use FreeDSx\Ldap\LdapServer;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\MysqlStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 use FreeDSx\Ldap\ServerOptions;
 
 // PCNTL runner — shared connection across forked processes
 $server = new LdapServer((new ServerOptions())->setStorage(
-    MysqlStorage::forPcntl('mysql:host=localhost;dbname=ldap', 'user', 'secret')
+    PdoStorageFactory::forPcntl(PdoConfig::forMysql('mysql:host=localhost;dbname=ldap', 'user', 'secret'))
 ));
 $server->run();
 
 // Swoole runner — per-coroutine connection
 $server = new LdapServer((new ServerOptions())->setStorage(
-    MysqlStorage::forSwoole('mysql:host=localhost;dbname=ldap', 'user', 'secret')
+    PdoStorageFactory::forSwoole(PdoConfig::forMysql('mysql:host=localhost;dbname=ldap', 'user', 'secret'))
 ));
 $server->run();
 ```
@@ -457,73 +465,25 @@ and the time zone to UTC on each connection.
 
 ##### Custom PDO driver
 
-`SqliteStorage` and `MysqlStorage` are both factories for `PdoStorage`, which is the generic PDO-backed
-implementation. To support a different database engine, implement `PdoStorageFactoryInterface` with
-`PdoStorageFactoryTrait` and supply the appropriate `PdoDialectInterface`, filter translator, and
-connection opener:
+`PdoConfig::forSqlite()` and `PdoConfig::forMysql()` are conveniences over the generic `PdoConfig::forDriver()`,
+which builds a config for any PDO driver. Supply your `PdoDialectInterface`, a `FilterTranslatorInterface`, the DSN,
+and the required PDO driver extension, then tune the rest with the setters:
 
 ```php
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\PdoStorage;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactoryInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactoryTrait;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterface;
-use PDO;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 
-final class PostgresStorage implements PdoStorageFactoryInterface
-{
-    use PdoStorageFactoryTrait;
+$config = PdoConfig::forDriver(
+    new MyPostgresDialect(),
+    new MyPostgresFilterTranslator(),
+    'pgsql:host=localhost;dbname=ldap',
+    'pdo_pgsql',
+)
+    ->setUsername('user')
+    ->setPassword('secret')
+    ->setSessionStatements(["SET client_encoding = 'UTF8'"]);
 
-    public function __construct(
-        private readonly string $dsn,
-        private readonly string $username,
-        #[\SensitiveParameter]
-        private readonly string $password,
-    ) {
-    }
-
-    public static function forPcntl(
-        string $dsn,
-        string $username,
-        #[\SensitiveParameter]
-        string $password,
-    ): PdoStorage {
-        return (new self($dsn, $username, $password))->createShared();
-    }
-
-    public static function forSwoole(
-        string $dsn,
-        string $username,
-        #[\SensitiveParameter]
-        string $password,
-    ): PdoStorage {
-        return (new self($dsn, $username, $password))->createPerCoroutine();
-    }
-
-    protected function dialect(): PdoDialectInterface
-    {
-        return new MyPostgresDialect();
-    }
-
-    protected function translator(): FilterTranslatorInterface
-    {
-        return new MyPostgresFilterTranslator();
-    }
-
-    protected function openConnection(PdoDialectInterface $dialect): PDO
-    {
-        $pdo = new PDO(
-            $this->dsn,
-            $this->username,
-            $this->password,
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION],
-        );
-
-        PdoStorage::initialize($pdo, $dialect);
-
-        return $pdo;
-    }
-}
+$storage = PdoStorageFactory::forPcntl($config);
 ```
 
 ### Custom Filter Evaluation
@@ -580,11 +540,12 @@ other source (database, remote URL, gzip stream, etc.). LDIF output uses the par
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Ldif\Loader\FileLdifLoader;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 use FreeDSx\Ldap\ServerOptions;
 
 $server = new LdapServer(
-    (new ServerOptions())->setStorage(SqliteStorage::forPcntl('/var/lib/myapp/ldap.sqlite')),
+    (new ServerOptions())->setStorage(PdoStorageFactory::forPcntl(PdoConfig::forSqlite('/var/lib/myapp/ldap.sqlite'))),
 );
 $server->seed(
     new FileLdifLoader('/etc/myapp/initial-data.ldif'),
@@ -650,11 +611,12 @@ entries exactly as they were.
 ```php
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Ldif\Output\FileLdifOutput;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 use FreeDSx\Ldap\ServerOptions;
 
 $server = new LdapServer(
-    (new ServerOptions())->setStorage(SqliteStorage::forPcntl('/var/lib/myapp/ldap.sqlite')),
+    (new ServerOptions())->setStorage(PdoStorageFactory::forPcntl(PdoConfig::forSqlite('/var/lib/myapp/ldap.sqlite'))),
 );
 $server->dump(new FileLdifOutput('/var/backups/ldap-snapshot.ldif'));
 ```

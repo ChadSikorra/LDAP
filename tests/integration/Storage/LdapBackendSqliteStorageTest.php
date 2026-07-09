@@ -19,11 +19,11 @@ use FreeDSx\Ldap\Search\Filter\ApproximateFilter;
 use FreeDSx\Ldap\Search\Filters;
 
 /**
- * Runs the full LdapBackendStorageTest suite against SqliteStorage,
+ * Runs the full LdapBackendStorageTest suite against the SQLite-backed PdoStorage,
  * and adds a test that verifies writes persist across separate client connections.
  *
  * Uses the same ldap-backend-storage.php bootstrap script with the 'sqlite' handler,
- * which seeds a SqliteStorage and recreates the database file on each startup.
+ * which seeds a SQLite-backed PdoStorage and recreates the database file on each startup.
  *
  * Each mutating test restarts the server so the database is recreated cleanly,
  * preventing cross-test pollution.
