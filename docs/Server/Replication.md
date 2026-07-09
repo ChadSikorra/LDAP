@@ -31,7 +31,8 @@ use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
 use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
 use FreeDSx\Ldap\Server\AccessControl\Target\Target;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 use FreeDSx\Ldap\ServerOptions;
 
 // The one sync-specific grant: the privileged sync control, over the base to sync.
@@ -45,7 +46,7 @@ $syncGrant = ControlRule::allow(
 $aclRules = $myAclRules->withControlRules($syncGrant);
 
 // A storage that is visible across connections (see Storage and Runner Requirements below).
-$storage = SqliteStorage::forPcntl('/var/lib/freedsx/directory.sqlite');
+$storage = PdoStorageFactory::forPcntl(PdoConfig::forSqlite('/var/lib/freedsx/directory.sqlite'));
 
 $options = (new ServerOptions())
     ->setSyncEnabled(true)
@@ -170,7 +171,8 @@ use FreeDSx\Ldap\ClientOptions;
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\ReplicaConfig;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 use FreeDSx\Ldap\Sync\Consumer\Checkpoint\FileReplicationCheckpoint;
 use FreeDSx\Ldap\ServerOptions;
 
@@ -190,7 +192,7 @@ $replicaConfig = new ReplicaConfig(
 $replicaConfig->setBind(Operations::bind('cn=replica,dc=example,dc=com', 'secret'));
 
 $options = ServerOptions::forReplica($replicaConfig)
-    ->setStorage(SqliteStorage::forPcntl('/var/lib/freedsx/replica.sqlite'));
+    ->setStorage(PdoStorageFactory::forPcntl(PdoConfig::forSqlite('/var/lib/freedsx/replica.sqlite')));
 
 (new LdapServer($options))->run();
 ```

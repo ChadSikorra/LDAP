@@ -16,8 +16,8 @@ use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
 use FreeDSx\Ldap\Server\AccessControl\Target\Target;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\MysqlStorage;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\ServerOptions;
@@ -263,8 +263,8 @@ final class LdapBackendStorageCommand extends Command
             }
 
             $adapter = $runner === 'swoole'
-                ? SqliteStorage::forSwoole($dbPath)
-                : SqliteStorage::forPcntl($dbPath);
+                ? PdoStorageFactory::forSwoole(PdoConfig::forSqlite($dbPath))
+                : PdoStorageFactory::forPcntl(PdoConfig::forSqlite($dbPath));
 
             $importer = new LdapImporter($adapter);
 
@@ -286,13 +286,14 @@ final class LdapBackendStorageCommand extends Command
                 $password,
                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION],
             );
+            $cleanup->exec('DROP TABLE IF EXISTS entry_attribute_trigrams');
             $cleanup->exec('DROP TABLE IF EXISTS entry_attribute_values');
             $cleanup->exec('DROP TABLE IF EXISTS entries');
             unset($cleanup);
 
             $adapter = $runner === 'swoole'
-                ? MysqlStorage::forSwoole($dsn, $user, $password)
-                : MysqlStorage::forPcntl($dsn, $user, $password);
+                ? PdoStorageFactory::forSwoole(PdoConfig::forMysql($dsn, $user, $password))
+                : PdoStorageFactory::forPcntl(PdoConfig::forMysql($dsn, $user, $password));
 
             $importer = new LdapImporter($adapter);
 

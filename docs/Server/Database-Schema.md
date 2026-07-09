@@ -29,7 +29,7 @@ The schema ships in the package under `resources/schema`:
   schema changes.
 
 Point your migration tool at these files, or copy them into your project. If you would rather get the baseline as a
-string in code, `SqliteStorage::schemaDdl()` and `MysqlStorage::schemaDdl()` return the same content.
+string in code, `PdoStorage::schemaDdl(new SqliteDialect())` and `PdoStorage::schemaDdl(new MysqlDialect())` return the same content.
 
 ## Managing the Schema Yourself
 
@@ -37,11 +37,12 @@ For a managed database you usually want to apply schema changes with your own to
 DDL on startup. Turn automatic setup off with the `initializeSchema` flag on the storage factory:
 
 ```php
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 
-$storage = SqliteStorage::forPcntl(
-    '/var/lib/freedsx/directory.sqlite',
-    initializeSchema: false,
+$storage = PdoStorageFactory::forPcntl(
+    PdoConfig::forSqlite('/var/lib/freedsx/directory.sqlite')
+        ->setInitializeSchema(false),
 );
 ```
 

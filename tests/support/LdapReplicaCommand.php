@@ -9,7 +9,8 @@ use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\ReplicaConfig;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\ServerOptions;
 use Symfony\Component\Console\Command\Command;
@@ -157,7 +158,7 @@ final class LdapReplicaCommand extends Command
         }
 
         return $swoole
-            ? SqliteStorage::forSwoole($dbPath)
-            : SqliteStorage::forPcntl($dbPath);
+            ? PdoStorageFactory::forSwoole(PdoConfig::forSqlite($dbPath))
+            : PdoStorageFactory::forPcntl(PdoConfig::forSqlite($dbPath));
     }
 }

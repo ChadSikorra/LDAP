@@ -23,11 +23,15 @@ use FreeDSx\Ldap\Search\Filter\AndFilter;
 use FreeDSx\Ldap\Search\Filter\FilterInterface;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\MysqlDialect;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\SqliteDialect;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\PdoStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqliteFilterTranslator;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\TrigramSubstringIndex;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\SharedPdoConnectionProvider;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeType;
@@ -49,7 +53,7 @@ use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Tests\Support\FreeDSx\Ldap\Journal\JournalingStorageContractTests;
 
-final class SqliteStorageTest extends TestCase
+final class PdoStorageTest extends TestCase
 {
     use JournalingStorageContractTests;
 
@@ -67,7 +71,7 @@ final class SqliteStorageTest extends TestCase
             new Attribute('userPassword', 'secret'),
         );
 
-        $this->storage = SqliteStorage::forPcntl(':memory:');
+        $this->storage = PdoStorageFactory::forPcntl(PdoConfig::forSqlite(':memory:'));
         $this->subject = new WritableStorageBackend($this->storage);
         $this->subject->add(
             new AddCommand(
@@ -108,7 +112,7 @@ final class SqliteStorageTest extends TestCase
 
     public function test_schema_ddl_exports_the_sqlite_baseline(): void
     {
-        $ddl = SqliteStorage::schemaDdl();
+        $ddl = PdoStorage::schemaDdl(new SqliteDialect());
 
         self::assertStringContainsString(
             'CREATE TABLE IF NOT EXISTS entries',
@@ -120,15 +124,79 @@ final class SqliteStorageTest extends TestCase
         );
     }
 
+    public function test_schema_ddl_exports_the_mysql_baseline(): void
+    {
+        $ddl = PdoStorage::schemaDdl(new MysqlDialect());
+
+        self::assertStringContainsString(
+            'CREATE TABLE IF NOT EXISTS entries',
+            $ddl,
+        );
+        self::assertStringContainsString(
+            'ENGINE=InnoDB',
+            $ddl,
+        );
+    }
+
+    public function test_initialize_with_a_substring_index_creates_its_table(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+
+        PdoStorage::initialize(
+            $pdo,
+            new SqliteDialect(),
+            new TrigramSubstringIndex(),
+        );
+
+        self::assertContains(
+            'entry_attribute_trigrams',
+            $this->tableNames($pdo),
+        );
+    }
+
+    public function test_store_writes_trigram_rows_for_indexed_attributes(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $index = new TrigramSubstringIndex();
+        PdoStorage::initialize(
+            $pdo,
+            new SqliteDialect(),
+            $index,
+        );
+
+        $storage = new PdoStorage(
+            new SharedPdoConnectionProvider(
+                $pdo,
+                fn(): PDO => $pdo,
+            ),
+            new SqliteFilterTranslator(),
+            new SqliteDialect(),
+            $index,
+        );
+        $storage->store(new Entry(
+            new Dn('cn=Smith,dc=example,dc=com'),
+            new Attribute('cn', 'Smith'),
+        ));
+
+        $count = $pdo->query(
+            "SELECT COUNT(*) FROM entry_attribute_trigrams WHERE trigram = 'smi'",
+        );
+        self::assertNotFalse($count);
+        self::assertSame(
+            1,
+            (int) $count->fetchColumn(),
+        );
+    }
+
     public function test_disabling_initialize_skips_schema_creation(): void
     {
         // A named shared-cache in-memory database, so a probe connection sees the same schema.
         $dsn = 'file:freedsx_init_off?mode=memory&cache=shared';
 
         // Hold the storage's connection open so the shared in-memory database survives the probe read.
-        $storage = SqliteStorage::forPcntl(
-            $dsn,
-            false,
+        $storage = PdoStorageFactory::forPcntl(
+            PdoConfig::forSqlite($dsn)
+                ->setInitializeSchema(false),
         );
 
         $probe = new PDO(
@@ -178,7 +246,7 @@ final class SqliteStorageTest extends TestCase
 
     public function test_get_on_empty_database_returns_null(): void
     {
-        $storage = SqliteStorage::forPcntl(':memory:');
+        $storage = PdoStorageFactory::forPcntl(PdoConfig::forSqlite(':memory:'));
         $backend = new WritableStorageBackend($storage);
 
         self::assertNull($backend->get(new Dn('cn=Alice,dc=example,dc=com')));
@@ -432,7 +500,7 @@ final class SqliteStorageTest extends TestCase
 
     public function test_search_inexact_filter_trips_lookthrough_limit(): void
     {
-        $storage = SqliteStorage::forPcntl(':memory:');
+        $storage = PdoStorageFactory::forPcntl(PdoConfig::forSqlite(':memory:'));
         $backend = new WritableStorageBackend(
             $storage,
             new SearchLimits(maxSearchLookthrough: 2),
@@ -459,7 +527,7 @@ final class SqliteStorageTest extends TestCase
 
     public function test_search_exact_filter_is_not_subject_to_lookthrough(): void
     {
-        $storage = SqliteStorage::forPcntl(':memory:');
+        $storage = PdoStorageFactory::forPcntl(PdoConfig::forSqlite(':memory:'));
         $backend = new WritableStorageBackend(
             $storage,
             new SearchLimits(maxSearchLookthrough: 1),
@@ -795,7 +863,7 @@ final class SqliteStorageTest extends TestCase
 
     public function test_subtree_does_not_match_escaped_comma_suffix_collision(): void
     {
-        $storage = SqliteStorage::forPcntl(':memory:');
+        $storage = PdoStorageFactory::forPcntl(PdoConfig::forSqlite(':memory:'));
         $backend = new WritableStorageBackend($storage);
 
         $base = new Entry(
@@ -827,7 +895,7 @@ final class SqliteStorageTest extends TestCase
 
     public function test_subtree_includes_entries_with_escaped_comma_under_correct_parent(): void
     {
-        $storage = SqliteStorage::forPcntl(':memory:');
+        $storage = PdoStorageFactory::forPcntl(PdoConfig::forSqlite(':memory:'));
         $backend = new WritableStorageBackend($storage);
 
         $base = new Entry(
@@ -916,7 +984,7 @@ final class SqliteStorageTest extends TestCase
 
     public function test_naming_contexts_is_empty_when_storage_is_empty(): void
     {
-        $emptyStorage = SqliteStorage::forPcntl(':memory:');
+        $emptyStorage = PdoStorageFactory::forPcntl(PdoConfig::forSqlite(':memory:'));
 
         self::assertSame(
             [],
@@ -926,7 +994,7 @@ final class SqliteStorageTest extends TestCase
 
     public function test_a_journal_append_rolls_back_with_the_enclosing_write_transaction(): void
     {
-        $storage = SqliteStorage::forPcntl(':memory:');
+        $storage = PdoStorageFactory::forPcntl(PdoConfig::forSqlite(':memory:'));
         $storage->configureJournal(new ChangeJournalConfig());
 
         try {
@@ -955,7 +1023,7 @@ final class SqliteStorageTest extends TestCase
 
     protected function makeJournalingStorage(): ChangeJournalingInterface
     {
-        return SqliteStorage::forPcntl(':memory:');
+        return PdoStorageFactory::forPcntl(PdoConfig::forSqlite(':memory:'));
     }
 
     /**

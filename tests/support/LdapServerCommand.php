@@ -19,8 +19,8 @@ use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRule;
 use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRules;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\MysqlStorage;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqliteStorage;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
 use FreeDSx\Ldap\ServerOptions;
@@ -359,8 +359,8 @@ final class LdapServerCommand extends Command
             }
 
             return $swoole
-                ? SqliteStorage::forSwoole($dbPath)
-                : SqliteStorage::forPcntl($dbPath);
+                ? PdoStorageFactory::forSwoole(PdoConfig::forSqlite($dbPath))
+                : PdoStorageFactory::forPcntl(PdoConfig::forSqlite($dbPath));
         }
 
         if ($storageType === 'mysql') {
@@ -379,8 +379,8 @@ final class LdapServerCommand extends Command
             unset($cleanup);
 
             return $swoole
-                ? MysqlStorage::forSwoole($dsn, $user, $password)
-                : MysqlStorage::forPcntl($dsn, $user, $password);
+                ? PdoStorageFactory::forSwoole(PdoConfig::forMysql($dsn, $user, $password))
+                : PdoStorageFactory::forPcntl(PdoConfig::forMysql($dsn, $user, $password));
         }
 
         return new InMemoryStorage();
