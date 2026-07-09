@@ -237,9 +237,9 @@ final class Worker
 
     private function doSearchSubstr(LdapClient $client): void
     {
-        $filter = $this->config->seedEntries > 0
-            ? Filters::contains('mail', "seed-{$this->randomSeedIdx()}@")
-            : Filters::contains('mail', '@');
+        $filter = $this->config->seedEntries >= 100
+            ? Filters::contains('cn', (string) mt_rand(100, $this->config->seedEntries))
+            : Filters::contains('cn', 'eed');
 
         $client->search(
             Operations::search($filter)
