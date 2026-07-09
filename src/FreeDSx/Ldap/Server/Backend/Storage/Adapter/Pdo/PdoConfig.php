@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\MysqlDialect;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\SqliteDialect;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\Fts5SubstringIndex;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\SubstringIndexInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\TrigramSubstringIndex;
 use PDO;
@@ -63,6 +64,9 @@ final class PdoConfig
             ],
             serializeSwooleWrites: true,
             driverExtension: 'pdo_sqlite',
+            substringIndex: Fts5SubstringIndex::isSupported()
+                ? new Fts5SubstringIndex()
+                : new TrigramSubstringIndex(),
         );
     }
 
