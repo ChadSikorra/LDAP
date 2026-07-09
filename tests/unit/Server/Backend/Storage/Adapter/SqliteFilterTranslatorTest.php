@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Search\Filter\OrFilter;
 use FreeDSx\Ldap\Search\Filter\PresentFilter;
 use FreeDSx\Ldap\Search\Filter\SubstringFilter;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqliteFilterTranslator;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\TrigramSubstringIndex;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\InvalidAttributeException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -390,6 +391,76 @@ final class SqliteFilterTranslatorTest extends TestCase
         self::assertSame(
             ['al%'],
             $result->params,
+        );
+        self::assertTrue($result->isExact);
+    }
+
+    public function test_contains_uses_the_substring_index_when_present(): void
+    {
+        $translator = new SqliteFilterTranslator(new TrigramSubstringIndex(['cn']));
+
+        $result = $translator->translate(new SubstringFilter(
+            'cn',
+            null,
+            null,
+            'smith',
+        ));
+
+        self::assertNotNull($result);
+        self::assertStringContainsString(
+            'entry_attribute_trigrams',
+            $result->sql,
+        );
+        self::assertFalse($result->isExact);
+    }
+
+    public function test_suffix_uses_the_substring_index_when_present(): void
+    {
+        $translator = new SqliteFilterTranslator(new TrigramSubstringIndex(['cn']));
+
+        $result = $translator->translate(new SubstringFilter(
+            'cn',
+            null,
+            'ith',
+        ));
+
+        self::assertNotNull($result);
+        self::assertStringContainsString(
+            'entry_attribute_trigrams',
+            $result->sql,
+        );
+        self::assertFalse($result->isExact);
+    }
+
+    public function test_contains_falls_back_to_presence_without_a_substring_index(): void
+    {
+        $result = $this->subject->translate(new SubstringFilter(
+            'cn',
+            null,
+            null,
+            'smith',
+        ));
+
+        self::assertNotNull($result);
+        self::assertStringNotContainsString(
+            'entry_attribute_trigrams',
+            $result->sql,
+        );
+    }
+
+    public function test_prefix_ignores_the_substring_index(): void
+    {
+        $translator = new SqliteFilterTranslator(new TrigramSubstringIndex(['cn']));
+
+        $result = $translator->translate(new SubstringFilter(
+            'cn',
+            'smi',
+        ));
+
+        self::assertNotNull($result);
+        self::assertStringNotContainsString(
+            'entry_attribute_trigrams',
+            $result->sql,
         );
         self::assertTrue($result->isExact);
     }

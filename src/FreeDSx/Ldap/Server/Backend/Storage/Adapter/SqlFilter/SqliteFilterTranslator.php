@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter;
 
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\SubstringIndexInterface;
+
 /**
  * SQLite SQL WHERE translator for LDAP filters; targets the `entry_attribute_values` sidecar index.
  *
@@ -21,6 +23,11 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter;
 final class SqliteFilterTranslator implements FilterTranslatorInterface
 {
     use SqlFilterTranslatorTrait;
+
+    public function __construct(?SubstringIndexInterface $substringIndex = null)
+    {
+        $this->substringIndex = $substringIndex;
+    }
 
     private function buildPresenceCheck(string $attribute): string
     {

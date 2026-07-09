@@ -16,9 +16,6 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\MysqlDialect;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\SqliteDialect;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\MysqlFilterTranslator;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqliteFilterTranslator;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\SubstringIndexInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\TrigramSubstringIndex;
 use PDO;
@@ -39,7 +36,6 @@ final class PdoConfig
      */
     private function __construct(
         private PdoDialectInterface $dialect,
-        private FilterTranslatorInterface $translator,
         private string $dsn,
         private ?string $username,
         private ?string $password,
@@ -55,7 +51,6 @@ final class PdoConfig
     {
         return new self(
             dialect: new SqliteDialect(),
-            translator: new SqliteFilterTranslator(),
             dsn: 'sqlite:' . $path,
             username: null,
             password: null,
@@ -80,7 +75,6 @@ final class PdoConfig
     ): self {
         return new self(
             dialect: new MysqlDialect(),
-            translator: new MysqlFilterTranslator(),
             dsn: $dsn,
             username: $username,
             password: $password,
@@ -102,13 +96,11 @@ final class PdoConfig
      */
     public static function forDriver(
         PdoDialectInterface $dialect,
-        FilterTranslatorInterface $translator,
         string $dsn,
         string $driverExtension,
     ): self {
         return new self(
             dialect: $dialect,
-            translator: $translator,
             dsn: $dsn,
             username: null,
             password: null,
@@ -127,18 +119,6 @@ final class PdoConfig
     public function setDialect(PdoDialectInterface $dialect): self
     {
         $this->dialect = $dialect;
-
-        return $this;
-    }
-
-    public function getTranslator(): FilterTranslatorInterface
-    {
-        return $this->translator;
-    }
-
-    public function setTranslator(FilterTranslatorInterface $translator): self
-    {
-        $this->translator = $translator;
 
         return $this;
     }

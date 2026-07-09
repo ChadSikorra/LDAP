@@ -466,8 +466,9 @@ and the time zone to UTC on each connection.
 ##### Custom PDO driver
 
 `PdoConfig::forSqlite()` and `PdoConfig::forMysql()` are conveniences over the generic `PdoConfig::forDriver()`,
-which builds a config for any PDO driver. Supply your `PdoDialectInterface`, a `FilterTranslatorInterface`, the DSN,
-and the required PDO driver extension, then tune the rest with the setters:
+which builds a config for any PDO driver. Supply your `PdoDialectInterface`, the DSN, and the required PDO driver
+extension, then tune the rest with the setters. Your dialect's `createFilterTranslator()` supplies the paired
+`FilterTranslatorInterface` (with the substring index injected):
 
 ```php
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
@@ -475,7 +476,6 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 
 $config = PdoConfig::forDriver(
     new MyPostgresDialect(),
-    new MyPostgresFilterTranslator(),
     'pgsql:host=localhost;dbname=ldap',
     'pdo_pgsql',
 )

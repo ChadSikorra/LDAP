@@ -188,6 +188,31 @@ final class PdoStorageTest extends TestCase
         );
     }
 
+    public function test_infix_search_finds_matches_and_rejects_trigram_over_selection(): void
+    {
+        $this->subject->add(
+            new AddCommand(new Entry(
+                new Dn('uid=match,dc=example,dc=com'),
+                new Attribute('uid', 'match'),
+                new Attribute('cn', 'blacksmith'),
+            )),
+            $this->context(),
+        );
+        $this->subject->add(
+            new AddCommand(new Entry(
+                new Dn('uid=scatter,dc=example,dc=com'),
+                new Attribute('uid', 'scatter'),
+                new Attribute('cn', 'smi mit ith'),
+            )),
+            $this->context(),
+        );
+
+        self::assertSame(
+            ['uid=match,dc=example,dc=com'],
+            $this->searchDns(Filters::contains('cn', 'smith')),
+        );
+    }
+
     public function test_disabling_initialize_skips_schema_creation(): void
     {
         // A named shared-cache in-memory database, so a probe connection sees the same schema.

@@ -128,6 +128,40 @@ final class TrigramSubstringIndexTest extends TestCase
         );
     }
 
+    public function test_build_substring_predicate_declines_an_unindexed_attribute(): void
+    {
+        self::assertNull(
+            (new TrigramSubstringIndex(['cn']))->buildSubstringPredicate('mail', ['smith']),
+        );
+    }
+
+    public function test_build_substring_predicate_declines_when_no_fragment_yields_a_trigram(): void
+    {
+        self::assertNull(
+            (new TrigramSubstringIndex(['cn']))->buildSubstringPredicate('cn', ['ab']),
+        );
+    }
+
+    public function test_build_substring_predicate_narrows_by_trigrams(): void
+    {
+        $result = (new TrigramSubstringIndex(['cn']))->buildSubstringPredicate('cn', ['smith']);
+
+        self::assertNotNull($result);
+        self::assertStringContainsString(
+            'entry_attribute_trigrams',
+            $result->sql,
+        );
+        self::assertStringContainsString(
+            'HAVING COUNT(DISTINCT trigram) = 3',
+            $result->sql,
+        );
+        self::assertFalse($result->isExact);
+        self::assertSame(
+            ['cn', 'smi', 'mit', 'ith'],
+            $result->params,
+        );
+    }
+
     public function test_schema_statements_load_the_trigram_schema(): void
     {
         $statements = (new TrigramSubstringIndex())->schemaStatements(new SqliteDialect());
