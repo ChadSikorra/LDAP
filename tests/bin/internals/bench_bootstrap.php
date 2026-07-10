@@ -33,6 +33,14 @@ if (in_array('--no-jit', $argv, true)) {
 }
 
 /**
+ * The load-test driver forks one client process per connection. Tracing JIT corrupts forked
+ * workers (SIGILL under load), so the driver runs interpreted, mirroring the pcntl server default.
+ */
+if (basename($argv[0] ?? '') === 'ldap-load-test.php') {
+    return;
+}
+
+/**
  * In multi-driver mode the parent does no hot work — it only orchestrates child
  * workers (each spawned with JIT flags). Skipping the JIT re-exec here avoids a
  * segfault observed under JIT when Symfony's Process::stop() tears down the

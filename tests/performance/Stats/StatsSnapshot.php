@@ -35,6 +35,53 @@ final class StatsSnapshot
     ) {}
 
     /**
+     * Combine per-worker snapshots (from forked processes) into one, concatenating samples and summing counters.
+     *
+     * @param list<self> $snapshots
+     */
+    public static function merge(
+        array $snapshots,
+        float $elapsedSeconds,
+    ): self {
+        $samples = [];
+        $counts = [];
+        $errors = [];
+        $errorClasses = [];
+        $substituted = [];
+
+        foreach ($snapshots as $snapshot) {
+            foreach ($snapshot->samples as $op => $opSamples) {
+                foreach ($opSamples as $nanos) {
+                    $samples[$op][] = $nanos;
+                }
+            }
+            foreach ($snapshot->counts as $op => $count) {
+                $counts[$op] = ($counts[$op] ?? 0) + $count;
+            }
+            foreach ($snapshot->errors as $op => $count) {
+                $errors[$op] = ($errors[$op] ?? 0) + $count;
+            }
+            foreach ($snapshot->errorClasses as $op => $classes) {
+                foreach ($classes as $class => $count) {
+                    $errorClasses[$op][$class] = ($errorClasses[$op][$class] ?? 0) + $count;
+                }
+            }
+            foreach ($snapshot->substituted as $key => $count) {
+                $substituted[$key] = ($substituted[$key] ?? 0) + $count;
+            }
+        }
+
+        return new self(
+            samples: $samples,
+            counts: $counts,
+            errors: $errors,
+            errorClasses: $errorClasses,
+            substituted: $substituted,
+            elapsedSeconds: max($elapsedSeconds, 0.000001),
+        );
+    }
+
+    /**
      * @return list<string> ops ordered by total activity (successes + errors) descending
      */
     public function operations(): array
