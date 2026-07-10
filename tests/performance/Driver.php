@@ -14,10 +14,6 @@ declare(strict_types=1);
 namespace Tests\Performance\FreeDSx\Ldap;
 
 use RuntimeException;
-use Swoole\Coroutine;
-use Swoole\Coroutine\Channel;
-use Swoole\Coroutine\WaitGroup;
-use Swoole\Runtime;
 use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Tests\Performance\FreeDSx\Ldap\Server\ServerManager;
@@ -28,8 +24,8 @@ use Tests\Performance\FreeDSx\Ldap\Workload\WorkloadMix;
 use Throwable;
 
 /**
- * Orchestrates a load-test run end-to-end: server lifecycle, coroutine pool, warmup timer,
- * barrier + deadline coordination, then a rendered report.
+ * Orchestrates a load-test run end-to-end: server lifecycle, forked client pool, barrier + deadline
+ * coordination, cross-process stats merge, then a rendered report.
  */
 final class Driver
 {
@@ -44,15 +40,10 @@ final class Driver
         OutputInterface $output,
         ?callable $afterRun = null,
     ): StatsSnapshot {
-        $this->assertSwooleAvailable();
-
-        if ($this->config->rngSeed !== null) {
-            mt_srand($this->config->rngSeed);
-        }
+        $this->assertPcntlAvailable();
 
         $progress = $this->progressChannel($output);
         $mix = new WorkloadMix($this->config->mix);
-        $stats = new StatsCollector();
         $serverManager = $this->config->serverMode === 'spawn'
             ? new ServerManager($this->config)
             : null;
@@ -72,10 +63,7 @@ final class Driver
         $progress->writeln($this->describeRunStart());
 
         try {
-            $snapshot = $this->runCoroutinePool(
-                $mix,
-                $stats,
-            );
+            $snapshot = $this->runForkPool($mix);
             // While the server is still up, let the caller read cn=monitor for an apples-to-apples cross-check.
             if ($afterRun !== null) {
                 $afterRun();
@@ -118,94 +106,190 @@ final class Driver
             : sprintf('ops/client=%d', $this->config->ops);
 
         return sprintf(
-            'Running load test: clients=%d, warmup=%ds, %s...',
+            'Running load test: clients=%d (forked), warmup=%ds, %s...',
             $this->config->clients,
             $this->config->warmup,
             $budget,
         );
     }
 
-    private function runCoroutinePool(WorkloadMix $mix, StatsCollector $stats): StatsSnapshot
+    /**
+     * Fork one process per client, barrier on readiness, broadcast the schedule, then merge their snapshots.
+     */
+    private function runForkPool(WorkloadMix $mix): StatsSnapshot
     {
-        Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
+        pcntl_signal(SIGPIPE, SIG_IGN);
 
-        $elapsedSeconds = 0.0;
-        $workerErrors = [];
+        $children = $this->forkChildren($mix);
+        $allReady = $this->awaitReady($children);
 
-        Coroutine\run(function () use ($mix, $stats, &$elapsedSeconds, &$workerErrors): void {
-            $clients = $this->config->clients;
+        $goTime = microtime(true);
+        $recordStart = $goTime + $this->config->warmup;
+        $deadline = $this->config->duration !== null
+            ? $recordStart + (float) $this->config->duration
+            : null;
 
-            /** @var Channel<bool> $readyBarrier */
-            $readyBarrier = new Channel($clients);
+        $this->broadcastGo(
+            $children,
+            $allReady,
+            $recordStart,
+            $deadline,
+        );
 
-            /** @var Channel<float|false|null> $startSignal */
-            $startSignal = new Channel($clients);
-            $waitGroup = new WaitGroup();
+        $failures = $this->awaitChildren($children);
+        $elapsed = microtime(true) - $recordStart;
 
-            for ($i = 0; $i < $clients; $i++) {
-                $waitGroup->add();
-                $workerId = $i;
-                Coroutine::create(function () use ($workerId, $mix, $stats, $readyBarrier, $startSignal, $waitGroup, &$workerErrors): void {
-                    try {
-                        (new Worker(
-                            workerId: $workerId,
-                            config: $this->config,
-                            mix: $mix,
-                            stats: $stats,
-                            readyBarrier: $readyBarrier,
-                            startSignal: $startSignal,
-                            opsCap: $this->config->ops,
-                        ))->run();
-                    } catch (Throwable $e) {
-                        $workerErrors[] = $e;
-                    } finally {
-                        $waitGroup->done();
-                    }
-                });
-            }
-
-            $allReady = $this->awaitReady($readyBarrier, $clients);
-
-            $deadline = $this->config->duration !== null
-                ? microtime(true) + $this->config->warmup + (float) $this->config->duration
-                : null;
-
-            for ($i = 0; $i < $clients; $i++) {
-                $startSignal->push($allReady ? $deadline : false);
-            }
-
-            if ($allReady) {
-                $elapsedSeconds = $this->driveWarmupAndRecord($stats, $waitGroup);
-            } else {
-                $waitGroup->wait();
-            }
-        });
-
-        if ($workerErrors !== []) {
-            $first = $workerErrors[0];
+        if (!$allReady) {
             throw new RuntimeException(sprintf(
-                '%d of %d workers failed; first error: %s: %s',
-                count($workerErrors),
+                'One or more of the %d load-test workers failed to connect to the server.',
                 $this->config->clients,
-                $first::class,
-                $first->getMessage(),
-            ), 0, $first);
+            ));
         }
 
-        return $stats->snapshot($elapsedSeconds);
+        if ($failures !== []) {
+            throw new RuntimeException(sprintf(
+                '%d of %d load-test workers terminated abnormally: %s',
+                count($failures),
+                $this->config->clients,
+                implode('; ', $failures),
+            ));
+        }
+
+        return StatsSnapshot::merge(
+            $this->collectSnapshots($children),
+            $elapsed,
+        );
     }
 
     /**
-     * @param Channel<bool> $readyBarrier
+     * @return list<array{pid: int, ready: resource, go: resource, result: string, id: int}>
      */
-    private function awaitReady(Channel $readyBarrier, int $expected): bool
+    private function forkChildren(WorkloadMix $mix): array
+    {
+        $children = [];
+
+        for ($i = 0; $i < $this->config->clients; $i++) {
+            [$parentReady, $childReady] = $this->socketPair();
+            [$parentGo, $childGo] = $this->socketPair();
+            $resultPath = sprintf(
+                '%s/freedsx_loadtest_%d_%d.dat',
+                sys_get_temp_dir(),
+                getmypid(),
+                $i,
+            );
+
+            $pid = pcntl_fork();
+            if ($pid === -1) {
+                throw new RuntimeException('Failed to fork a load-test worker process.');
+            }
+
+            if ($pid === 0) {
+                fclose($parentReady);
+                fclose($parentGo);
+                $this->runChild(
+                    $i,
+                    $mix,
+                    $childReady,
+                    $childGo,
+                    $resultPath,
+                );
+
+                exit(0);
+            }
+
+            fclose($childReady);
+            fclose($childGo);
+            $children[] = [
+                'pid' => $pid,
+                'ready' => $parentReady,
+                'go' => $parentGo,
+                'result' => $resultPath,
+                'id' => $i,
+            ];
+        }
+
+        return $children;
+    }
+
+    /**
+     * @param resource $readySocket
+     * @param resource $goSocket
+     */
+    private function runChild(
+        int $workerId,
+        WorkloadMix $mix,
+        $readySocket,
+        $goSocket,
+        string $resultPath,
+    ): void {
+        $this->seedChildRng($workerId);
+
+        $stats = new StatsCollector();
+        $worker = new Worker(
+            workerId: $workerId,
+            config: $this->config,
+            mix: $mix,
+            stats: $stats,
+            opsCap: $this->config->ops,
+        );
+
+        try {
+            $client = $worker->connect();
+        } catch (Throwable) {
+            fwrite($readySocket, '0');
+            fgets($goSocket); // wait for the broadcast so the parent's write never SIGPIPEs
+            fclose($goSocket);
+
+            return;
+        }
+
+        fwrite($readySocket, '1');
+        $signal = $this->awaitGo($goSocket);
+
+        if (!$signal['proceed']) {
+            $worker->disconnect($client);
+
+            return;
+        }
+
+        try {
+            $worker->run(
+                $client,
+                $signal['recordStart'],
+                $signal['deadline'],
+            );
+        } finally {
+            $stats->stopRecording();
+            $worker->disconnect($client);
+        }
+
+        file_put_contents(
+            $resultPath,
+            serialize($stats->snapshot(0.0)),
+        );
+    }
+
+    private function seedChildRng(int $workerId): void
+    {
+        if ($this->config->rngSeed !== null) {
+            mt_srand($this->config->rngSeed + $workerId);
+
+            return;
+        }
+
+        // Forked children inherit an identical mt_rand state; reseed each distinctly by its own PID.
+        mt_srand(((int) getmypid()) * 7919 + $workerId);
+    }
+
+    /**
+     * @param list<array{pid: int, ready: resource, go: resource, result: string, id: int}> $children
+     */
+    private function awaitReady(array $children): bool
     {
         $allReady = true;
 
-        for ($i = 0; $i < $expected; $i++) {
-            $ready = $readyBarrier->pop();
-
-            if ($ready !== true) {
+        foreach ($children as $child) {
+            if (fread($child['ready'], 1) !== '1') {
                 $allReady = false;
             }
         }
@@ -213,37 +297,147 @@ final class Driver
         return $allReady;
     }
 
-    private function driveWarmupAndRecord(StatsCollector $stats, WaitGroup $waitGroup): float
-    {
-        $recordingStart = 0.0;
+    /**
+     * @param list<array{pid: int, ready: resource, go: resource, result: string, id: int}> $children
+     */
+    private function broadcastGo(
+        array $children,
+        bool $proceed,
+        float $recordStart,
+        ?float $deadline,
+    ): void {
+        $message = sprintf(
+            "%d %.6f %s\n",
+            $proceed ? 1 : 0,
+            $recordStart,
+            $deadline !== null ? sprintf('%.6f', $deadline) : '-',
+        );
 
-        Coroutine::create(function () use ($stats, &$recordingStart): void {
-            if ($this->config->warmup > 0) {
-                Coroutine::sleep((float) $this->config->warmup);
-            }
-
-            $recordingStart = microtime(true);
-            $stats->startRecording();
-        });
-
-        $waitGroup->wait();
-
-        $stats->stopRecording();
-
-        return $recordingStart > 0.0
-            ? microtime(true) - $recordingStart
-            : 0.0;
+        foreach ($children as $child) {
+            fwrite($child['go'], $message);
+            fclose($child['go']);
+        }
     }
 
-    private function assertSwooleAvailable(): void
+    /**
+     * @param resource $goSocket
+     *
+     * @return array{proceed: bool, recordStart: float, deadline: float|null}
+     */
+    private function awaitGo($goSocket): array
     {
-        if (extension_loaded('swoole')) {
+        $line = fgets($goSocket);
+        fclose($goSocket);
+
+        $parts = is_string($line)
+            ? explode(' ', trim($line))
+            : [];
+
+        if (count($parts) < 3) {
+            return ['proceed' => false, 'recordStart' => 0.0, 'deadline' => null];
+        }
+
+        return [
+            'proceed' => $parts[0] === '1',
+            'recordStart' => (float) $parts[1],
+            'deadline' => $parts[2] === '-' ? null : (float) $parts[2],
+        ];
+    }
+
+    /**
+     * @param list<array{pid: int, ready: resource, go: resource, result: string, id: int}> $children
+     *
+     * @return list<string> descriptions of any workers that crashed or exited non-zero
+     */
+    private function awaitChildren(array $children): array
+    {
+        $failures = [];
+
+        foreach ($children as $child) {
+            $status = 0;
+            pcntl_waitpid($child['pid'], $status);
+
+            if (!is_int($status)) {
+                continue;
+            }
+
+            if (pcntl_wifsignaled($status)) {
+                $failures[] = sprintf(
+                    'worker %d killed by signal %d',
+                    $child['id'],
+                    pcntl_wtermsig($status),
+                );
+
+                continue;
+            }
+
+            $exit = pcntl_wexitstatus($status);
+            if ($exit !== 0) {
+                $failures[] = sprintf(
+                    'worker %d exited with status %d',
+                    $child['id'],
+                    $exit,
+                );
+            }
+        }
+
+        return $failures;
+    }
+
+    /**
+     * @param list<array{pid: int, ready: resource, go: resource, result: string, id: int}> $children
+     *
+     * @return list<StatsSnapshot>
+     */
+    private function collectSnapshots(array $children): array
+    {
+        $snapshots = [];
+
+        foreach ($children as $child) {
+            if (!is_file($child['result'])) {
+                continue;
+            }
+
+            $raw = file_get_contents($child['result']);
+            @unlink($child['result']);
+            $snapshot = is_string($raw)
+                ? unserialize($raw, ['allowed_classes' => [StatsSnapshot::class]])
+                : false;
+
+            if ($snapshot instanceof StatsSnapshot) {
+                $snapshots[] = $snapshot;
+            }
+        }
+
+        return $snapshots;
+    }
+
+    /**
+     * @return array<resource>
+     */
+    private function socketPair(): array
+    {
+        $pair = stream_socket_pair(
+            STREAM_PF_UNIX,
+            STREAM_SOCK_STREAM,
+            0,
+        );
+
+        if ($pair === false) {
+            throw new RuntimeException('Failed to create a socket pair for worker coordination.');
+        }
+
+        return $pair;
+    }
+
+    private function assertPcntlAvailable(): void
+    {
+        if (function_exists('pcntl_fork') && function_exists('pcntl_waitpid')) {
             return;
         }
 
         throw new RuntimeException(
-            'The load-test driver requires ext-swoole for concurrent coroutine-based clients. '
-            . 'Install via PECL: pecl install swoole (^5.1 for PHP 8.3/8.4, ^6.0 for PHP 8.5+).',
+            'The load-test driver requires ext-pcntl to fork one process per concurrent client.',
         );
     }
 }

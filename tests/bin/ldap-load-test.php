@@ -6,8 +6,8 @@ declare(strict_types=1);
  * Load-test driver for the FreeDSx LDAP storage backends.
  *
  * Spawns an LDAP server with the chosen backend+runner, fires concurrent LDAP operations from a
- * Swoole coroutine pool, then prints per-op latency/throughput/error stats. Run with --help to
- * see the full option list.
+ * forked client pool (one process per client), then prints per-op latency/throughput/error stats.
+ * Run with --help to see the full option list.
  */
 
 use Symfony\Component\Console\Application;

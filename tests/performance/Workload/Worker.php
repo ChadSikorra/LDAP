@@ -24,13 +24,12 @@ use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Search\Filter\FilterInterface;
 use FreeDSx\Ldap\Search\Filters;
 use LogicException;
-use Swoole\Coroutine\Channel;
 use Tests\Performance\FreeDSx\Ldap\Config;
 use Tests\Performance\FreeDSx\Ldap\Stats\StatsCollector;
 use Throwable;
 
 /**
- * Generates load in a single Swoole coroutine.
+ * Generates load from a single forked client process against the server.
  */
 final class Worker
 {
@@ -50,17 +49,11 @@ final class Worker
 
     private int $addSeq = 0;
 
-    /**
-     * @param Channel<bool> $readyBarrier
-     * @param Channel<float|false|null> $startSignal
-     */
     public function __construct(
         private readonly int $workerId,
         private readonly Config $config,
         private readonly WorkloadMix $mix,
         private readonly StatsCollector $stats,
-        private readonly Channel $readyBarrier,
-        private readonly Channel $startSignal,
         private readonly ?int $opsCap,
     ) {
         $this->compareDn = 'cn=alice,' . $this->config->writeBase;
@@ -73,39 +66,48 @@ final class Worker
         ];
     }
 
-    public function run(): void
+    /**
+     * Open the connection and bind; throws on failure so the parent can fail the readiness barrier.
+     */
+    public function connect(): LdapClient
     {
         $client = $this->buildClient();
+        $client->bind(
+            $this->config->bindDn,
+            $this->config->bindPassword,
+        );
 
-        try {
-            $client->bind(
-                $this->config->bindDn,
-                $this->config->bindPassword,
-            );
-        } catch (Throwable $e) {
-            $this->readyBarrier->push(false);
+        return $client;
+    }
 
-            throw $e;
-        }
-
-        $this->readyBarrier->push(true);
-
-        $signal = $this->startSignal->pop();
-        if ($signal === false) {
-            $this->cleanup($client);
-
-            return;
-        }
-
-        $deadline = is_float($signal) ? $signal : null;
-
+    /**
+     * Drive the workload until the deadline (or ops cap), enabling recording once past the warmup mark.
+     */
+    public function run(
+        LdapClient $client,
+        float $recordStart,
+        ?float $deadline,
+    ): void {
+        $recording = false;
         $iterations = 0;
+
         while ($this->shouldContinue($deadline, $iterations)) {
+            if (!$recording && microtime(true) >= $recordStart) {
+                $this->stats->startRecording();
+                $recording = true;
+            }
+
             $this->runOne($client);
             $iterations++;
         }
+    }
 
-        $this->cleanup($client);
+    public function disconnect(LdapClient $client): void
+    {
+        try {
+            $client->unbind();
+        } catch (Throwable) {
+        }
     }
 
     private function deriveMailDomain(string $baseDn): string
@@ -350,14 +352,6 @@ final class Worker
         $client->delete($dn);
 
         array_splice($this->ownedDns, $idx, 1);
-    }
-
-    private function cleanup(LdapClient $client): void
-    {
-        try {
-            $client->unbind();
-        } catch (Throwable) {
-        }
     }
 
     private function buildClient(): LdapClient
