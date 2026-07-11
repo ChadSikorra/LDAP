@@ -13,7 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Exception;
 
-use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
+use FreeDSx\Ldap\Server\Backend\Write\Schema\SchemaViolations;
 
 /**
  * A rejected schema violation that carries the violations collected during the write so they can be audited.

@@ -15,23 +15,26 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Guard;
 
 use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Exception\OperationException;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriterInterface;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriterInterface;
 use FreeDSx\Ldap\Server\Clock\Sleeper\SleeperInterface;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordBindAttempt;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy\PasswordPolicyBindStrategyInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
-use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
 
 /**
- * Applies the engine's bind-time decisions.
+ * Applies the engine's bind-time decisions against the state supplied by the configured bind strategy.
  */
 final readonly class PasswordPolicyBindGuard
 {
     public function __construct(
         private PasswordPolicyEngine $engine,
+        private PasswordPolicyBindStrategyInterface $strategy,
         private SystemChangeWriterInterface $writer,
         private PasswordPolicyContext $context,
         private EventLogger $eventLogger,
@@ -43,10 +46,7 @@ final readonly class PasswordPolicyBindGuard
      */
     public function preBind(PasswordBindAttempt $attempt): void
     {
-        $outcome = $this->engine->evaluatePreBind(
-            $attempt->state,
-            $attempt->policy,
-        );
+        $outcome = $this->strategy->preBindOutcome($attempt);
         if (!$outcome->denied) {
             return;
         }
@@ -64,13 +64,12 @@ final readonly class PasswordPolicyBindGuard
     }
 
     /**
-     * Surfaces a lockout outcome but never throws (the caller re-throws the credential error), then applies the
-     * configured pwdMinDelay/pwdMaxDelay response delay.
+     * Records a failed bind but never throws (the caller re-throws the credential error), then applies the response delay.
      */
     public function recordFailure(PasswordBindAttempt $attempt): void
     {
         $recorded = $this->engine->recordBindFailure(
-            $attempt->state,
+            $this->strategy->failureState($attempt),
             $attempt->policy,
         );
         $this->writer->write(
@@ -94,8 +93,9 @@ final readonly class PasswordPolicyBindGuard
      */
     public function recordSuccess(PasswordBindAttempt $attempt): void
     {
+        $state = $this->strategy->successState($attempt);
         $recorded = $this->engine->recordBindSuccess(
-            $attempt->state,
+            $state,
             $attempt->policy,
         );
         $outcome = $recorded->outcome;
@@ -120,17 +120,19 @@ final readonly class PasswordPolicyBindGuard
         $this->context->setOutcome($outcome);
         $this->emitSuccessEvents(
             $attempt,
+            $state,
             $outcome,
         );
     }
 
     private function emitSuccessEvents(
         PasswordBindAttempt $attempt,
+        UserPasswordState $state,
         PasswordPolicyOutcome $outcome,
     ): void {
         $subject = $this->subjectFor($attempt);
 
-        if ($attempt->state->isLocked() && !$attempt->state->permanentlyLocked) {
+        if ($state->isLocked() && !$state->permanentlyLocked) {
             $this->eventLogger->record(
                 ServerEvent::PasswordPolicyAccountUnlocked,
                 $subject,

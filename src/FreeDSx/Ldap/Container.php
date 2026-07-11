@@ -55,6 +55,8 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\QualityConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\SafeModifyConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyComponentFactory;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
+use FreeDSx\Ldap\Server\PasswordPolicy\Replica\InMemoryReplicaPasswordStateStore;
+use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordStateStoreInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
@@ -227,6 +229,10 @@ class Container
             factory: $this->makePasswordPolicyEngine(...),
         );
         $this->registerFactory(
+            className: ReplicaPasswordStateStoreInterface::class,
+            factory: $this->makeReplicaPasswordStateStore(...),
+        );
+        $this->registerFactory(
             className: ServerProtocolHandlerFactory::class,
             factory: $this->makeServerProtocolHandlerFactory(...),
         );
@@ -395,7 +401,18 @@ class Container
             metricsRecorder: $this->get(MetricsRecorderInterface::class),
             metricsSnapshots: $this->get(MetricsSnapshotProvider::class),
             operationRollup: $this->makeOperationRollup(),
+            replicaPasswordStateStore: $this->get(ServerOptions::class)->isReadOnly()
+                ? $this->get(ReplicaPasswordStateStoreInterface::class)
+                : null,
         );
+    }
+
+    /**
+     * The replica-local password-policy state store, backing always-enforced lockout on a read-only replica.
+     */
+    private function makeReplicaPasswordStateStore(): ReplicaPasswordStateStoreInterface
+    {
+        return new InMemoryReplicaPasswordStateStore();
     }
 
     private function makeServerProtocolFactoryInterface(): ServerProtocolFactoryInterface

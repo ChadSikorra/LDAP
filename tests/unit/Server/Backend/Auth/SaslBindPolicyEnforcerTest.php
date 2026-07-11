@@ -24,11 +24,12 @@ use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
 use FreeDSx\Ldap\Server\Backend\Auth\SaslBindPolicyEnforcer;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
+use FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy\EntryBindStrategy;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
@@ -184,11 +185,13 @@ final class SaslBindPolicyEnforcerTest extends TestCase
             ),
         ]));
 
+        $engine = new PasswordPolicyEngine(
+            clock: $this->clock,
+            changeConstraints: new PasswordChangeConstraintChain([]),
+        );
         $guard = new PasswordPolicyBindGuard(
-            new PasswordPolicyEngine(
-                clock: $this->clock,
-                changeConstraints: new PasswordChangeConstraintChain([]),
-            ),
+            $engine,
+            new EntryBindStrategy($engine),
             new SystemChangeWriter(new WriteOperationDispatcher($this->backend)),
             $this->context,
             new EventLogger(null, EventLogPolicy::all()),

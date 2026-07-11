@@ -38,7 +38,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
-use FreeDSx\Ldap\Server\Backend\Write\SchemaViolationDisposition;
+use FreeDSx\Ldap\Server\Backend\Write\Schema\SchemaViolationDisposition;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteRequestInterface;

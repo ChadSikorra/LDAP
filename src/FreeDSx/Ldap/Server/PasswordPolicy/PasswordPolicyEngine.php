@@ -52,6 +52,18 @@ final readonly class PasswordPolicyEngine
     }
 
     /**
+     * Failure-driven lockout check only, for replica-local state that carries no primary-owned validity/idle policy.
+     */
+    public function evaluateLocalLockout(
+        UserPasswordState $state,
+        PasswordPolicy $policy,
+    ): PasswordPolicyOutcome {
+        return $this->isLockoutEffective($state, $policy)
+            ? self::denyLocked()
+            : PasswordPolicyOutcome::allow();
+    }
+
+    /**
      * Record a failed bind: append the current time to pwdFailureTime, and trip the lockout if the retained failure count meets pwdMaxFailure.
      *
      * Note: pwdFailureTime accumulates regardless of pwdLockout. Only the lock transition requires pwdLockout=TRUE (draft-behera-10 §5.2.9, §5.3.2).

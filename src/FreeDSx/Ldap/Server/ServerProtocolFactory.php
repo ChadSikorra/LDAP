@@ -41,9 +41,8 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Sasl\External\SubjectDnCredentialMapper;
 use FreeDSx\Ldap\Server\Backend\Auth\SaslBindPolicyEnforcer;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Write\NullSystemChangeWriter;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriterInterface;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChange\LocalStateSystemChangeWriter;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\OperationAuditor;
@@ -70,7 +69,10 @@ use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareChain;
 use FreeDSx\Ldap\Server\Clock\Sleeper\BlockingSleeper;
 use FreeDSx\Ldap\Server\Clock\Sleeper\CoroutineSleeper;
 use FreeDSx\Ldap\Server\Clock\Sleeper\SleeperInterface;
+use FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy\EntryBindStrategy;
+use FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy\ReplicaBindStrategy;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
+use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordStateStoreInterface;
 use FreeDSx\Ldap\Protocol\Queue\Response\MetricsResponseInterceptor;
 use FreeDSx\Ldap\Protocol\Queue\Response\PasswordPolicyResponseInterceptor;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
@@ -98,6 +100,7 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
         private readonly MetricsRecorderInterface $metricsRecorder = new NullMetricsRecorder(),
         private readonly MetricsSnapshotProvider $metricsSnapshots = new InMemoryMetricsRecorder(),
         private readonly ?OperationRollupCoordinator $operationRollup = null,
+        private readonly ?ReplicaPasswordStateStoreInterface $replicaPasswordStateStore = null,
     ) {}
 
     public function make(
@@ -309,13 +312,26 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
         );
     }
 
+    /**
+     * Builds the bind guard: replica-local worst-outcome state on a read-only replica, authoritative entry state otherwise.
+     */
     private function makeBindGuard(
         PasswordPolicyContext $policyContext,
         EventLogger $eventLogger,
     ): PasswordPolicyBindGuard {
+        $store = $this->replicaPasswordStateStore;
+
+        $strategy = $store !== null
+            ? new ReplicaBindStrategy($this->passwordPolicyEngine, $store)
+            : new EntryBindStrategy($this->passwordPolicyEngine);
+        $writer = $store !== null
+            ? new LocalStateSystemChangeWriter($store)
+            : new SystemChangeWriter($this->handlerFactory->makeWriteDispatcher());
+
         return new PasswordPolicyBindGuard(
             $this->passwordPolicyEngine,
-            $this->systemChangeWriter(),
+            $strategy,
+            $writer,
             $policyContext,
             $eventLogger,
             $this->makeSleeper(),
@@ -327,15 +343,6 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
         return $this->options->getUseSwooleRunner()
             ? new CoroutineSleeper()
             : new BlockingSleeper();
-    }
-
-    private function systemChangeWriter(): SystemChangeWriterInterface
-    {
-        if ($this->options->isReadOnly()) {
-            return new NullSystemChangeWriter();
-        }
-
-        return new SystemChangeWriter($this->handlerFactory->makeWriteDispatcher());
     }
 
     /**

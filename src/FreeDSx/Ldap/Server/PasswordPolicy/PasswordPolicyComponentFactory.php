@@ -15,9 +15,9 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy;
 
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Server\Backend\Write\PasswordPolicyWriteHandler;
-use FreeDSx\Ldap\Server\Backend\Write\NullSystemChangeWriter;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriterInterface;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChange\NullSystemChangeWriter;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriterInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;

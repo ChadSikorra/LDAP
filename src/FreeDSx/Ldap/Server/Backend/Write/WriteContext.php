@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Server\Backend\Write;
 
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
+use FreeDSx\Ldap\Server\Backend\Write\Schema\SchemaViolations;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
