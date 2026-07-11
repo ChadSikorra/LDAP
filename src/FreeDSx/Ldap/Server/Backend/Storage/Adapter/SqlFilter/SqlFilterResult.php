@@ -25,11 +25,13 @@ final class SqlFilterResult
     /**
      * @param list<string> $params
      * @param list<string> $referencedAttributes Attributes whose absence makes the filter undefined under RFC 4511
+     * @param ?string $sidecarCondition Single drivable leaf's sidecar WHERE body for the streaming fast path.
      */
     public function __construct(
         public readonly string $sql,
         public readonly array $params,
         public readonly bool $isExact = true,
         public readonly array $referencedAttributes = [],
+        public readonly ?string $sidecarCondition = null,
     ) {}
 }
