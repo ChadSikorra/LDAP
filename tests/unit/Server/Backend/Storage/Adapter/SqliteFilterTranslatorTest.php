@@ -846,4 +846,61 @@ final class SqliteFilterTranslatorTest extends TestCase
         self::assertNotNull($result);
         self::assertNull($result->sidecarCondition);
     }
+
+    public function test_composed_and_exposes_each_childs_drivable_leaf(): void
+    {
+        $result = $this->subject->translate(new AndFilter(
+            new EqualityFilter('objectClass', 'person'),
+            new EqualityFilter('cn', 'alice'),
+        ));
+
+        self::assertNotNull($result);
+        self::assertCount(
+            2,
+            $result->drivableLeaves,
+        );
+        self::assertSame(
+            "s.attr_name_lower = 'objectclass' AND s.value_lower = ?",
+            $result->drivableLeaves[0]->condition,
+        );
+        self::assertSame(
+            ['person'],
+            $result->drivableLeaves[0]->params,
+        );
+        self::assertSame(
+            ['alice'],
+            $result->drivableLeaves[1]->params,
+        );
+    }
+
+    public function test_nested_and_flattens_drivable_leaves(): void
+    {
+        $result = $this->subject->translate(new AndFilter(
+            new AndFilter(
+                new EqualityFilter('a', '1'),
+                new EqualityFilter('b', '2'),
+            ),
+            new EqualityFilter('c', '3'),
+        ));
+
+        self::assertNotNull($result);
+        self::assertCount(
+            3,
+            $result->drivableLeaves,
+        );
+    }
+
+    public function test_or_exposes_no_drivable_leaves(): void
+    {
+        $result = $this->subject->translate(new OrFilter(
+            new EqualityFilter('cn', 'a'),
+            new EqualityFilter('cn', 'b'),
+        ));
+
+        self::assertNotNull($result);
+        self::assertSame(
+            [],
+            $result->drivableLeaves,
+        );
+    }
 }

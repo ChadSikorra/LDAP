@@ -23,6 +23,9 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConnectionProviderInterfa
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoListQueryBuilder;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoTransactor;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PooledStatement;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\SqlQuery;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SidecarLeaf;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqlFilterResult;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingTrait;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
@@ -60,6 +63,11 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
     public const SCHEMA_VERSION = 1;
 
     private const STATEMENT_CACHE_MAX = 64;
+
+    /**
+     * Match ceiling for a composed AND's drivable leaf: below it the leaf is a cheap, complete driver via a near-free probe.
+     */
+    private const COMPOSED_DRIVER_PROBE_LIMIT = 128;
 
     /**
      * @var array<int, array<string, list<PDOStatement>>> Per-PDO pools keyed by spl_object_id; reset() clears it on connection drop.
@@ -152,10 +160,30 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
 
     public function list(StorageListOptions $options): EntryStream
     {
+        $deadline = $options->timeLimit > 0
+            ? microtime(true) + $options->timeLimit
+            : null;
+
         $filterResult = $this->translator->translate(
             $options->filter,
             $options->isIntegerOrdered(...),
         );
+
+        // A composed filter with a selective drivable leaf streams off that leaf; PHP re-evaluates the full filter.
+        $composed = $this->tryComposedStreamingQuery($filterResult, $options);
+        if ($composed !== null) {
+            return new EntryStream(
+                $this->generateRows(
+                    $this->prepareAndExecute(
+                        $composed->sql,
+                        $composed->params,
+                    ),
+                    $deadline,
+                ),
+                false,
+            );
+        }
+
         $isPreFiltered = $filterResult !== null && $filterResult->isExact;
 
         // Exact is bound by sizeLimit. Inexact is PHP re-evaluated: cap candidate transfer at lookthrough+1.
@@ -172,10 +200,6 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
             $sqlLimit,
             $options->sortKeys,
         );
-
-        $deadline = $options->timeLimit > 0
-            ? microtime(true) + $options->timeLimit
-            : null;
 
         return new EntryStream(
             $this->generateRows(
@@ -271,6 +295,83 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
             $this->dialect,
             $config->origin,
         );
+    }
+
+    /**
+     * Drives a composed AND off its most selective drivable leaf, or null when the fast path does not apply.
+     */
+    private function tryComposedStreamingQuery(
+        ?SqlFilterResult $filterResult,
+        StorageListOptions $options,
+    ): ?SqlQuery {
+        if ($filterResult === null || $filterResult->drivableLeaves === []) {
+            return null;
+        }
+
+        if (!$options->subtree || $options->sortKeys !== []) {
+            return null;
+        }
+
+        $driver = $this->selectDriverLeaf($filterResult->drivableLeaves);
+
+        if ($driver === null) {
+            return null;
+        }
+
+        return $this->queryBuilder->buildStreamingQuery(
+            $driver->condition,
+            $driver->params,
+            $options->baseDn->normalize()->toString(),
+            self::COMPOSED_DRIVER_PROBE_LIMIT,
+        );
+    }
+
+    /**
+     * The drivable leaf with the fewest matches under the probe cap, or null when every leaf is broader than the cap.
+     *
+     * @param list<SidecarLeaf> $leaves
+     */
+    private function selectDriverLeaf(array $leaves): ?SidecarLeaf
+    {
+        $best = null;
+        $bestCount = self::COMPOSED_DRIVER_PROBE_LIMIT;
+
+        foreach ($leaves as $leaf) {
+            $count = $this->probeLeafSelectivity($leaf);
+
+            if ($count < $bestCount) {
+                $best = $leaf;
+                $bestCount = $count;
+            }
+
+            if ($bestCount === 0) {
+                break;
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * Counts a leaf's matches up to the probe cap via a near-free bounded index scan.
+     */
+    private function probeLeafSelectivity(SidecarLeaf $leaf): int
+    {
+        $limit = self::COMPOSED_DRIVER_PROBE_LIMIT;
+        $sql = <<<SQL
+            SELECT COUNT(*) AS c FROM (
+                SELECT 1 FROM entry_attribute_values s WHERE {$leaf->condition} LIMIT {$limit}
+            ) probe
+            SQL;
+
+        $row = $this->prepareAndExecute($sql, $leaf->params)->fetch();
+        $count = is_array($row)
+            ? ($row['c'] ?? 0)
+            : 0;
+
+        return is_numeric($count)
+            ? (int) $count
+            : 0;
     }
 
     /**

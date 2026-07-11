@@ -188,6 +188,49 @@ final class PdoStorageTest extends TestCase
         );
     }
 
+    public function test_composed_and_streams_off_a_leaf_and_php_verifies_the_rest(): void
+    {
+        $this->subject->add(
+            new AddCommand(new Entry(
+                new Dn('cn=bob,dc=example,dc=com'),
+                new Attribute('cn', 'bob'),
+                new Attribute('sn', 'common'),
+                new Attribute('objectClass', 'person'),
+            )),
+            $this->context(),
+        );
+        $this->subject->add(
+            new AddCommand(new Entry(
+                new Dn('cn=carol,dc=example,dc=com'),
+                new Attribute('cn', 'carol'),
+                new Attribute('sn', 'common'),
+                new Attribute('objectClass', 'device'),
+            )),
+            $this->context(),
+        );
+
+        // sn=common matches both; the AND drives off a leaf and PHP verifies the rest, so carol (objectClass=device) fails
+        // the objectClass=person branch and is excluded.
+        self::assertSame(
+            ['cn=bob,dc=example,dc=com'],
+            $this->searchDns(Filters::and(
+                Filters::equal('sn', 'common'),
+                Filters::equal('objectClass', 'person'),
+            )),
+        );
+    }
+
+    public function test_composed_and_with_no_matching_leaf_returns_nothing(): void
+    {
+        self::assertSame(
+            [],
+            $this->searchDns(Filters::and(
+                Filters::equal('objectClass', 'person'),
+                Filters::equal('cn', 'nobody'),
+            )),
+        );
+    }
+
     public function test_infix_search_finds_matches_and_rejects_trigram_over_selection(): void
     {
         $this->subject->add(
