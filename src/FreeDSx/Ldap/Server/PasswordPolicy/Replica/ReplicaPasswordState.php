@@ -50,9 +50,38 @@ final readonly class ReplicaPasswordState
         return new self();
     }
 
+    /**
+     * @param array<string, list<string>> $values
+     */
+    public static function fromArray(array $values): self
+    {
+        $attributes = [];
+        foreach ($values as $name => $vals) {
+            $attributes[] = Attribute::fromArray(
+                $name,
+                $vals,
+            );
+        }
+
+        return new self($attributes);
+    }
+
     public function isEmpty(): bool
     {
         return $this->attributes === [];
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    public function toArray(): array
+    {
+        $values = [];
+        foreach ($this->attributes as $attribute) {
+            $values[$attribute->getName()] = array_values($attribute->getValues());
+        }
+
+        return $values;
     }
 
     /**

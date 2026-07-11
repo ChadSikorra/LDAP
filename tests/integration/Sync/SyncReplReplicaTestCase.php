@@ -15,6 +15,7 @@ namespace Tests\Integration\FreeDSx\Ldap\Sync;
 
 use FreeDSx\Ldap\ClientOptions;
 use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Exception\BindException;
 use FreeDSx\Ldap\Exception\ReferralException;
 use FreeDSx\Ldap\LdapClient;
 use Tests\Integration\FreeDSx\Ldap\ServerTestCase;
@@ -95,6 +96,68 @@ abstract class SyncReplReplicaTestCase extends ServerTestCase
             ));
         } finally {
             $client->unbind();
+        }
+    }
+
+    public function test_repeated_failed_binds_lock_the_account_locally_on_the_replica(): void
+    {
+        $lockme = 'cn=lockme,ou=people,dc=foo,dc=bar';
+        self::assertNotNull($this->waitForReplica($lockme));
+
+        // The correct password works before any failures.
+        $this->assertBind(
+            $lockme,
+            '12345',
+            true,
+        );
+
+        // Two failed binds, each on a separate connection, reach pwdMaxFailure and lock locally.
+        $this->assertBind(
+            $lockme,
+            'wrong',
+            false,
+        );
+        $this->assertBind(
+            $lockme,
+            'wrong',
+            false,
+        );
+
+        // The correct password is now rejected: the replica enforces its local lock across connections.
+        $this->assertBind(
+            $lockme,
+            '12345',
+            false,
+        );
+    }
+
+    private function assertBind(
+        string $dn,
+        string $password,
+        bool $shouldSucceed,
+    ): void {
+        $client = $this->buildClient('tcp');
+
+        try {
+            $client->bind(
+                $dn,
+                $password,
+            );
+            self::assertTrue(
+                $shouldSucceed,
+                "Expected the bind for {$dn} to fail.",
+            );
+        } catch (BindException $e) {
+            self::assertFalse(
+                $shouldSucceed,
+                "Expected the bind for {$dn} to succeed: {$e->getMessage()}.",
+            );
+        } finally {
+            try {
+                $client->unbind();
+            } catch (Throwable) {
+                // The connection may already be gone after a failed bind.
+            }
         }
     }
 

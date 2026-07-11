@@ -29,3 +29,9 @@ dn: cn=carol,ou=people,dc=foo,dc=bar
 objectClass: inetOrgPerson
 cn: carol
 sn: Carpenter
+
+dn: cn=lockme,ou=people,dc=foo,dc=bar
+objectClass: inetOrgPerson
+cn: lockme
+sn: Lockme
+userPassword: {SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=

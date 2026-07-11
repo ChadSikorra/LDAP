@@ -38,6 +38,8 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqlFilterUtility;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\SubstringIndexInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\ReplicaPasswordStateStoreProviderInterface;
+use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordStateStoreInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\TimeLimitExceededException;
 use FreeDSx\Ldap\Server\Backend\Storage\StorageListOptions;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
@@ -53,14 +55,14 @@ use Throwable;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class PdoStorage implements EntryStorageInterface, ResettableInterface, ChangeJournalingInterface
+final class PdoStorage implements EntryStorageInterface, ResettableInterface, ChangeJournalingInterface, ReplicaPasswordStateStoreProviderInterface
 {
     use ChangeJournalingTrait;
 
     /**
      * The current schema revision shipped in resources/schema.
      */
-    public const SCHEMA_VERSION = 1;
+    public const SCHEMA_VERSION = 2;
 
     private const STATEMENT_CACHE_MAX = 64;
 
@@ -286,6 +288,11 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
     public function atomic(callable $operation): void
     {
         $this->transactor->atomic(fn() => $operation($this));
+    }
+
+    public function replicaPasswordStateStore(): ReplicaPasswordStateStoreInterface
+    {
+        return new PdoReplicaPasswordStateStore($this->transactor);
     }
 
     protected function buildJournal(ChangeJournalConfig $config): ChangeJournalInterface
