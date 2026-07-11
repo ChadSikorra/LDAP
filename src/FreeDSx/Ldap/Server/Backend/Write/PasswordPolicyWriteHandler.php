@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Schema\Definition\AttributeTypeOid;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriterInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordModifyAttempt;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyChangeGuard;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;

@@ -11,20 +11,24 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace FreeDSx\Ldap\Server\Backend\Write;
+namespace FreeDSx\Ldap\Server\Backend\Write\SystemChange;
 
 use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 
 /**
- * Discards automated system operational changes so a read-only replica does not persist them locally.
+ * Persists server-generated operational changes (such as password-policy bind state) to an entry.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class NullSystemChangeWriter implements SystemChangeWriterInterface
+interface SystemChangeWriterInterface
 {
+    /**
+     * @throws OperationException
+     */
     public function write(
         Dn $dn,
         OperationalChanges $changes,
-    ): void {}
+    ): void;
 }

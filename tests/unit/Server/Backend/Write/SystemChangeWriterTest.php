@@ -16,7 +16,7 @@ namespace Tests\Unit\FreeDSx\Ldap\Server\Backend\Write;
 use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 use FreeDSx\Ldap\Server\Token\SystemToken;

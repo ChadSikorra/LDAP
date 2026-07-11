@@ -22,11 +22,12 @@ use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordPolicyAwareAuthenticator;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
+use FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy\EntryBindStrategy;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\Clock\Sleeper\BlockingSleeper;
@@ -206,6 +207,7 @@ final class PasswordPolicyAwareAuthenticatorTest extends TestCase
         );
         $guard = new PasswordPolicyBindGuard(
             $engine,
+            new EntryBindStrategy($engine),
             new SystemChangeWriter(new WriteOperationDispatcher($this->writeHandler)),
             $this->context,
             new EventLogger(null),

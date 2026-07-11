@@ -27,7 +27,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
 use FreeDSx\Ldap\Server\Backend\Write\PasswordPolicyWriteHandler;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Logging\EventLogger;

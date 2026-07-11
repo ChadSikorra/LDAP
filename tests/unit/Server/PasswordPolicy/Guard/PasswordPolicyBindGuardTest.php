@@ -21,12 +21,13 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChangeWriter;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
+use FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy\EntryBindStrategy;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordBindAttempt;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
@@ -73,6 +74,7 @@ final class PasswordPolicyBindGuardTest extends TestCase
         );
         $this->subject = new PasswordPolicyBindGuard(
             $engine,
+            new EntryBindStrategy($engine),
             new SystemChangeWriter(new WriteOperationDispatcher($this->writeHandler)),
             $this->context,
             new EventLogger(

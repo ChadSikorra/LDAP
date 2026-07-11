@@ -15,7 +15,7 @@ namespace FreeDSx\Ldap\Server\Operation;
 
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Server\Backend\Write\SchemaViolations;
+use FreeDSx\Ldap\Server\Backend\Write\Schema\SchemaViolations;
 use FreeDSx\Ldap\Server\Logging\OperationAuditor;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
