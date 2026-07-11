@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Search\Filter\MatchingRuleFilter;
 use FreeDSx\Ldap\Search\Filter\PresentFilter;
 use FreeDSx\Ldap\Search\Filter\SubstringFilter;
 use FreeDSx\Ldap\Search\Filters;
+use FreeDSx\Ldap\Schema\NisSchemaProvider;
 use FreeDSx\Ldap\Schema\StandardSchemaProvider;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
 use PHPUnit\Framework\TestCase;
@@ -972,6 +973,26 @@ final class FilterEvaluatorTest extends TestCase
         $entry = new Entry(
             new Dn('cn=Test,dc=example,dc=com'),
             new Attribute('uidNumber', '99'),
+        );
+
+        self::assertFalse($subject->evaluate(
+            $entry,
+            Filters::greaterThanOrEqual('uidNumber', '100'),
+        ));
+    }
+
+    /**
+     * uidNumber has INTEGER syntax but no ORDERING in RFC 2307; '50' >= '100' is false numerically yet true
+     * lexically, so this proves the syntax drives numeric ordering rather than the string default.
+     */
+    public function test_schema_gte_infers_numeric_ordering_from_integer_syntax(): void
+    {
+        $subject = new FilterEvaluator(
+            StandardSchemaProvider::buildCore()->merge(NisSchemaProvider::build()),
+        );
+        $entry = new Entry(
+            new Dn('cn=Test,dc=example,dc=com'),
+            new Attribute('uidNumber', '50'),
         );
 
         self::assertFalse($subject->evaluate(

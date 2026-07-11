@@ -152,7 +152,10 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
 
     public function list(StorageListOptions $options): EntryStream
     {
-        $filterResult = $this->translator->translate($options->filter);
+        $filterResult = $this->translator->translate(
+            $options->filter,
+            $options->isIntegerOrdered(...),
+        );
         $isPreFiltered = $filterResult !== null && $filterResult->isExact;
 
         // Exact is bound by sizeLimit. Inexact is PHP re-evaluated: cap candidate transfer at lookthrough+1.

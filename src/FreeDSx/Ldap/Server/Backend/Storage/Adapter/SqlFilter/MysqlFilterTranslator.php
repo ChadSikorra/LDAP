@@ -51,4 +51,9 @@ final class MysqlFilterTranslator implements FilterTranslatorInterface
     {
         return 's.value_lower';
     }
+
+    private function castToNumeric(string $expression): string
+    {
+        return "CAST($expression AS SIGNED)";
+    }
 }

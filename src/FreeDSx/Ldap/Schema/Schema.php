@@ -16,7 +16,9 @@ namespace FreeDSx\Ldap\Schema;
 use FreeDSx\Ldap\Schema\Definition\AttributeType;
 use FreeDSx\Ldap\Schema\Definition\LdapSyntax;
 use FreeDSx\Ldap\Schema\Definition\MatchingRule;
+use FreeDSx\Ldap\Schema\Definition\MatchingRuleOid;
 use FreeDSx\Ldap\Schema\Definition\ObjectClass;
+use FreeDSx\Ldap\Schema\Definition\SyntaxOid;
 use FreeDSx\Ldap\Schema\Matching\MatchingRuleComparatorInterface;
 
 /**
@@ -88,6 +90,24 @@ final class Schema
         return $this->attributeTypes[$nameOrOid]
             ?? $this->attributeTypes[strtolower($nameOrOid)]
             ?? null;
+    }
+
+    /**
+     * Whether the attribute orders numerically.
+     */
+    public function isIntegerOrdered(string $nameOrOid): ?bool
+    {
+        $attributeType = $this->getAttributeType($nameOrOid);
+
+        if ($attributeType === null) {
+            return null;
+        }
+
+        if ($attributeType->orderingOid !== null) {
+            return $attributeType->orderingOid === MatchingRuleOid::OID_INTEGER_ORDERING_MATCH;
+        }
+
+        return $attributeType->syntaxOid === SyntaxOid::OID_INTEGER;
     }
 
     public function getObjectClass(string $nameOrOid): ?ObjectClass

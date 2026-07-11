@@ -173,21 +173,36 @@ final class SqliteFilterTranslatorTest extends TestCase
         );
     }
 
-    public function test_gte_emits_sidecar_value_gte(): void
+    public function test_gte_emits_numeric_cast_for_integer_ordered_attribute(): void
     {
-        $result = $this->subject->translate(new GreaterThanOrEqualFilter(
-            'age',
-            '30',
-        ));
+        $result = $this->subject->translate(
+            new GreaterThanOrEqualFilter('uidNumber', '30'),
+            fn(string $attribute): bool => true,
+        );
+
+        self::assertNotNull($result);
+        self::assertStringContainsString(
+            'CAST(s.value_lower AS INTEGER) >= CAST(? AS INTEGER)',
+            $result->sql,
+        );
+        self::assertTrue($result->isExact);
+        self::assertSame(
+            ['30'],
+            $result->params,
+        );
+    }
+
+    public function test_gte_emits_lexical_comparison_for_non_integer_attribute(): void
+    {
+        $result = $this->subject->translate(
+            new GreaterThanOrEqualFilter('cn', '30'),
+            fn(string $attribute): bool => false,
+        );
 
         self::assertNotNull($result);
         self::assertStringContainsString(
             's.value_lower >= ?',
             $result->sql,
-        );
-        self::assertSame(
-            ['30'],
-            $result->params,
         );
     }
 
@@ -226,16 +241,16 @@ final class SqliteFilterTranslatorTest extends TestCase
         self::assertFalse($result->isExact);
     }
 
-    public function test_lte_emits_sidecar_value_lte(): void
+    public function test_lte_emits_numeric_cast_for_integer_ordered_attribute(): void
     {
-        $result = $this->subject->translate(new LessThanOrEqualFilter(
-            'age',
-            '50',
-        ));
+        $result = $this->subject->translate(
+            new LessThanOrEqualFilter('uidNumber', '50'),
+            fn(string $attribute): bool => true,
+        );
 
         self::assertNotNull($result);
         self::assertStringContainsString(
-            's.value_lower <= ?',
+            'CAST(s.value_lower AS INTEGER) <= CAST(? AS INTEGER)',
             $result->sql,
         );
         self::assertSame(

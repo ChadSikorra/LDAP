@@ -19,7 +19,9 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
+use FreeDSx\Ldap\Schema\NisSchemaProvider;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
+use FreeDSx\Ldap\Schema\StandardSchemaProvider;
 use FreeDSx\Ldap\ServerOptions;
 use PDO;
 use Symfony\Component\Console\Command\Command;
@@ -201,6 +203,7 @@ final class LdapBackendStorageCommand extends Command
             ->setTransport($transport)
             ->setSocketAcceptTimeout(0.1)
             ->setSchemaValidationMode($validationMode)
+            ->setSchema(StandardSchemaProvider::buildCore()->merge(NisSchemaProvider::build()))
             ->setMonitorEnabled((bool) $input->getOption('monitor'))
             ->setMaxSearchLookthrough((int) $this->getStringOption($input, 'max-search-lookthrough'))
             ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL));
