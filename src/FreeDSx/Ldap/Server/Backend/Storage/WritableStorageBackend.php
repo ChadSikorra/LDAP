@@ -36,6 +36,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Exception\DnTooLongException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\InvalidAttributeException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
+use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Write\SchemaViolationDisposition;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
@@ -66,6 +67,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
         private readonly OperationalAttributeGenerator $operationalAttrs = new OperationalAttributeGenerator(),
         private readonly WriteEntryOperationHandler $entryHandler = new WriteEntryOperationHandler(),
         private readonly ?ChangeRecorder $changeRecorder = null,
+        private readonly ?Schema $schema = null,
     ) {
         $this->searchStream = new SearchStreamBuilder(
             $this->storage,
@@ -203,6 +205,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 ? $sortingControl->getSortKeys()
                 : [],
             lookthroughLimit: $limits->maxSearchLookthrough,
+            isIntegerOrderedResolver: fn(string $attribute): ?bool => $this->schema?->isIntegerOrdered($attribute),
         );
 
         try {

@@ -204,6 +204,21 @@ final class MysqlFilterTranslatorTest extends TestCase
         );
     }
 
+    public function test_gte_emits_numeric_cast_for_integer_ordered_attribute(): void
+    {
+        $result = $this->subject->translate(
+            new GreaterThanOrEqualFilter('uidNumber', '30'),
+            fn(string $attribute): bool => true,
+        );
+
+        self::assertNotNull($result);
+        self::assertStringContainsString(
+            'CAST(s.value_lower AS SIGNED) >= CAST(? AS SIGNED)',
+            $result->sql,
+        );
+        self::assertTrue($result->isExact);
+    }
+
     public function test_gte_filter_with_digit_value_is_inexact(): void
     {
         $result = $this->subject->translate(new GreaterThanOrEqualFilter(

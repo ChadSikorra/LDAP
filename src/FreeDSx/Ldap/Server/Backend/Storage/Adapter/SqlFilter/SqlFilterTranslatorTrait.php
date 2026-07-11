@@ -26,6 +26,7 @@ use FreeDSx\Ldap\Search\Filter\OrFilter;
 use FreeDSx\Ldap\Search\Filter\PresentFilter;
 use FreeDSx\Ldap\Search\Filter\SubstringFilter;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\SubstringIndexInterface;
+use Closure;
 
 /**
  * Translates LDAP filters to SQL against the `entry_attribute_values` sidecar index.
@@ -36,7 +37,24 @@ trait SqlFilterTranslatorTrait
 {
     private ?SubstringIndexInterface $substringIndex = null;
 
-    public function translate(FilterInterface $filter): ?SqlFilterResult
+    /**
+     * @var (\Closure(string): (bool|null))|null Resolves whether an attribute orders numerically, for the current call.
+     */
+    private ?Closure $integerOrderedResolver = null;
+
+    /**
+     * @param (\Closure(string): (bool|null))|null $isIntegerOrdered Resolves numeric ordering; null = unknown.
+     */
+    public function translate(
+        FilterInterface $filter,
+        ?Closure $isIntegerOrdered = null,
+    ): ?SqlFilterResult {
+        $this->integerOrderedResolver = $isIntegerOrdered;
+
+        return $this->dispatch($filter);
+    }
+
+    private function dispatch(FilterInterface $filter): ?SqlFilterResult
     {
         return match (true) {
             $filter instanceof AndFilter => $this->translateAnd($filter),
@@ -66,6 +84,11 @@ trait SqlFilterTranslatorTrait
     ): string;
 
     abstract private function valueAlias(): string;
+
+    /**
+     * Wraps an expression in a dialect-specific integer cast for numeric ordering comparisons.
+     */
+    abstract private function castToNumeric(string $expression): string;
 
     private function translatePresent(PresentFilter $filter): ?SqlFilterResult
     {
@@ -109,34 +132,66 @@ trait SqlFilterTranslatorTrait
         );
     }
 
+    /**
+     * Truncation preserves lexical GTE when query <= 255 chars: full >= query implies its prefix >= query.
+     */
     private function translateGte(GreaterThanOrEqualFilter $filter): ?SqlFilterResult
     {
-        $attribute = $this->validateAttribute($filter->getAttribute());
-
-        $alias = $this->valueAlias();
-        $value = $filter->getValue();
-
-        // Truncation preserves GTE when query <= 255 chars: full >= query implies its prefix >= query.
-        return new SqlFilterResult(
-            $this->buildValueExists($attribute, "$alias >= ?"),
-            [$this->prepareMatchValue($value)],
-            isExact: $this->isExactOrdered($value) && !$this->attributeHasOption($filter->getAttribute()),
-            referencedAttributes: [$attribute],
+        return $this->translateOrdered(
+            $filter->getAttribute(),
+            $filter->getValue(),
+            '>=',
+            lexicalCanBeExact: true,
         );
     }
 
+    /**
+     * Lexical LTE under truncation admits false positives (stored value > 255 whose prefix equals query).
+     */
     private function translateLte(LessThanOrEqualFilter $filter): ?SqlFilterResult
     {
-        $attribute = $this->validateAttribute($filter->getAttribute());
+        return $this->translateOrdered(
+            $filter->getAttribute(),
+            $filter->getValue(),
+            '<=',
+            lexicalCanBeExact: false,
+        );
+    }
 
-        $alias = $this->valueAlias();
-        $value = $filter->getValue();
+    /**
+     * Integer-ordered attributes narrow numerically (CAST, exact); others keep the lexical comparison, whose
+     * exactness the caller bounds via $lexicalCanBeExact (GTE can be exact, LTE cannot under truncation).
+     */
+    private function translateOrdered(
+        string $rawAttribute,
+        string $value,
+        string $operator,
+        bool $lexicalCanBeExact,
+    ): SqlFilterResult {
+        $attribute = $this->validateAttribute($rawAttribute);
+        $hasOption = $this->attributeHasOption($rawAttribute);
+        $resolver = $this->integerOrderedResolver;
 
-        // LTE under truncation admits false positives (stored value > 255 whose prefix equals query); always inexact.
+        if ($resolver !== null && $resolver($rawAttribute) === true) {
+            $condition = sprintf(
+                '%s %s %s',
+                $this->castToNumeric($this->valueAlias()),
+                $operator,
+                $this->castToNumeric('?'),
+            );
+
+            return new SqlFilterResult(
+                $this->buildValueExists($attribute, $condition),
+                [$this->prepareMatchValue($value)],
+                isExact: !$hasOption,
+                referencedAttributes: [$attribute],
+            );
+        }
+
         return new SqlFilterResult(
-            $this->buildValueExists($attribute, "$alias <= ?"),
+            $this->buildValueExists($attribute, $this->valueAlias() . " $operator ?"),
             [$this->prepareMatchValue($value)],
-            isExact: false,
+            isExact: $lexicalCanBeExact && $this->isExactOrdered($value) && !$hasOption,
             referencedAttributes: [$attribute],
         );
     }
@@ -297,7 +352,7 @@ trait SqlFilterTranslatorTrait
         $hasUntranslatable = false;
 
         foreach ($filter->get() as $child) {
-            $result = $this->translate($child);
+            $result = $this->dispatch($child);
             if ($result === null) {
                 $hasUntranslatable = true;
                 continue;
@@ -327,7 +382,7 @@ trait SqlFilterTranslatorTrait
         $hasInexact = false;
 
         foreach ($filter->get() as $child) {
-            $result = $this->translate($child);
+            $result = $this->dispatch($child);
             if ($result === null) {
                 return null;
             }
@@ -352,7 +407,7 @@ trait SqlFilterTranslatorTrait
     private function translateNot(NotFilter $filter): ?SqlFilterResult
     {
         $inner = $filter->get();
-        $result = $this->translate($inner);
+        $result = $this->dispatch($inner);
 
         if ($result === null) {
             return null;

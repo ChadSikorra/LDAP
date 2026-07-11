@@ -16,7 +16,9 @@ namespace Tests\Unit\FreeDSx\Ldap\Schema;
 use FreeDSx\Ldap\Schema\Definition\AttributeType;
 use FreeDSx\Ldap\Schema\Definition\LdapSyntax;
 use FreeDSx\Ldap\Schema\Definition\MatchingRule;
+use FreeDSx\Ldap\Schema\Definition\MatchingRuleOid;
 use FreeDSx\Ldap\Schema\Definition\ObjectClass;
+use FreeDSx\Ldap\Schema\Definition\SyntaxOid;
 use FreeDSx\Ldap\Schema\Matching\CaseIgnoreComparator;
 use FreeDSx\Ldap\Schema\Schema;
 use PHPUnit\Framework\TestCase;
@@ -305,5 +307,45 @@ final class SchemaTest extends TestCase
             $schema,
             $schema->addSyntax($this->dirString),
         );
+    }
+
+    public function test_is_integer_ordered_is_null_for_an_unknown_attribute(): void
+    {
+        self::assertNull($this->subject->isIntegerOrdered('doesNotExist'));
+    }
+
+    public function test_is_integer_ordered_is_true_for_an_explicit_integer_ordering_rule(): void
+    {
+        $this->subject->addAttributeType(new AttributeType(
+            oid: '1.2.3.4',
+            names: ['explicitInt'],
+            orderingOid: MatchingRuleOid::OID_INTEGER_ORDERING_MATCH,
+            syntaxOid: SyntaxOid::OID_DIRECTORY_STRING,
+        ));
+
+        self::assertTrue($this->subject->isIntegerOrdered('explicitInt'));
+    }
+
+    public function test_is_integer_ordered_is_inferred_from_integer_syntax_without_an_ordering_rule(): void
+    {
+        $this->subject->addAttributeType(new AttributeType(
+            oid: '1.2.3.5',
+            names: ['syntaxInt'],
+            syntaxOid: SyntaxOid::OID_INTEGER,
+        ));
+
+        self::assertTrue($this->subject->isIntegerOrdered('syntaxInt'));
+    }
+
+    public function test_is_integer_ordered_lets_an_explicit_ordering_rule_win_over_the_syntax(): void
+    {
+        $this->subject->addAttributeType(new AttributeType(
+            oid: '1.2.3.6',
+            names: ['stringOrdered'],
+            orderingOid: MatchingRuleOid::OID_CASE_IGNORE_ORDERING_MATCH,
+            syntaxOid: SyntaxOid::OID_INTEGER,
+        ));
+
+        self::assertFalse($this->subject->isIntegerOrdered('stringOrdered'));
     }
 }

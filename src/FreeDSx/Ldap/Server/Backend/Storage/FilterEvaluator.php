@@ -17,7 +17,9 @@ use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Schema\Definition\SyntaxOid;
 use FreeDSx\Ldap\Schema\Matching\CaseIgnoreComparator;
+use FreeDSx\Ldap\Schema\Matching\IntegerComparator;
 use FreeDSx\Ldap\Schema\Matching\MatchingRuleComparatorInterface;
 use FreeDSx\Ldap\Schema\Matching\SubstringAssertion;
 use FreeDSx\Ldap\Schema\Schema;
@@ -77,9 +79,12 @@ final class FilterEvaluator implements FilterEvaluatorInterface
 
     private readonly CaseIgnoreComparator $defaultComparator;
 
+    private readonly IntegerComparator $integerComparator;
+
     public function __construct(private readonly ?Schema $schema = null)
     {
         $this->defaultComparator = new CaseIgnoreComparator();
+        $this->integerComparator = new IntegerComparator();
         $this->substringCache = new WeakMap();
         $this->orderedDigitCache = new WeakMap();
     }
@@ -472,11 +477,19 @@ final class FilterEvaluator implements FilterEvaluatorInterface
             return null;
         }
 
-        if ($attrType->orderingOid !== null) {
-            return $this->schema->getComparator($attrType->orderingOid) ?? $this->defaultComparator;
+        // An explicit, registered ordering rule wins
+        $comparator = $attrType->orderingOid !== null
+            ? $this->schema->getComparator($attrType->orderingOid)
+            : null;
+
+        if ($comparator !== null) {
+            return $comparator;
         }
 
-        return $this->defaultComparator;
+        // Otherwise infer numeric ordering from an INTEGER syntax, else order as a string.
+        return $attrType->syntaxOid === SyntaxOid::OID_INTEGER
+            ? $this->integerComparator
+            : $this->defaultComparator;
     }
 
     private function buildSubstringAssertion(SubstringFilter $filter): SubstringAssertion

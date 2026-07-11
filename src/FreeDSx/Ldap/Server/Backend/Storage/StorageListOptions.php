@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Control\Sorting\SortKey;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Search\Filter\AndFilter;
 use FreeDSx\Ldap\Search\Filter\FilterInterface;
+use Closure;
 
 /**
  * DTO for EntryStorageInterface::list(), decoupled from LDAP protocol objects.
@@ -27,6 +28,7 @@ final class StorageListOptions
 {
     /**
      * @param SortKey[] $sortKeys
+     * @param (\Closure(string): (bool|null))|null $isIntegerOrderedResolver Resolves whether an attribute orders numerically.
      */
     public function __construct(
         public readonly Dn $baseDn,
@@ -36,7 +38,18 @@ final class StorageListOptions
         public readonly int $sizeLimit = 0,
         public readonly array $sortKeys = [],
         public readonly int $lookthroughLimit = 0,
+        public readonly ?Closure $isIntegerOrderedResolver = null,
     ) {}
+
+    /**
+     * Whether the attribute orders numerically. null when unresolved (no schema was supplied).
+     */
+    public function isIntegerOrdered(string $attribute): ?bool
+    {
+        return $this->isIntegerOrderedResolver !== null
+            ? ($this->isIntegerOrderedResolver)($attribute)
+            : null;
+    }
 
     /**
      * Match-all options for internal callers (e.g. hasChildren) and tests that do not need a meaningful filter.

@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter;
 
 use FreeDSx\Ldap\Search\Filter\FilterInterface;
+use Closure;
 
 /**
  * Translates FilterInterface into a SQL WHERE fragment.
@@ -25,5 +26,11 @@ use FreeDSx\Ldap\Search\Filter\FilterInterface;
  */
 interface FilterTranslatorInterface
 {
-    public function translate(FilterInterface $filter): ?SqlFilterResult;
+    /**
+     * @param (\Closure(string): (bool|null))|null $isIntegerOrdered Resolves whether an attribute orders numerically.
+     */
+    public function translate(
+        FilterInterface $filter,
+        ?Closure $isIntegerOrdered = null,
+    ): ?SqlFilterResult;
 }

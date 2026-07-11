@@ -494,6 +494,7 @@ class Container
             validator: $this->buildSchemaValidator(),
             operationalAttrs: new OperationalAttributeGenerator($schema),
             changeRecorder: $this->changeRecorderFor($storage),
+            schema: $options->getSchema(),
         );
     }
 
