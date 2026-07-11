@@ -392,6 +392,7 @@ trait SqlFilterTranslatorTrait
     {
         $parts = [];
         $params = [];
+        $drivableLeaves = [];
         $hasUntranslatable = false;
 
         foreach ($filter->get() as $child) {
@@ -405,6 +406,7 @@ trait SqlFilterTranslatorTrait
             }
             $parts[] = '(' . $result->sql . ')';
             array_push($params, ...$result->params);
+            array_push($drivableLeaves, ...$this->drivableLeavesOf($result));
         }
 
         if ($parts === []) {
@@ -415,7 +417,27 @@ trait SqlFilterTranslatorTrait
             implode(' AND ', $parts),
             $params,
             isExact: !$hasUntranslatable,
+            drivableLeaves: $drivableLeaves,
         );
+    }
+
+    /**
+     * A child's contribution to an AND's drivable-leaf set: itself if a single leaf, or its own leaves if a nested AND.
+     *
+     * @return list<SidecarLeaf>
+     */
+    private function drivableLeavesOf(SqlFilterResult $result): array
+    {
+        if ($result->sidecarCondition !== null) {
+            return [
+                new SidecarLeaf(
+                    $result->sidecarCondition,
+                    $result->params,
+                ),
+            ];
+        }
+
+        return $result->drivableLeaves;
     }
 
     private function translateOr(OrFilter $filter): ?SqlFilterResult
