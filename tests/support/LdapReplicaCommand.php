@@ -12,6 +12,8 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoStorageFactory;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
+use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordLockoutRules;
 use FreeDSx\Ldap\ServerOptions;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -89,6 +91,12 @@ final class LdapReplicaCommand extends Command
                 ->setTransport($transport)
                 ->setUseSwooleRunner($runner === 'swoole')
                 ->setStorage($this->createReplicaStorage($storageType, $runner))
+                ->setPasswordPolicy(new PasswordPolicy(
+                    lockout: new PasswordLockoutRules(
+                        enabled: true,
+                        maxFailure: 2,
+                    ),
+                ))
                 ->setSocketAcceptTimeout(0.1)
                 ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL)),
         );

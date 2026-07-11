@@ -26,6 +26,7 @@ use FreeDSx\Ldap\Server\Clock\SystemClock;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\ReplicaPasswordStateStoreProviderInterface;
 use FreeDSx\Ldap\Server\Process\BackgroundTask\PcntlBackgroundTasks;
 use FreeDSx\Ldap\Server\Process\BackgroundTask\SwooleBackgroundTasks;
 use FreeDSx\Ldap\Sync\Consumer\LdapReplica;
@@ -408,11 +409,15 @@ class Container
     }
 
     /**
-     * The replica-local password-policy state store, backing always-enforced lockout on a read-only replica.
+     * The replica-local password-policy state store, persisted by the storage backend when it can, else in memory.
      */
     private function makeReplicaPasswordStateStore(): ReplicaPasswordStateStoreInterface
     {
-        return new InMemoryReplicaPasswordStateStore();
+        $storage = $this->get(ServerOptions::class)->getStorage();
+
+        return $storage instanceof ReplicaPasswordStateStoreProviderInterface
+            ? $storage->replicaPasswordStateStore()
+            : new InMemoryReplicaPasswordStateStore();
     }
 
     private function makeServerProtocolFactoryInterface(): ServerProtocolFactoryInterface

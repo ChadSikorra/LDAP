@@ -45,3 +45,8 @@ CREATE TABLE IF NOT EXISTS ldap_change_journal_seq (
 );
 
 INSERT OR IGNORE INTO ldap_change_journal_seq (id, seq) VALUES (1, 0);
+
+CREATE TABLE IF NOT EXISTS ldap_replica_pwpolicy_state (
+    lc_dn  TEXT NOT NULL PRIMARY KEY,
+    state  TEXT NOT NULL
+);
