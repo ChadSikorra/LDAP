@@ -29,6 +29,8 @@ final class WorkloadMix
         'search-suffix',
         'search-range',
         'search-list',
+        'search-and',
+        'search-or',
         'compare',
         'add',
         'modify',

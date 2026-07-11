@@ -177,6 +177,8 @@ final class Worker
             'search-suffix' => $this->doSearchSuffix($client),
             'search-range' => $this->doSearchRange($client),
             'search-list' => $this->doSearchList($client),
+            'search-and' => $this->doSearchAnd($client),
+            'search-or' => $this->doSearchOr($client),
             'compare' => $this->doCompare($client),
             'add' => $this->doAdd($client),
             'modify' => $this->doModify($client),
@@ -271,6 +273,40 @@ final class Worker
 
         $client->search(
             Operations::search(Filters::greaterThanOrEqual('uidNumber', (string) $threshold))
+                ->base($this->config->baseDn)
+                ->useSubtreeScope(),
+        );
+    }
+
+    /**
+     * Composed AND with a broad leaf and a selective leaf; streams off the selective leaf, then PHP-verifies the rest.
+     */
+    private function doSearchAnd(LdapClient $client): void
+    {
+        $filter = Filters::and(
+            Filters::equal('objectClass', 'inetOrgPerson'),
+            $this->randomEqualityFilter(),
+        );
+
+        $client->search(
+            Operations::search($filter)
+                ->base($this->config->baseDn)
+                ->useSubtreeScope(),
+        );
+    }
+
+    /**
+     * Composed OR of two selective leaves; exercises the OR-composite path, which streaming does not yet cover.
+     */
+    private function doSearchOr(LdapClient $client): void
+    {
+        $filter = Filters::or(
+            $this->randomEqualityFilter(),
+            $this->randomEqualityFilter(),
+        );
+
+        $client->search(
+            Operations::search($filter)
                 ->base($this->config->baseDn)
                 ->useSubtreeScope(),
         );
