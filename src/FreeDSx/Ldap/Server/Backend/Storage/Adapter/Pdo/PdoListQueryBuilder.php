@@ -39,6 +39,18 @@ final readonly class PdoListQueryBuilder
         ?int $sqlLimit,
         array $sortKeys,
     ): SqlQuery {
+        $streamed = $this->tryBuildStreamingQuery(
+            $base,
+            $subtree,
+            $filterResult,
+            $sqlLimit,
+            $sortKeys,
+        );
+
+        if ($streamed !== null) {
+            return $streamed;
+        }
+
         $query = match (true) {
             !$subtree => $this->buildChildQuery($base, $filterResult),
             $base === '' => $this->buildRootQuery($filterResult),
@@ -57,6 +69,73 @@ final readonly class PdoListQueryBuilder
         }
 
         return $query;
+    }
+
+    /**
+     * The streaming fast path, or null when it does not apply: a single drivable sidecar leaf under a bounded,
+     * unsorted subtree/root search drives off the sidecar index so the limit short-circuits candidate scanning.
+     *
+     * @param SortKey[] $sortKeys
+     */
+    private function tryBuildStreamingQuery(
+        string $base,
+        bool $subtree,
+        ?SqlFilterResult $filterResult,
+        ?int $sqlLimit,
+        array $sortKeys,
+    ): ?SqlQuery {
+        if (!$subtree || $sqlLimit === null || $sortKeys !== []) {
+            return null;
+        }
+
+        if ($filterResult === null || $filterResult->sidecarCondition === null) {
+            return null;
+        }
+
+        return $this->buildStreamingQuery(
+            $filterResult->sidecarCondition,
+            $filterResult->params,
+            $base,
+            $sqlLimit,
+        );
+    }
+
+    /**
+     * Bounds work to $sqlLimit by pushing DISTINCT + subtree scope + LIMIT into the sidecar sub-select, wrapped in a
+     * derived table (portable: MySQL/MariaDB reject LIMIT directly inside IN, and it still streams on SQLite).
+     *
+     * @param list<string> $filterParams
+     */
+    private function buildStreamingQuery(
+        string $sidecarCondition,
+        array $filterParams,
+        string $base,
+        int $sqlLimit,
+    ): SqlQuery {
+        $fetchAll = $this->dialect->queryFetchAll();
+        $params = $filterParams;
+
+        if ($base === '') {
+            $inner = <<<SQL
+                SELECT DISTINCT s.entry_lc_dn AS d FROM entry_attribute_values s
+                    WHERE $sidecarCondition
+                    LIMIT $sqlLimit
+                SQL;
+        } else {
+            $inner = <<<SQL
+                SELECT DISTINCT s.entry_lc_dn AS d FROM entry_attribute_values s
+                    WHERE $sidecarCondition
+                      AND (s.entry_lc_dn = ? OR s.entry_lc_dn LIKE ? ESCAPE '!')
+                    LIMIT $sqlLimit
+                SQL;
+            $params[] = $base;
+            $params[] = '%,' . SqlFilterUtility::escape($base);
+        }
+
+        return new SqlQuery(
+            "$fetchAll WHERE lc_dn IN (SELECT t.d FROM ($inner) t)",
+            $params,
+        );
     }
 
     private function buildChildQuery(

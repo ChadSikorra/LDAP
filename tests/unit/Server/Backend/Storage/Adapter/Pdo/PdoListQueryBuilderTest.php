@@ -111,6 +111,167 @@ final class PdoListQueryBuilderTest extends TestCase
         );
     }
 
+    public function test_streaming_subtree_pushes_limit_and_scope_into_the_sidecar_subquery(): void
+    {
+        $query = (new PdoListQueryBuilder(new SqliteDialect()))->build(
+            'ou=people,dc=foo,dc=bar',
+            true,
+            $this->sidecarLeaf(),
+            500,
+            [],
+        );
+
+        self::assertStringContainsString(
+            'SELECT DISTINCT s.entry_lc_dn AS d',
+            $query->sql,
+        );
+        self::assertStringContainsString(
+            "AND (s.entry_lc_dn = ? OR s.entry_lc_dn LIKE ? ESCAPE '!')",
+            $query->sql,
+        );
+        self::assertStringContainsString(
+            'IN (SELECT t.d FROM (',
+            $query->sql,
+        );
+        self::assertStringContainsString(
+            'LIMIT 500',
+            $query->sql,
+        );
+        self::assertStringNotContainsString(
+            'ORDER BY',
+            $query->sql,
+        );
+        self::assertSame(
+            ['smith', 'ou=people,dc=foo,dc=bar', '%,ou=people,dc=foo,dc=bar'],
+            $query->params,
+        );
+    }
+
+    public function test_streaming_root_query_omits_the_subtree_scope(): void
+    {
+        $query = (new PdoListQueryBuilder(new SqliteDialect()))->build(
+            '',
+            true,
+            $this->sidecarLeaf(),
+            500,
+            [],
+        );
+
+        self::assertStringContainsString(
+            'IN (SELECT t.d FROM (',
+            $query->sql,
+        );
+        self::assertStringNotContainsString(
+            's.entry_lc_dn = ?',
+            $query->sql,
+        );
+        self::assertSame(
+            ['smith'],
+            $query->params,
+        );
+    }
+
+    public function test_mysql_produces_the_same_streaming_shape(): void
+    {
+        $query = (new PdoListQueryBuilder(new MysqlDialect()))->build(
+            'ou=people,dc=foo,dc=bar',
+            true,
+            $this->sidecarLeaf(),
+            500,
+            [],
+        );
+
+        self::assertStringContainsString(
+            'SELECT DISTINCT s.entry_lc_dn AS d',
+            $query->sql,
+        );
+        self::assertStringContainsString(
+            'IN (SELECT t.d FROM (',
+            $query->sql,
+        );
+    }
+
+    public function test_sort_keys_disable_the_streaming_fast_path(): void
+    {
+        $query = (new PdoListQueryBuilder(new SqliteDialect()))->build(
+            'ou=people,dc=foo,dc=bar',
+            true,
+            $this->sidecarLeaf(),
+            500,
+            [SortKey::ascending('cn')],
+        );
+
+        self::assertStringNotContainsString(
+            'SELECT t.d FROM (',
+            $query->sql,
+        );
+        self::assertStringContainsString(
+            'ORDER BY',
+            $query->sql,
+        );
+    }
+
+    public function test_null_limit_disables_the_streaming_fast_path(): void
+    {
+        $query = (new PdoListQueryBuilder(new SqliteDialect()))->build(
+            'ou=people,dc=foo,dc=bar',
+            true,
+            $this->sidecarLeaf(),
+            null,
+            [],
+        );
+
+        self::assertStringNotContainsString(
+            'SELECT t.d FROM (',
+            $query->sql,
+        );
+    }
+
+    public function test_absent_sidecar_condition_disables_the_streaming_fast_path(): void
+    {
+        $query = (new PdoListQueryBuilder(new SqliteDialect()))->build(
+            'ou=people,dc=foo,dc=bar',
+            true,
+            new SqlFilterResult('(a) AND (b)', ['x', 'y']),
+            500,
+            [],
+        );
+
+        self::assertStringNotContainsString(
+            'SELECT t.d FROM (',
+            $query->sql,
+        );
+        self::assertStringContainsString(
+            ' LIMIT 500',
+            $query->sql,
+        );
+    }
+
+    public function test_child_scope_disables_the_streaming_fast_path(): void
+    {
+        $query = (new PdoListQueryBuilder(new SqliteDialect()))->build(
+            'ou=people,dc=foo,dc=bar',
+            false,
+            $this->sidecarLeaf(),
+            500,
+            [],
+        );
+
+        self::assertStringNotContainsString(
+            'SELECT t.d FROM (',
+            $query->sql,
+        );
+    }
+
+    private function sidecarLeaf(): SqlFilterResult
+    {
+        return new SqlFilterResult(
+            "lc_dn IN (SELECT s.entry_lc_dn FROM entry_attribute_values s WHERE s.attr_name_lower = 'cn' AND s.value_lower = ?)",
+            ['smith'],
+            sidecarCondition: "s.attr_name_lower = 'cn' AND s.value_lower = ?",
+        );
+    }
+
     /**
      * @return array{0: string, 1: list<string>}
      */

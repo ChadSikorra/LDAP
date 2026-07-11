@@ -90,6 +90,20 @@ trait SqlFilterTranslatorTrait
      */
     abstract private function castToNumeric(string $expression): string;
 
+    /**
+     * A single leaf's sidecar sub-select WHERE body, mirroring what buildValueExists wraps, for the streaming fast path.
+     */
+    private function sidecarCondition(
+        string $attribute,
+        ?string $inner,
+    ): string {
+        $condition = "s.attr_name_lower = '$attribute'";
+
+        return $inner !== null
+            ? "$condition AND $inner"
+            : $condition;
+    }
+
     private function translatePresent(PresentFilter $filter): ?SqlFilterResult
     {
         $attribute = $this->validateAttribute($filter->getAttribute());
@@ -98,6 +112,10 @@ trait SqlFilterTranslatorTrait
             $this->buildPresenceCheck($attribute),
             [],
             isExact: !$this->attributeHasOption($filter->getAttribute()),
+            sidecarCondition: $this->sidecarCondition(
+                $attribute,
+                null,
+            ),
         );
     }
 
@@ -113,6 +131,10 @@ trait SqlFilterTranslatorTrait
             [$this->prepareMatchValue($value)],
             isExact: $this->isExactEquality($value) && !$this->attributeHasOption($filter->getAttribute()),
             referencedAttributes: [$attribute],
+            sidecarCondition: $this->sidecarCondition(
+                $attribute,
+                "$alias = ?",
+            ),
         );
     }
 
@@ -129,6 +151,10 @@ trait SqlFilterTranslatorTrait
             [$this->prepareMatchValue($value)],
             isExact: $this->isExactEquality($value) && !$this->attributeHasOption($filter->getAttribute()),
             referencedAttributes: [$attribute],
+            sidecarCondition: $this->sidecarCondition(
+                $attribute,
+                "$alias = ?",
+            ),
         );
     }
 
@@ -185,14 +211,21 @@ trait SqlFilterTranslatorTrait
                 [$this->prepareMatchValue($value)],
                 isExact: !$hasOption,
                 referencedAttributes: [$attribute],
+                sidecarCondition: $this->sidecarCondition($attribute, $condition),
             );
         }
 
+        $condition = $this->valueAlias() . " $operator ?";
+
         return new SqlFilterResult(
-            $this->buildValueExists($attribute, $this->valueAlias() . " $operator ?"),
+            $this->buildValueExists($attribute, $condition),
             [$this->prepareMatchValue($value)],
             isExact: $lexicalCanBeExact && $this->isExactOrdered($value) && !$hasOption,
             referencedAttributes: [$attribute],
+            sidecarCondition: $this->sidecarCondition(
+                $attribute,
+                $condition,
+            ),
         );
     }
 
@@ -223,14 +256,23 @@ trait SqlFilterTranslatorTrait
 
         if ($startsWith !== null) {
             $prefix = $this->prepareMatchValue($startsWith);
+            $inner = "$alias LIKE ? ESCAPE '!'";
             $sql = $this->buildValueExists(
                 $attribute,
-                "$alias LIKE ? ESCAPE '!'",
+                $inner,
             );
             $params = [SqlFilterUtility::escape($prefix) . '%'];
+            $sidecar = $this->sidecarCondition(
+                $attribute,
+                $inner,
+            );
         } else {
             $sql = $this->buildPresenceCheck($attribute);
             $params = [];
+            $sidecar = $this->sidecarCondition(
+                $attribute,
+                null,
+            );
         }
 
         $isExact = $this->isExactSubstring(
@@ -244,6 +286,7 @@ trait SqlFilterTranslatorTrait
             $params,
             isExact: $isExact,
             referencedAttributes: [$attribute],
+            sidecarCondition: $sidecar,
         );
     }
 

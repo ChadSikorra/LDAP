@@ -773,4 +773,77 @@ final class SqliteFilterTranslatorTest extends TestCase
             $result->params,
         );
     }
+
+    public function test_equality_exposes_a_sidecar_condition(): void
+    {
+        $result = $this->subject->translate(new EqualityFilter('cn', 'alice'));
+
+        self::assertNotNull($result);
+        self::assertSame(
+            "s.attr_name_lower = 'cn' AND s.value_lower = ?",
+            $result->sidecarCondition,
+        );
+    }
+
+    public function test_present_exposes_a_value_less_sidecar_condition(): void
+    {
+        $result = $this->subject->translate(new PresentFilter('cn'));
+
+        self::assertNotNull($result);
+        self::assertSame(
+            "s.attr_name_lower = 'cn'",
+            $result->sidecarCondition,
+        );
+    }
+
+    public function test_prefix_substring_exposes_a_sidecar_condition(): void
+    {
+        $result = $this->subject->translate((new SubstringFilter('cn'))->setStartsWith('al'));
+
+        self::assertNotNull($result);
+        self::assertSame(
+            "s.attr_name_lower = 'cn' AND s.value_lower LIKE ? ESCAPE '!'",
+            $result->sidecarCondition,
+        );
+    }
+
+    public function test_gte_exposes_a_sidecar_condition(): void
+    {
+        $result = $this->subject->translate(new GreaterThanOrEqualFilter('cn', 'a'));
+
+        self::assertNotNull($result);
+        self::assertSame(
+            "s.attr_name_lower = 'cn' AND s.value_lower >= ?",
+            $result->sidecarCondition,
+        );
+    }
+
+    public function test_composed_and_leaves_the_sidecar_condition_null(): void
+    {
+        $result = $this->subject->translate(new AndFilter(
+            new EqualityFilter('cn', 'alice'),
+            new EqualityFilter('sn', 'smith'),
+        ));
+
+        self::assertNotNull($result);
+        self::assertNull($result->sidecarCondition);
+    }
+
+    public function test_negation_leaves_the_sidecar_condition_null(): void
+    {
+        $result = $this->subject->translate(new NotFilter(new EqualityFilter('cn', 'alice')));
+
+        self::assertNotNull($result);
+        self::assertNull($result->sidecarCondition);
+    }
+
+    public function test_indexed_substring_leaves_the_sidecar_condition_null(): void
+    {
+        $translator = new SqliteFilterTranslator(new TrigramSubstringIndex(['cn']));
+
+        $result = $translator->translate((new SubstringFilter('cn'))->setContains('smith'));
+
+        self::assertNotNull($result);
+        self::assertNull($result->sidecarCondition);
+    }
 }
