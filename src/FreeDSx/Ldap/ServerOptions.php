@@ -24,6 +24,7 @@ use FreeDSx\Ldap\Schema\StandardSchemaProvider;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Sasl\External\ExternalCredentialMapperInterface;
+use FreeDSx\Ldap\Server\Backend\Auth\ManagerIdentity;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashScheme;
 use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\DefaultPasswordQualityChecker;
@@ -35,7 +36,8 @@ use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\AclRules;
-use FreeDSx\Ldap\Server\AccessControl\SimpleAccessControl;
+use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
+use FreeDSx\Ldap\Server\AccessControl\Subject\SubjectMatcherInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Configuration\ConfigReloaderInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
@@ -159,6 +161,10 @@ final class ServerOptions
 
     private ?PasswordAuthenticatableInterface $passwordAuthenticator = null;
 
+    private ?ManagerIdentity $manager = null;
+
+    private ?SubjectMatcherInterface $administrators = null;
+
     private ?BindNameResolverInterface $identityResolver = null;
 
     private ?ExternalCredentialMapperInterface $externalCredentialMapper = null;
@@ -187,6 +193,11 @@ final class ServerOptions
         Control::OID_RELAX_RULES,
         Control::OID_SYNC_REQUEST,
     ];
+
+    /**
+     * @var list<string>
+     */
+    private array $privilegedExtendedOps = [];
 
     private ?PasswordPolicy $passwordPolicy = null;
 
@@ -543,6 +554,36 @@ final class ServerOptions
         return $this;
     }
 
+    public function getManager(): ?ManagerIdentity
+    {
+        return $this->manager;
+    }
+
+    /**
+     * The config-resident manager super-user (break-glass): bypasses access control and password-policy lockout.
+     */
+    public function setManager(?ManagerIdentity $manager): self
+    {
+        $this->manager = $manager;
+
+        return $this;
+    }
+
+    public function getAdministrators(): ?SubjectMatcherInterface
+    {
+        return $this->administrators;
+    }
+
+    /**
+     * The directory-resident administrator subject (a DN or group) granted password-reset and privileged-op rights.
+     */
+    public function setAdministrators(?SubjectMatcherInterface $administrators): self
+    {
+        $this->administrators = $administrators;
+
+        return $this;
+    }
+
     public function getIdentityResolver(): ?BindNameResolverInterface
     {
         return $this->identityResolver;
@@ -644,7 +685,9 @@ final class ServerOptions
 
     public function getAccessControl(): AccessControlInterface
     {
-        return $this->accessControl ??= new SimpleAccessControl();
+        return $this->accessControl ??= new RuleBasedAccessControl(
+            AclRules::secureDefault($this->administrators),
+        );
     }
 
     public function setAccessControl(AccessControlInterface $accessControl): self
@@ -682,6 +725,26 @@ final class ServerOptions
     public function setPrivilegedControls(string ...$controlOids): self
     {
         $this->privilegedControls = array_values($controlOids);
+
+        return $this;
+    }
+
+    /**
+     * Extended operation OIDs that require an explicit ExtendedOperationRule grant (deny-by-default).
+     *
+     * @return list<string>
+     */
+    public function getPrivilegedExtendedOps(): array
+    {
+        return $this->privilegedExtendedOps;
+    }
+
+    /**
+     * @param list<string> $oids
+     */
+    public function setPrivilegedExtendedOps(array $oids): self
+    {
+        $this->privilegedExtendedOps = array_values($oids);
 
         return $this;
     }

@@ -36,6 +36,7 @@ use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyComponentFactory;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
+use FreeDSx\Ldap\Server\Backend\Auth\ManagerAwareAuthenticator;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordPolicyAwareAuthenticator;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Sasl\External\SubjectDnCredentialMapper;
@@ -122,6 +123,16 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
                 $backend,
                 $policyContext,
                 $eventLogger,
+            );
+        }
+
+        $manager = $this->options->getManager();
+        if ($manager !== null) {
+            // Outermost: the manager is recognized before the backend and password policy, so it is lockout-exempt.
+            $passwordAuthenticator = new ManagerAwareAuthenticator(
+                $passwordAuthenticator,
+                $manager,
+                $this->hashService,
             );
         }
 
@@ -256,6 +267,7 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
                         $this->routeResolver,
                         $this->options->getAccessControl(),
                         $this->options->getPrivilegedControls(),
+                        $this->options->getPrivilegedExtendedOps(),
                     ),
                     new AssertionMiddleware(new AssertionEvaluator(
                         $this->options->getFilterEvaluator(),

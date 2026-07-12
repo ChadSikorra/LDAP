@@ -19,6 +19,7 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Operation\Request\CompareRequest;
+use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyDnRequest;
 use FreeDSx\Ldap\Operation\Request\ModifyRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
@@ -46,11 +47,13 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
 {
     /**
      * @param list<string> $privilegedControls Control OIDs that require an explicit ControlRule grant before use.
+     * @param list<string> $privilegedExtendedOps Extended operation OIDs that require an explicit grant before use.
      */
     public function __construct(
         private HandlerRouteResolverInterface $routeResolver,
         private AccessControlInterface $accessControl,
         private array $privilegedControls = [Control::OID_RELAX_RULES],
+        private array $privilegedExtendedOps = [],
     ) {}
 
     /**
@@ -60,6 +63,8 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
         ServerRequestContext $context,
         MiddlewareHandlerInterface $next,
     ): OperationResult {
+        $this->authorizePrivilegedExtendedOperation($context);
+
         $routeId = $this->routeResolver->routeIdFor(
             $context->message->getRequest(),
             $context->message->controls(),
@@ -89,6 +94,27 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
         }
 
         return $next->handle($context);
+    }
+
+    /**
+     * @throws OperationException
+     */
+    private function authorizePrivilegedExtendedOperation(ServerRequestContext $context): void
+    {
+        $request = $context->message->getRequest();
+
+        if (!$request instanceof ExtendedRequest) {
+            return;
+        }
+
+        if (!in_array($request->getName(), $this->privilegedExtendedOps, true)) {
+            return;
+        }
+
+        $this->accessControl->authorizeExtendedOperation(
+            $context->tokenOrFail(),
+            $request->getName(),
+        );
     }
 
     /**

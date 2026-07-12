@@ -2,7 +2,9 @@ Access Control
 ================
 
 * [Overview](#overview)
-* [Default Behaviour: SimpleAccessControl](#default-behaviour-simpleaccesscontrol)
+* [Default Behaviour: Secure Default](#default-behaviour-secure-default)
+    * [Administrators](#administrators)
+    * [Manager (Break-Glass Super-User)](#manager-break-glass-super-user)
 * [Rule-Based Access Control](#rule-based-access-control)
     * [Rule Evaluation Order](#rule-evaluation-order)
     * [Default Effect](#default-effect)
@@ -10,30 +12,73 @@ Access Control
 * [Target Reference](#target-reference)
 * [Attribute Rules](#attribute-rules)
 * [Control Rules](#control-rules)
+* [Extended Operation Rules](#extended-operation-rules)
 * [Custom Access Control](#custom-access-control)
 
 ## Overview
 
-Access control operates at three levels:
+Access control operates at four levels:
 
 - **Operation level**: Checked before each operation executes. Denial sends `INSUFFICIENT_ACCESS_RIGHTS` to the
   client. Covers the following operations: Search, Add, Modify, Delete, ModifyDn, Compare, and PasswordModify.
 - **Attribute level**: Checked for each attribute involved in Compare, Add, and Modify operations. Also applied to
-  each Search result entry: disallowed attributes are stripped before the entry is sent; if the entry itself is
-  denied at operation level, it is suppressed entirely from results (not sent to the client).
-- **Control level**: Checked for *privileged* request controls (Relax Rules by default; configurable via
-  `ServerOptions::setPrivilegedControls()`). The control is inert unless an explicit grant permits the bound identity to
-  use it. See [Control Rules](#control-rules).
+  each Search result entry. Disallowed attributes are stripped before the entry is sent. If the entry itself is
+  denied at operation level, it is suppressed entirely from results.
+- **Control level**: Checked for privileged request controls (Relax Rules by default, configurable via
+  `ServerOptions::setPrivilegedControls()`). See [Control Rules](#control-rules).
+- **Extended operation level**: Checked for privileged extended operations, configurable via
+  `ServerOptions::setPrivilegedExtendedOps()`. See [Extended Operation Rules](#extended-operation-rules).
 
 Rules are bundled in an `AclRules` object configured via `ServerOptions::setAclRules()`. See
 [Configuration](Configuration.md).
 
 Bind, WhoAmI, and StartTLS are handled before access control and are always permitted.
 
-## Default Behaviour: SimpleAccessControl
+## Default Behaviour: Secure Default
 
-When no rules are configured, the server uses `SimpleAccessControl`: all operations are denied for anonymous clients
-and allowed for authenticated clients. No attribute filtering is applied.
+With no access control configured, the server applies a secure default (`AclRules::secureDefault()`). It configures:
+
+- Anonymous clients are denied.
+- Authenticated clients may perform general operations.
+- `userPassword` is limited to the entry owner and the administrator, and stripped from other users' search results.
+- Password Modify (RFC 3062) is limited to self and the administrator.
+- Privileged controls and extended operations are limited to the administrator.
+
+To apply the same credential protection to your own rules, use `AclRules::withCredentialProtection()`:
+
+```php
+(new AclRules())
+    ->withOperationRules(/* your rules */)
+    ->withCredentialProtection(Subject::group('cn=admins,ou=groups,dc=example,dc=com'));
+```
+
+### Administrators
+
+`setAdministrators()` designates a directory administrator that the secure default grants password-reset and
+privileged-operation rights. Point it at a DN or a group.
+
+```php
+$options->setAdministrators(Subject::dn('uid=admin,ou=people,dc=example,dc=com'));
+$options->setAdministrators(Subject::group('cn=admins,ou=groups,dc=example,dc=com'));
+```
+
+Group membership is read from the group entry in the directory. With no administrator set, only self-service password
+change works. Administrative resets then require a [manager](#manager-break-glass-super-user).
+
+### Manager (Break-Glass Super-User)
+
+`setManager()` configures an optional super-user that is not a directory entry. It is recognized at bind, bypasses
+access control, and is exempt from password-policy lockout. The password is stored hashed and rotated through config.
+
+```php
+$options->setManager(new ManagerIdentity(
+    new Dn('cn=manager'),
+    '{SSHA}...hashed password...',
+));
+```
+
+There is no default manager, and no name or password ships. Use it for recovery, not routine administration. On a
+read-only replica it bypasses access control for reads, but writes are still referred to the provider.
 
 ## Rule-Based Access Control
 

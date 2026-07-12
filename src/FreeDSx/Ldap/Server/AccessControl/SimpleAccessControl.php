@@ -67,6 +67,21 @@ final class SimpleAccessControl implements AccessControlInterface
     }
 
     /**
+     * Privileged extended operations require an explicit grant the simple policy cannot express, so deny.
+     *
+     * @throws OperationException
+     */
+    public function authorizeExtendedOperation(
+        TokenInterface $token,
+        string $oid,
+    ): void {
+        throw new OperationException(
+            'Access denied.',
+            ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+        );
+    }
+
+    /**
      * The simple policy cannot grant any control, so none is ever usable.
      */
     public function mayUseControl(

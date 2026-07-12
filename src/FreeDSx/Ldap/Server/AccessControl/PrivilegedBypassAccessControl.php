@@ -1,0 +1,125 @@
+<?php
+
+declare(strict_types=1);
+
+/**
+ * This file is part of the FreeDSx LDAP package.
+ *
+ * (c) Chad Sikorra <Chad.Sikorra@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace FreeDSx\Ldap\Server\AccessControl;
+
+use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Operation\OperationType;
+use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Token\PrivilegedTokenInterface;
+use FreeDSx\Ldap\Server\Token\TokenInterface;
+
+/**
+ * Wraps an access-control policy so a privileged (manager) token bypasses every check.
+ *
+ * @author Chad Sikorra <Chad.Sikorra@gmail.com>
+ */
+final readonly class PrivilegedBypassAccessControl implements AccessControlInterface, BackendAwareInterface
+{
+    public function __construct(private AccessControlInterface $inner) {}
+
+    public function setBackend(LdapBackendInterface $backend): void
+    {
+        if ($this->inner instanceof BackendAwareInterface) {
+            $this->inner->setBackend($backend);
+        }
+    }
+
+    public function authorizeOperation(
+        OperationType $operation,
+        TokenInterface $token,
+        Dn $dn,
+    ): void {
+        if ($token instanceof PrivilegedTokenInterface) {
+            return;
+        }
+
+        $this->inner->authorizeOperation(
+            $operation,
+            $token,
+            $dn,
+        );
+    }
+
+    public function authorizeAttribute(
+        TokenInterface $token,
+        Dn $dn,
+        string $attribute,
+    ): void {
+        if ($token instanceof PrivilegedTokenInterface) {
+            return;
+        }
+
+        $this->inner->authorizeAttribute(
+            $token,
+            $dn,
+            $attribute,
+        );
+    }
+
+    public function authorizeControl(
+        TokenInterface $token,
+        Dn $dn,
+        string $controlOid,
+    ): void {
+        if ($token instanceof PrivilegedTokenInterface) {
+            return;
+        }
+
+        $this->inner->authorizeControl(
+            $token,
+            $dn,
+            $controlOid,
+        );
+    }
+
+    public function authorizeExtendedOperation(
+        TokenInterface $token,
+        string $oid,
+    ): void {
+        if ($token instanceof PrivilegedTokenInterface) {
+            return;
+        }
+
+        $this->inner->authorizeExtendedOperation(
+            $token,
+            $oid,
+        );
+    }
+
+    public function mayUseControl(
+        TokenInterface $token,
+        string $controlOid,
+    ): bool {
+        return $token instanceof PrivilegedTokenInterface
+            || $this->inner->mayUseControl(
+                $token,
+                $controlOid,
+            );
+    }
+
+    public function filterEntry(
+        TokenInterface $token,
+        Entry $entry,
+    ): ?Entry {
+        if ($token instanceof PrivilegedTokenInterface) {
+            return $entry;
+        }
+
+        return $this->inner->filterEntry(
+            $token,
+            $entry,
+        );
+    }
+}
