@@ -44,7 +44,21 @@ With no access control configured, the server applies a secure default (`AclRule
 - Password Modify (RFC 3062) is limited to self and the administrator.
 - Privileged controls and extended operations are limited to the administrator.
 
-To apply the same credential protection to your own rules, use `AclRules::withCredentialProtection()`:
+To keep this protection and add your own rules, start from the secure default and compose on top with the `with*`
+methods. This is the recommended way to extend access control, for example to grant a privileged control:
+
+```php
+AclRules::secureDefault()
+    ->withControlRules(ControlRule::allow(
+        Subject::dn('cn=replica,dc=example,dc=com'),
+        Target::subtree('dc=example,dc=com'),
+        Control::OID_SYNC_REQUEST,
+    ));
+```
+
+Building from `new AclRules()` instead gives a blank policy with no credential protection, so a `userPassword` rule is
+then yours to add. Composing on `secureDefault()` is the safe default. To apply just the credential protection to a
+policy you build from scratch, use `AclRules::withCredentialProtection()`:
 
 ```php
 (new AclRules())

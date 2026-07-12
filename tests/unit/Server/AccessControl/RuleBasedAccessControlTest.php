@@ -55,7 +55,7 @@ final class RuleBasedAccessControlTest extends TestCase
     {
         $this->expectNotToPerformAssertions();
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [
                 OperationRule::allow(new AnySubjectMatcher()),
             ],
@@ -73,7 +73,7 @@ final class RuleBasedAccessControlTest extends TestCase
         $this->expectException(OperationException::class);
         $this->expectExceptionCode(ResultCode::INSUFFICIENT_ACCESS_RIGHTS);
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [
                 OperationRule::deny(new AnySubjectMatcher()),
             ],
@@ -91,7 +91,7 @@ final class RuleBasedAccessControlTest extends TestCase
         $this->expectException(OperationException::class);
         $this->expectExceptionCode(ResultCode::INSUFFICIENT_ACCESS_RIGHTS);
 
-        $subject = new RuleBasedAccessControl(new AclRules(defaultOperationEffect: Effect::Deny));
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(defaultOperationEffect: Effect::Deny));
 
         $subject->authorizeOperation(
             OperationType::Search,
@@ -104,7 +104,7 @@ final class RuleBasedAccessControlTest extends TestCase
     {
         $this->expectNotToPerformAssertions();
 
-        $subject = new RuleBasedAccessControl(new AclRules(defaultOperationEffect: Effect::Allow));
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(defaultOperationEffect: Effect::Allow));
 
         $subject->authorizeOperation(
             OperationType::Search,
@@ -117,7 +117,7 @@ final class RuleBasedAccessControlTest extends TestCase
     {
         $this->expectException(OperationException::class);
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [
                 OperationRule::allow(
                     new AnySubjectMatcher(),
@@ -139,7 +139,7 @@ final class RuleBasedAccessControlTest extends TestCase
     {
         $this->expectNotToPerformAssertions();
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [
                 OperationRule::allow(
                     new AnySubjectMatcher(),
@@ -160,7 +160,7 @@ final class RuleBasedAccessControlTest extends TestCase
     {
         $this->expectNotToPerformAssertions();
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [
                 OperationRule::allow(new AnySubjectMatcher()),
             ],
@@ -179,7 +179,7 @@ final class RuleBasedAccessControlTest extends TestCase
     {
         $this->expectException(OperationException::class);
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [
                 OperationRule::deny(new AnySubjectMatcher()),
                 OperationRule::allow(new AnySubjectMatcher()),
@@ -195,7 +195,7 @@ final class RuleBasedAccessControlTest extends TestCase
 
     public function test_may_use_control_is_true_when_an_allow_rule_matches_the_subject(): void
     {
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             controls: [
                 ControlRule::allow(
                     new AnySubjectMatcher(),
@@ -213,7 +213,7 @@ final class RuleBasedAccessControlTest extends TestCase
 
     public function test_may_use_control_is_false_when_no_rule_grants_the_control(): void
     {
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             controls: [
                 ControlRule::allow(
                     new AnySubjectMatcher(),
@@ -231,7 +231,7 @@ final class RuleBasedAccessControlTest extends TestCase
 
     public function test_may_use_control_is_false_for_an_unauthenticated_token(): void
     {
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             controls: [
                 ControlRule::allow(
                     new AnySubjectMatcher(),
@@ -251,7 +251,7 @@ final class RuleBasedAccessControlTest extends TestCase
     {
         $entry = Entry::create('dc=foo,dc=bar', ['cn' => 'foo']);
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [OperationRule::allow(new AnySubjectMatcher())],
         ));
 
@@ -270,7 +270,7 @@ final class RuleBasedAccessControlTest extends TestCase
             ['cn' => 'foo', 'userpassword' => 'secret'],
         );
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [OperationRule::allow(new AnySubjectMatcher())],
             attributes: [
                 AttributeRule::deny(
@@ -301,7 +301,7 @@ final class RuleBasedAccessControlTest extends TestCase
             ['userpassword' => 'secret'],
         );
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [OperationRule::allow(new AnySubjectMatcher())],
             attributes: [
                 AttributeRule::allow(
@@ -336,7 +336,7 @@ final class RuleBasedAccessControlTest extends TestCase
             ['cn' => 'foo'],
         );
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [OperationRule::allow(new AnySubjectMatcher())],
             attributes: [
                 AttributeRule::deny(
@@ -363,7 +363,7 @@ final class RuleBasedAccessControlTest extends TestCase
             ['cn' => 'foo'],
         );
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [OperationRule::allow(new AnySubjectMatcher())],
             attributes: [
                 AttributeRule::allow(
@@ -389,7 +389,7 @@ final class RuleBasedAccessControlTest extends TestCase
             ['cn' => 'foo', 'sn' => 'bar'],
         );
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [OperationRule::allow(new AnySubjectMatcher())],
             attributes: [
                 AttributeRule::deny(new AnySubjectMatcher()),
@@ -412,7 +412,7 @@ final class RuleBasedAccessControlTest extends TestCase
             ['cn' => 'foo'],
         );
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [
                 OperationRule::deny(
                     new AnySubjectMatcher(),
@@ -432,7 +432,7 @@ final class RuleBasedAccessControlTest extends TestCase
 
     public function test_entry_is_visible_when_search_is_allowed_without_stripping_attributes(): void
     {
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [OperationRule::allow(new AnySubjectMatcher())],
             attributes: [
                 AttributeRule::deny(
@@ -451,7 +451,7 @@ final class RuleBasedAccessControlTest extends TestCase
 
     public function test_entry_is_not_visible_when_search_is_denied_on_entry_dn(): void
     {
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [
                 OperationRule::deny(
                     new AnySubjectMatcher(),
@@ -471,7 +471,7 @@ final class RuleBasedAccessControlTest extends TestCase
     {
         $this->expectNotToPerformAssertions();
 
-        $subject = new RuleBasedAccessControl();
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty());
 
         $subject->authorizeAttribute(
             $this->bindToken,
@@ -486,7 +486,7 @@ final class RuleBasedAccessControlTest extends TestCase
         $this->expectException(OperationException::class);
         $this->expectExceptionCode(ResultCode::INSUFFICIENT_ACCESS_RIGHTS);
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             attributes: [
                 AttributeRule::deny(
                     new AnySubjectMatcher(),
@@ -509,7 +509,7 @@ final class RuleBasedAccessControlTest extends TestCase
         $this->expectException(OperationException::class);
         $this->expectExceptionCode(ResultCode::INSUFFICIENT_ACCESS_RIGHTS);
 
-        $subject = new RuleBasedAccessControl();
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty());
 
         $subject->authorizeControl(
             $this->bindToken,
@@ -522,7 +522,7 @@ final class RuleBasedAccessControlTest extends TestCase
     {
         $this->expectNotToPerformAssertions();
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             controls: [
                 ControlRule::allow(
                     new AnySubjectMatcher(),
@@ -544,7 +544,7 @@ final class RuleBasedAccessControlTest extends TestCase
         $this->expectException(OperationException::class);
         $this->expectExceptionCode(ResultCode::INSUFFICIENT_ACCESS_RIGHTS);
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             controls: [
                 ControlRule::allow(
                     new AnySubjectMatcher(),
@@ -566,7 +566,7 @@ final class RuleBasedAccessControlTest extends TestCase
         $this->expectException(OperationException::class);
         $this->expectExceptionCode(ResultCode::INSUFFICIENT_ACCESS_RIGHTS);
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             controls: [
                 ControlRule::deny(new AnySubjectMatcher()),
             ],
@@ -594,7 +594,7 @@ final class RuleBasedAccessControlTest extends TestCase
             ->method('setBackend')
             ->with($mockBackend);
 
-        $subject = new RuleBasedAccessControl(new AclRules(
+        $subject = new RuleBasedAccessControl(AclRules::fromEmpty(
             operations: [OperationRule::allow($mockBackendAwareSubject)],
         ));
 

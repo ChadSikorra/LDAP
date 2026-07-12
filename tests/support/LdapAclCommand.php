@@ -96,7 +96,7 @@ class LdapAclCommand extends Command
                 ->setSocketAcceptTimeout(0.1)
                 ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL))
                 ->setAclRules(
-                    (new AclRules())
+                    (AclRules::fromEmpty())
                         ->withOperationRules(
                             OperationRule::allow(
                                 Subject::group('cn=admins,dc=foo,dc=bar'),

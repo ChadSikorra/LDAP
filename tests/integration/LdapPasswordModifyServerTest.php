@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\PasswordModifyRequest;
 use FreeDSx\Ldap\Operation\Response\PasswordModifyResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
+use Tests\Support\FreeDSx\Ldap\LdapBackendStorageCommand;
 
 final class LdapPasswordModifyServerTest extends ServerTestCase
 {
@@ -34,7 +35,7 @@ final class LdapPasswordModifyServerTest extends ServerTestCase
             'tcp',
             [
                 '--storage=json',
-                '--permissive-acl',
+                '--manager',
             ],
         );
     }
@@ -66,18 +67,9 @@ final class LdapPasswordModifyServerTest extends ServerTestCase
             self::USER_DN,
             'newpass123',
         );
-
-        $entry = $verifyClient->read(
-            self::USER_DN,
-            ['userPassword'],
-        );
         $verifyClient->unbind();
 
-        $this->assertNotNull($entry);
-        $this->assertStringStartsWith(
-            '{BCRYPT}',
-            (string) $entry->get('userPassword')?->firstValue(),
-        );
+        $this->assertStoredPasswordIsHashed();
     }
 
     public function testServerGeneratedPassword(): void
@@ -110,18 +102,9 @@ final class LdapPasswordModifyServerTest extends ServerTestCase
             self::USER_DN,
             $generated,
         );
-
-        $entry = $verifyClient->read(
-            self::USER_DN,
-            ['userPassword'],
-        );
         $verifyClient->unbind();
 
-        $this->assertNotNull($entry);
-        $this->assertStringStartsWith(
-            '{BCRYPT}',
-            (string) $entry->get('userPassword')?->firstValue(),
-        );
+        $this->assertStoredPasswordIsHashed();
     }
 
     public function testExplicitIdentityPasswordChange(): void
@@ -140,18 +123,9 @@ final class LdapPasswordModifyServerTest extends ServerTestCase
             self::USER_DN,
             'resetpass',
         );
-
-        $entry = $verifyClient->read(
-            self::USER_DN,
-            ['userPassword'],
-        );
         $verifyClient->unbind();
 
-        $this->assertNotNull($entry);
-        $this->assertStringStartsWith(
-            '{BCRYPT}',
-            (string) $entry->get('userPassword')?->firstValue(),
-        );
+        $this->assertStoredPasswordIsHashed();
     }
 
     public function testWrongOldPasswordReturnsInvalidCredentials(): void
@@ -166,6 +140,27 @@ final class LdapPasswordModifyServerTest extends ServerTestCase
 
         $this->ldapClient()->sendAndReceive(
             new PasswordModifyRequest(null, 'wrongpassword', 'newpass'),
+        );
+    }
+
+    private function assertStoredPasswordIsHashed(): void
+    {
+        $manager = $this->buildClient('tcp');
+        $manager->bind(
+            LdapBackendStorageCommand::MANAGER_DN,
+            LdapBackendStorageCommand::MANAGER_PASSWORD,
+        );
+
+        $entry = $manager->read(
+            self::USER_DN,
+            ['userPassword'],
+        );
+        $manager->unbind();
+
+        $this->assertNotNull($entry);
+        $this->assertStringStartsWith(
+            '{BCRYPT}',
+            (string) $entry->get('userPassword')?->firstValue(),
         );
     }
 }

@@ -41,7 +41,7 @@ final readonly class AclRules
      * @param Effect $defaultControlEffect Applied when no control rule matches (controls are gated, so Deny).
      * @param Effect $defaultExtendedOpEffect Applied when no extended-operation rule matches (gated, so Deny).
      */
-    public function __construct(
+    private function __construct(
         public array $operations = [],
         public array $attributes = [],
         public array $controls = [],
@@ -50,6 +50,36 @@ final readonly class AclRules
         public Effect $defaultControlEffect = Effect::Deny,
         public Effect $defaultExtendedOpEffect = Effect::Deny,
     ) {}
+
+    /**
+     * A blank ruleset (deny-by-default) to build up with the with* methods.
+     *
+     * Unlike secureDefault() it adds no credential protection, so any userPassword rule is yours to add.
+     *
+     * @param OperationRule[] $operations
+     * @param AttributeRule[] $attributes
+     * @param ControlRule[] $controls
+     * @param ExtendedOperationRule[] $extendedOps
+     */
+    public static function fromEmpty(
+        array $operations = [],
+        array $attributes = [],
+        array $controls = [],
+        array $extendedOps = [],
+        Effect $defaultOperationEffect = Effect::Deny,
+        Effect $defaultControlEffect = Effect::Deny,
+        Effect $defaultExtendedOpEffect = Effect::Deny,
+    ): self {
+        return new self(
+            $operations,
+            $attributes,
+            $controls,
+            $extendedOps,
+            $defaultOperationEffect,
+            $defaultControlEffect,
+            $defaultExtendedOpEffect,
+        );
+    }
 
     public function withOperationRules(OperationRule ...$operations): self
     {
@@ -223,13 +253,5 @@ final readonly class AclRules
             defaultControlEffect: $this->defaultControlEffect,
             defaultExtendedOpEffect: $this->defaultExtendedOpEffect,
         );
-    }
-
-    public function isEmpty(): bool
-    {
-        return $this->operations === []
-            && $this->attributes === []
-            && $this->controls === []
-            && $this->extendedOps === [];
     }
 }
