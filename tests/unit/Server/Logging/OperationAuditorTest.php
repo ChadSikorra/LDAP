@@ -263,6 +263,36 @@ final class OperationAuditorTest extends TestCase
         );
     }
 
+    public function test_record_compare_failure_is_a_read_denial_carrying_the_attribute(): void
+    {
+        $request = new CompareRequest(
+            self::TARGET_DN,
+            new EqualityFilter('userPassword', 'secret'),
+        );
+
+        $this->subject->recordCompareFailure(
+            self::wrap($request),
+            new OperationException(
+                'Denied',
+                ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+            ),
+            $this->token,
+        );
+
+        $record = $this->onlyRecord();
+        self::assertSame(
+            'authz.denied.read',
+            $record['message'],
+        );
+        self::assertSame(
+            [
+                EventContext::DN => self::TARGET_DN,
+                EventContext::ATTRIBUTE => 'userPassword',
+            ],
+            $record['context'][EventContext::TARGET],
+        );
+    }
+
     public function test_record_password_modify_success_carries_target(): void
     {
         $this->subject->recordPasswordModifySuccess(
