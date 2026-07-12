@@ -166,6 +166,24 @@ final class SimpleAccessControlTest extends TestCase
         );
     }
 
+    public function test_entry_is_visible_for_an_authenticated_identity(): void
+    {
+        self::assertTrue($this->subject->isEntryVisible(
+            BindToken::fromDn(
+                'cn=admin,dc=foo,dc=bar',
+            ),
+            Entry::create('dc=foo,dc=bar', ['cn' => 'foo']),
+        ));
+    }
+
+    public function test_entry_is_not_visible_for_anonymous(): void
+    {
+        self::assertFalse($this->subject->isEntryVisible(
+            new AnonToken(),
+            Entry::create('dc=foo,dc=bar', ['cn' => 'foo']),
+        ));
+    }
+
     public function test_authorize_attribute_access_is_a_no_op(): void
     {
         $this->expectNotToPerformAssertions();

@@ -30,7 +30,9 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Ldap\Server\Utility\Uuid;
 
 /**
- * Turns a live entry or a journal change into an RFC 4533 sync result, applying read-side ACL and filter matching.
+ * Turns a live entry or a journal change into an RFC 4533 sync result, gating on entry-level visibility and the filter.
+ *
+ * A replica must be a faithful copy, so a visible entry is shipped whole; that is why the control itself is privileged.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -49,16 +51,11 @@ final readonly class SyncResultProjector
         Entry $entry,
         TokenInterface $token,
     ): ?SyncResult {
-        $visible = $this->accessControl->filterEntry(
-            $token,
-            $entry,
-        );
-
-        if ($visible === null) {
+        if (!$this->accessControl->isEntryVisible($token, $entry)) {
             return null;
         }
 
-        return $this->addResult($visible);
+        return $this->addResult($entry);
     }
 
     /**
@@ -69,20 +66,15 @@ final readonly class SyncResultProjector
         SearchRequest $request,
         TokenInterface $token,
     ): ?SyncResult {
-        $visible = $this->accessControl->filterEntry(
-            $token,
-            $entry,
-        );
-
-        if ($visible === null) {
+        if (!$this->accessControl->isEntryVisible($token, $entry)) {
             return null;
         }
 
-        if (!$this->filterEvaluator->evaluate($visible, $request->getFilter())) {
+        if (!$this->filterEvaluator->evaluate($entry, $request->getFilter())) {
             return null;
         }
 
-        return $this->addResult($visible);
+        return $this->addResult($entry);
     }
 
     /**
@@ -151,13 +143,8 @@ final readonly class SyncResultProjector
             return false;
         }
 
-        $visible = $this->accessControl->filterEntry(
-            $token,
-            $preImage,
-        );
-
-        return $visible !== null
-            && $this->filterEvaluator->evaluate($visible, $request->getFilter());
+        return $this->accessControl->isEntryVisible($token, $preImage)
+            && $this->filterEvaluator->evaluate($preImage, $request->getFilter());
     }
 
     /**

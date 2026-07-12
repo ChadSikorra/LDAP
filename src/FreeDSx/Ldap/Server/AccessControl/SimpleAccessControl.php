@@ -99,4 +99,14 @@ final class SimpleAccessControl implements AccessControlInterface
     ): Entry {
         return $entry;
     }
+
+    /**
+     * Anonymous is denied everywhere. Any authenticated identity sees every entry (this policy strips nothing).
+     */
+    public function isEntryVisible(
+        TokenInterface $token,
+        Entry $entry,
+    ): bool {
+        return !$token instanceof AnonToken;
+    }
 }

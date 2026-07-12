@@ -92,6 +92,11 @@ synced, is your normal configuration. See [Access Control](Access-Control.md).
 
 If you need to change which controls require an explicit grant, use `ServerOptions::setPrivilegedControls(...)`.
 
+A sync consumer receives full entries, including attributes that are hidden from ordinary searches such as
+`userPassword`, because a replica has to be a faithful copy. The sync control is the privileged gate that decides this,
+so grant it only to identities you trust with the whole directory. Attribute read rules like the secure default's
+`userPassword` restriction still apply to normal searches by that identity; they do not trim what replication sends.
+
 ## Poll vs Listen
 
 The consumer chooses how it reads; the provider supports both:

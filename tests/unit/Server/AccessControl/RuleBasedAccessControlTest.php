@@ -430,6 +430,43 @@ final class RuleBasedAccessControlTest extends TestCase
         self::assertNull($result);
     }
 
+    public function test_entry_is_visible_when_search_is_allowed_without_stripping_attributes(): void
+    {
+        $subject = new RuleBasedAccessControl(new AclRules(
+            operations: [OperationRule::allow(new AnySubjectMatcher())],
+            attributes: [
+                AttributeRule::deny(
+                    new AnySubjectMatcher(),
+                    new AnyTargetMatcher(),
+                    'userPassword',
+                )->forRead(),
+            ],
+        ));
+
+        self::assertTrue($subject->isEntryVisible(
+            $this->bindToken,
+            Entry::create('dc=foo,dc=bar', ['cn' => 'foo']),
+        ));
+    }
+
+    public function test_entry_is_not_visible_when_search_is_denied_on_entry_dn(): void
+    {
+        $subject = new RuleBasedAccessControl(new AclRules(
+            operations: [
+                OperationRule::deny(
+                    new AnySubjectMatcher(),
+                    new AnyTargetMatcher(),
+                    OperationType::Search,
+                ),
+            ],
+        ));
+
+        self::assertFalse($subject->isEntryVisible(
+            $this->bindToken,
+            Entry::create('dc=foo,dc=bar', ['cn' => 'foo']),
+        ));
+    }
+
     public function test_authorize_attribute_access_does_not_throw_when_no_deny_rule_matches(): void
     {
         $this->expectNotToPerformAssertions();
