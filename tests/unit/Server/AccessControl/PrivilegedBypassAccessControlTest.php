@@ -18,6 +18,7 @@ use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\PrivilegedBypassAccessControl;
+use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeAccess;
 use FreeDSx\Ldap\Server\Token\BindToken;
 use FreeDSx\Ldap\Server\Token\ManagerToken;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -66,6 +67,7 @@ final class PrivilegedBypassAccessControlTest extends TestCase
             $this->manager,
             $dn,
             'userPassword',
+            AttributeAccess::Write,
         );
         $this->subject->authorizeControl(
             $this->manager,

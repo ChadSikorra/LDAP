@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\AccessControl\AclRules;
 use FreeDSx\Ldap\Operation\OperationType;
+use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeAccess;
 use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeRule;
 use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
 use FreeDSx\Ldap\Server\AccessControl\Rule\Effect;
@@ -439,6 +440,7 @@ final class RuleBasedAccessControlTest extends TestCase
             $this->bindToken,
             $this->dn,
             'userPassword',
+            AttributeAccess::Write,
         );
     }
 
@@ -461,6 +463,7 @@ final class RuleBasedAccessControlTest extends TestCase
             $this->bindToken,
             $this->dn,
             'userPassword',
+            AttributeAccess::Write,
         );
     }
 

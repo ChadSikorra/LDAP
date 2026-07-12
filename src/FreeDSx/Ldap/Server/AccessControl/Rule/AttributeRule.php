@@ -18,7 +18,7 @@ use FreeDSx\Ldap\Server\AccessControl\Target\AnyTargetMatcher;
 use FreeDSx\Ldap\Server\AccessControl\Target\TargetMatcherInterface;
 
 /**
- * An ordered access control rule evaluated by filterEntry() per attribute.
+ * An ordered access control rule gating an attribute's read (search filtering, Compare) and write (Add, Modify) access.
  *
  * An empty $attributes list matches all attributes. Attribute names are stored lowercase.
  *
@@ -36,6 +36,7 @@ final readonly class AttributeRule
         public SubjectMatcherInterface $subject,
         public TargetMatcherInterface $target,
         public array $attributes,
+        public AttributeAccess $access = AttributeAccess::Both,
     ) {}
 
     public static function allow(
@@ -61,6 +62,33 @@ final readonly class AttributeRule
             $subject,
             $target,
             array_map('strtolower', $attributes),
+        );
+    }
+
+    /**
+     * Narrow this rule to read access (search result filtering and Compare).
+     */
+    public function forRead(): self
+    {
+        return $this->withAccess(AttributeAccess::Read);
+    }
+
+    /**
+     * Narrow this rule to write access (Add and Modify).
+     */
+    public function forWrite(): self
+    {
+        return $this->withAccess(AttributeAccess::Write);
+    }
+
+    private function withAccess(AttributeAccess $access): self
+    {
+        return new self(
+            $this->effect,
+            $this->subject,
+            $this->target,
+            $this->attributes,
+            $access,
         );
     }
 }

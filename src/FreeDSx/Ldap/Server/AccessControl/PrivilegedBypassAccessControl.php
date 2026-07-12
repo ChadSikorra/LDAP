@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Server\AccessControl;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Operation\OperationType;
+use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeAccess;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Token\PrivilegedTokenInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
@@ -56,6 +57,7 @@ final readonly class PrivilegedBypassAccessControl implements AccessControlInter
         TokenInterface $token,
         Dn $dn,
         string $attribute,
+        AttributeAccess $access,
     ): void {
         if ($token instanceof PrivilegedTokenInterface) {
             return;
@@ -65,6 +67,7 @@ final readonly class PrivilegedBypassAccessControl implements AccessControlInter
             $token,
             $dn,
             $attribute,
+            $access,
         );
     }
 

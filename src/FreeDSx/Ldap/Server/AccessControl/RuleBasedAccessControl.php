@@ -18,6 +18,7 @@ use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeAccess;
 use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
 use FreeDSx\Ldap\Server\AccessControl\Rule\Effect;
 use FreeDSx\Ldap\Server\AccessControl\Rule\ExtendedOperationRule;
@@ -71,11 +72,13 @@ final readonly class RuleBasedAccessControl implements AccessControlInterface, B
         TokenInterface $token,
         Dn $dn,
         string $attribute,
+        AttributeAccess $access,
     ): void {
         $effect = $this->resolveAttributeEffect(
             $token,
             $dn,
             strtolower($attribute),
+            $access,
         );
 
         if ($effect === Effect::Deny) {
@@ -155,6 +158,7 @@ final readonly class RuleBasedAccessControl implements AccessControlInterface, B
                 $token,
                 $dn,
                 strtolower($attribute->getName()),
+                AttributeAccess::Read,
             );
 
             if ($effect !== Effect::Deny) {
@@ -292,8 +296,13 @@ final readonly class RuleBasedAccessControl implements AccessControlInterface, B
         TokenInterface $token,
         Dn $dn,
         string $attrName,
+        AttributeAccess $access,
     ): ?Effect {
         foreach ($this->rules->attributes as $rule) {
+            if (!$rule->access->includes($access)) {
+                continue;
+            }
+
             if (!$rule->target->matches($dn)) {
                 continue;
             }

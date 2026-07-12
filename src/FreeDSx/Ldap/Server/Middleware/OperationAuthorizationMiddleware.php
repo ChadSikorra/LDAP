@@ -29,6 +29,7 @@ use FreeDSx\Ldap\Protocol\Factory\HandlerRouteResolverInterface;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerMonitorHandler;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
+use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeAccess;
 use FreeDSx\Ldap\Server\AccessControl\OperationTargetDn;
 use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
@@ -188,6 +189,7 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
                 $token,
                 $request->getDn(),
                 $request->getFilter()->getAttribute(),
+                AttributeAccess::Read,
             );
 
             return;
@@ -275,6 +277,7 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
                     $token,
                     $dn,
                     $attribute->getName(),
+                    AttributeAccess::Write,
                 );
             }
 
@@ -288,6 +291,7 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
                     $token,
                     $dn,
                     $change->getAttribute()->getName(),
+                    AttributeAccess::Write,
                 );
             }
         }

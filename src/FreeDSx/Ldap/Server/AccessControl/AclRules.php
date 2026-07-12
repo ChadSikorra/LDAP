@@ -157,7 +157,7 @@ final readonly class AclRules
     /**
      * Prepend the credential-protection rules to this rule set so they take precedence (first match wins):
      *
-     * - userPassword is readable and writable by self and the administrator, denied to everyone else.
+     * - userPassword is writable by self and the administrator, and readable by no one.
      * - PasswordModify is permitted for self and the administrator, denied to everyone else.
      * - Privileged controls are allowed to the administrator (otherwise the default deny applies).
      * - Privileged extended operations are allowed to the administrator (otherwise the default deny applies).
@@ -178,7 +178,7 @@ final readonly class AclRules
                 Subject::self(),
                 $anyTarget,
                 'userPassword',
-            ),
+            )->forWrite(),
         ];
         $controls = [];
         $extendedOps = [];
@@ -193,7 +193,7 @@ final readonly class AclRules
                 $administrators,
                 $anyTarget,
                 'userPassword',
-            );
+            )->forWrite();
             $controls[] = ControlRule::allow($administrators);
             $extendedOps[] = ExtendedOperationRule::allow($administrators);
         }
@@ -207,7 +207,12 @@ final readonly class AclRules
             Subject::anyone(),
             $anyTarget,
             'userPassword',
-        );
+        )->forWrite();
+        $userPassword[] = AttributeRule::deny(
+            Subject::anyone(),
+            $anyTarget,
+            'userPassword',
+        )->forRead();
 
         return new self(
             operations: [...$passwordModify, ...$this->operations],

@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\OperationType;
+use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeAccess;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
@@ -38,7 +39,7 @@ interface AccessControlInterface
     ): void;
 
     /**
-     * Assert that $token may access $attribute on $dn (gates Compare, Add, and Modify operations).
+     * Assert that $token may access $attribute on $dn for the given direction (Add and Modify are writes, Compare reads).
      *
      * @throws OperationException with ResultCode::INSUFFICIENT_ACCESS_RIGHTS on denial
      */
@@ -46,6 +47,7 @@ interface AccessControlInterface
         TokenInterface $token,
         Dn $dn,
         string $attribute,
+        AttributeAccess $access,
     ): void;
 
     /**

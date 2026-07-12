@@ -18,6 +18,7 @@ use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeAccess;
 use FreeDSx\Ldap\Server\Token\AnonToken;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
@@ -48,6 +49,7 @@ final class SimpleAccessControl implements AccessControlInterface
         TokenInterface $token,
         Dn $dn,
         string $attribute,
+        AttributeAccess $access,
     ): void {}
 
     /**

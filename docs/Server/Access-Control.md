@@ -40,7 +40,7 @@ With no access control configured, the server applies a secure default (`AclRule
 
 - Anonymous clients are denied.
 - Authenticated clients may perform general operations.
-- `userPassword` is limited to the entry owner and the administrator, and stripped from other users' search results.
+- `userPassword` can be changed only by the entry owner and the administrator, and is never returned in search results.
 - Password Modify (RFC 3062) is limited to self and the administrator.
 - Privileged controls and extended operations are limited to the administrator.
 
@@ -274,6 +274,23 @@ use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
 
 A client attaches the control with `Controls::relaxRules()`, e.g. `$client->create($entry, Controls::relaxRules())`.
 
+## Extended Operation Rules
+
+Privileged extended operations are gated per identity with `ExtendedOperationRule`s, keyed on the request OID (empty OID
+list matches all). They are denied by default. The set of gated OIDs is configured with
+`ServerOptions::setPrivilegedExtendedOps()`.
+
+```php
+use FreeDSx\Ldap\Server\AccessControl\Rule\ExtendedOperationRule;
+
+(new AclRules())->withExtendedOperationRules(
+    ExtendedOperationRule::allow(
+        Subject::group('cn=admins,ou=groups,dc=example,dc=com'),
+        '1.3.6.1.4.1....',
+    ),
+);
+```
+
 ## Custom Access Control
 
 For cases where the built-in rule system is insufficient, implement `AccessControlInterface` and pass it via
@@ -284,8 +301,9 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
-use FreeDSx\Ldap\Server\AccessControl\OperationType;
+use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeAccess;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 class MyAccessControl implements AccessControlInterface
@@ -307,6 +325,7 @@ class MyAccessControl implements AccessControlInterface
         TokenInterface $token,
         Dn $dn,
         string $attribute,
+        AttributeAccess $access,
     ): void {
         // Throw OperationException to deny access to the attribute.
     }
@@ -317,6 +336,13 @@ class MyAccessControl implements AccessControlInterface
         string $controlOid,
     ): void {
         // Throw OperationException to deny use of a privileged control.
+    }
+
+    public function authorizeExtendedOperation(
+        TokenInterface $token,
+        string $oid,
+    ): void {
+        // Throw OperationException to deny use of a privileged extended operation.
     }
 
     /**
