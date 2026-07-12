@@ -119,12 +119,12 @@ final class ServerSyncHandlerTest extends TestCase
         $this->journal = new InMemoryChangeJournal(new ReplicaId(self::ORIGIN));
 
         $this->accessControl
-            ->method('filterEntry')
-            ->willReturnCallback(fn(TokenInterface $token, Entry $entry): ?Entry => in_array(
+            ->method('isEntryVisible')
+            ->willReturnCallback(fn(TokenInterface $token, Entry $entry): bool => !in_array(
                 $entry->getDn()->toString(),
                 $this->hiddenDns,
                 true,
-            ) ? null : $entry);
+            ));
         $this->filterEvaluator
             ->method('evaluate')
             ->willReturnCallback(fn(): bool => $this->filterMatches);

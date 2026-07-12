@@ -90,6 +90,9 @@ final class PrivilegedBypassAccessControlTest extends TestCase
         $this->inner
             ->expects(self::never())
             ->method('filterEntry');
+        $this->inner
+            ->expects(self::never())
+            ->method('isEntryVisible');
 
         $entry = new Entry(new Dn('cn=other,dc=foo,dc=bar'));
 
@@ -104,6 +107,10 @@ final class PrivilegedBypassAccessControlTest extends TestCase
                 $entry,
             ),
         );
+        self::assertTrue($this->subject->isEntryVisible(
+            $this->manager,
+            $entry,
+        ));
     }
 
     public function test_non_privileged_token_delegates_to_the_inner_policy(): void
@@ -120,5 +127,24 @@ final class PrivilegedBypassAccessControlTest extends TestCase
             $this->user,
             '1.2.3.4',
         );
+    }
+
+    public function test_non_privileged_entry_visibility_delegates_to_the_inner_policy(): void
+    {
+        $entry = new Entry(new Dn('cn=other,dc=foo,dc=bar'));
+
+        $this->inner
+            ->expects(self::once())
+            ->method('isEntryVisible')
+            ->with(
+                $this->user,
+                $entry,
+            )
+            ->willReturn(false);
+
+        self::assertFalse($this->subject->isEntryVisible(
+            $this->user,
+            $entry,
+        ));
     }
 }

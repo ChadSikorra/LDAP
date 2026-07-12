@@ -108,8 +108,8 @@ final class SyncPersistStreamerTest extends TestCase
 
         $accessControl = $this->createMock(AccessControlInterface::class);
         $accessControl
-            ->method('filterEntry')
-            ->willReturnArgument(1);
+            ->method('isEntryVisible')
+            ->willReturn(true);
         $filterEvaluator = $this->createMock(FilterEvaluatorInterface::class);
         $filterEvaluator
             ->method('evaluate')

@@ -292,13 +292,13 @@ final class LdapServerCommand extends Command
 
         if ($input->getOption('allow-sync') === true) {
             $options->setAclRules(
-                (new AclRules())
-                    ->withOperationRules(OperationRule::allow(Subject::authenticated()))
-                    ->withControlRules(ControlRule::allow(
-                        Subject::authenticated(),
+                AclRules::secureDefault()->withControlRules(
+                    ControlRule::allow(
+                        Subject::dn('cn=user,dc=foo,dc=bar'),
                         Target::subtree('dc=foo,dc=bar'),
                         Control::OID_SYNC_REQUEST,
-                    )),
+                    ),
+                ),
             );
         }
 

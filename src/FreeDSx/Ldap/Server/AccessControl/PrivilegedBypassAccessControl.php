@@ -125,4 +125,18 @@ final readonly class PrivilegedBypassAccessControl implements AccessControlInter
             $entry,
         );
     }
+
+    public function isEntryVisible(
+        TokenInterface $token,
+        Entry $entry,
+    ): bool {
+        if ($token instanceof PrivilegedTokenInterface) {
+            return true;
+        }
+
+        return $this->inner->isEntryVisible(
+            $token,
+            $entry,
+        );
+    }
 }

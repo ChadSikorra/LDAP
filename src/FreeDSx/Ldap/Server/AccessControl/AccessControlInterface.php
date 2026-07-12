@@ -88,4 +88,12 @@ interface AccessControlInterface
         TokenInterface $token,
         Entry $entry,
     ): ?Entry;
+
+    /**
+     * Whether $token may see $entry at all, without stripping any attributes (the entry-level gate replication uses).
+     */
+    public function isEntryVisible(
+        TokenInterface $token,
+        Entry $entry,
+    ): bool;
 }

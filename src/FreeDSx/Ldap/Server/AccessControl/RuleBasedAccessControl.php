@@ -142,7 +142,7 @@ final readonly class RuleBasedAccessControl implements AccessControlInterface, B
     ): ?Entry {
         $dn = $entry->getDn();
 
-        if (!$this->isAllowed(OperationType::Search, $token, $dn)) {
+        if (!$this->isEntryVisible($token, $entry)) {
             return null;
         }
 
@@ -173,6 +173,17 @@ final readonly class RuleBasedAccessControl implements AccessControlInterface, B
         return Entry::raw(
             $dn,
             $kept,
+        );
+    }
+
+    public function isEntryVisible(
+        TokenInterface $token,
+        Entry $entry,
+    ): bool {
+        return $this->isAllowed(
+            OperationType::Search,
+            $token,
+            $entry->getDn(),
         );
     }
 

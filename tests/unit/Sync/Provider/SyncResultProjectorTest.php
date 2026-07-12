@@ -56,8 +56,8 @@ final class SyncResultProjectorTest extends TestCase
         $this->token = $this->createMock(TokenInterface::class);
 
         $this->accessControl
-            ->method('filterEntry')
-            ->willReturnCallback(fn(TokenInterface $token, Entry $entry): ?Entry => $this->hidden ? null : $entry);
+            ->method('isEntryVisible')
+            ->willReturnCallback(fn(TokenInterface $token, Entry $entry): bool => !$this->hidden);
         $this->filterEvaluator
             ->method('evaluate')
             ->willReturnCallback(fn(): bool => $this->filterMatches);
@@ -83,6 +83,29 @@ final class SyncResultProjectorTest extends TestCase
         self::assertSame(
             self::UUID,
             $result->control->decodedUuid(),
+        );
+    }
+
+    public function test_a_visible_entry_is_shipped_whole_including_sensitive_attributes(): void
+    {
+        $entry = Entry::create(
+            'cn=a,dc=example,dc=com',
+            [
+                'cn' => 'x',
+                'userPassword' => '{BCRYPT}$2y$10$abcdefghijklmnopqrstuv',
+                'entryUUID' => self::UUID,
+            ],
+        );
+
+        $result = $this->subject->projectSearched(
+            $entry,
+            $this->token,
+        );
+
+        self::assertNotNull($result);
+        self::assertSame(
+            '{BCRYPT}$2y$10$abcdefghijklmnopqrstuv',
+            $result->entry->getEntry()->get('userPassword')?->firstValue(),
         );
     }
 
