@@ -138,6 +138,36 @@ final readonly class OperationAuditor
         );
     }
 
+    public function recordCompareFailure(
+        LdapMessageRequest $message,
+        OperationException $exception,
+        TokenInterface $token,
+    ): void {
+        $event = ServerEvent::fromOperationException(
+            $exception,
+            ServerEvent::AuthorizationDeniedRead,
+        );
+
+        $request = $message->getRequest();
+
+        if ($event === null || !$request instanceof CompareRequest) {
+            return;
+        }
+
+        $this->eventLogger->recordFailure(
+            $event,
+            $exception,
+            [
+                EventContext::TARGET => [
+                    EventContext::DN => $request->getDn()->toString(),
+                    EventContext::ATTRIBUTE => $request->getFilter()->getAttribute(),
+                ],
+            ],
+            subject: $token,
+            message: $message,
+        );
+    }
+
     public function recordPasswordModifySuccess(
         LdapMessageRequest $message,
         Dn $targetDn,

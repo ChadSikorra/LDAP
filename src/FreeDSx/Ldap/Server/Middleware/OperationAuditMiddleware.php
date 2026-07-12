@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Server\Middleware;
 
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\SchemaRuleException;
+use FreeDSx\Ldap\Operation\Request\CompareRequest;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Server\Logging\OperationAuditor;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
@@ -75,6 +76,16 @@ final readonly class OperationAuditMiddleware implements MiddlewareInterface
 
         if ($context->message->getRequest() instanceof SearchRequest) {
             $this->auditor->recordSearchFailure(
+                $context->message,
+                $e,
+                $context->tokenOrFail(),
+            );
+
+            return;
+        }
+
+        if ($context->message->getRequest() instanceof CompareRequest) {
+            $this->auditor->recordCompareFailure(
                 $context->message,
                 $e,
                 $context->tokenOrFail(),
