@@ -94,6 +94,12 @@ final class LdapBackendStorageCommand extends Command
                 'Grant cn=user the Proxied Authorization control for identities under ou=people',
             )
             ->addOption(
+                'permissive-acl',
+                null,
+                InputOption::VALUE_NONE,
+                'Use a permissive ACL (allow all authenticated) instead of the secure default',
+            )
+            ->addOption(
                 'monitor',
                 null,
                 InputOption::VALUE_NONE,
@@ -229,6 +235,14 @@ final class LdapBackendStorageCommand extends Command
                         Target::subtree('ou=people,dc=foo,dc=bar'),
                         Control::OID_PROXY_AUTHORIZATION,
                     )),
+            );
+        }
+
+        if ($input->getOption('permissive-acl')) {
+            $serverOptions->setAclRules(
+                (new AclRules())->withOperationRules(
+                    OperationRule::allow(Subject::authenticated()),
+                ),
             );
         }
 
