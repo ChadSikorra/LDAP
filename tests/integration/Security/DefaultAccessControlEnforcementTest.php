@@ -19,6 +19,7 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\AclRules;
 use FreeDSx\Ldap\Server\AccessControl\PrivilegedBypassAccessControl;
+use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeAccess;
 use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
 use FreeDSx\Ldap\Server\Backend\Auth\ManagerAwareAuthenticator;
 use FreeDSx\Ldap\Server\Backend\Auth\ManagerIdentity;
@@ -113,6 +114,7 @@ final class DefaultAccessControlEnforcementTest extends TestCase
             $manager,
             new Dn(self::OTHER_DN),
             'userPassword',
+            AttributeAccess::Write,
         );
 
         $this->addToAssertionCount(1);
@@ -130,6 +132,7 @@ final class DefaultAccessControlEnforcementTest extends TestCase
             $user,
             new Dn(self::USER_DN),
             'userPassword',
+            AttributeAccess::Write,
         );
 
         // But not another user's.
@@ -138,6 +141,7 @@ final class DefaultAccessControlEnforcementTest extends TestCase
             $user,
             new Dn(self::OTHER_DN),
             'userPassword',
+            AttributeAccess::Write,
         );
     }
 
@@ -162,6 +166,40 @@ final class DefaultAccessControlEnforcementTest extends TestCase
         );
         self::assertNull(
             $this->accessControl->filterEntry($user, $entry)?->get('userPassword'),
+        );
+    }
+
+    public function test_userPassword_is_write_only_for_self(): void
+    {
+        $user = $this->normalUser();
+        $ownDn = new Dn(self::USER_DN);
+        $ownEntry = Entry::fromArray(
+            self::USER_DN,
+            [
+                'cn' => ['user'],
+                'userPassword' => [self::HASH],
+            ],
+        );
+
+        // Self may write its own password.
+        $this->accessControl->authorizeAttribute(
+            $user,
+            $ownDn,
+            'userPassword',
+            AttributeAccess::Write,
+        );
+
+        // But self cannot read it, on search or via Compare.
+        self::assertNull(
+            $this->accessControl->filterEntry($user, $ownEntry)?->get('userPassword'),
+        );
+
+        $this->expectException(OperationException::class);
+        $this->accessControl->authorizeAttribute(
+            $user,
+            $ownDn,
+            'userPassword',
+            AttributeAccess::Read,
         );
     }
 

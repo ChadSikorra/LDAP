@@ -19,6 +19,7 @@ use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Server\AccessControl\AclRules;
+use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeAccess;
 use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
 use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
 use FreeDSx\Ldap\Server\Token\AnonToken;
@@ -49,6 +50,7 @@ final class AclRulesTest extends TestCase
             $this->user(),
             new Dn(self::USER_DN),
             'userPassword',
+            AttributeAccess::Write,
         );
 
         $this->addToAssertionCount(1);
@@ -62,6 +64,7 @@ final class AclRulesTest extends TestCase
             $this->user(),
             new Dn(self::OTHER_DN),
             'userPassword',
+            AttributeAccess::Write,
         );
     }
 
@@ -71,6 +74,7 @@ final class AclRulesTest extends TestCase
             $this->admin(),
             new Dn(self::OTHER_DN),
             'userPassword',
+            AttributeAccess::Write,
         );
 
         $this->addToAssertionCount(1);
@@ -150,7 +154,7 @@ final class AclRulesTest extends TestCase
         self::assertNotNull($filtered->get('cn'));
     }
 
-    public function test_secureDefault_keeps_own_userPassword_on_read(): void
+    public function test_secureDefault_strips_userPassword_from_self_read(): void
     {
         $filtered = $this->subject->filterEntry(
             $this->user(),
@@ -158,7 +162,25 @@ final class AclRulesTest extends TestCase
         );
 
         self::assertNotNull($filtered);
-        self::assertNotNull($filtered->get('userPassword'));
+        self::assertNull($filtered->get('userPassword'));
+    }
+
+    public function test_secureDefault_lets_self_write_but_not_read_its_userPassword(): void
+    {
+        $this->subject->authorizeAttribute(
+            $this->user(),
+            new Dn(self::USER_DN),
+            'userPassword',
+            AttributeAccess::Write,
+        );
+
+        $this->expectException(OperationException::class);
+        $this->subject->authorizeAttribute(
+            $this->user(),
+            new Dn(self::USER_DN),
+            'userPassword',
+            AttributeAccess::Read,
+        );
     }
 
     private function user(): TokenInterface

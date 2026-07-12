@@ -29,7 +29,7 @@ final readonly class ManagerToken implements AuthenticatedTokenInterface, Privil
     private AuthzId $authzId;
 
     public function __construct(
-        private Dn  $dn,
+        private Dn $dn,
         private int $version = 3,
     ) {
         $this->id = Uuid::v4();
