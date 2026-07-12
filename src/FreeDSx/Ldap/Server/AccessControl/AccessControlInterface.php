@@ -60,6 +60,16 @@ interface AccessControlInterface
     ): void;
 
     /**
+     * Assert that the token may invoke the privileged extended operation identified by the OID (deny-by-default).
+     *
+     * @throws OperationException with ResultCode::INSUFFICIENT_ACCESS_RIGHTS on denial
+     */
+    public function authorizeExtendedOperation(
+        TokenInterface $token,
+        string $oid,
+    ): void;
+
+    /**
      * Coarse, target-independent gate: whether $token could use the control against a target in general.
      *
      * Note: Only authenticated identities are considered.

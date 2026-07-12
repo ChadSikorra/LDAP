@@ -20,6 +20,7 @@ use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
 use FreeDSx\Ldap\Server\AccessControl\Rule\Effect;
+use FreeDSx\Ldap\Server\AccessControl\Rule\ExtendedOperationRule;
 use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
@@ -40,6 +41,7 @@ final readonly class RuleBasedAccessControl implements AccessControlInterface, B
             ...$this->rules->operations,
             ...$this->rules->attributes,
             ...$this->rules->controls,
+            ...$this->rules->extendedOps,
         ];
 
         foreach ($allRules as $rule) {
@@ -90,6 +92,18 @@ final readonly class RuleBasedAccessControl implements AccessControlInterface, B
         string $controlOid,
     ): void {
         if (!$this->isControlAllowed($controlOid, $token, $dn)) {
+            $this->deny();
+        }
+    }
+
+    /**
+     * @throws OperationException
+     */
+    public function authorizeExtendedOperation(
+        TokenInterface $token,
+        string $oid,
+    ): void {
+        if (!$this->isExtendedOperationAllowed($oid, $token)) {
             $this->deny();
         }
     }
@@ -202,6 +216,40 @@ final readonly class RuleBasedAccessControl implements AccessControlInterface, B
     ): bool {
         return $rule->controlOids === []
             || in_array($controlOid, $rule->controlOids, true);
+    }
+
+    /**
+     * Extended operations are target-independent, so the subject is matched against the token's own resolved DN.
+     */
+    private function isExtendedOperationAllowed(
+        string $oid,
+        TokenInterface $token,
+    ): bool {
+        if (!$token instanceof AuthenticatedTokenInterface) {
+            return false;
+        }
+
+        foreach ($this->rules->extendedOps as $rule) {
+            if (!$this->extendedOperationMatches($rule, $oid)) {
+                continue;
+            }
+
+            if (!$rule->subject->matches($token, $token->getResolvedDn())) {
+                continue;
+            }
+
+            return $rule->effect === Effect::Allow;
+        }
+
+        return $this->rules->defaultExtendedOpEffect === Effect::Allow;
+    }
+
+    private function extendedOperationMatches(
+        ExtendedOperationRule $rule,
+        string $oid,
+    ): bool {
+        return $rule->extendedOpOids === []
+            || in_array($oid, $rule->extendedOpOids, true);
     }
 
     /**

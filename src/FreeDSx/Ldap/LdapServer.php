@@ -25,6 +25,7 @@ use FreeDSx\Ldap\Ldif\Output\LdifOutputInterface;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\BackendAwareInterface;
+use FreeDSx\Ldap\Server\AccessControl\PrivilegedBypassAccessControl;
 use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DirectoryDumper;
@@ -196,7 +197,10 @@ class LdapServer
     {
         $this->requireBackendUnlessProxy();
         $this->requireSharedStorageForForkingReplica();
-        $this->options->setAccessControl($this->resolveAccessControl());
+        // Wrap once so a privileged manager token bypasses whichever policy resolved, and inject the backend into it.
+        $this->options->setAccessControl($this->injectBackendIfNeeded(
+            new PrivilegedBypassAccessControl($this->resolveAccessControl()),
+        ));
     }
 
     private function requireBackendUnlessProxy(): void
