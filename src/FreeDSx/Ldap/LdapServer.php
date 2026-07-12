@@ -26,7 +26,6 @@ use FreeDSx\Ldap\Operation\Request\AddRequest;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\BackendAwareInterface;
 use FreeDSx\Ldap\Server\AccessControl\PrivilegedBypassAccessControl;
-use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DirectoryDumper;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DumpOptions;
@@ -250,13 +249,7 @@ class LdapServer
             return $this->injectBackendIfNeeded($this->accessControl);
         }
 
-        $aclRules = $this->options->getAclRules();
-
-        if ($aclRules->isEmpty()) {
-            return $this->options->getAccessControl();
-        }
-
-        return $this->injectBackendIfNeeded(new RuleBasedAccessControl($aclRules));
+        return $this->injectBackendIfNeeded($this->options->getAccessControl());
     }
 
     private function injectBackendIfNeeded(AccessControlInterface $acl): AccessControlInterface

@@ -9,11 +9,10 @@ use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\LdapServer;
-use FreeDSx\Ldap\Server\AccessControl\AclRules;
 use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
-use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
 use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
 use FreeDSx\Ldap\Server\AccessControl\Target\Target;
+use FreeDSx\Ldap\Server\Backend\Auth\ManagerIdentity;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\JsonFileStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoConfig;
@@ -33,6 +32,10 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 final class LdapBackendStorageCommand extends Command
 {
     use ConsoleOptionsTrait;
+
+    public const MANAGER_DN = 'cn=manager';
+
+    public const MANAGER_PASSWORD = 'manager-pass';
 
     protected function configure(): void
     {
@@ -94,10 +97,10 @@ final class LdapBackendStorageCommand extends Command
                 'Grant cn=user the Proxied Authorization control for identities under ou=people',
             )
             ->addOption(
-                'permissive-acl',
+                'manager',
                 null,
                 InputOption::VALUE_NONE,
-                'Use a permissive ACL (allow all authenticated) instead of the secure default',
+                'Configure a break-glass manager identity (cn=manager) so tests can read userPassword back',
             )
             ->addOption(
                 'monitor',
@@ -215,35 +218,36 @@ final class LdapBackendStorageCommand extends Command
             ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL));
 
         if ($input->getOption('allow-relax')) {
+            // Compose on the current rules (the secure default): grant the relax control.
             $serverOptions->setAclRules(
-                (new AclRules())
-                    ->withOperationRules(OperationRule::allow(Subject::authenticated()))
-                    ->withControlRules(ControlRule::allow(
+                $serverOptions->getAclRules()->withControlRules(
+                    ControlRule::allow(
                         Subject::authenticated(),
                         Target::any(),
                         Control::OID_RELAX_RULES,
-                    )),
+                    ),
+                ),
             );
         }
 
         if ($input->getOption('allow-proxy')) {
+            // Compose on the current rules (the secure default): grant cn=user proxied-auth over ou=people.
             $serverOptions->setAclRules(
-                (new AclRules())
-                    ->withOperationRules(OperationRule::allow(Subject::authenticated()))
-                    ->withControlRules(ControlRule::allow(
+                $serverOptions->getAclRules()->withControlRules(
+                    ControlRule::allow(
                         Subject::dn('cn=user,dc=foo,dc=bar'),
                         Target::subtree('ou=people,dc=foo,dc=bar'),
                         Control::OID_PROXY_AUTHORIZATION,
-                    )),
+                    ),
+                ),
             );
         }
 
-        if ($input->getOption('permissive-acl')) {
-            $serverOptions->setAclRules(
-                (new AclRules())->withOperationRules(
-                    OperationRule::allow(Subject::authenticated()),
-                ),
-            );
+        if ($input->getOption('manager')) {
+            $serverOptions->setManager(new ManagerIdentity(
+                new Dn(self::MANAGER_DN),
+                '{SHA}' . base64_encode(sha1(self::MANAGER_PASSWORD, true)),
+            ));
         }
 
         $server = new LdapServer($serverOptions);

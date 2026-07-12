@@ -9,9 +9,7 @@ use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Ldif\Loader\FileLdifLoader;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Ldif\Output\FileLdifOutput;
-use FreeDSx\Ldap\Server\AccessControl\AclRules;
 use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
-use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
 use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
 use FreeDSx\Ldap\Server\AccessControl\Target\Target;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
@@ -279,20 +277,22 @@ final class LdapServerCommand extends Command
         }
 
         if ($external && $input->getOption('external-allow-proxy') === true) {
+            // Compose on the current rules (the secure default): grant the EXTERNAL cert identity proxied-auth.
             $options->setAclRules(
-                (new AclRules())
-                    ->withOperationRules(OperationRule::allow(Subject::authenticated()))
-                    ->withControlRules(ControlRule::allow(
+                $options->getAclRules()->withControlRules(
+                    ControlRule::allow(
                         Subject::dn('cn=extuser,dc=foo,dc=bar'),
                         Target::subtree('dc=foo,dc=bar'),
                         Control::OID_PROXY_AUTHORIZATION,
-                    )),
+                    ),
+                ),
             );
         }
 
         if ($input->getOption('allow-sync') === true) {
+            // Compose on the current rules (the secure default) and add the one sync-specific grant.
             $options->setAclRules(
-                AclRules::secureDefault()->withControlRules(
+                $options->getAclRules()->withControlRules(
                     ControlRule::allow(
                         Subject::dn('cn=user,dc=foo,dc=bar'),
                         Target::subtree('dc=foo,dc=bar'),

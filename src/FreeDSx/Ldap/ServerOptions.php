@@ -686,7 +686,7 @@ final class ServerOptions
     public function getAccessControl(): AccessControlInterface
     {
         return $this->accessControl ??= new RuleBasedAccessControl(
-            AclRules::secureDefault($this->administrators),
+            $this->getAclRules(),
         );
     }
 
@@ -706,7 +706,7 @@ final class ServerOptions
 
     public function getAclRules(): AclRules
     {
-        return $this->aclRules ??= new AclRules();
+        return $this->aclRules ??= AclRules::secureDefault($this->administrators);
     }
 
     /**

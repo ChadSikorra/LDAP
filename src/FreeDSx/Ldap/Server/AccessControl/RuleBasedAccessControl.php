@@ -34,7 +34,12 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  */
 final readonly class RuleBasedAccessControl implements AccessControlInterface, BackendAwareInterface
 {
-    public function __construct(private AclRules $rules = new AclRules()) {}
+    private AclRules $rules;
+
+    public function __construct(?AclRules $rules = null)
+    {
+        $this->rules = $rules ?? AclRules::secureDefault();
+    }
 
     public function setBackend(LdapBackendInterface $backend): void
     {
