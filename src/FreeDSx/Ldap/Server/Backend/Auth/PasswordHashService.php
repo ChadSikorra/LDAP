@@ -101,7 +101,10 @@ final readonly class PasswordHashService
             }
         }
 
-        return $plain === $stored;
+        return hash_equals(
+            $stored,
+            $plain,
+        );
     }
 
     /**

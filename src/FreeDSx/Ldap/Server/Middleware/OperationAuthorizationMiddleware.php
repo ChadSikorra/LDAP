@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Server\Middleware;
 
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ControlBag;
+use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\AddRequest;
@@ -185,10 +186,11 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
         );
 
         if ($request instanceof CompareRequest) {
+            // Normalize away attribute options so a rule on the base type still applies.
             $this->accessControl->authorizeAttribute(
                 $token,
                 $request->getDn(),
-                $request->getFilter()->getAttribute(),
+                $this->attributeFromString($request->getFilter()->getAttribute())->getName(),
                 AttributeAccess::Read,
             );
 
@@ -295,6 +297,14 @@ final readonly class OperationAuthorizationMiddleware implements MiddlewareInter
                 );
             }
         }
+    }
+
+    /**
+     * Wraps a raw attribute description so getName() can normalize away any attribute options.
+     */
+    private function attributeFromString(string $attribute): Attribute
+    {
+        return new Attribute($attribute);
     }
 
     /**

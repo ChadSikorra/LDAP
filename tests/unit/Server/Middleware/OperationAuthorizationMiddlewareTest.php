@@ -28,6 +28,7 @@ use FreeDSx\Ldap\Protocol\Factory\HandlerId;
 use FreeDSx\Ldap\Protocol\Factory\HandlerRouteResolverInterface;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Search\Filters;
+use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeAccess;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Operation\OperationType;
 use FreeDSx\Ldap\Server\Middleware\OperationAuthorizationMiddleware;
@@ -232,6 +233,32 @@ final class OperationAuthorizationMiddlewareTest extends TestCase
         }
 
         self::assertNull($this->next->received);
+    }
+
+    public function test_dispatch_route_compare_normalizes_attribute_options_for_authorization(): void
+    {
+        $this->routeResolvesTo(HandlerId::Dispatch);
+        $this->accessControl
+            ->expects(self::once())
+            ->method('authorizeAttribute')
+            ->with(
+                self::anything(),
+                self::anything(),
+                'userPassword',
+                AttributeAccess::Read,
+            );
+
+        $message = $this->contextFor(new CompareRequest(
+            'cn=foo,dc=bar',
+            Filters::equal('userPassword;binary', 'secret'),
+        ));
+
+        $this->subject->process(
+            $message,
+            $this->next,
+        );
+
+        self::assertNotNull($this->next->received);
     }
 
     public function test_dispatch_route_authorizes_a_privileged_control_against_the_target(): void
