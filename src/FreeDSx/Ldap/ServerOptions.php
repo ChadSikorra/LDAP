@@ -187,6 +187,13 @@ final class ServerOptions
     private ?AclRules $aclRules = null;
 
     /**
+     * Memoized secure default, rebuilt when the administrator subject changes so it never goes stale.
+     */
+    private ?AccessControlInterface $defaultAccessControl = null;
+
+    private ?AclRules $defaultAclRules = null;
+
+    /**
      * @var list<string>
      */
     private array $privilegedControls = [
@@ -580,6 +587,9 @@ final class ServerOptions
     public function setAdministrators(?SubjectMatcherInterface $administrators): self
     {
         $this->administrators = $administrators;
+        // Drop any memoized secure default so it is rebuilt with the new administrator instead of a stale one.
+        $this->defaultAclRules = null;
+        $this->defaultAccessControl = null;
 
         return $this;
     }
@@ -685,9 +695,9 @@ final class ServerOptions
 
     public function getAccessControl(): AccessControlInterface
     {
-        return $this->accessControl ??= new RuleBasedAccessControl(
+        return $this->accessControl ?? ($this->defaultAccessControl ??= new RuleBasedAccessControl(
             $this->getAclRules(),
-        );
+        ));
     }
 
     public function setAccessControl(AccessControlInterface $accessControl): self
@@ -700,13 +710,15 @@ final class ServerOptions
     public function setAclRules(AclRules $aclRules): self
     {
         $this->aclRules = $aclRules;
+        // Drop any access control derived from the previous rules so it is rebuilt from these.
+        $this->defaultAccessControl = null;
 
         return $this;
     }
 
     public function getAclRules(): AclRules
     {
-        return $this->aclRules ??= AclRules::secureDefault($this->administrators);
+        return $this->aclRules ?? ($this->defaultAclRules ??= AclRules::secureDefault($this->administrators));
     }
 
     /**

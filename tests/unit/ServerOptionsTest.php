@@ -35,6 +35,7 @@ use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
 use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
+use FreeDSx\Ldap\Server\AccessControl\AclRules;
 use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
 use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRule;
 use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRules;
@@ -1023,6 +1024,48 @@ final class ServerOptionsTest extends TestCase
         self::assertCount(
             15,
             $this->subject->getSaslMechanisms(),
+        );
+    }
+
+    public function test_setting_administrators_after_reading_access_control_rebuilds_the_secure_default(): void
+    {
+        $before = $this->subject->getAccessControl();
+
+        $this->subject->setAdministrators(
+            Subject::dn('uid=admin,dc=foo,dc=bar'),
+        );
+
+        self::assertNotSame(
+            $before,
+            $this->subject->getAccessControl(),
+        );
+    }
+
+    public function test_setting_administrators_after_reading_acl_rules_rebuilds_the_secure_default(): void
+    {
+        $before = $this->subject->getAclRules();
+
+        $this->subject->setAdministrators(
+            Subject::dn('uid=admin,dc=foo,dc=bar'),
+        );
+
+        self::assertNotSame(
+            $before,
+            $this->subject->getAclRules(),
+        );
+    }
+
+    public function test_setting_acl_rules_after_reading_access_control_rebuilds_it(): void
+    {
+        $before = $this->subject->getAccessControl();
+
+        $this->subject->setAclRules(
+            AclRules::fromEmpty(),
+        );
+
+        self::assertNotSame(
+            $before,
+            $this->subject->getAccessControl(),
         );
     }
 }
