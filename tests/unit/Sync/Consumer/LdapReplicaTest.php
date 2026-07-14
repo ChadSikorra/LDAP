@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Server\Process\Signals\ShutdownSignalsInterface;
 use FreeDSx\Ldap\Sync\Consumer\ChangeApplierInterface;
 use FreeDSx\Ldap\Sync\Consumer\Checkpoint\InMemoryReplicationCheckpoint;
 use FreeDSx\Ldap\Sync\Consumer\LdapReplica;
+use FreeDSx\Ldap\Sync\Consumer\PrimaryConnectionFactory;
 use FreeDSx\Ldap\Sync\Result\SyncEntryResult;
 use FreeDSx\Ldap\Sync\Session;
 use FreeDSx\Ldap\Sync\SyncRepl;
@@ -87,8 +88,12 @@ final class LdapReplicaTest extends TestCase
                 return $this->syncRepl;
             });
 
+        $connectionFactory = $this->createMock(PrimaryConnectionFactory::class);
+        $connectionFactory->method('connectSyncRepl')
+            ->willReturn($this->syncRepl);
+
         $this->subject = new LdapReplica(
-            connect: fn(): SyncRepl => $this->syncRepl,
+            connectionFactory: $connectionFactory,
             applier: $this->applier,
             checkpoint: $this->checkpoint,
             sleeper: $this->sleeper,
