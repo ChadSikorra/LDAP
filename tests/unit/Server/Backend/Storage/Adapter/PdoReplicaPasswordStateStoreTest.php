@@ -121,6 +121,74 @@ final class PdoReplicaPasswordStateStoreTest extends TestCase
         );
     }
 
+    public function test_a_recorded_change_becomes_a_pending_forward(): void
+    {
+        $this->applyFailure('20260520120000Z');
+
+        $pending = $this->subject->listUnforwarded();
+
+        self::assertCount(
+            1,
+            $pending,
+        );
+        self::assertSame(
+            self::DN,
+            $pending[0]->dn->toString(),
+        );
+        self::assertSame(
+            1,
+            $pending[0]->sequence,
+        );
+    }
+
+    public function test_marking_forwarded_clears_the_pending_entry(): void
+    {
+        $this->applyFailure('20260520120000Z');
+
+        $this->subject->markForwarded(
+            new Dn(self::DN),
+            1,
+        );
+
+        self::assertSame(
+            [],
+            $this->subject->listUnforwarded(),
+        );
+    }
+
+    public function test_marking_a_stale_sequence_leaves_a_newer_change_pending(): void
+    {
+        $this->applyFailure('20260520120000Z');
+        $this->applyFailure('20260520120500Z');
+
+        $this->subject->markForwarded(
+            new Dn(self::DN),
+            1,
+        );
+
+        $pending = $this->subject->listUnforwarded();
+
+        self::assertCount(
+            1,
+            $pending,
+        );
+        self::assertSame(
+            2,
+            $pending[0]->sequence,
+        );
+    }
+
+    private function applyFailure(string $time): void
+    {
+        $this->applyChanges(
+            new Dn(self::DN),
+            OperationalChanges::of(Change::replace(
+                PasswordPolicyOid::NAME_PWD_FAILURE_TIME,
+                $time,
+            )),
+        );
+    }
+
     private function applyChanges(
         Dn $dn,
         OperationalChanges $changes,

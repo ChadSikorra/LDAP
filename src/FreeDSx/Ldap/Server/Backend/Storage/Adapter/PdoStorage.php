@@ -293,15 +293,19 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
 
     public function lockForWrite(Dn $dn): void
     {
-        $this->dialect->lockEntryForWrite(
+        $this->dialect->lockRowForWrite(
             $this->transactor->pdo(),
+            'entries',
             $dn->normalize()->toString(),
         );
     }
 
     public function replicaPasswordStateStore(): ReplicaPasswordStateStoreInterface
     {
-        return new PdoReplicaPasswordStateStore($this->transactor);
+        return new PdoReplicaPasswordStateStore(
+            $this->transactor,
+            $this->dialect,
+        );
     }
 
     protected function buildJournal(ChangeJournalConfig $config): ChangeJournalInterface

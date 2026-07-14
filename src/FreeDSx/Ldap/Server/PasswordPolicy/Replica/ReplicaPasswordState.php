@@ -71,6 +71,11 @@ final readonly class ReplicaPasswordState
         return $this->attributes === [];
     }
 
+    public function equals(self $other): bool
+    {
+        return $this->toArray() == $other->toArray();
+    }
+
     /**
      * @return array<string, list<string>>
      */

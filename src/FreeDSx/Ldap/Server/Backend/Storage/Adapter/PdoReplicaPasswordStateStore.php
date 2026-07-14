@@ -14,16 +14,20 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter;
 
 use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoEntryDialectInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoColumnCastTrait;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\PdoTransactor;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
+use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaForwardState;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordState;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordStateStoreInterface;
+use PDO;
 
 use function is_array;
-use function is_string;
 use function json_decode;
 use function json_encode;
+use function max;
 
 /**
  * Replica-local password-policy state persisted as a JSON row per subject, sharing a PdoStorage connection.
@@ -32,21 +36,18 @@ use function json_encode;
  */
 final readonly class PdoReplicaPasswordStateStore implements ReplicaPasswordStateStoreInterface
 {
+    use PdoColumnCastTrait;
+
     private const TABLE = 'ldap_replica_pwpolicy_state';
 
-    public function __construct(private PdoTransactor $transactor) {}
+    public function __construct(
+        private PdoTransactor $transactor,
+        private PdoEntryDialectInterface $dialect,
+    ) {}
 
     public function load(Dn $dn): ReplicaPasswordState
     {
-        $statement = $this->transactor
-            ->pdo()
-            ->prepare('SELECT state FROM ' . self::TABLE . ' WHERE lc_dn = ?');
-        $statement->execute([$this->key($dn)]);
-        $state = $statement->fetchColumn();
-
-        return is_string($state)
-            ? $this->decode($state)
-            : ReplicaPasswordState::empty();
+        return $this->loadRecord($dn)->state;
     }
 
     /**
@@ -57,33 +58,102 @@ final readonly class PdoReplicaPasswordStateStore implements ReplicaPasswordStat
         callable $merge,
     ): void {
         $this->transactor->atomic(function () use ($dn, $merge): void {
-            $key = $this->key($dn);
-            $current = $this->load($dn);
-            $changes = $merge($current);
+            $this->dialect->lockRowForWrite(
+                $this->transactor->pdo(),
+                self::TABLE,
+                $this->key($dn),
+            );
 
+            $record = $this->loadRecord($dn);
+            $changes = $merge($record->state);
             if ($changes->isEmpty()) {
                 return;
             }
 
-            $next = $current->withChanges($changes);
-
-            $this->transactor
-                ->pdo()
-                ->prepare('DELETE FROM ' . self::TABLE . ' WHERE lc_dn = ?')
-                ->execute([$key]);
-
-            if ($next->isEmpty()) {
+            $next = $record->state->withChanges($changes);
+            if ($record->state->equals($next)) {
                 return;
             }
 
-            $this->transactor
-                ->pdo()
-                ->prepare('INSERT INTO ' . self::TABLE . ' (lc_dn, state) VALUES (?, ?)')
-                ->execute([
-                    $key,
-                    $this->encode($next),
-                ]);
+            $this->upsert($record->applied($next));
         });
+    }
+
+    public function listUnforwarded(int $limit = 100): array
+    {
+        $statement = $this->transactor
+            ->pdo()
+            ->prepare(
+                'SELECT lc_dn, state, seq, forwarded_seq FROM ' . self::TABLE
+                . ' WHERE seq > forwarded_seq ORDER BY seq ASC LIMIT ' . max(0, $limit),
+            );
+        $statement->execute();
+
+        $pending = [];
+        /** @var array<string, mixed> $row */
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $pending[] = new ReplicaForwardState(
+                new Dn($this->stringColumn($row['lc_dn'])),
+                $this->decode($this->stringColumn($row['state'])),
+                $this->intColumn($row['seq']),
+                $this->intColumn($row['forwarded_seq']),
+            );
+        }
+
+        return $pending;
+    }
+
+    public function markForwarded(
+        Dn $dn,
+        int $sequence,
+    ): void {
+        $this->transactor
+            ->pdo()
+            ->prepare(
+                'UPDATE ' . self::TABLE
+                . ' SET forwarded_seq = ? WHERE lc_dn = ? AND forwarded_seq < ? AND seq >= ?',
+            )
+            ->execute([
+                $sequence,
+                $this->key($dn),
+                $sequence,
+                $sequence,
+            ]);
+    }
+
+    private function loadRecord(Dn $dn): ReplicaForwardState
+    {
+        $statement = $this->transactor
+            ->pdo()
+            ->prepare('SELECT state, seq, forwarded_seq FROM ' . self::TABLE . ' WHERE lc_dn = ?');
+        $statement->execute([$this->key($dn)]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            return ReplicaForwardState::initial($dn);
+        }
+
+        return new ReplicaForwardState(
+            $dn,
+            $this->decode($this->stringColumn($row['state'])),
+            $this->intColumn($row['seq']),
+            $this->intColumn($row['forwarded_seq']),
+        );
+    }
+
+    private function upsert(ReplicaForwardState $record): void
+    {
+        $key = $this->key($record->dn);
+        $pdo = $this->transactor->pdo();
+
+        $pdo->prepare('DELETE FROM ' . self::TABLE . ' WHERE lc_dn = ?')
+            ->execute([$key]);
+        $pdo->prepare('INSERT INTO ' . self::TABLE . ' (lc_dn, state, seq, forwarded_seq) VALUES (?, ?, ?, ?)')
+            ->execute([
+                $key,
+                $this->encode($record->state),
+                $record->sequence,
+                $record->forwarded,
+            ]);
     }
 
     private function key(Dn $dn): string

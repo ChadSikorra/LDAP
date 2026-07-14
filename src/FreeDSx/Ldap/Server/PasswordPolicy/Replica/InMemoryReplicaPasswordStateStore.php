@@ -16,22 +16,23 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Replica;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 
+use function count;
+
 /**
- * Holds replica-observed password-policy state in memory.
+ * Holds replica-observed password-policy state in memory, with a per-subject forward watermark.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final class InMemoryReplicaPasswordStateStore implements ReplicaPasswordStateStoreInterface
 {
     /**
-     * @var array<string, ReplicaPasswordState>
+     * @var array<string, ReplicaForwardState>
      */
-    private array $states = [];
+    private array $records = [];
 
     public function load(Dn $dn): ReplicaPasswordState
     {
-        return $this->states[$this->key($dn)]
-            ?? ReplicaPasswordState::empty();
+        return ($this->records[$this->key($dn)] ?? ReplicaForwardState::initial($dn))->state;
     }
 
     /**
@@ -42,20 +43,51 @@ final class InMemoryReplicaPasswordStateStore implements ReplicaPasswordStateSto
         callable $merge,
     ): void {
         $key = $this->key($dn);
-        $current = $this->states[$key] ?? ReplicaPasswordState::empty();
-        $changes = $merge($current);
+        $record = $this->records[$key] ?? ReplicaForwardState::initial($dn);
+        $changes = $merge($record->state);
+
         if ($changes->isEmpty()) {
             return;
         }
 
-        $state = $current->withChanges($changes);
-        if ($state->isEmpty()) {
-            unset($this->states[$key]);
-
+        $next = $record->state->withChanges($changes);
+        if ($record->state->equals($next)) {
             return;
         }
 
-        $this->states[$key] = $state;
+        $this->records[$key] = $record->applied($next);
+    }
+
+    public function listUnforwarded(int $limit = 100): array
+    {
+        $pending = [];
+
+        foreach ($this->records as $record) {
+            if (!$record->isPending()) {
+                continue;
+            }
+
+            $pending[] = $record;
+            if (count($pending) >= $limit) {
+                break;
+            }
+        }
+
+        return $pending;
+    }
+
+    public function markForwarded(
+        Dn $dn,
+        int $sequence,
+    ): void {
+        $key = $this->key($dn);
+        $record = $this->records[$key] ?? null;
+
+        if ($record === null || !$record->canAdvanceTo($sequence)) {
+            return;
+        }
+
+        $this->records[$key] = $record->advancedTo($sequence);
     }
 
     private function key(Dn $dn): string

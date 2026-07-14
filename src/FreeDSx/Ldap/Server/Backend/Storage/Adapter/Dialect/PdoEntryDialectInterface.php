@@ -33,10 +33,13 @@ interface PdoEntryDialectInterface
     public function commit(PDO $pdo): void;
 
     /**
-     * Take an exclusive lock on the entry row within the current transaction so concurrent writers to it serialize.
+     * Take an exclusive lock on the lc_dn row of $table within the current transaction so concurrent writers serialize.
+     *
+     * @param string $table A fixed internal table identifier, never client input, so implementations may interpolate it.
      */
-    public function lockEntryForWrite(
+    public function lockRowForWrite(
         PDO $pdo,
+        string $table,
         string $lcDn,
     ): void;
 

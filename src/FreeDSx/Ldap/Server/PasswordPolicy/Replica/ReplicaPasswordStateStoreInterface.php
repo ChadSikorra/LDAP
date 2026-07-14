@@ -30,12 +30,27 @@ interface ReplicaPasswordStateStoreInterface
 
     /**
      * Atomically read the subject's current local state, derive changes from it via $merge, and apply them under an
-     * exclusive lock so concurrent binds cannot lose an update.
+     * exclusive lock so concurrent binds cannot lose an update; a state-changing apply advances the forward watermark.
      *
      * @param callable(ReplicaPasswordState): OperationalChanges $merge
      */
     public function atomicMutate(
         Dn $dn,
         callable $merge,
+    ): void;
+
+    /**
+     * Subjects whose local state has advanced past the last forwarded watermark, oldest first, capped at $limit.
+     *
+     * @return list<ReplicaForwardState>
+     */
+    public function listUnforwarded(int $limit = 100): array;
+
+    /**
+     * Advance a subject's forwarded watermark to $sequence, so state no newer than it is no longer pending forward.
+     */
+    public function markForwarded(
+        Dn $dn,
+        int $sequence,
     ): void;
 }

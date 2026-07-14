@@ -38,10 +38,11 @@ trait PdoDialectTrait
     }
 
     /**
-     * Default no-op: not all implementations need this.
+     * Default no-op: SQLite already holds the write lock from `BEGIN IMMEDIATE`, so no per-row lock is needed.
      */
-    public function lockEntryForWrite(
+    public function lockRowForWrite(
         PDO $pdo,
+        string $table,
         string $lcDn,
     ): void {}
 

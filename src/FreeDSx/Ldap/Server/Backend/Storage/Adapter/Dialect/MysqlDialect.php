@@ -34,16 +34,17 @@ final class MysqlDialect implements PdoDialectInterface
         return new MysqlFilterTranslator($substringIndex);
     }
 
-    public function lockEntryForWrite(
+    public function lockRowForWrite(
         PDO $pdo,
+        string $table,
         string $lcDn,
     ): void {
         $statement = $pdo->prepare(<<<SQL
             SELECT lc_dn
-            FROM entries
+            FROM $table
             WHERE lc_dn = ?
             FOR UPDATE
-        SQL);
+            SQL);
         $statement->execute([$lcDn]);
     }
 
