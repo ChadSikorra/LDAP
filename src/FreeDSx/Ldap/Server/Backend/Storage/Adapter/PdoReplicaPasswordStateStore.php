@@ -150,6 +150,14 @@ final readonly class PdoReplicaPasswordStateStore implements ReplicaPasswordStat
         });
     }
 
+    public function discard(Dn $dn): void
+    {
+        $this->transactor
+            ->pdo()
+            ->prepare('DELETE FROM ' . self::TABLE . ' WHERE lc_dn = ?')
+            ->execute([$this->key($dn)]);
+    }
+
     private function loadRecord(Dn $dn): ReplicaForwardState
     {
         $statement = $this->transactor

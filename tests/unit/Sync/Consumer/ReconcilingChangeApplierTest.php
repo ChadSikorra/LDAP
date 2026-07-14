@@ -129,6 +129,9 @@ final class ReconcilingChangeApplierTest extends TestCase
         $this->passwordStateStore
             ->expects(self::never())
             ->method('discardIfSuperseded');
+        $this->passwordStateStore
+            ->expects(self::never())
+            ->method('discard');
 
         $this->subject->apply(
             $this->syncResult(
@@ -139,11 +142,15 @@ final class ReconcilingChangeApplierTest extends TestCase
         );
     }
 
-    public function test_a_delete_does_not_reconcile_and_leaves_orphan_cleanup_to_storage(): void
+    public function test_a_delete_discards_the_local_state_outright(): void
     {
         $this->passwordStateStore
             ->expects(self::never())
             ->method('discardIfSuperseded');
+        $this->passwordStateStore
+            ->expects(self::once())
+            ->method('discard')
+            ->with(self::callback(static fn(Dn $dn): bool => $dn->toString() === (new Dn(self::DN))->normalize()->toString()));
 
         $this->subject->apply(
             $this->syncResult(

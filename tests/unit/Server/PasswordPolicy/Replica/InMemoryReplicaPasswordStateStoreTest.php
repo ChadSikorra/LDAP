@@ -225,6 +225,22 @@ final class InMemoryReplicaPasswordStateStoreTest extends TestCase
         self::assertTrue($this->subject->load(new Dn(self::DN))->isEmpty());
     }
 
+    public function test_discard_removes_state_unconditionally(): void
+    {
+        $this->applyFailure('20260520120000Z');
+
+        $this->subject->discard(new Dn(self::DN));
+
+        self::assertTrue($this->subject->load(new Dn(self::DN))->isEmpty());
+    }
+
+    public function test_discard_of_an_unknown_subject_is_a_noop(): void
+    {
+        $this->subject->discard(new Dn(self::DN));
+
+        self::assertTrue($this->subject->load(new Dn(self::DN))->isEmpty());
+    }
+
     private function applyFailure(string $time): void
     {
         $this->applyChanges(

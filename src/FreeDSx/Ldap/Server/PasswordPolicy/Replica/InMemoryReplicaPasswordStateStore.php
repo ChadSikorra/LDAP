@@ -106,6 +106,11 @@ final class InMemoryReplicaPasswordStateStore implements ReplicaPasswordStateSto
         }
     }
 
+    public function discard(Dn $dn): void
+    {
+        unset($this->records[$this->key($dn)]);
+    }
+
     private function key(Dn $dn): string
     {
         return $dn->normalize()->toString();

@@ -43,14 +43,24 @@ readonly class ReconcilingChangeApplier implements ChangeApplierInterface
     ): void {
         $this->baseApplier->apply($result, $session);
 
-        // Only an add or modify carries authoritative state that can supersede local accumulation; present is a no-op
-        // and a delete drops the subject, whose local state cascades with the entry row.
-        if (!$result->isAdd() && !$result->isModify()) {
+        // A present marker changes nothing.
+        if ($result->isPresent()) {
+            return;
+        }
+
+        $dn = $result->getEntry()
+            ->getDn()
+            ->normalize();
+
+        // Drops it outright on delete, whether the underlying storage already does.
+        if ($result->isDelete()) {
+            $this->passwordStateStore->discard($dn);
+
             return;
         }
 
         $this->passwordStateStore->discardIfSuperseded(
-            $result->getEntry()->getDn()->normalize(),
+            $dn,
             UserPasswordState::fromEntry($result->getEntry()),
         );
     }
