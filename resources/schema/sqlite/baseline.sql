@@ -50,5 +50,6 @@ CREATE TABLE IF NOT EXISTS ldap_replica_pwpolicy_state (
     lc_dn          TEXT NOT NULL PRIMARY KEY,
     state          TEXT NOT NULL,
     seq            INTEGER NOT NULL DEFAULT 0,
-    forwarded_seq  INTEGER NOT NULL DEFAULT 0
+    forwarded_seq  INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (lc_dn) REFERENCES entries(lc_dn) ON DELETE CASCADE
 );

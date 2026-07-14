@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Replica;
 
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
+use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
 
 /**
  * Persists replica-observed password-policy bind state locally, separate from replicated entries.
@@ -52,5 +53,14 @@ interface ReplicaPasswordStateStoreInterface
     public function markForwarded(
         Dn $dn,
         int $sequence,
+    ): void;
+
+    /**
+     * Drop a subject's local state when the replicated $authoritative entry supersedes it, so the entry becomes the
+     * single source of truth. It's a no-op while the local state still enforces something the entry has not yet reflected.
+     */
+    public function discardIfSuperseded(
+        Dn $dn,
+        UserPasswordState $authoritative,
     ): void;
 }

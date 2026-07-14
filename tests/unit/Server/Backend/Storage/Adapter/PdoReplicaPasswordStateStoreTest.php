@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Schema\Definition\GeneralizedTime;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\SqliteDialect;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo\SharedPdoConnectionProvider;
@@ -24,6 +25,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\PdoStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqliteFilterTranslator;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordStateStoreInterface;
+use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
 use PDO;
 use PHPUnit\Framework\TestCase;
 
@@ -176,6 +178,52 @@ final class PdoReplicaPasswordStateStoreTest extends TestCase
             2,
             $pending[0]->sequence,
         );
+    }
+
+    public function test_discard_drops_local_state_when_the_entry_is_authoritatively_locked(): void
+    {
+        $this->applyFailure('20260520120000Z');
+
+        $this->subject->discardIfSuperseded(
+            new Dn(self::DN),
+            new UserPasswordState(accountLockedAt: GeneralizedTime::parse('20260520120500Z')),
+        );
+
+        self::assertTrue($this->subject->load(new Dn(self::DN))->isEmpty());
+    }
+
+    public function test_discard_drops_local_state_when_a_success_is_newer_than_the_failure(): void
+    {
+        $this->applyFailure('20260520120000Z');
+
+        $this->subject->discardIfSuperseded(
+            new Dn(self::DN),
+            new UserPasswordState(lastSuccess: GeneralizedTime::parse('20260520120500Z')),
+        );
+
+        self::assertTrue($this->subject->load(new Dn(self::DN))->isEmpty());
+    }
+
+    public function test_discard_keeps_sub_threshold_state_the_entry_has_not_reflected(): void
+    {
+        $this->applyFailure('20260520120000Z');
+
+        $this->subject->discardIfSuperseded(
+            new Dn(self::DN),
+            new UserPasswordState(),
+        );
+
+        self::assertFalse($this->subject->load(new Dn(self::DN))->isEmpty());
+    }
+
+    public function test_discard_is_a_noop_for_an_unknown_subject(): void
+    {
+        $this->subject->discardIfSuperseded(
+            new Dn(self::DN),
+            new UserPasswordState(accountLockedAt: GeneralizedTime::parse('20260520120500Z')),
+        );
+
+        self::assertTrue($this->subject->load(new Dn(self::DN))->isEmpty());
     }
 
     private function applyFailure(string $time): void

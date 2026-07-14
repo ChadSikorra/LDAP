@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Sync\Consumer;
 use FreeDSx\Ldap\Exception\CancelRequestException;
 use FreeDSx\Ldap\ReplicaConfig;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
+use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordStateStoreInterface;
 use FreeDSx\Ldap\Server\Clock\Sleeper\BlockingSleeper;
 use FreeDSx\Ldap\Server\Clock\Sleeper\CoroutineSleeper;
 use FreeDSx\Ldap\Server\Clock\Sleeper\SleeperInterface;
@@ -60,6 +61,7 @@ final class LdapReplica
         EntryStorageInterface $storage,
         ?LoggerInterface $logger = null,
         ?PrimaryConnectionFactory $connectionFactory = null,
+        ?ReplicaPasswordStateStoreInterface $passwordStateStore = null,
     ): self {
         return self::create(
             $config,
@@ -68,6 +70,7 @@ final class LdapReplica
             new PcntlShutdownSignals(),
             $logger,
             $connectionFactory,
+            $passwordStateStore,
         );
     }
 
@@ -80,6 +83,7 @@ final class LdapReplica
         ?LoggerInterface $logger = null,
         ?ShutdownSignalsInterface $signals = new SwooleShutdownSignals(),
         ?PrimaryConnectionFactory $connectionFactory = null,
+        ?ReplicaPasswordStateStoreInterface $passwordStateStore = null,
     ): self {
         return self::create(
             $config,
@@ -88,6 +92,7 @@ final class LdapReplica
             $signals,
             $logger,
             $connectionFactory,
+            $passwordStateStore,
         );
     }
 
@@ -140,14 +145,19 @@ final class LdapReplica
         ?ShutdownSignalsInterface $signals,
         ?LoggerInterface $logger,
         ?PrimaryConnectionFactory $connectionFactory = null,
+        ?ReplicaPasswordStateStoreInterface $passwordStateStore = null,
     ): self {
         // listen() must not time out its blocking read, or the persist phase would abort each interval.
         $config->getPrimary()
             ->setTimeoutRead(-1);
 
+        $applier = new VerbatimStorageApplier($storage);
+
         return new self(
             connectionFactory: $connectionFactory ?? new PrimaryConnectionFactory($config),
-            applier: new VerbatimStorageApplier($storage),
+            applier: $passwordStateStore !== null
+                ? new ReconcilingChangeApplier($applier, $passwordStateStore)
+                : $applier,
             checkpoint: $config->getCheckpoint(),
             sleeper: $sleeper,
             signals: $signals,

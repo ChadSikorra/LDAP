@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Replica;
 
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
+use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
 
 use function count;
 
@@ -88,6 +89,21 @@ final class InMemoryReplicaPasswordStateStore implements ReplicaPasswordStateSto
         }
 
         $this->records[$key] = $record->advancedTo($sequence);
+    }
+
+    public function discardIfSuperseded(
+        Dn $dn,
+        UserPasswordState $authoritative,
+    ): void {
+        $key = $this->key($dn);
+        $record = $this->records[$key] ?? null;
+        if ($record === null) {
+            return;
+        }
+
+        if ($record->state->toUserPasswordState($dn)->isSupersededBy($authoritative)) {
+            unset($this->records[$key]);
+        }
     }
 
     private function key(Dn $dn): string

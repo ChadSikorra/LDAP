@@ -764,9 +764,25 @@ class Container
             return null;
         }
 
+        // Pair reconciliation with forwarding: the store drops forwarded state once the primary's entry replicates back.
+        $passwordStateStore = $options->isPasswordPolicyEnabled()
+            ? $this->get(ReplicaPasswordStateStoreInterface::class)
+            : null;
+
         return $hostManagedShutdown
-            ? LdapReplica::forSwoole($config, $storage, $options->getLogger(), signals: null)
-            : LdapReplica::forPcntl($config, $storage, $options->getLogger());
+            ? LdapReplica::forSwoole(
+                $config,
+                $storage,
+                $options->getLogger(),
+                signals: null,
+                passwordStateStore: $passwordStateStore,
+            )
+            : LdapReplica::forPcntl(
+                $config,
+                $storage,
+                $options->getLogger(),
+                passwordStateStore: $passwordStateStore,
+            );
     }
 
     /**

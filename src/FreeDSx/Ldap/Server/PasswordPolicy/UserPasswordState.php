@@ -97,6 +97,38 @@ final readonly class UserPasswordState
     }
 
     /**
+     * True when $authoritative (the primary's replicated entry) supersedes this local volatile state so it can be
+     * dropped, which holds when the entry:
+     *
+     *   - is authoritatively locked, or
+     *   - records a success past our newest failure, or
+     *   - records a credential change past our newest failure.
+     */
+    public function isSupersededBy(self $authoritative): bool
+    {
+        if ($authoritative->isLocked()) {
+            return true;
+        }
+
+        if ($this->isLocked()) {
+            return false;
+        }
+
+        $newestFailure = $this->newestFailureTime();
+        if ($newestFailure === null) {
+            return true;
+        }
+
+        return self::isAfter(
+            $authoritative->lastSuccess,
+            $newestFailure,
+        ) || self::isAfter(
+            $authoritative->changedAt,
+            $newestFailure,
+        );
+    }
+
+    /**
      * Count failures recorded at or after $threshold; used to honor pwdFailureCountInterval.
      *
      * @return int<0, max>
@@ -112,6 +144,27 @@ final readonly class UserPasswordState
         }
 
         return $count;
+    }
+
+    private function newestFailureTime(): ?DateTimeImmutable
+    {
+        $newest = null;
+
+        foreach ($this->failureTimes as $time) {
+            if ($newest === null || $time > $newest) {
+                $newest = $time;
+            }
+        }
+
+        return $newest;
+    }
+
+    private static function isAfter(
+        ?DateTimeImmutable $candidate,
+        DateTimeImmutable $threshold,
+    ): bool {
+        return $candidate !== null
+            && $candidate > $threshold;
     }
 
     private static function readLockedAt(Entry $entry): ?DateTimeImmutable
