@@ -19,6 +19,7 @@ use FreeDSx\Asn1\Exception\PartialPduException;
 use FreeDSx\Asn1\Type\AbstractType;
 use FreeDSx\Asn1\Type\SequenceType;
 use FreeDSx\Ldap\Exception\ProtocolException;
+use FreeDSx\Ldap\Operation\Request\PasswordPolicy\ForwardPasswordPolicyStateRequest;
 use FreeDSx\Ldap\Protocol\LdapEncoder;
 use FreeDSx\Ldap\Protocol\ProtocolElementInterface;
 
@@ -57,6 +58,13 @@ class ExtendedRequest implements RequestInterface
      * Represents a Password Modify Extended Operation. RFC 3062.
      */
     public const OID_PWD_MODIFY = '1.3.6.1.4.1.4203.1.11.1';
+
+    /**
+     * FreeDSx-private op forwarding a replica's password-policy bind state to the primary.
+     *
+     * Under the FreeDSx OID arc (IANA PEN 66207): .1 LDAP, .1 extended operations, .1 password-policy state forward.
+     */
+    public const OID_PPOLICY_STATE_FORWARD = '1.3.6.1.4.1.66207.1.1.1';
 
     protected const APP_TAG = 23;
 
@@ -144,14 +152,14 @@ class ExtendedRequest implements RequestInterface
     {
         [$oid, $value] = self::parseAsn1ExtendedRequest($type);
 
-        if ($oid === self::OID_CANCEL) {
-            return CancelRequest::fromAsn1($type);
-        }
-
-        return new static(
-            $oid,
-            $value,
-        );
+        return match ($oid) {
+            self::OID_CANCEL => CancelRequest::fromAsn1($type),
+            self::OID_PPOLICY_STATE_FORWARD => ForwardPasswordPolicyStateRequest::fromAsn1($type),
+            default => new static(
+                $oid,
+                $value,
+            ),
+        };
     }
 
     /**
