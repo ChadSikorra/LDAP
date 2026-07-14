@@ -102,6 +102,10 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
                 'supportedControl',
                 Control::OID_SYNC_REQUEST,
             );
+            $entry->add(
+                'supportedExtension',
+                ExtendedRequest::OID_PPOLICY_STATE_FORWARD,
+            );
         }
         if ($this->options->getSslCert()) {
             $entry->add(

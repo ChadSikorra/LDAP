@@ -41,6 +41,7 @@ readonly class ServerProtocolHandlerFactory implements HandlerRouteResolverInter
             $request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_CANCEL => HandlerId::Cancel,
             $request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_WHOAMI => HandlerId::WhoAmI,
             $request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_PWD_MODIFY => HandlerId::PasswordModify,
+            $request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_PPOLICY_STATE_FORWARD => HandlerId::PasswordPolicyForward,
             $request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_START_TLS => HandlerId::StartTls,
             $request instanceof ExtendedRequest => HandlerId::UnsupportedExtended,
             $this->isRootDseSearch($request) => HandlerId::RootDse,
