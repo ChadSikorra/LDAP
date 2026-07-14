@@ -45,7 +45,9 @@ CREATE TABLE IF NOT EXISTS ldap_change_journal_seq (
 INSERT IGNORE INTO ldap_change_journal_seq (id, seq) VALUES (1, 0);
 
 CREATE TABLE IF NOT EXISTS ldap_replica_pwpolicy_state (
-    lc_dn  VARCHAR(768) NOT NULL,
-    state  JSON NOT NULL,
+    lc_dn          VARCHAR(768) NOT NULL,
+    state          JSON NOT NULL,
+    seq            BIGINT NOT NULL DEFAULT 0,
+    forwarded_seq  BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (lc_dn)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
