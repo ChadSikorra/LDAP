@@ -151,6 +151,61 @@ final readonly class PasswordPolicyEngine
     }
 
     /**
+     * Merge a replica's forwarded bind state: union the failure times, drop any the observed success supersedes, and
+     * re-derive lockout authoritatively.
+     *
+     * Additive by construction: forwarded failures only ever push toward locked, and a stale success can only clear
+     * failures at or before its instant. Permanent (administrative) locks are never cleared by a forward.
+     *
+     * @param list<DateTimeImmutable> $forwardedFailures
+     */
+    public function recordForwardedState(
+        UserPasswordState $state,
+        PasswordPolicy $policy,
+        array $forwardedFailures,
+        ?DateTimeImmutable $lastSuccess,
+    ): OperationalChanges {
+        if ($state->permanentlyLocked) {
+            return OperationalChanges::none();
+        }
+
+        $observedSuccess = $this->latestOf(
+            $state->lastSuccess,
+            $lastSuccess,
+        );
+        $prior = $this->hasExpiredLock($state, $policy)
+            ? []
+            : $state->failureTimes;
+        $retained = $this->trimFailuresToInterval(
+            $this->afterSuccess(
+                $this->unionTimes($prior, $forwardedFailures),
+                $observedSuccess,
+            ),
+            $policy,
+        );
+
+        $changes = [Change::replace(
+            PasswordPolicyOid::NAME_PWD_FAILURE_TIME,
+            ...self::formatTimes($retained),
+        )];
+
+        $changes = $this->appendForwardedLockChange(
+            $changes,
+            $state,
+            $policy,
+            $retained,
+        );
+        if ($lastSuccess !== null && ($state->lastSuccess === null || $lastSuccess > $state->lastSuccess)) {
+            $changes[] = Change::replace(
+                PasswordPolicyOid::NAME_PWD_LAST_SUCCESS,
+                GeneralizedTime::format($lastSuccess),
+            );
+        }
+
+        return OperationalChanges::of(...$changes);
+    }
+
+    /**
      * Evaluate a password change against the configured constraint chain.
      */
     public function evaluatePasswordChange(
@@ -223,6 +278,91 @@ final readonly class PasswordPolicyEngine
         }
 
         return OperationalChanges::of(...$changes);
+    }
+
+    /**
+     * Union two failure-time lists, deduplicating by generalized-time value so a re-sent forward is idempotent.
+     *
+     * @param list<DateTimeImmutable> $current
+     * @param list<DateTimeImmutable> $forwarded
+     * @return list<DateTimeImmutable>
+     */
+    private function unionTimes(
+        array $current,
+        array $forwarded,
+    ): array {
+        $byValue = [];
+
+        foreach ([...$current, ...$forwarded] as $time) {
+            $byValue[GeneralizedTime::format($time)] = $time;
+        }
+
+        return array_values($byValue);
+    }
+
+    /**
+     * Drop failures a successful bind at the given instant supersedes; a boundary-equal failure is kept (fail-safe).
+     *
+     * @param list<DateTimeImmutable> $failures
+     * @return list<DateTimeImmutable>
+     */
+    private function afterSuccess(
+        array $failures,
+        ?DateTimeImmutable $success,
+    ): array {
+        if ($success === null) {
+            return $failures;
+        }
+
+        return array_values(array_filter(
+            $failures,
+            static fn(DateTimeImmutable $t): bool => $t >= $success,
+        ));
+    }
+
+    /**
+     * Set a fresh failure-driven lock when the retained failures newly meet the threshold, or clear a failure-driven
+     * lock the retained failures no longer justify.
+     *
+     * @param list<Change> $changes
+     * @param list<DateTimeImmutable> $retained
+     * @return list<Change>
+     */
+    private function appendForwardedLockChange(
+        array $changes,
+        UserPasswordState $state,
+        PasswordPolicy $policy,
+        array $retained,
+    ): array {
+        $meetsThreshold = $this->meetsLockoutThreshold($policy, $retained);
+
+        if ($meetsThreshold && !$this->isLockoutEffective($state, $policy)) {
+            $changes[] = Change::replace(
+                PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME,
+                GeneralizedTime::format($this->clock->now()),
+            );
+        } elseif (!$meetsThreshold && $state->accountLockedAt !== null) {
+            $changes[] = Change::reset(PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME);
+        }
+
+        return $changes;
+    }
+
+    /**
+     * Whether the retained failures reach pwdMaxFailure under an enabled lockout policy.
+     *
+     * @param list<DateTimeImmutable> $retained
+     */
+    private function meetsLockoutThreshold(
+        PasswordPolicy $policy,
+        array $retained,
+    ): bool {
+        return match (true) {
+            $policy->lockout->enabled !== true,
+            $policy->lockout->maxFailure === null,
+            $policy->lockout->maxFailure === 0 => false,
+            default => count($retained) >= $policy->lockout->maxFailure,
+        };
     }
 
     /**

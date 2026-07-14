@@ -99,6 +99,10 @@ final class ProtocolHandlerProviderTest extends TestCase
                     new PasswordChangeConstraintChain([]),
                 ),
             ),
+            passwordPolicyEngine: new PasswordPolicyEngine(
+                new SystemClock(),
+                new PasswordChangeConstraintChain([]),
+            ),
             queue: $this->mockQueue,
             eventLogger: new EventLogger(null),
             requestHistory: new RequestHistory(),
@@ -133,6 +137,10 @@ final class ProtocolHandlerProviderTest extends TestCase
                     new SystemClock(),
                     new PasswordChangeConstraintChain([]),
                 ),
+            ),
+            passwordPolicyEngine: new PasswordPolicyEngine(
+                new SystemClock(),
+                new PasswordChangeConstraintChain([]),
             ),
             queue: $this->mockQueue,
             eventLogger: new EventLogger(null),

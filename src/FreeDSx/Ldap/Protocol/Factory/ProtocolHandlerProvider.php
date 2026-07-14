@@ -23,7 +23,6 @@ use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Clock\Sleeper\BlockingSleeper;
 use FreeDSx\Ldap\Server\Clock\Sleeper\CoroutineSleeper;
@@ -35,6 +34,7 @@ use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyService;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyComponentFactory;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\ServerOptions;
@@ -57,6 +57,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
         private PasswordHashService $hashService,
         private WriteOperationDispatcher $writeDispatcher,
         private PasswordPolicyComponentFactory $policyComponentFactory,
+        private PasswordPolicyEngine $passwordPolicyEngine,
         private ServerQueue $queue,
         private EventLogger $eventLogger,
         private RequestHistory $requestHistory,
@@ -110,7 +111,10 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
     {
         return new ServerProtocolHandler\ServerPasswordPolicyForwardHandler(
             queue: $this->queue,
-            changeWriter: new SystemChangeWriter($this->writeDispatcher),
+            backend: $this->handlerFactory->makeBackend(),
+            policyResolver: $this->policyComponentFactory->makeResolver(),
+            engine: $this->passwordPolicyEngine,
+            changeWriter: $this->policyComponentFactory->makeSystemChangeWriter(),
         );
     }
 

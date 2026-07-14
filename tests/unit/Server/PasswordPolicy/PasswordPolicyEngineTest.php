@@ -28,6 +28,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordExpirationRules;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordLockoutRules;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;
 use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
@@ -763,6 +764,158 @@ final class PasswordPolicyEngineTest extends TestCase
         );
     }
 
+    public function test_record_forwarded_state_unions_failures_and_derives_lockout(): void
+    {
+        $existing = $this->clock->now()->modify('-1 minute');
+        $forwarded = $this->clock->now();
+        $changes = $this->subject->recordForwardedState(
+            new UserPasswordState(failureTimes: [$existing]),
+            new PasswordPolicy(lockout: new PasswordLockoutRules(
+                enabled: true,
+                maxFailure: 2,
+            )),
+            [$forwarded],
+            null,
+        );
+
+        $byAttribute = $this->changesByAttribute($changes);
+
+        self::assertCount(
+            2,
+            $byAttribute['pwdFailureTime'],
+        );
+        self::assertNotSame(
+            [],
+            $byAttribute['pwdAccountLockedTime'],
+        );
+    }
+
+    public function test_record_forwarded_state_dedups_a_resent_value(): void
+    {
+        $existing = $this->clock->now()->modify('-1 minute');
+        $changes = $this->subject->recordForwardedState(
+            new UserPasswordState(failureTimes: [$existing]),
+            new PasswordPolicy(lockout: new PasswordLockoutRules(
+                enabled: true,
+                maxFailure: 3,
+            )),
+            [$existing],
+            null,
+        );
+
+        $byAttribute = $this->changesByAttribute($changes);
+
+        self::assertCount(
+            1,
+            $byAttribute['pwdFailureTime'],
+        );
+        self::assertArrayNotHasKey(
+            'pwdAccountLockedTime',
+            $byAttribute,
+        );
+    }
+
+    public function test_a_forwarded_success_clears_the_failures_it_supersedes(): void
+    {
+        $beforeSuccess = $this->clock->now()->modify('-2 minutes');
+        $success = $this->clock->now()->modify('-1 minute');
+        $changes = $this->subject->recordForwardedState(
+            new UserPasswordState(failureTimes: [$beforeSuccess]),
+            new PasswordPolicy(lockout: new PasswordLockoutRules(
+                enabled: true,
+                maxFailure: 2,
+            )),
+            [],
+            $success,
+        );
+
+        $byAttribute = $this->changesByAttribute($changes);
+
+        self::assertSame(
+            [],
+            $byAttribute['pwdFailureTime'],
+        );
+        self::assertSame(
+            [$success->format('YmdHis') . 'Z'],
+            $byAttribute['pwdLastSuccess'],
+        );
+    }
+
+    public function test_a_forwarded_success_keeps_later_failures_locked(): void
+    {
+        $beforeSuccess = $this->clock->now()->modify('-2 minutes');
+        $success = $this->clock->now()->modify('-1 minute');
+        $afterSuccess = $this->clock->now();
+        $changes = $this->subject->recordForwardedState(
+            new UserPasswordState(failureTimes: [$beforeSuccess]),
+            new PasswordPolicy(lockout: new PasswordLockoutRules(
+                enabled: true,
+                maxFailure: 1,
+            )),
+            [$afterSuccess],
+            $success,
+        );
+
+        $byAttribute = $this->changesByAttribute($changes);
+
+        self::assertCount(
+            1,
+            $byAttribute['pwdFailureTime'],
+        );
+        self::assertNotSame(
+            [],
+            $byAttribute['pwdAccountLockedTime'],
+        );
+    }
+
+    public function test_a_forwarded_success_clears_a_failure_driven_lock(): void
+    {
+        $beforeSuccess = $this->clock->now()->modify('-2 minutes');
+        $success = $this->clock->now()->modify('-1 minute');
+        $changes = $this->subject->recordForwardedState(
+            new UserPasswordState(
+                accountLockedAt: $this->clock->now()->modify('-90 seconds'),
+                failureTimes: [$beforeSuccess],
+            ),
+            new PasswordPolicy(lockout: new PasswordLockoutRules(
+                enabled: true,
+                maxFailure: 2,
+            )),
+            [],
+            $success,
+        );
+
+        $byAttribute = $this->changesByAttribute($changes);
+
+        self::assertSame(
+            [],
+            $byAttribute['pwdFailureTime'],
+        );
+        self::assertSame(
+            [],
+            $byAttribute['pwdAccountLockedTime'],
+        );
+    }
+
+    public function test_a_permanent_lock_is_never_cleared_by_a_forward(): void
+    {
+        $changes = $this->subject->recordForwardedState(
+            new UserPasswordState(
+                accountLockedAt: $this->clock->now(),
+                permanentlyLocked: true,
+                failureTimes: [$this->clock->now()],
+            ),
+            new PasswordPolicy(lockout: new PasswordLockoutRules(
+                enabled: true,
+                maxFailure: 2,
+            )),
+            [],
+            $this->clock->now(),
+        );
+
+        self::assertTrue($changes->isEmpty());
+    }
+
     private function engineWith(PasswordChangeConstraint $constraint): PasswordPolicyEngine
     {
         return new PasswordPolicyEngine(
@@ -821,6 +974,20 @@ final class PasswordPolicyEngineTest extends TestCase
             $when->setTimezone(new DateTimeZone('UTC')),
             $stored,
         );
+    }
+
+    /**
+     * @return array<string, string[]>
+     */
+    private function changesByAttribute(OperationalChanges $changes): array
+    {
+        $byAttribute = [];
+
+        foreach ($changes->changes as $change) {
+            $byAttribute[$change->getAttribute()->getName()] = $change->getAttribute()->getValues();
+        }
+
+        return $byAttribute;
     }
 
     private function stubConstraint(?PasswordPolicyOutcome $outcome): PasswordChangeConstraint

@@ -217,6 +217,7 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
             hashService: $this->hashService,
             writeDispatcher: $this->writeDispatcher,
             policyComponentFactory: $this->policyComponentFactory,
+            passwordPolicyEngine: $this->passwordPolicyEngine,
             queue: $serverQueue,
             eventLogger: $eventLogger,
             requestHistory: new RequestHistory(),
