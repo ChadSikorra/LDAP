@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Operation\Request\PasswordPolicy;
 
+use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
+
 /**
  * The closed set of bind-originated password-policy state a read-only replica may forward to the primary.
  *
@@ -30,4 +32,14 @@ enum PasswordPolicyStateField: int
     case LastSuccess = 2;
 
     case GraceUseTime = 3;
+
+    public function attributeName(): string
+    {
+        return match ($this) {
+            self::FailureTime => PasswordPolicyOid::NAME_PWD_FAILURE_TIME,
+            self::AccountLockedTime => PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME,
+            self::LastSuccess => PasswordPolicyOid::NAME_PWD_LAST_SUCCESS,
+            self::GraceUseTime => PasswordPolicyOid::NAME_PWD_GRACE_USE_TIME,
+        };
+    }
 }

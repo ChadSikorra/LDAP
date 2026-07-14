@@ -23,6 +23,7 @@ use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
+use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Clock\Sleeper\BlockingSleeper;
 use FreeDSx\Ldap\Server\Clock\Sleeper\CoroutineSleeper;
@@ -73,6 +74,7 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
             HandlerId::Cancel => new ServerProtocolHandler\ServerCancelHandler($this->queue),
             HandlerId::WhoAmI => new ServerProtocolHandler\ServerWhoAmIHandler($this->queue),
             HandlerId::PasswordModify => $this->getPasswordModifyHandler(),
+            HandlerId::PasswordPolicyForward => $this->getPasswordPolicyForwardHandler(),
             HandlerId::StartTls => $this->getStartTlsHandler(),
             HandlerId::UnsupportedExtended => new ServerProtocolHandler\ServerUnsupportedExtendedHandler($this->queue),
             HandlerId::RootDse => $this->getRootDseHandler(),
@@ -101,6 +103,14 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
                 ),
                 passwordPolicyContext: $this->passwordPolicyContext,
             ),
+        );
+    }
+
+    private function getPasswordPolicyForwardHandler(): ServerProtocolHandler\ServerPasswordPolicyForwardHandler
+    {
+        return new ServerProtocolHandler\ServerPasswordPolicyForwardHandler(
+            queue: $this->queue,
+            changeWriter: new SystemChangeWriter($this->writeDispatcher),
         );
     }
 

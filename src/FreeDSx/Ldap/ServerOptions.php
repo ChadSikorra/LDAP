@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap;
 
 use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
@@ -197,7 +198,9 @@ final class ServerOptions
     /**
      * @var list<string>
      */
-    private array $privilegedExtendedOps = [];
+    private array $privilegedExtendedOps = [
+        ExtendedRequest::OID_PPOLICY_STATE_FORWARD,
+    ];
 
     private ?PasswordPolicy $passwordPolicy = null;
 

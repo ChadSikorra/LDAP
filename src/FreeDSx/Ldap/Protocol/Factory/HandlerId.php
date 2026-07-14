@@ -25,6 +25,7 @@ enum HandlerId: string
     case Cancel = 'cancel';
     case WhoAmI = 'whoami';
     case PasswordModify = 'password_modify';
+    case PasswordPolicyForward = 'password_policy_forward';
     case StartTls = 'start_tls';
     case UnsupportedExtended = 'unsupported_extended';
     case RootDse = 'root_dse';
