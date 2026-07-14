@@ -15,10 +15,11 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy;
 
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordBindAttempt;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\RecordedOutcome;
 use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
 
 /**
- * Supplies the password-policy state each bind operation is evaluated and recorded against.
+ * Evaluates and atomically records each bind against the password-policy state that governs it.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -30,12 +31,13 @@ interface PasswordPolicyBindStrategyInterface
     public function preBindOutcome(PasswordBindAttempt $attempt): PasswordPolicyOutcome;
 
     /**
-     * The state a failed bind is counted and recorded against.
+     * Atomically read the subject's current state, run $decide against it, persist the changes it yields, and return
+     * the decision, all under an exclusive lock so concurrent binds cannot lose an update.
+     *
+     * @param callable(UserPasswordState): RecordedOutcome $decide
      */
-    public function failureState(PasswordBindAttempt $attempt): UserPasswordState;
-
-    /**
-     * The state a successful bind is evaluated and cleared against.
-     */
-    public function successState(PasswordBindAttempt $attempt): UserPasswordState;
+    public function record(
+        PasswordBindAttempt $attempt,
+        callable $decide,
+    ): RecordedOutcome;
 }

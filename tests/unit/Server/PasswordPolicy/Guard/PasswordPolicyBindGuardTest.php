@@ -15,19 +15,20 @@ namespace Tests\Unit\FreeDSx\Ldap\Server\PasswordPolicy\Guard;
 
 use DateInterval;
 use DateTimeImmutable;
+use LogicException;
 use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
-use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
-use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
-use FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy\EntryBindStrategy;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\RecordedOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy\PasswordPolicyBindStrategyInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordBindAttempt;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
@@ -37,7 +38,6 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordExpirationRules;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordLockoutRules;
 use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
 use PHPUnit\Framework\TestCase;
-use Tests\Support\FreeDSx\Ldap\Backend\RecordingWriteHandler;
 use Tests\Support\FreeDSx\Ldap\Clock\FrozenClock;
 use Tests\Support\FreeDSx\Ldap\Logging\RecordingLogger;
 use Tests\Support\FreeDSx\Ldap\Server\Clock\RecordingSleeper;
@@ -50,32 +50,54 @@ final class PasswordPolicyBindGuardTest extends TestCase
 
     private FrozenClock $clock;
 
-    private RecordingWriteHandler $writeHandler;
-
     private RecordingLogger $logger;
 
     private PasswordPolicyContext $context;
 
     private RecordingSleeper $sleeper;
 
+    private PasswordPolicyEngine $engine;
+
+    private OperationalChanges $recordedChanges;
+
     private PasswordPolicyBindGuard $subject;
 
     protected function setUp(): void
     {
         $this->clock = FrozenClock::fromString(self::NOW);
-        $this->writeHandler = new RecordingWriteHandler();
         $this->logger = new RecordingLogger();
         $this->context = new PasswordPolicyContext();
         $this->sleeper = new RecordingSleeper();
-
-        $engine = new PasswordPolicyEngine(
+        $this->recordedChanges = OperationalChanges::none();
+        $this->engine = new PasswordPolicyEngine(
             clock: $this->clock,
             changeConstraints: new PasswordChangeConstraintChain([]),
         );
+
+        // Fake the strategy's persistence: run the engine decision against the attempt state and capture its changes,
+        // so this test stays focused on the guard's orchestration (the atomic persistence is covered by strategy tests).
+        $strategy = $this->createMock(PasswordPolicyBindStrategyInterface::class);
+        $strategy->method('preBindOutcome')->willReturnCallback(
+            fn(PasswordBindAttempt $attempt): PasswordPolicyOutcome => $this->engine->evaluatePreBind(
+                $attempt->state,
+                $attempt->policy,
+            ),
+        );
+        $strategy->method('record')->willReturnCallback(
+            function (PasswordBindAttempt $attempt, callable $decide): RecordedOutcome {
+                $recorded = $decide($attempt->state);
+                if (!$recorded instanceof RecordedOutcome) {
+                    throw new LogicException('The decide callback must return a RecordedOutcome.');
+                }
+                $this->recordedChanges = $recorded->changes;
+
+                return $recorded;
+            },
+        );
+
         $this->subject = new PasswordPolicyBindGuard(
-            $engine,
-            new EntryBindStrategy($engine),
-            new SystemChangeWriter(new WriteOperationDispatcher($this->writeHandler)),
+            $this->engine,
+            $strategy,
             $this->context,
             new EventLogger(
                 $this->logger,
@@ -90,10 +112,7 @@ final class PasswordPolicyBindGuardTest extends TestCase
         $this->subject->preBind($this->attempt(new UserPasswordState()));
 
         self::assertNull($this->context->getOutcome());
-        self::assertSame(
-            [],
-            $this->writeHandler->dispatched,
-        );
+        self::assertTrue($this->recordedChanges->isEmpty());
     }
 
     public function test_preBind_denies_a_locked_account(): void
@@ -220,10 +239,7 @@ final class PasswordPolicyBindGuardTest extends TestCase
             PwdPolicyError::PASSWORD_EXPIRED,
             $this->context->getOutcome()?->errorCode,
         );
-        self::assertSame(
-            [],
-            $this->writeHandler->dispatched,
-        );
+        self::assertTrue($this->recordedChanges->isEmpty());
         $this->assertEventRecorded(ServerEvent::PasswordPolicyExpired);
     }
 
@@ -303,15 +319,9 @@ final class PasswordPolicyBindGuardTest extends TestCase
 
     private function wroteAttribute(string $name): bool
     {
-        foreach ($this->writeHandler->dispatched as $dispatch) {
-            $request = $dispatch['request'];
-            if (!$request instanceof UpdateCommand) {
-                continue;
-            }
-            foreach ($request->changes as $change) {
-                if (strcasecmp($change->getAttribute()->getName(), $name) === 0) {
-                    return true;
-                }
+        foreach ($this->recordedChanges->changes as $change) {
+            if (strcasecmp($change->getAttribute()->getName(), $name) === 0) {
+                return true;
             }
         }
 

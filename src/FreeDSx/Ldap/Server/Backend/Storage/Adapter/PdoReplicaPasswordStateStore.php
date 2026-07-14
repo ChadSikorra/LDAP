@@ -49,17 +49,23 @@ final readonly class PdoReplicaPasswordStateStore implements ReplicaPasswordStat
             : ReplicaPasswordState::empty();
     }
 
-    public function apply(
+    /**
+     * @param callable(ReplicaPasswordState): OperationalChanges $merge
+     */
+    public function atomicMutate(
         Dn $dn,
-        OperationalChanges $changes,
+        callable $merge,
     ): void {
-        if ($changes->isEmpty()) {
-            return;
-        }
-
-        $this->transactor->atomic(function () use ($dn, $changes): void {
+        $this->transactor->atomic(function () use ($dn, $merge): void {
             $key = $this->key($dn);
-            $next = $this->load($dn)->withChanges($changes);
+            $current = $this->load($dn);
+            $changes = $merge($current);
+
+            if ($changes->isEmpty()) {
+                return;
+            }
+
+            $next = $current->withChanges($changes);
 
             $this->transactor
                 ->pdo()
