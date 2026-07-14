@@ -374,6 +374,7 @@ final class LdapServerCommand extends Command
                 $password,
                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION],
             );
+            $cleanup->exec('DROP TABLE IF EXISTS ldap_replica_pwpolicy_state');
             $cleanup->exec('DROP TABLE IF EXISTS entry_attribute_values');
             $cleanup->exec('DROP TABLE IF EXISTS entries');
             unset($cleanup);

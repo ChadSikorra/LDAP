@@ -49,5 +49,6 @@ CREATE TABLE IF NOT EXISTS ldap_replica_pwpolicy_state (
     state          JSON NOT NULL,
     seq            BIGINT NOT NULL DEFAULT 0,
     forwarded_seq  BIGINT NOT NULL DEFAULT 0,
-    PRIMARY KEY (lc_dn)
+    PRIMARY KEY (lc_dn),
+    FOREIGN KEY (lc_dn) REFERENCES entries(lc_dn) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

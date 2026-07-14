@@ -22,6 +22,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaForwardState;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordState;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordStateStoreInterface;
+use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
 use PDO;
 
 use function is_array;
@@ -119,6 +120,34 @@ final readonly class PdoReplicaPasswordStateStore implements ReplicaPasswordStat
                 $sequence,
                 $sequence,
             ]);
+    }
+
+    /**
+     * The row lock plus re-load makes the supersession check atomic, so a failure from a racing bind is never dropped.
+     */
+    public function discardIfSuperseded(
+        Dn $dn,
+        UserPasswordState $authoritative,
+    ): void {
+        $this->transactor->atomic(function () use ($dn, $authoritative): void {
+            $this->dialect->lockRowForWrite(
+                $this->transactor->pdo(),
+                self::TABLE,
+                $this->key($dn),
+            );
+
+            $local = $this->loadRecord($dn)
+                ->state
+                ->toUserPasswordState($dn);
+            if (!$local->isSupersededBy($authoritative)) {
+                return;
+            }
+
+            $this->transactor
+                ->pdo()
+                ->prepare('DELETE FROM ' . self::TABLE . ' WHERE lc_dn = ?')
+                ->execute([$this->key($dn)]);
+        });
     }
 
     private function loadRecord(Dn $dn): ReplicaForwardState
