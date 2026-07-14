@@ -15,6 +15,7 @@ namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -24,10 +25,9 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerPasswordPolicyForwardHandler;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriterInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
-use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
@@ -41,19 +41,18 @@ final class ServerPasswordPolicyForwardHandlerTest extends TestCase
 {
     private const NOW = '2026-05-20T12:00:00Z';
 
+    private const DN = 'cn=user,dc=foo,dc=bar';
+
     private ServerQueue&MockObject $queue;
 
-    private LdapBackendInterface&MockObject $backend;
-
-    private SystemChangeWriterInterface&MockObject $changeWriter;
+    private WritableLdapBackendInterface&MockObject $backend;
 
     private ServerPasswordPolicyForwardHandler $subject;
 
     protected function setUp(): void
     {
         $this->queue = $this->createMock(ServerQueue::class);
-        $this->backend = $this->createMock(LdapBackendInterface::class);
-        $this->changeWriter = $this->createMock(SystemChangeWriterInterface::class);
+        $this->backend = $this->createMock(WritableLdapBackendInterface::class);
         $this->subject = new ServerPasswordPolicyForwardHandler(
             $this->queue,
             $this->backend,
@@ -69,34 +68,31 @@ final class ServerPasswordPolicyForwardHandlerTest extends TestCase
                 FrozenClock::fromString(self::NOW),
                 new PasswordChangeConstraintChain([]),
             ),
-            $this->changeWriter,
         );
     }
 
-    public function test_it_unions_forwarded_failures_and_writes_the_result(): void
+    public function test_it_unions_forwarded_failures_via_an_atomic_update(): void
     {
         $time = new DateTimeImmutable(
             '2026-05-20 11:59:00',
             new DateTimeZone('UTC'),
         );
-
-        $this->backend->method('get')->willReturn(Entry::create('cn=user,dc=foo,dc=bar', ['cn' => 'user']));
-        $this->changeWriter
+        $this->queue
             ->expects(self::once())
-            ->method('write')
-            ->with(
-                self::callback(fn(Dn $dn): bool => $dn->toString() === 'cn=user,dc=foo,dc=bar'),
-                self::callback($this->hasNonEmptyAttribute('pwdFailureTime')),
-            );
+            ->method('sendMessage');
 
-        $result = $this->subject->handleRequest(
-            $this->messageFor(new ForwardPasswordPolicyStateRequest('cn=user,dc=foo,dc=bar', 'uuid', [$time])),
-            $this->createMock(TokenInterface::class),
+        $changes = $this->captureComputedChanges(
+            new ForwardPasswordPolicyStateRequest(self::DN, 'uuid', [$time]),
+            Entry::fromArray(self::DN, ['cn' => ['user']]),
         );
 
         self::assertSame(
-            ResultCode::SUCCESS,
-            $result->resultCode(),
+            'pwdFailureTime',
+            $changes[0]->getAttribute()->getName(),
+        );
+        self::assertSame(
+            ['20260520115900Z'],
+            $changes[0]->getAttribute()->getValues(),
         );
     }
 
@@ -107,54 +103,48 @@ final class ServerPasswordPolicyForwardHandlerTest extends TestCase
             new DateTimeZone('UTC'),
         );
 
-        $this->backend->method('get')->willReturn(Entry::create(
-            'cn=user,dc=foo,dc=bar',
-            [
-                'cn' => 'user',
-                'pwdFailureTime' => '20260520115000Z',
-            ],
-        ));
-        $this->changeWriter
-            ->expects(self::once())
-            ->method('write')
-            ->with(
-                self::anything(),
-                self::callback($this->attributeValues('pwdFailureTime', [])),
-            );
+        $changes = $this->captureComputedChanges(
+            new ForwardPasswordPolicyStateRequest(self::DN, 'uuid', [], $success),
+            Entry::fromArray(self::DN, [
+                'cn' => ['user'],
+                'pwdFailureTime' => ['20260520115000Z'],
+            ]),
+        );
 
-        $this->subject->handleRequest(
-            $this->messageFor(new ForwardPasswordPolicyStateRequest(
-                'cn=user,dc=foo,dc=bar',
-                'uuid',
-                [],
-                $success,
-            )),
-            $this->createMock(TokenInterface::class),
+        self::assertSame(
+            'pwdFailureTime',
+            $changes[0]->getAttribute()->getName(),
+        );
+        self::assertSame(
+            [],
+            $changes[0]->getAttribute()->getValues(),
         );
     }
 
-    public function test_an_unknown_entry_is_a_no_op_but_still_acks(): void
+    public function test_it_still_acks_and_does_not_write_when_no_policy_applies(): void
     {
-        $this->backend->method('get')->willReturn(null);
-        $this->changeWriter
-            ->expects(self::never())
-            ->method('write');
         $this->queue
             ->expects(self::once())
             ->method('sendMessage');
 
-        $this->subject->handleRequest(
-            $this->messageFor(new ForwardPasswordPolicyStateRequest(
-                'cn=user,dc=foo,dc=bar',
-                'uuid',
-                [new DateTimeImmutable('2026-05-20 11:59:00', new DateTimeZone('UTC'))],
-            )),
-            $this->createMock(TokenInterface::class),
+        $changes = $this->captureComputedChanges(
+            new ForwardPasswordPolicyStateRequest(self::DN, 'uuid', [
+                new DateTimeImmutable('2026-05-20 11:59:00', new DateTimeZone('UTC')),
+            ]),
+            null,
+        );
+
+        self::assertSame(
+            [],
+            $changes,
         );
     }
 
     public function test_it_rejects_a_request_of_the_wrong_type(): void
     {
+        $this->backend
+            ->expects(self::never())
+            ->method('atomicUpdate');
         $this->expectException(OperationException::class);
         $this->expectExceptionCode(ResultCode::PROTOCOL_ERROR);
 
@@ -165,38 +155,43 @@ final class ServerPasswordPolicyForwardHandlerTest extends TestCase
     }
 
     /**
-     * @return callable(OperationalChanges): bool
+     * Drive handleRequest, capture the compute closure passed to atomicUpdate, and return its changes for the given
+     * entry (or an entry with no applicable policy when $entry is null).
+     *
+     * @return list<Change>
      */
-    private function hasNonEmptyAttribute(string $name): callable
-    {
-        return function (OperationalChanges $changes) use ($name): bool {
-            foreach ($changes->changes as $change) {
-                if ($change->getAttribute()->getName() === $name && $change->getAttribute()->getValues() !== []) {
+    private function captureComputedChanges(
+        ForwardPasswordPolicyStateRequest $request,
+        ?Entry $entry,
+    ): array {
+        $captured = [];
+        $this->backend
+            ->expects(self::once())
+            ->method('atomicUpdate')
+            ->with(
+                self::callback(fn(Dn $dn): bool => $dn->toString() === self::DN),
+                self::isInstanceOf(WriteContext::class),
+                self::callback(function (callable $compute) use (&$captured, $entry): bool {
+                    $result = $entry === null
+                        ? []
+                        : $compute($entry);
+
+                    foreach (is_array($result) ? $result : [] as $change) {
+                        if ($change instanceof Change) {
+                            $captured[] = $change;
+                        }
+                    }
+
                     return true;
-                }
-            }
+                }),
+            );
 
-            return false;
-        };
-    }
+        $this->subject->handleRequest(
+            $this->messageFor($request),
+            $this->createMock(TokenInterface::class),
+        );
 
-    /**
-     * @param list<string> $values
-     * @return callable(OperationalChanges): bool
-     */
-    private function attributeValues(
-        string $name,
-        array $values,
-    ): callable {
-        return function (OperationalChanges $changes) use ($name, $values): bool {
-            foreach ($changes->changes as $change) {
-                if ($change->getAttribute()->getName() === $name) {
-                    return array_values($change->getAttribute()->getValues()) === $values;
-                }
-            }
-
-            return false;
-        };
+        return $captured;
     }
 
     private function messageFor(ExtendedRequest $request): LdapMessageRequest

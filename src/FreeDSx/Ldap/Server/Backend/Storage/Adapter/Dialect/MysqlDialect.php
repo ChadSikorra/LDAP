@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\MysqlFilterTranslator;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\SubstringIndexInterface;
+use PDO;
 
 /**
  * MySQL/MariaDB SQL for PdoStorage; requires MySQL 8.0+ or MariaDB 10.6+.
@@ -31,6 +32,19 @@ final class MysqlDialect implements PdoDialectInterface
     public function createFilterTranslator(?SubstringIndexInterface $substringIndex): FilterTranslatorInterface
     {
         return new MysqlFilterTranslator($substringIndex);
+    }
+
+    public function lockEntryForWrite(
+        PDO $pdo,
+        string $lcDn,
+    ): void {
+        $statement = $pdo->prepare(<<<SQL
+            SELECT lc_dn
+            FROM entries
+            WHERE lc_dn = ?
+            FOR UPDATE
+        SQL);
+        $statement->execute([$lcDn]);
     }
 
     /**

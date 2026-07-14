@@ -14,6 +14,8 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Asn1\Exception\EncoderException;
+use FreeDSx\Ldap\Control\ControlBag;
+use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Request\ForwardPasswordPolicyStateRequest;
@@ -22,19 +24,19 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriterInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
-use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
 use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
+use FreeDSx\Ldap\Server\Token\SystemToken;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
- * Applies a replica-forwarded password-policy state: union the failure times, bound by the observed success, and
- * derive lockout on the primary.
+ * Applies a replica-forwarded password-policy state: atomically union the failure times, bound by the observed
+ * success, and derive lockout on the primary under an exclusive entry lock.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -42,10 +44,9 @@ readonly class ServerPasswordPolicyForwardHandler implements ServerProtocolHandl
 {
     public function __construct(
         private ServerQueue $queue,
-        private LdapBackendInterface $backend,
+        private WritableLdapBackendInterface $backend,
         private PasswordPolicyResolver $policyResolver,
         private PasswordPolicyEngine $engine,
-        private SystemChangeWriterInterface $changeWriter,
     ) {}
 
     /**
@@ -66,13 +67,7 @@ readonly class ServerPasswordPolicyForwardHandler implements ServerProtocolHandl
             );
         }
 
-        $changes = $this->resolveChanges($request);
-        if (!$changes->isEmpty()) {
-            $this->changeWriter->write(
-                $request->getDn(),
-                $changes,
-            );
-        }
+        $this->apply($request);
 
         $this->queue->sendMessage(new LdapMessageResponse(
             $message->getMessageId(),
@@ -85,23 +80,28 @@ readonly class ServerPasswordPolicyForwardHandler implements ServerProtocolHandl
     /**
      * @throws OperationException
      */
-    private function resolveChanges(ForwardPasswordPolicyStateRequest $request): OperationalChanges
+    private function apply(ForwardPasswordPolicyStateRequest $request): void
     {
-        $entry = $this->backend->get($request->getDn());
-        if ($entry === null) {
-            return OperationalChanges::none();
-        }
+        $this->backend->atomicUpdate(
+            $request->getDn(),
+            WriteContext::system(
+                new SystemToken(),
+                new ControlBag(),
+            ),
+            function (Entry $entry) use ($request): array {
+                $policy = $this->policyResolver->resolveFor($entry);
 
-        $policy = $this->policyResolver->resolveFor($entry);
-        if ($policy === null) {
-            return OperationalChanges::none();
-        }
+                if ($policy === null) {
+                    return [];
+                }
 
-        return $this->engine->recordForwardedState(
-            UserPasswordState::fromEntry($entry),
-            $policy,
-            $request->getFailureTimes(),
-            $request->getLastSuccess(),
+                return $this->engine->recordForwardedState(
+                    UserPasswordState::fromEntry($entry),
+                    $policy,
+                    $request->getFailureTimes(),
+                    $request->getLastSuccess(),
+                )->changes;
+            },
         );
     }
 }

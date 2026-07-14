@@ -13,7 +13,9 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Backend\Write;
 
+use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
+use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
@@ -35,5 +37,20 @@ interface WritableLdapBackendInterface extends LdapBackendInterface, WriteHandle
         DeleteCommand $command,
         WriteContext $context,
         callable $authorize,
+    ): void;
+
+    /**
+     * Atomically re-read the entry, derive modifications from its current state via $compute, and apply them under an
+     * exclusive entry lock.
+     *
+     * This is so a concurrent writer cannot clobber within a read-modify-write.
+     *
+     * @param callable(Entry): list<Change> $compute
+     * @throws OperationException
+     */
+    public function atomicUpdate(
+        Dn $dn,
+        WriteContext $context,
+        callable $compute,
     ): void;
 }

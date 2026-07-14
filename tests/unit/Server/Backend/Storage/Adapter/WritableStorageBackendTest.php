@@ -115,6 +115,54 @@ final class WritableStorageBackendTest extends TestCase
         self::assertNull($this->subject->get(new Dn('cn=Charlie,dc=example,dc=com')));
     }
 
+    public function test_atomic_update_derives_changes_from_the_current_state(): void
+    {
+        $dn = new Dn('cn=Alice,dc=example,dc=com');
+        $append = static fn(string $value): callable => static fn(Entry $entry): array => [
+            Change::replace(
+                'pwdFailureTime',
+                ...[
+                    ...($entry->get('pwdFailureTime')?->getValues() ?? []),
+                    $value,
+                ],
+            ),
+        ];
+
+        $this->subject->atomicUpdate($dn, $this->systemContext(), $append('20260520120000Z'));
+        $this->subject->atomicUpdate($dn, $this->systemContext(), $append('20260520120500Z'));
+
+        self::assertSame(
+            ['20260520120000Z', '20260520120500Z'],
+            array_values($this->subject->get($dn)?->get('pwdFailureTime')?->getValues() ?? []),
+        );
+    }
+
+    public function test_atomic_update_is_a_no_op_when_the_entry_is_absent(): void
+    {
+        $dn = new Dn('cn=Ghost,dc=example,dc=com');
+
+        $this->subject->atomicUpdate(
+            $dn,
+            $this->systemContext(),
+            static fn(Entry $entry): array => [Change::replace('cn', 'ghost')],
+        );
+
+        self::assertNull($this->subject->get($dn));
+    }
+
+    public function test_atomic_update_is_a_no_op_when_no_changes_are_computed(): void
+    {
+        $dn = new Dn('cn=Alice,dc=example,dc=com');
+
+        $this->subject->atomicUpdate(
+            $dn,
+            $this->systemContext(),
+            static fn(Entry $entry): array => [],
+        );
+
+        self::assertNull($this->subject->get($dn)?->get('pwdFailureTime'));
+    }
+
     public function test_search_base_scope_returns_only_base(): void
     {
         $request = (new SearchRequest(new PresentFilter('objectClass')))

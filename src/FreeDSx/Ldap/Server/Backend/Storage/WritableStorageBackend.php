@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Server\Backend\Storage;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Control\Sorting\SortingControl;
+use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\InvalidArgumentException;
@@ -23,6 +24,7 @@ use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\SchemaRuleException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Lock\RowLockableInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Operation\WriteEntryOperationHandler;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeRecorder;
@@ -407,6 +409,43 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
             $this->changeRecorder?->recordModify(
                 $storage,
                 $updated,
+                $context,
+            );
+        });
+    }
+
+    /**
+     * @inheritDoc
+     *
+     * @param callable(Entry): list<Change> $compute
+     * @throws OperationException
+     */
+    public function atomicUpdate(
+        Dn $dn,
+        WriteContext $context,
+        callable $compute,
+    ): void {
+        $this->writeAtomic(function (EntryStorageInterface $storage) use ($dn, $context, $compute): void {
+            $normalized = $dn->normalize();
+            if ($storage instanceof RowLockableInterface) {
+                $storage->lockForWrite($normalized);
+            }
+
+            $entry = $storage->find($normalized);
+            if ($entry === null) {
+                return;
+            }
+
+            $changes = $compute($entry);
+            if ($changes === []) {
+                return;
+            }
+
+            $this->update(
+                new UpdateCommand(
+                    $dn,
+                    $changes,
+                ),
                 $context,
             );
         });

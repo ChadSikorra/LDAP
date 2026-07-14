@@ -23,6 +23,7 @@ use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Clock\Sleeper\BlockingSleeper;
 use FreeDSx\Ldap\Server\Clock\Sleeper\CoroutineSleeper;
@@ -107,14 +108,18 @@ final readonly class ProtocolHandlerProvider implements ProtocolHandlerProviderI
         );
     }
 
-    private function getPasswordPolicyForwardHandler(): ServerProtocolHandler\ServerPasswordPolicyForwardHandler
+    private function getPasswordPolicyForwardHandler(): ServerProtocolHandler\ServerProtocolHandlerInterface
     {
+        $backend = $this->handlerFactory->makeBackend();
+        if (!$backend instanceof WritableLdapBackendInterface) {
+            return new ServerProtocolHandler\ServerUnsupportedExtendedHandler($this->queue);
+        }
+
         return new ServerProtocolHandler\ServerPasswordPolicyForwardHandler(
             queue: $this->queue,
-            backend: $this->handlerFactory->makeBackend(),
+            backend: $backend,
             policyResolver: $this->policyComponentFactory->makeResolver(),
             engine: $this->passwordPolicyEngine,
-            changeWriter: $this->policyComponentFactory->makeSystemChangeWriter(),
         );
     }
 
