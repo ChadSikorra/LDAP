@@ -37,6 +37,14 @@ trait PdoDialectTrait
         $pdo->rollBack();
     }
 
+    /**
+     * Default no-op: not all implementations need this.
+     */
+    public function lockEntryForWrite(
+        PDO $pdo,
+        string $lcDn,
+    ): void {}
+
     public function queryExists(): string
     {
         return <<<SQL

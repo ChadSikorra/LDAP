@@ -33,6 +33,14 @@ interface PdoEntryDialectInterface
     public function commit(PDO $pdo): void;
 
     /**
+     * Take an exclusive lock on the entry row within the current transaction so concurrent writers to it serialize.
+     */
+    public function lockEntryForWrite(
+        PDO $pdo,
+        string $lcDn,
+    ): void;
+
+    /**
      * Roll back the current transaction started by beginTransaction().
      */
     public function rollBack(PDO $pdo): void;

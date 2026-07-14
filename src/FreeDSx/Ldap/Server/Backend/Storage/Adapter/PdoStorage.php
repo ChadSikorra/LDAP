@@ -37,6 +37,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\FilterTranslatorInterf
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqlFilterUtility;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SubstringIndex\SubstringIndexInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Lock\RowLockableInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\ReplicaPasswordStateStoreProviderInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordStateStoreInterface;
@@ -55,7 +56,7 @@ use Throwable;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final class PdoStorage implements EntryStorageInterface, ResettableInterface, ChangeJournalingInterface, ReplicaPasswordStateStoreProviderInterface
+final class PdoStorage implements EntryStorageInterface, ResettableInterface, ChangeJournalingInterface, ReplicaPasswordStateStoreProviderInterface, RowLockableInterface
 {
     use ChangeJournalingTrait;
 
@@ -288,6 +289,14 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
     public function atomic(callable $operation): void
     {
         $this->transactor->atomic(fn() => $operation($this));
+    }
+
+    public function lockForWrite(Dn $dn): void
+    {
+        $this->dialect->lockEntryForWrite(
+            $this->transactor->pdo(),
+            $dn->normalize()->toString(),
+        );
     }
 
     public function replicaPasswordStateStore(): ReplicaPasswordStateStoreInterface
