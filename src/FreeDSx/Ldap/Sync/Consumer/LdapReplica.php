@@ -13,9 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Sync\Consumer;
 
-use Closure;
 use FreeDSx\Ldap\Exception\CancelRequestException;
-use FreeDSx\Ldap\LdapClient;
 use FreeDSx\Ldap\ReplicaConfig;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Clock\Sleeper\BlockingSleeper;
@@ -45,11 +43,8 @@ final class LdapReplica
 
     private ?SyncRepl $activeSync = null;
 
-    /**
-     * @param Closure(): SyncRepl $connect opens a fresh, authenticated sync connection to the primary
-     */
     public function __construct(
-        private readonly Closure $connect,
+        private readonly PrimaryConnectionFactory $connectionFactory,
         private readonly ChangeApplierInterface $applier,
         private readonly ReplicationCheckpointInterface $checkpoint,
         private readonly SleeperInterface $sleeper,
@@ -62,6 +57,7 @@ final class LdapReplica
         ReplicaConfig $config,
         EntryStorageInterface $storage,
         ?LoggerInterface $logger = null,
+        ?PrimaryConnectionFactory $connectionFactory = null,
     ): self {
         return self::create(
             $config,
@@ -69,6 +65,7 @@ final class LdapReplica
             new BlockingSleeper(),
             new PcntlShutdownSignals(),
             $logger,
+            $connectionFactory,
         );
     }
 
@@ -80,6 +77,7 @@ final class LdapReplica
         EntryStorageInterface $storage,
         ?LoggerInterface $logger = null,
         ?ShutdownSignalsInterface $signals = new SwooleShutdownSignals(),
+        ?PrimaryConnectionFactory $connectionFactory = null,
     ): self {
         return self::create(
             $config,
@@ -87,6 +85,7 @@ final class LdapReplica
             new CoroutineSleeper(),
             $signals,
             $logger,
+            $connectionFactory,
         );
     }
 
@@ -138,13 +137,14 @@ final class LdapReplica
         SleeperInterface $sleeper,
         ?ShutdownSignalsInterface $signals,
         ?LoggerInterface $logger,
+        ?PrimaryConnectionFactory $connectionFactory = null,
     ): self {
         // listen() must not time out its blocking read, or the persist phase would abort each interval.
         $config->getPrimary()
             ->setTimeoutRead(-1);
 
         return new self(
-            connect: static fn(): SyncRepl => self::connect($config),
+            connectionFactory: $connectionFactory ?? new PrimaryConnectionFactory($config),
             applier: new VerbatimStorageApplier($storage),
             checkpoint: $config->getCheckpoint(),
             sleeper: $sleeper,
@@ -154,25 +154,9 @@ final class LdapReplica
         );
     }
 
-    private static function connect(ReplicaConfig $config): SyncRepl
-    {
-        $client = new LdapClient($config->getPrimary());
-
-        if ($config->getUseStartTls()) {
-            $client->startTls();
-        }
-
-        $bind = $config->getBind();
-        if ($bind !== null) {
-            $client->sendAndReceive($bind);
-        }
-
-        return $client->syncRepl($config->getFilter());
-    }
-
     private function sync(): void
     {
-        $syncRepl = ($this->connect)();
+        $syncRepl = $this->connectionFactory->connectSyncRepl();
         $syncRepl
             ->useCookie($this->checkpoint->read())
             ->useCookieHandler($this->persistCookie(...))
