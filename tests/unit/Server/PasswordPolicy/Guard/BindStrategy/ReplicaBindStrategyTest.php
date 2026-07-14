@@ -17,7 +17,6 @@ use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChange\LocalStateSystemChangeWriter;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordBindAttempt;
@@ -65,7 +64,6 @@ final class ReplicaBindStrategyTest extends TestCase
                 $engine,
                 $this->store,
             ),
-            new LocalStateSystemChangeWriter($this->store),
             $this->context,
             new EventLogger(
                 new RecordingLogger(),

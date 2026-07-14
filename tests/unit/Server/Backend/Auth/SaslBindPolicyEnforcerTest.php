@@ -24,8 +24,6 @@ use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
 use FreeDSx\Ldap\Server\Backend\Auth\SaslBindPolicyEnforcer;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
-use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
@@ -191,8 +189,10 @@ final class SaslBindPolicyEnforcerTest extends TestCase
         );
         $guard = new PasswordPolicyBindGuard(
             $engine,
-            new EntryBindStrategy($engine),
-            new SystemChangeWriter(new WriteOperationDispatcher($this->backend)),
+            new EntryBindStrategy(
+                $engine,
+                $this->backend,
+            ),
             $this->context,
             new EventLogger(null, EventLogPolicy::all()),
             new BlockingSleeper(),

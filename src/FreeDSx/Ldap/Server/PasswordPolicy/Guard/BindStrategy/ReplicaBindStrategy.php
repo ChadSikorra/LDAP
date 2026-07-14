@@ -13,14 +13,19 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy;
 
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordBindAttempt;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\RecordedOutcome;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
+use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordState;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordStateStoreInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
 
 /**
- * Evaluates the worst of the replicated entry state and the replica-local bind state on a read-only replica.
+ * Evaluates the worst of the replicated entry state and the replica-local bind state, and records failures/successes
+ * to the replica-local store on a read-only replica.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -46,23 +51,46 @@ final readonly class ReplicaBindStrategy implements PasswordPolicyBindStrategyIn
         }
 
         return $this->engine->evaluateLocalLockout(
-            $this->localState($attempt),
+            $this->store->load($attempt->dn)->toUserPasswordState($attempt->dn),
             $attempt->policy,
         );
     }
 
-    public function failureState(PasswordBindAttempt $attempt): UserPasswordState
-    {
-        return $this->localState($attempt);
+    public function record(
+        PasswordBindAttempt $attempt,
+        callable $decide,
+    ): RecordedOutcome {
+        $recorded = null;
+
+        $this->store->atomicMutate(
+            $attempt->dn,
+            function (ReplicaPasswordState $local) use ($attempt, $decide, &$recorded): OperationalChanges {
+                $recorded = $decide($this->combine(
+                    $attempt->state,
+                    $local,
+                    $attempt->dn,
+                ));
+
+                return $recorded->changes;
+            },
+        );
+
+        return $recorded ?? new RecordedOutcome(
+            PasswordPolicyOutcome::allow(),
+            OperationalChanges::none(),
+        );
     }
 
     /**
-     * Combine primary expiry/validity with replica-local volatile state so success clears local failures and grace.
+     * Combine primary-authored entry fields (expiry / validity / must-change) with the replica-local volatile state so
+     * the engine decides against the worst of both.
      */
-    public function successState(PasswordBindAttempt $attempt): UserPasswordState
-    {
-        $entry = $attempt->state;
-        $local = $this->localState($attempt);
+    private function combine(
+        UserPasswordState $entry,
+        ReplicaPasswordState $localState,
+        Dn $dn,
+    ): UserPasswordState {
+        $local = $localState->toUserPasswordState($dn);
 
         return new UserPasswordState(
             changedAt: $entry->changedAt,
@@ -76,12 +104,5 @@ final readonly class ReplicaBindStrategy implements PasswordPolicyBindStrategyIn
             endTime: $entry->endTime,
             lastSuccess: $local->lastSuccess,
         );
-    }
-
-    private function localState(PasswordBindAttempt $attempt): UserPasswordState
-    {
-        return $this->store
-            ->load($attempt->dn)
-            ->toUserPasswordState($attempt->dn);
     }
 }

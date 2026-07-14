@@ -13,19 +13,29 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy;
 
+use FreeDSx\Ldap\Control\ControlBag;
+use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordBindAttempt;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\RecordedOutcome;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
+use FreeDSx\Ldap\Server\Token\SystemToken;
 
 /**
- * Evaluates every bind operation against the authoritative entry state (the primary / writable server).
+ * Evaluates and records every bind against the authoritative entry state (the primary / writable server).
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final readonly class EntryBindStrategy implements PasswordPolicyBindStrategyInterface
 {
-    public function __construct(private PasswordPolicyEngine $engine) {}
+    public function __construct(
+        private PasswordPolicyEngine $engine,
+        private WritableLdapBackendInterface $backend,
+    ) {}
 
     public function preBindOutcome(PasswordBindAttempt $attempt): PasswordPolicyOutcome
     {
@@ -35,13 +45,28 @@ final readonly class EntryBindStrategy implements PasswordPolicyBindStrategyInte
         );
     }
 
-    public function failureState(PasswordBindAttempt $attempt): UserPasswordState
-    {
-        return $attempt->state;
-    }
+    public function record(
+        PasswordBindAttempt $attempt,
+        callable $decide,
+    ): RecordedOutcome {
+        $recorded = null;
 
-    public function successState(PasswordBindAttempt $attempt): UserPasswordState
-    {
-        return $attempt->state;
+        $this->backend->atomicUpdate(
+            $attempt->dn,
+            WriteContext::system(
+                new SystemToken(),
+                new ControlBag(),
+            ),
+            function (Entry $entry) use ($decide, &$recorded): array {
+                $recorded = $decide(UserPasswordState::fromEntry($entry));
+
+                return $recorded->changes->changes;
+            },
+        );
+
+        return $recorded ?? new RecordedOutcome(
+            PasswordPolicyOutcome::allow(),
+            OperationalChanges::none(),
+        );
     }
 }

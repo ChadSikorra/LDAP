@@ -42,8 +42,8 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Sasl\External\SubjectDnCredentialMapper;
 use FreeDSx\Ldap\Server\Backend\Auth\SaslBindPolicyEnforcer;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChange\LocalStateSystemChangeWriter;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
+use FreeDSx\Ldap\Exception\RuntimeException;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\OperationAuditor;
@@ -336,19 +336,31 @@ class ServerProtocolFactory implements ServerProtocolFactoryInterface
 
         $strategy = $store !== null
             ? new ReplicaBindStrategy($this->passwordPolicyEngine, $store)
-            : new EntryBindStrategy($this->passwordPolicyEngine);
-        $writer = $store !== null
-            ? new LocalStateSystemChangeWriter($store)
-            : new SystemChangeWriter($this->handlerFactory->makeWriteDispatcher());
+            : new EntryBindStrategy($this->passwordPolicyEngine, $this->makeWritableBackend());
 
         return new PasswordPolicyBindGuard(
             $this->passwordPolicyEngine,
             $strategy,
-            $writer,
             $policyContext,
             $eventLogger,
             $this->makeSleeper(),
         );
+    }
+
+    /**
+     * @throws RuntimeException when the backend cannot record password-policy bind state.
+     */
+    private function makeWritableBackend(): WritableLdapBackendInterface
+    {
+        $backend = $this->handlerFactory->makeBackend();
+
+        if (!$backend instanceof WritableLdapBackendInterface) {
+            throw new RuntimeException(
+                'A backend implementing WritableLdapBackendInterface is required to record password-policy bind state.',
+            );
+        }
+
+        return $backend;
     }
 
     private function makeSleeper(): SleeperInterface

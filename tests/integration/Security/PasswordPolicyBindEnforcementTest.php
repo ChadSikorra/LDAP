@@ -26,8 +26,6 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticator;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordPolicyAwareAuthenticator;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
-use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
@@ -530,8 +528,10 @@ final class PasswordPolicyBindEnforcementTest extends TestCase
         );
         $guard = new PasswordPolicyBindGuard(
             $engine,
-            new EntryBindStrategy($engine),
-            new SystemChangeWriter(new WriteOperationDispatcher($this->backend)),
+            new EntryBindStrategy(
+                $engine,
+                $this->backend,
+            ),
             $this->context,
             new EventLogger(
                 $this->logger,

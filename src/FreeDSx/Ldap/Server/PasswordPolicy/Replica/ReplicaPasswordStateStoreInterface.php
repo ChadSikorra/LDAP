@@ -29,10 +29,13 @@ interface ReplicaPasswordStateStoreInterface
     public function load(Dn $dn): ReplicaPasswordState;
 
     /**
-     * Apply engine-emitted operational deltas to the subject's locally tracked state.
+     * Atomically read the subject's current local state, derive changes from it via $merge, and apply them under an
+     * exclusive lock so concurrent binds cannot lose an update.
+     *
+     * @param callable(ReplicaPasswordState): OperationalChanges $merge
      */
-    public function apply(
+    public function atomicMutate(
         Dn $dn,
-        OperationalChanges $changes,
+        callable $merge,
     ): void;
 }

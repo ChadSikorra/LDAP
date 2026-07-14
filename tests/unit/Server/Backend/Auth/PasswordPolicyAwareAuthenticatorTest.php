@@ -21,9 +21,8 @@ use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordPolicyAwareAuthenticator;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
-use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
@@ -37,7 +36,6 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordLockoutRules;
 use FreeDSx\Ldap\Server\Token\BindToken;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use Tests\Support\FreeDSx\Ldap\Backend\RecordingWriteHandler;
 use Tests\Support\FreeDSx\Ldap\Clock\FrozenClock;
 
 final class PasswordPolicyAwareAuthenticatorTest extends TestCase
@@ -48,7 +46,10 @@ final class PasswordPolicyAwareAuthenticatorTest extends TestCase
 
     private BindNameResolverInterface&MockObject $nameResolver;
 
-    private RecordingWriteHandler $writeHandler;
+    /**
+     * @var list<true>
+     */
+    private array $writes;
 
     private PasswordPolicyContext $context;
 
@@ -56,7 +57,7 @@ final class PasswordPolicyAwareAuthenticatorTest extends TestCase
     {
         $this->inner = $this->createMock(PasswordAuthenticatableInterface::class);
         $this->nameResolver = $this->createMock(BindNameResolverInterface::class);
-        $this->writeHandler = new RecordingWriteHandler();
+        $this->writes = [];
         $this->context = new PasswordPolicyContext();
     }
 
@@ -163,7 +164,7 @@ final class PasswordPolicyAwareAuthenticatorTest extends TestCase
 
         self::assertCount(
             1,
-            $this->writeHandler->dispatched,
+            $this->writes,
         );
     }
 
@@ -194,21 +195,25 @@ final class PasswordPolicyAwareAuthenticatorTest extends TestCase
 
         self::assertSame(
             [],
-            $this->writeHandler->dispatched,
+            $this->writes,
         );
     }
 
     private function authenticator(?PasswordPolicy $policy): PasswordPolicyAwareAuthenticator
     {
-        $backend = $this->createMock(LdapBackendInterface::class);
+        $backend = $this->createMock(WritableLdapBackendInterface::class);
+        $backend->method('atomicUpdate')->willReturnCallback(
+            function (Dn $dn, WriteContext $context, callable $compute): void {
+                $this->writes[] = true;
+            },
+        );
         $engine = new PasswordPolicyEngine(
             clock: FrozenClock::fromString('2026-05-20T12:00:00Z'),
             changeConstraints: new PasswordChangeConstraintChain([]),
         );
         $guard = new PasswordPolicyBindGuard(
             $engine,
-            new EntryBindStrategy($engine),
-            new SystemChangeWriter(new WriteOperationDispatcher($this->writeHandler)),
+            new EntryBindStrategy($engine, $backend),
             $this->context,
             new EventLogger(null),
             new BlockingSleeper(),

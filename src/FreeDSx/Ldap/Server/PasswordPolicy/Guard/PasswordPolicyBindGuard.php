@@ -15,13 +15,13 @@ namespace FreeDSx\Ldap\Server\PasswordPolicy\Guard;
 
 use FreeDSx\Ldap\Control\PwdPolicyError;
 use FreeDSx\Ldap\Exception\OperationException;
-use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriterInterface;
 use FreeDSx\Ldap\Server\Clock\Sleeper\SleeperInterface;
 use FreeDSx\Ldap\Server\Logging\EventContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\ServerEvent;
 use FreeDSx\Ldap\Server\PasswordPolicy\Attempt\PasswordBindAttempt;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\PasswordPolicyOutcome;
+use FreeDSx\Ldap\Server\PasswordPolicy\Decision\RecordedOutcome;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy\PasswordPolicyBindStrategyInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
@@ -35,7 +35,6 @@ final readonly class PasswordPolicyBindGuard
     public function __construct(
         private PasswordPolicyEngine $engine,
         private PasswordPolicyBindStrategyInterface $strategy,
-        private SystemChangeWriterInterface $writer,
         private PasswordPolicyContext $context,
         private EventLogger $eventLogger,
         private SleeperInterface $sleeper,
@@ -68,13 +67,12 @@ final readonly class PasswordPolicyBindGuard
      */
     public function recordFailure(PasswordBindAttempt $attempt): void
     {
-        $recorded = $this->engine->recordBindFailure(
-            $this->strategy->failureState($attempt),
-            $attempt->policy,
-        );
-        $this->writer->write(
-            $attempt->dn,
-            $recorded->changes,
+        $recorded = $this->strategy->record(
+            $attempt,
+            fn(UserPasswordState $state): RecordedOutcome => $this->engine->recordBindFailure(
+                $state,
+                $attempt->policy,
+            ),
         );
 
         if ($recorded->outcome->denied) {
@@ -93,10 +91,17 @@ final readonly class PasswordPolicyBindGuard
      */
     public function recordSuccess(PasswordBindAttempt $attempt): void
     {
-        $state = $this->strategy->successState($attempt);
-        $recorded = $this->engine->recordBindSuccess(
-            $state,
-            $attempt->policy,
+        $state = null;
+        $recorded = $this->strategy->record(
+            $attempt,
+            function (UserPasswordState $current) use ($attempt, &$state): RecordedOutcome {
+                $state = $current;
+
+                return $this->engine->recordBindSuccess(
+                    $current,
+                    $attempt->policy,
+                );
+            },
         );
         $outcome = $recorded->outcome;
 
@@ -113,14 +118,10 @@ final readonly class PasswordPolicyBindGuard
             );
         }
 
-        $this->writer->write(
-            $attempt->dn,
-            $recorded->changes,
-        );
         $this->context->setOutcome($outcome);
         $this->emitSuccessEvents(
             $attempt,
-            $state,
+            $state ?? $attempt->state,
             $outcome,
         );
     }

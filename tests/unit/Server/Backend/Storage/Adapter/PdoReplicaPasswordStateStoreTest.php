@@ -62,7 +62,7 @@ final class PdoReplicaPasswordStateStoreTest extends TestCase
 
     public function test_apply_persists_and_reloads_state(): void
     {
-        $this->subject->apply(
+        $this->applyChanges(
             new Dn(self::DN),
             OperationalChanges::of(Change::replace(
                 PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME,
@@ -81,7 +81,7 @@ final class PdoReplicaPasswordStateStoreTest extends TestCase
     public function test_apply_reset_removes_the_row(): void
     {
         $dn = new Dn(self::DN);
-        $this->subject->apply(
+        $this->applyChanges(
             $dn,
             OperationalChanges::of(Change::replace(
                 PasswordPolicyOid::NAME_PWD_FAILURE_TIME,
@@ -89,7 +89,7 @@ final class PdoReplicaPasswordStateStoreTest extends TestCase
             )),
         );
 
-        $this->subject->apply(
+        $this->applyChanges(
             $dn,
             OperationalChanges::of(Change::reset(PasswordPolicyOid::NAME_PWD_FAILURE_TIME)),
         );
@@ -100,7 +100,7 @@ final class PdoReplicaPasswordStateStoreTest extends TestCase
     public function test_local_state_survives_a_verbatim_entry_store(): void
     {
         $dn = new Dn(self::DN);
-        $this->subject->apply(
+        $this->applyChanges(
             $dn,
             OperationalChanges::of(Change::replace(
                 PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME,
@@ -118,6 +118,16 @@ final class PdoReplicaPasswordStateStoreTest extends TestCase
                 ->load($dn)
                 ->toUserPasswordState($dn)
                 ->isLocked(),
+        );
+    }
+
+    private function applyChanges(
+        Dn $dn,
+        OperationalChanges $changes,
+    ): void {
+        $this->subject->atomicMutate(
+            $dn,
+            static fn(): OperationalChanges => $changes,
         );
     }
 }

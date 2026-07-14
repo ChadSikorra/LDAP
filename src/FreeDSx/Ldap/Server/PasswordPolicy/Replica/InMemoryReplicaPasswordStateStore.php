@@ -34,18 +34,21 @@ final class InMemoryReplicaPasswordStateStore implements ReplicaPasswordStateSto
             ?? ReplicaPasswordState::empty();
     }
 
-    public function apply(
+    /**
+     * @param callable(ReplicaPasswordState): OperationalChanges $merge
+     */
+    public function atomicMutate(
         Dn $dn,
-        OperationalChanges $changes,
+        callable $merge,
     ): void {
+        $key = $this->key($dn);
+        $current = $this->states[$key] ?? ReplicaPasswordState::empty();
+        $changes = $merge($current);
         if ($changes->isEmpty()) {
             return;
         }
 
-        $key = $this->key($dn);
-        $state = ($this->states[$key] ?? ReplicaPasswordState::empty())
-            ->withChanges($changes);
-
+        $state = $current->withChanges($changes);
         if ($state->isEmpty()) {
             unset($this->states[$key]);
 
