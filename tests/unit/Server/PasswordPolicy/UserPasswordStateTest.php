@@ -185,4 +185,77 @@ final class UserPasswordStateTest extends TestCase
             $state->changedAt?->format('c'),
         );
     }
+
+    public function test_is_superseded_by_an_authoritative_lock(): void
+    {
+        $local = new UserPasswordState(failureTimes: [$this->at('20250105080000Z')]);
+
+        self::assertTrue($local->isSupersededBy(new UserPasswordState(accountLockedAt: $this->at('20250105080100Z'))));
+    }
+
+    public function test_local_lock_is_superseded_by_a_newer_credential_change(): void
+    {
+        // A password reset on the primary (pwdChangedTime past the failures) clears an independent replica-local lock.
+        $local = new UserPasswordState(
+            accountLockedAt: $this->at('20250105080000Z'),
+            failureTimes: [$this->at('20250105080000Z')],
+        );
+
+        self::assertTrue($local->isSupersededBy(new UserPasswordState(changedAt: $this->at('20250105090000Z'))));
+    }
+
+    public function test_local_lock_is_superseded_by_a_newer_success(): void
+    {
+        $local = new UserPasswordState(
+            accountLockedAt: $this->at('20250105080000Z'),
+            failureTimes: [$this->at('20250105080000Z')],
+        );
+
+        self::assertTrue($local->isSupersededBy(new UserPasswordState(lastSuccess: $this->at('20250105090000Z'))));
+    }
+
+    public function test_local_lock_is_kept_when_the_entry_reflects_no_reset(): void
+    {
+        $local = new UserPasswordState(
+            accountLockedAt: $this->at('20250105080000Z'),
+            failureTimes: [$this->at('20250105080000Z')],
+        );
+
+        // Bare pwdChangedTime that predates the failures is not a reset.
+        self::assertFalse($local->isSupersededBy(new UserPasswordState(changedAt: $this->at('20250101120000Z'))));
+    }
+
+    public function test_sub_threshold_failures_are_kept_until_reset(): void
+    {
+        $local = new UserPasswordState(failureTimes: [$this->at('20250105080000Z')]);
+
+        self::assertFalse($local->isSupersededBy(new UserPasswordState()));
+    }
+
+    public function test_sub_threshold_failures_are_superseded_by_a_newer_success(): void
+    {
+        $local = new UserPasswordState(failureTimes: [$this->at('20250105080000Z')]);
+
+        self::assertTrue($local->isSupersededBy(new UserPasswordState(lastSuccess: $this->at('20250105080100Z'))));
+    }
+
+    public function test_a_success_predating_the_failure_does_not_supersede(): void
+    {
+        $local = new UserPasswordState(failureTimes: [$this->at('20250105080000Z')]);
+
+        self::assertFalse($local->isSupersededBy(new UserPasswordState(lastSuccess: $this->at('20250105075900Z'))));
+    }
+
+    public function test_empty_local_state_is_always_superseded(): void
+    {
+        self::assertTrue((new UserPasswordState())->isSupersededBy(new UserPasswordState()));
+    }
+
+    private function at(string $generalizedTime): DateTimeImmutable
+    {
+        return new DateTimeImmutable(
+            $generalizedTime,
+            new DateTimeZone('UTC'),
+        );
+    }
 }

@@ -63,4 +63,9 @@ interface ReplicaPasswordStateStoreInterface
         Dn $dn,
         UserPasswordState $authoritative,
     ): void;
+
+    /**
+     * Drop a subject's local state outright, used when the subject is deleted on the primary; a no-op when none exists.
+     */
+    public function discard(Dn $dn): void;
 }

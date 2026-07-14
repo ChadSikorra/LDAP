@@ -110,15 +110,14 @@ final readonly class UserPasswordState
             return true;
         }
 
-        if ($this->isLocked()) {
-            return false;
-        }
-
         $newestFailure = $this->newestFailureTime();
         if ($newestFailure === null) {
-            return true;
+            // No local failures to weigh a reset against
+            // Drop only when there is also no local lock left to enforce.
+            return !$this->isLocked();
         }
 
+        // A success or credential change past our newest failure means the primary reset the counter and any lock.
         return self::isAfter(
             $authoritative->lastSuccess,
             $newestFailure,
