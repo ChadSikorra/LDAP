@@ -85,7 +85,10 @@ class SwooleServerRunner implements CoroutineServerRunnerInterface
         private readonly SocketServerFactory $socketServerFactory,
         Closure $protocolFactoryProvider,
         private readonly MetricsRecorderInterface $metricsRecorder = new NullMetricsRecorder(),
-        private readonly BackgroundTasksInterface $backgroundTasks = new SwooleBackgroundTasks(),
+        private readonly BackgroundTasksInterface $backgroundTasks = new SwooleBackgroundTasks(
+            periodicTasks: [],
+            longLivedTasks: [],
+        ),
     ) {
         if (!extension_loaded('swoole')) {
             throw new RuntimeException(

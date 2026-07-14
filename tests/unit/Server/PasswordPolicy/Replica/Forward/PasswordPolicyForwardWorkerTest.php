@@ -19,6 +19,7 @@ use FreeDSx\Ldap\Exception\ForwardStateException;
 use FreeDSx\Ldap\Operation\Request\ForwardPasswordPolicyStateRequest;
 use FreeDSx\Ldap\Schema\Definition\GeneralizedTime;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
+use FreeDSx\Ldap\Server\Clock\Sleeper\SleeperInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\Forward\ForwardStateSenderInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\Forward\PasswordPolicyForwardWorker;
@@ -39,16 +40,32 @@ final class PasswordPolicyForwardWorkerTest extends TestCase
      */
     private array $sent;
 
+    /**
+     * @var list<float>
+     */
+    private array $slept;
+
     private PasswordPolicyForwardWorker $subject;
 
     protected function setUp(): void
     {
         $this->store = new InMemoryReplicaPasswordStateStore();
         $this->sent = [];
+        $this->slept = [];
         $this->sender = $this->createMock(ForwardStateSenderInterface::class);
+
+        // Stop after each sleep so run() executes exactly one drain iteration per test.
+        $sleeper = $this->createMock(SleeperInterface::class);
+        $sleeper->method('sleep')
+            ->willReturnCallback(function (float $seconds): void {
+                $this->slept[] = $seconds;
+                $this->subject->stop();
+            });
+
         $this->subject = new PasswordPolicyForwardWorker(
             $this->store,
             $this->sender,
+            $sleeper,
         );
     }
 
@@ -117,6 +134,46 @@ final class PasswordPolicyForwardWorkerTest extends TestCase
                 $this->store->listUnforwarded(),
             );
         }
+    }
+
+    public function test_run_drains_then_sleeps_the_poll_interval(): void
+    {
+        $this->recordSends();
+        $this->seedFailure('20260520120000Z');
+
+        $this->subject->run();
+
+        self::assertCount(
+            1,
+            $this->sent,
+        );
+        self::assertSame(
+            [PasswordPolicyForwardWorker::DEFAULT_INTERVAL_SECONDS],
+            $this->slept,
+        );
+        self::assertSame(
+            [],
+            $this->store->listUnforwarded(),
+        );
+    }
+
+    public function test_run_backs_off_and_leaves_state_pending_on_a_delivery_failure(): void
+    {
+        $this->sender
+            ->method('send')
+            ->willThrowException(new ForwardStateException('primary is unreachable'));
+        $this->seedFailure('20260520120000Z');
+
+        $this->subject->run();
+
+        self::assertSame(
+            [1.0],
+            $this->slept,
+        );
+        self::assertCount(
+            1,
+            $this->store->listUnforwarded(),
+        );
     }
 
     private function recordSends(): void

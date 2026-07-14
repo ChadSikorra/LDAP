@@ -17,7 +17,6 @@ use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Server\Backend\ResettableInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionSweeper;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Metrics\File\SnapshotPublisher;
@@ -96,9 +95,8 @@ class PcntlServerRunner implements ServerRunnerInterface
         private readonly ?OperationRollupCoordinator $operationRollup = null,
         private readonly ?WritableLdapBackendInterface $backend = null,
         BackgroundTasksInterface $backgroundTasks = new PcntlBackgroundTasks(
-            makeSweeper: null,
-            makeDaemon: null,
-            sweepIntervalSeconds: RetentionSweeper::DEFAULT_INTERVAL_SECONDS,
+            periodicTasks: [],
+            longLivedTasks: [],
         ),
     ) {
         if (!extension_loaded('pcntl') || !extension_loaded('posix')) {
