@@ -65,7 +65,7 @@ final readonly class PasswordPolicyComponentFactory
         return new PasswordPolicyWriteHandler(
             $backend,
             $guard,
-            $this->systemChangeWriter(),
+            $this->makeSystemChangeWriter(),
         );
     }
 
@@ -79,17 +79,22 @@ final readonly class PasswordPolicyComponentFactory
 
         return new PasswordPolicyChangeGuard(
             $this->passwordPolicyEngine,
-            new PasswordPolicyResolver(
-                $this->handlerFactory->makeBackend(),
-                $this->options->getDefaultPasswordPolicyDn(),
-                $this->options->getPasswordPolicy(),
-            ),
+            $this->makeResolver(),
             $passwordPolicyContext,
             $eventLogger,
         );
     }
 
-    private function systemChangeWriter(): SystemChangeWriterInterface
+    public function makeResolver(): PasswordPolicyResolver
+    {
+        return new PasswordPolicyResolver(
+            $this->handlerFactory->makeBackend(),
+            $this->options->getDefaultPasswordPolicyDn(),
+            $this->options->getPasswordPolicy(),
+        );
+    }
+
+    public function makeSystemChangeWriter(): SystemChangeWriterInterface
     {
         if ($this->options->isReadOnly()) {
             return new NullSystemChangeWriter();

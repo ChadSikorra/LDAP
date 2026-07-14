@@ -14,24 +14,27 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Asn1\Exception\EncoderException;
-use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\LdapResult;
-use FreeDSx\Ldap\Operation\Request\PasswordPolicy\ForwardPasswordPolicyStateRequest;
-use FreeDSx\Ldap\Operation\Request\PasswordPolicy\PasswordPolicyStateAttribute;
+use FreeDSx\Ldap\Operation\Request\ForwardPasswordPolicyStateRequest;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriterInterface;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
+use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
- * Applies a replica-forwarded password-policy state delta as an internal system write, so it journals and replicates.
+ * Applies a replica-forwarded password-policy state: union the failure times, bound by the observed success, and
+ * derive lockout on the primary.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -39,6 +42,9 @@ readonly class ServerPasswordPolicyForwardHandler implements ServerProtocolHandl
 {
     public function __construct(
         private ServerQueue $queue,
+        private LdapBackendInterface $backend,
+        private PasswordPolicyResolver $policyResolver,
+        private PasswordPolicyEngine $engine,
         private SystemChangeWriterInterface $changeWriter,
     ) {}
 
@@ -60,10 +66,13 @@ readonly class ServerPasswordPolicyForwardHandler implements ServerProtocolHandl
             );
         }
 
-        $this->changeWriter->write(
-            $request->getDn(),
-            $this->toOperationalChanges($request->getState()),
-        );
+        $changes = $this->resolveChanges($request);
+        if (!$changes->isEmpty()) {
+            $this->changeWriter->write(
+                $request->getDn(),
+                $changes,
+            );
+        }
 
         $this->queue->sendMessage(new LdapMessageResponse(
             $message->getMessageId(),
@@ -74,19 +83,25 @@ readonly class ServerPasswordPolicyForwardHandler implements ServerProtocolHandl
     }
 
     /**
-     * @param PasswordPolicyStateAttribute[] $state
+     * @throws OperationException
      */
-    private function toOperationalChanges(array $state): OperationalChanges
+    private function resolveChanges(ForwardPasswordPolicyStateRequest $request): OperationalChanges
     {
-        $changes = [];
-
-        foreach ($state as $attribute) {
-            $name = $attribute->field->attributeName();
-            $changes[] = $attribute->values === []
-                ? Change::reset($name)
-                : Change::replace($name, ...$attribute->values);
+        $entry = $this->backend->get($request->getDn());
+        if ($entry === null) {
+            return OperationalChanges::none();
         }
 
-        return OperationalChanges::of(...$changes);
+        $policy = $this->policyResolver->resolveFor($entry);
+        if ($policy === null) {
+            return OperationalChanges::none();
+        }
+
+        return $this->engine->recordForwardedState(
+            UserPasswordState::fromEntry($entry),
+            $policy,
+            $request->getFailureTimes(),
+            $request->getLastSuccess(),
+        );
     }
 }
