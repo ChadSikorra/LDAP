@@ -27,6 +27,8 @@ use function microtime;
  */
 final readonly class RetentionSweeper
 {
+    public const TASK_NAME = 'retention-sweep';
+
     public const DEFAULT_INTERVAL_SECONDS = 60.0;
 
     public function __construct(

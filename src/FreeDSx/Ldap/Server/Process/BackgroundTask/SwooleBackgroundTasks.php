@@ -14,13 +14,16 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Process\BackgroundTask;
 
 use Closure;
-use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionSweeper;
-use FreeDSx\Ldap\Sync\Consumer\LdapReplica;
+use FreeDSx\Ldap\Server\Logging\ExceptionLogging;
+use Psr\Log\LoggerInterface;
 use Swoole\Coroutine;
 use Swoole\Coroutine\Channel;
+use Throwable;
+
+use function sprintf;
 
 /**
- * Runs the retention sweep and replica daemon as background coroutines under Swoole.
+ * Runs periodic and long-lived background tasks as background coroutines under Swoole.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -29,13 +32,18 @@ final class SwooleBackgroundTasks implements BackgroundTasksInterface
     private bool $stopping = false;
 
     /**
-     * @var ?Channel<bool>
+     * @var list<Channel<bool>>
      */
-    private ?Channel $sweepWakeup = null;
+    private array $wakeups = [];
 
+    /**
+     * @param list<PeriodicTask> $periodicTasks
+     * @param list<LongLivedTask> $longLivedTasks
+     */
     public function __construct(
-        private readonly ?RetentionSweeper $sweeper = null,
-        private readonly ?LdapReplica $daemon = null,
+        private readonly array $periodicTasks,
+        private readonly array $longLivedTasks,
+        private readonly ?LoggerInterface $logger = null,
     ) {}
 
     public function onChildStart(Closure $onStart): void
@@ -45,8 +53,12 @@ final class SwooleBackgroundTasks implements BackgroundTasksInterface
 
     public function start(): void
     {
-        $this->startSweep();
-        $this->startDaemon();
+        foreach ($this->periodicTasks as $task) {
+            $this->startPeriodic($task);
+        }
+        foreach ($this->longLivedTasks as $task) {
+            Coroutine::create(fn(): null => $this->guard($task->name, $task->run));
+        }
     }
 
     public function tick(): void
@@ -57,41 +69,50 @@ final class SwooleBackgroundTasks implements BackgroundTasksInterface
     public function stop(): void
     {
         $this->stopping = true;
-        $this->sweepWakeup?->push(true);
-        $this->daemon?->stop();
+
+        foreach ($this->wakeups as $wakeup) {
+            $wakeup->push(true);
+        }
+        foreach ($this->longLivedTasks as $task) {
+            if ($task->stop !== null) {
+                ($task->stop)();
+            }
+        }
     }
 
-    private function startSweep(): void
+    private function startPeriodic(PeriodicTask $task): void
     {
-        if ($this->sweeper === null) {
-            return;
-        }
+        $wakeup = new Channel(1);
+        $this->wakeups[] = $wakeup;
 
-        $sweeper = $this->sweeper;
-        $wakeup = $this->sweepWakeup = new Channel(1);
-
-        Coroutine::create(function () use ($sweeper, $wakeup): void {
+        Coroutine::create(function () use ($task, $wakeup): void {
             while (!$this->stopping) {
                 // pop() returns the pushed value on shutdown, or false after the interval elapses.
-                if ($wakeup->pop(RetentionSweeper::DEFAULT_INTERVAL_SECONDS) !== false) {
+                if ($wakeup->pop($task->intervalSeconds) !== false) {
                     break;
                 }
 
-                $sweeper->sweep();
+                $this->guard($task->name, $task->run);
             }
         });
     }
 
-    private function startDaemon(): void
-    {
-        if ($this->daemon === null) {
-            return;
+    /**
+     * Run a task body, logging any failure by name so an unhandled exception does not silently kill the coroutine.
+     *
+     * @param Closure(): void $run
+     */
+    private function guard(
+        string $name,
+        Closure $run,
+    ): void {
+        try {
+            $run();
+        } catch (Throwable $e) {
+            $this->logger?->error(
+                sprintf('The "%s" background task failed.', $name),
+                ExceptionLogging::makeLogContext($e),
+            );
         }
-
-        $daemon = $this->daemon;
-
-        Coroutine::create(static function () use ($daemon): void {
-            $daemon->run();
-        });
     }
 }

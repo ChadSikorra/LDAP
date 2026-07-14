@@ -39,6 +39,8 @@ use Throwable;
  */
 final class LdapReplica
 {
+    public const TASK_NAME = 'replica-sync';
+
     private bool $stopping = false;
 
     private ?SyncRepl $activeSync = null;

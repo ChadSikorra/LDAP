@@ -27,9 +27,17 @@ use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\ReplicaPasswordStateStoreProviderInterface;
+use FreeDSx\Ldap\Server\Clock\Sleeper\BlockingSleeper;
+use FreeDSx\Ldap\Server\Clock\Sleeper\CoroutineSleeper;
+use FreeDSx\Ldap\Server\PasswordPolicy\Replica\Forward\LdapClientForwardStateSender;
+use FreeDSx\Ldap\Server\PasswordPolicy\Replica\Forward\PasswordPolicyForwardWorker;
+use FreeDSx\Ldap\Server\Process\BackgroundTask\LongLivedTask;
 use FreeDSx\Ldap\Server\Process\BackgroundTask\PcntlBackgroundTasks;
+use FreeDSx\Ldap\Server\Process\BackgroundTask\PeriodicTask;
 use FreeDSx\Ldap\Server\Process\BackgroundTask\SwooleBackgroundTasks;
+use FreeDSx\Ldap\Server\Process\Signals\PcntlShutdownSignals;
 use FreeDSx\Ldap\Sync\Consumer\LdapReplica;
+use FreeDSx\Ldap\Sync\Consumer\PrimaryConnectionFactory;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeRecorder;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionPolicy;
@@ -639,26 +647,104 @@ class Container
 
     private function makeSwooleBackgroundTasks(): SwooleBackgroundTasks
     {
+        $periodicTasks = [];
+        $sweeper = $this->makeRetentionSweeper();
+        if ($sweeper !== null) {
+            $periodicTasks[] = new PeriodicTask(
+                RetentionSweeper::TASK_NAME,
+                RetentionSweeper::DEFAULT_INTERVAL_SECONDS,
+                static function () use ($sweeper): void {
+                    $sweeper->sweep();
+                },
+            );
+        }
+
+        $longLivedTasks = [];
+        $daemon = $this->makeReplicaDaemon(hostManagedShutdown: true);
+        if ($daemon !== null) {
+            $longLivedTasks[] = new LongLivedTask(
+                LdapReplica::TASK_NAME,
+                $daemon->run(...),
+                $daemon->stop(...),
+            );
+        }
+        $forwardWorker = $this->makeForwardWorker(useCoroutineSleeper: true);
+        if ($forwardWorker !== null) {
+            $longLivedTasks[] = new LongLivedTask(
+                PasswordPolicyForwardWorker::TASK_NAME,
+                $forwardWorker->run(...),
+                $forwardWorker->stop(...),
+            );
+        }
+
         return new SwooleBackgroundTasks(
-            $this->makeRetentionSweeper(),
-            $this->makeReplicaDaemon(hostManagedShutdown: true),
+            $periodicTasks,
+            $longLivedTasks,
+            $this->get(ServerOptions::class)->getLogger(),
         );
     }
 
     private function makePcntlBackgroundTasks(): PcntlBackgroundTasks
     {
         $options = $this->get(ServerOptions::class);
-        $hasSweep = $this->journalRetentionPolicyIfSweepable() !== null;
-        $hasDaemon = $options->getReplicaConfig() !== null;
+
+        $periodicTasks = [];
+        if ($this->journalRetentionPolicyIfSweepable() !== null) {
+            $periodicTasks[] = new PeriodicTask(
+                RetentionSweeper::TASK_NAME,
+                RetentionSweeper::DEFAULT_INTERVAL_SECONDS,
+                function (): void {
+                    $this->makeRetentionSweeper()?->sweep();
+                },
+            );
+        }
+
+        $longLivedTasks = [];
+        if ($options->getReplicaConfig() !== null) {
+            $longLivedTasks[] = new LongLivedTask(
+                LdapReplica::TASK_NAME,
+                function (): void {
+                    $this->makeReplicaDaemon(hostManagedShutdown: false)?->run();
+                },
+            );
+        }
+        if ($this->makeForwardWorker(useCoroutineSleeper: false) !== null) {
+            $longLivedTasks[] = new LongLivedTask(
+                PasswordPolicyForwardWorker::TASK_NAME,
+                function (): void {
+                    $this->makeForwardWorker(useCoroutineSleeper: false)?->run();
+                },
+            );
+        }
 
         return new PcntlBackgroundTasks(
-            makeSweeper: $hasSweep
-                ? fn(): ?RetentionSweeper => $this->makeRetentionSweeper()
-                : null,
-            makeDaemon: $hasDaemon
-                ? fn(): ?LdapReplica => $this->makeReplicaDaemon(hostManagedShutdown: false)
-                : null,
-            sweepIntervalSeconds: RetentionSweeper::DEFAULT_INTERVAL_SECONDS,
+            periodicTasks: $periodicTasks,
+            longLivedTasks: $longLivedTasks,
+            logger: $options->getLogger(),
+        );
+    }
+
+    /**
+     * The replica password-policy forward worker when replica mode + password policy are configured, else null.
+     */
+    private function makeForwardWorker(bool $useCoroutineSleeper): ?PasswordPolicyForwardWorker
+    {
+        $options = $this->get(ServerOptions::class);
+        $config = $options->getReplicaConfig();
+
+        if ($config === null || !$options->isPasswordPolicyEnabled()) {
+            return null;
+        }
+
+        return new PasswordPolicyForwardWorker(
+            $this->get(ReplicaPasswordStateStoreInterface::class),
+            new LdapClientForwardStateSender(new PrimaryConnectionFactory($config)),
+            $useCoroutineSleeper
+                ? new CoroutineSleeper()
+                : new BlockingSleeper(),
+            signals: $useCoroutineSleeper
+                ? null
+                : new PcntlShutdownSignals(),
             logger: $options->getLogger(),
         );
     }
