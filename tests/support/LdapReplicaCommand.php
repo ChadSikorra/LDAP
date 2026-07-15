@@ -42,7 +42,8 @@ final class LdapReplicaCommand extends Command
             ->addOption('port', null, InputOption::VALUE_REQUIRED, 'The replica listen port.', '10389')
             ->addOption('provider-port', null, InputOption::VALUE_REQUIRED, 'The provider listen port.', '10391')
             ->addOption('runner', null, InputOption::VALUE_REQUIRED, 'The server runner (pcntl/swoole).', 'pcntl')
-            ->addOption('storage', null, InputOption::VALUE_REQUIRED, 'Process-shared storage (json/sqlite).', 'sqlite');
+            ->addOption('storage', null, InputOption::VALUE_REQUIRED, 'Process-shared storage (json/sqlite).', 'sqlite')
+            ->addOption('forward', null, InputOption::VALUE_NONE, 'Enable ppolicy-state forwarding to the provider.');
     }
 
     protected function execute(
@@ -71,6 +72,7 @@ final class LdapReplicaCommand extends Command
         $provider = $this->startProvider(
             $providerPort,
             $runner,
+            $input->getOption('forward') === true,
         );
         register_shutdown_function(static fn() => $provider->stop());
 
@@ -109,8 +111,9 @@ final class LdapReplicaCommand extends Command
     private function startProvider(
         int $providerPort,
         string $runner,
+        bool $forward,
     ): Process {
-        $provider = new Process([
+        $args = [
             'php',
             '-dpcov.enabled=0',
             __DIR__ . '/../bin/ldap-server.php',
@@ -120,7 +123,14 @@ final class LdapReplicaCommand extends Command
             '--storage=sqlite',
             '--seed=' . self::SEED,
             '--allow-sync',
-        ]);
+        ];
+
+        if ($forward) {
+            $args[] = '--allow-ppolicy-forward';
+            $args[] = '--manager';
+        }
+
+        $provider = new Process($args);
         $provider->start();
 
         $deadline = microtime(true) + 10.0;

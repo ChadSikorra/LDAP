@@ -35,3 +35,9 @@ objectClass: inetOrgPerson
 cn: lockme
 sn: Lockme
 userPassword: {SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=
+
+dn: cn=resetme,ou=people,dc=foo,dc=bar
+objectClass: inetOrgPerson
+cn: resetme
+sn: Resetme
+userPassword: {SHA}jLIjfQZ5yojbZGTqxg2pY0VROWQ=

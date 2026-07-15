@@ -79,6 +79,17 @@ final class GeneralizedTime
     }
 
     /**
+     * Render with a fractional-seconds field, for multi-valued attributes that must hold unique values such as
+     * pwdFailureTime and pwdGraceUseTime; {@see format()} stays second-resolution for canonical single-valued stamps.
+     */
+    public static function formatWithFraction(DateTimeImmutable $instant): string
+    {
+        return $instant
+            ->setTimezone(new DateTimeZone('UTC'))
+            ->format('YmdHis.u') . 'Z';
+    }
+
+    /**
      * @param array<int|string, string> $components named capture groups
      */
     private static function componentsToIso8601(array $components): string

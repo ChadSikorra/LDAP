@@ -53,12 +53,19 @@ final class SqliteDialect implements PdoDialectInterface
         $pdo->exec('ROLLBACK');
     }
 
+    /**
+     * Upserts an entry in place via ON CONFLICT rather than INSERT OR REPLACE, because REPLACE deletes the row first and
+     * fires ON DELETE CASCADE, which would wipe child rows such as the replica password-policy state.
+     */
     public function queryUpsert(): string
     {
         return <<<SQL
-            INSERT OR REPLACE
-            INTO entries (lc_dn, dn, lc_parent_dn, attributes)
+            INSERT INTO entries (lc_dn, dn, lc_parent_dn, attributes)
             VALUES (?, ?, ?, ?)
+            ON CONFLICT(lc_dn) DO UPDATE SET
+                dn = excluded.dn,
+                lc_parent_dn = excluded.lc_parent_dn,
+                attributes = excluded.attributes
         SQL;
     }
 

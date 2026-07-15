@@ -91,7 +91,7 @@ final class ServerPasswordPolicyForwardHandlerTest extends TestCase
             $changes[0]->getAttribute()->getName(),
         );
         self::assertSame(
-            ['20260520115900Z'],
+            ['20260520115900.000000Z'],
             $changes[0]->getAttribute()->getValues(),
         );
     }
