@@ -726,6 +726,7 @@ class Container
             periodicTasks: $periodicTasks,
             longLivedTasks: $longLivedTasks,
             logger: $options->getLogger(),
+            gracefulStopSeconds: $options->getShutdownTimeout(),
         );
     }
 
