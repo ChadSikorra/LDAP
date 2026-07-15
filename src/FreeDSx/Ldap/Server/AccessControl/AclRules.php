@@ -13,7 +13,9 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\AccessControl;
 
+use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Operation\OperationType;
+use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeRule;
 use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
 use FreeDSx\Ldap\Server\AccessControl\Rule\Effect;
@@ -22,6 +24,7 @@ use FreeDSx\Ldap\Server\AccessControl\Rule\OperationRule;
 use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
 use FreeDSx\Ldap\Server\AccessControl\Subject\SubjectMatcherInterface;
 use FreeDSx\Ldap\Server\AccessControl\Target\AnyTargetMatcher;
+use FreeDSx\Ldap\Server\AccessControl\Target\TargetMatcherInterface;
 
 /**
  * The rule sets and defaults that configure {@see RuleBasedAccessControl}.
@@ -127,6 +130,38 @@ final readonly class AclRules
             $this->attributes,
             $this->controls,
             $extendedOps,
+            $this->defaultOperationEffect,
+            $this->defaultControlEffect,
+            $this->defaultExtendedOpEffect,
+        );
+    }
+
+    /**
+     * Grant a replica's bind identity the two privileged capabilities it needs: the content-sync control over $target,
+     * and the password-policy forward extended operation.
+     */
+    public function withReplicaGrants(
+        SubjectMatcherInterface $replica,
+        TargetMatcherInterface $target = new AnyTargetMatcher(),
+    ): self {
+        return new self(
+            $this->operations,
+            $this->attributes,
+            [
+                ...$this->controls,
+                ControlRule::allow(
+                    $replica,
+                    $target,
+                    Control::OID_SYNC_REQUEST,
+                ),
+            ],
+            [
+                ...$this->extendedOps,
+                ExtendedOperationRule::allow(
+                    $replica,
+                    ExtendedRequest::OID_PPOLICY_STATE_FORWARD,
+                ),
+            ],
             $this->defaultOperationEffect,
             $this->defaultControlEffect,
             $this->defaultExtendedOpEffect,
