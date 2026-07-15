@@ -74,6 +74,7 @@ final class SyncReplNativeTest extends ServerTestCase
                 'cn=bob,ou=people,dc=foo,dc=bar',
                 'cn=carol,ou=people,dc=foo,dc=bar',
                 'cn=lockme,ou=people,dc=foo,dc=bar',
+                'cn=resetme,ou=people,dc=foo,dc=bar',
                 'cn=user,dc=foo,dc=bar',
                 'dc=foo,dc=bar',
                 'ou=people,dc=foo,dc=bar',

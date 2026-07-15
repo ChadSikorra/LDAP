@@ -237,7 +237,27 @@ Because the two are separate, configure and review both. A replica does not inhe
 
 ### Password Policy
 
-A replica enforces the password-policy state it receives from the provider (lockout, expiry, grace) but records none of
-its own, so bind failures against a replica are not counted toward lockout there. Account lockout is not a real-time
-defense on a replica; put replicas behind connection rate limiting and/or deploy them in already isolated or trusted
-areas.
+With a password policy enabled, a replica applies the provider's lockout, expiry, and grace state, and bind failures
+against the replica count toward the account's lockout across the whole cluster. A brute-force attempt spread over
+several replicas is caught the same as one against a single server.
+
+To turn this on:
+
+- Enable a password policy on both the provider and the replica with `setPasswordPolicy(...)`.
+- On the provider, grant the replica's bind identity with `withReplicaGrants(...)`. It sets up everything a replica
+  identity needs, so use it in place of the sync-only grant from the Quick Start.
+- Give the replica PDO storage (SQLite or MySQL). JSON-file storage is not yet supported for replica password-policy
+  state or forwarding.
+
+```php
+use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
+use FreeDSx\Ldap\Server\AccessControl\Target\Target;
+
+$aclRules = $myAclRules->withReplicaGrants(
+    Subject::dn('cn=replica,dc=example,dc=com'),
+    Target::subtree('dc=example,dc=com'),
+);
+```
+
+Cluster-wide lockout is not instantaneous, so keep replicas behind connection rate limiting. If the provider is not a
+FreeDSx server, the replica still enforces the lockout state it receives but does not contribute its own.

@@ -13,13 +13,17 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Server\AccessControl;
 
+use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\OperationType;
+use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Server\AccessControl\AclRules;
 use FreeDSx\Ldap\Server\AccessControl\Rule\AttributeAccess;
+use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
+use FreeDSx\Ldap\Server\AccessControl\Rule\Effect;
 use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
 use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
 use FreeDSx\Ldap\Server\Token\AnonToken;
@@ -54,6 +58,47 @@ final class AclRulesTest extends TestCase
         );
 
         $this->addToAssertionCount(1);
+    }
+
+    public function test_withReplicaGrants_allows_the_sync_control_and_forward_op(): void
+    {
+        $rules = AclRules::fromEmpty()->withReplicaGrants(Subject::dn('cn=replica,dc=foo,dc=bar'));
+
+        $control = $rules->controls[0];
+        self::assertSame(
+            Effect::Allow,
+            $control->effect,
+        );
+        self::assertContains(
+            Control::OID_SYNC_REQUEST,
+            $control->controlOids,
+        );
+
+        $extendedOp = $rules->extendedOps[0];
+        self::assertSame(
+            Effect::Allow,
+            $extendedOp->effect,
+        );
+        self::assertContains(
+            ExtendedRequest::OID_PPOLICY_STATE_FORWARD,
+            $extendedOp->extendedOpOids,
+        );
+    }
+
+    public function test_withReplicaGrants_appends_to_existing_control_rules(): void
+    {
+        $existing = ControlRule::allow(Subject::dn(self::ADMIN_DN));
+        $rules = AclRules::fromEmpty(controls: [$existing])
+            ->withReplicaGrants(Subject::dn('cn=replica,dc=foo,dc=bar'));
+
+        self::assertSame(
+            $existing,
+            $rules->controls[0],
+        );
+        self::assertCount(
+            2,
+            $rules->controls,
+        );
     }
 
     public function test_secureDefault_denies_writing_another_userPassword(): void

@@ -217,6 +217,9 @@ recent window.
 
 A locked bind returns `INVALID_CREDENTIALS` with the `accountLocked` error.
 
+In a replicated setup, lockout can apply across the whole cluster so failures against a replica count too. See
+[Password Policy](Replication.md#password-policy) under Replication.
+
 ### Failed Bind Delay
 
 When both `pwdMinDelay` and `pwdMaxDelay` are set to positive values, the server delays the response to a failed
