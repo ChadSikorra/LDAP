@@ -100,6 +100,7 @@ final class LdapReplicaCommand extends Command
                     ),
                 ))
                 ->setSocketAcceptTimeout(0.1)
+                ->setShutdownTimeout(0)
                 ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL)),
         );
 

@@ -264,6 +264,7 @@ final class LdapServerCommand extends Command
             ->setMaxSearchLookthrough((int) $this->getStringOption($input, 'max-search-lookthrough'))
             ->setMaxSearchPagedLookthrough((int) $this->getStringOption($input, 'max-search-paged-lookthrough'))
             ->setSyncEnabled(true)
+            ->setShutdownTimeout(0)
             ->setOnServerReady(fn() => fwrite(STDOUT, 'server starting...' . PHP_EOL));
 
         $authenticatedLookthrough = (int) $this->getStringOption($input, 'authenticated-lookthrough');

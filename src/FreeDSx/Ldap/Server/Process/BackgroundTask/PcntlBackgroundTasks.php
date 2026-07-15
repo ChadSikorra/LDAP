@@ -21,6 +21,7 @@ use function pcntl_fork;
 use function pcntl_waitpid;
 use function posix_kill;
 use function sprintf;
+use function usleep;
 
 use const SIGTERM;
 use const WNOHANG;
@@ -52,6 +53,7 @@ final class PcntlBackgroundTasks implements BackgroundTasksInterface
         private readonly array $periodicTasks,
         private readonly array $longLivedTasks,
         private readonly ?LoggerInterface $logger = null,
+        private readonly int $gracefulStopSeconds = 0,
     ) {
         $this->childStart = static function (): void {};
     }
@@ -76,14 +78,82 @@ final class PcntlBackgroundTasks implements BackgroundTasksInterface
 
     public function stop(): void
     {
+        $pids = [];
+
         foreach ($this->longLivedTasks as $index => $task) {
-            $this->endChild($this->longLivedPids[$index] ?? null);
+            $pid = $this->longLivedPids[$index] ?? null;
+
+            if ($pid !== null) {
+                $pids[] = $pid;
+            }
+
             $this->longLivedPids[$index] = null;
         }
+
         foreach ($this->periodicState as $state) {
-            $this->endChild($state->pid);
+            if ($state->pid !== null) {
+                $pids[] = $state->pid;
+            }
+
             $state->pid = null;
         }
+
+        $this->endChildren($pids);
+    }
+
+    /**
+     * Signal every task to stop, wait up to the graceful budget for them to exit, then force-kill any stragglers.
+     *
+     * @param list<int> $pids
+     */
+    private function endChildren(array $pids): void
+    {
+        foreach ($pids as $pid) {
+            posix_kill(
+                $pid,
+                SIGTERM,
+            );
+        }
+
+        $deadline = microtime(true) + $this->gracefulStopSeconds;
+        $pending = $pids;
+        while ($pending !== [] && microtime(true) < $deadline) {
+            $pending = $this->reapExited($pending);
+            if ($pending !== []) {
+                usleep(10000);
+            }
+        }
+
+        foreach ($pending as $pid) {
+            posix_kill(
+                $pid,
+                SIGKILL,
+            );
+            $status = 0;
+            pcntl_waitpid(
+                $pid,
+                $status,
+            );
+        }
+    }
+
+    /**
+     * @param list<int> $pids
+     * @return list<int> those not yet reaped
+     */
+    private function reapExited(array $pids): array
+    {
+        $pending = [];
+
+        foreach ($pids as $pid) {
+            $status = 0;
+
+            if (pcntl_waitpid($pid, $status, WNOHANG) === 0) {
+                $pending[] = $pid;
+            }
+        }
+
+        return $pending;
     }
 
     /**
@@ -160,22 +230,5 @@ final class PcntlBackgroundTasks implements BackgroundTasksInterface
         );
 
         return $result === -1 || $result > 0;
-    }
-
-    private function endChild(?int $pid): void
-    {
-        if ($pid === null) {
-            return;
-        }
-
-        posix_kill(
-            $pid,
-            SIGTERM,
-        );
-        $status = 0;
-        pcntl_waitpid(
-            $pid,
-            $status,
-        );
     }
 }
