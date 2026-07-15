@@ -94,7 +94,7 @@ final class ForwardPasswordPolicyStateRequestTest extends TestCase
                 Asn1::context(1, Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::octetString('cn=user,dc=foo,dc=bar'),
                     Asn1::octetString('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
-                    Asn1::setOf(Asn1::octetString(GeneralizedTime::format($this->time))),
+                    Asn1::setOf(Asn1::octetString(GeneralizedTime::formatWithFraction($this->time))),
                     Asn1::context(0, Asn1::octetString(GeneralizedTime::format($this->success))),
                 )))),
             )),
@@ -117,7 +117,7 @@ final class ForwardPasswordPolicyStateRequestTest extends TestCase
                 Asn1::context(1, Asn1::octetString($encoder->encode(Asn1::sequence(
                     Asn1::octetString('cn=user,dc=foo,dc=bar'),
                     Asn1::octetString('uuid'),
-                    Asn1::setOf(Asn1::octetString(GeneralizedTime::format($this->time))),
+                    Asn1::setOf(Asn1::octetString(GeneralizedTime::formatWithFraction($this->time))),
                 )))),
             )),
             $request->toAsn1(),

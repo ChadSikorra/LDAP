@@ -64,6 +64,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\QualityConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\SafeModifyConstraint;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyComponentFactory;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
+use FreeDSx\Ldap\Server\PasswordPolicy\UniquePolicyTimeFactory;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\InMemoryReplicaPasswordStateStore;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordStateStoreInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
@@ -343,6 +344,10 @@ class Container
         return new PasswordPolicyEngine(
             clock: $clock,
             changeConstraints: $chain,
+            uniqueTimes: new UniquePolicyTimeFactory(
+                $clock,
+                $options->getChangeJournalConfig()->origin,
+            ),
         );
     }
 

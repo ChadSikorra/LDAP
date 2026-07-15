@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Support\FreeDSx\Ldap;
 
+use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\LdapServer;
 use FreeDSx\Ldap\Ldif\Loader\FileLdifLoader;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Ldif\Output\FileLdifOutput;
+use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Server\AccessControl\Rule\ControlRule;
+use FreeDSx\Ldap\Server\AccessControl\Rule\ExtendedOperationRule;
 use FreeDSx\Ldap\Server\AccessControl\Subject\Subject;
 use FreeDSx\Ldap\Server\AccessControl\Target\Target;
+use FreeDSx\Ldap\Server\Backend\Auth\ManagerIdentity;
+use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
+use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordLockoutRules;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRule;
 use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRules;
@@ -35,6 +41,10 @@ use function Swoole\Coroutine\run;
 final class LdapServerCommand extends Command
 {
     use ConsoleOptionsTrait;
+
+    public const MANAGER_DN = 'cn=manager';
+
+    public const MANAGER_PASSWORD = 'manager-pass';
 
     private const SSL_KEY = __DIR__ . '/../resources/cert/slapd.key';
 
@@ -134,6 +144,18 @@ final class LdapServerCommand extends Command
                 null,
                 InputOption::VALUE_NONE,
                 'Grant authenticated identities the (privileged) content-sync control over dc=foo,dc=bar',
+            )
+            ->addOption(
+                'allow-ppolicy-forward',
+                null,
+                InputOption::VALUE_NONE,
+                'Enable password policy with lockout and grant cn=user the privileged ppolicy-state forward extended op',
+            )
+            ->addOption(
+                'manager',
+                null,
+                InputOption::VALUE_NONE,
+                'Configure a break-glass manager identity (cn=manager) so tests can reset passwords',
             )
             ->addOption(
                 'seed',
@@ -300,6 +322,31 @@ final class LdapServerCommand extends Command
                     ),
                 ),
             );
+        }
+
+        if ($input->getOption('allow-ppolicy-forward') === true) {
+            $options
+                ->setPasswordPolicy(new PasswordPolicy(
+                    lockout: new PasswordLockoutRules(
+                        enabled: true,
+                        maxFailure: 2,
+                    ),
+                ))
+                ->setAclRules(
+                    $options->getAclRules()->withExtendedOperationRules(
+                        ExtendedOperationRule::allow(
+                            Subject::dn('cn=user,dc=foo,dc=bar'),
+                            ExtendedRequest::OID_PPOLICY_STATE_FORWARD,
+                        ),
+                    ),
+                );
+        }
+
+        if ($input->getOption('manager') === true) {
+            $options->setManager(new ManagerIdentity(
+                new Dn(self::MANAGER_DN),
+                '{SHA}' . base64_encode(sha1(self::MANAGER_PASSWORD, true)),
+            ));
         }
 
         $server->getOptions()->setStorage($storage);

@@ -102,7 +102,8 @@ class ForwardPasswordPolicyStateRequest extends ExtendedRequest
             Asn1::octetString($this->dn->toString()),
             Asn1::octetString($this->entryUuid),
             Asn1::setOf(...array_map(
-                static fn(DateTimeImmutable $time): OctetStringType => Asn1::octetString(GeneralizedTime::format($time)),
+                static fn(DateTimeImmutable $time): OctetStringType
+                    => Asn1::octetString(GeneralizedTime::formatWithFraction($time)),
                 $this->failureTimes,
             )),
         );

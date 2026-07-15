@@ -19,6 +19,7 @@ use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Schema\Definition\GeneralizedTime;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
+use FreeDSx\Ldap\Server\Backend\Storage\Journal\ReplicaId;
 use FreeDSx\Ldap\Server\Clock\ClockInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeAttempt;
 use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
@@ -32,10 +33,17 @@ use SensitiveParameter;
  */
 final readonly class PasswordPolicyEngine
 {
+    private UniquePolicyTimeFactory $uniqueTimes;
+
     public function __construct(
         private ClockInterface $clock,
         private PasswordChangeConstraintChain $changeConstraints,
-    ) {}
+        ?UniquePolicyTimeFactory $uniqueTimes = null,
+    ) {
+        // The Container injects the configured factory; the fallback reuses this engine's clock so tests stay in sync.
+        $this->uniqueTimes = $uniqueTimes
+            ?? new UniquePolicyTimeFactory($this->clock, new ReplicaId('local'));
+    }
 
     /**
      * Lockout check applied before the inner authenticator verifies credentials.
@@ -80,7 +88,7 @@ final readonly class PasswordPolicyEngine
             $priorFailures,
             $policy,
         );
-        $retained[] = $now;
+        $retained[] = $this->uniqueTimes->next($retained);
 
         $changes = [Change::replace(
             PasswordPolicyOid::NAME_PWD_FAILURE_TIME,
@@ -294,7 +302,7 @@ final readonly class PasswordPolicyEngine
         $byValue = [];
 
         foreach ([...$current, ...$forwarded] as $time) {
-            $byValue[GeneralizedTime::format($time)] = $time;
+            $byValue[GeneralizedTime::formatWithFraction($time)] = $time;
         }
 
         return array_values($byValue);
@@ -596,7 +604,7 @@ final readonly class PasswordPolicyEngine
             $changes[] = Change::reset(PasswordPolicyOid::NAME_PWD_ACCOUNT_LOCKED_TIME);
         }
         if ($isExpired) {
-            $graceTimes = [...$state->graceUseTimes, $now];
+            $graceTimes = [...$state->graceUseTimes, $this->uniqueTimes->next($state->graceUseTimes)];
             $changes[] = Change::replace(
                 PasswordPolicyOid::NAME_PWD_GRACE_USE_TIME,
                 ...self::formatTimes($graceTimes),
@@ -731,7 +739,7 @@ final readonly class PasswordPolicyEngine
     private static function formatTimes(array $instants): array
     {
         return array_values(array_map(
-            static fn(DateTimeImmutable $t): string => GeneralizedTime::format($t),
+            static fn(DateTimeImmutable $t): string => GeneralizedTime::formatWithFraction($t),
             $instants,
         ));
     }

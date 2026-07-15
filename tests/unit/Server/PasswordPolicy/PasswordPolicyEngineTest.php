@@ -31,7 +31,9 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordExpirationRules;
 use FreeDSx\Ldap\Server\PasswordPolicy\Decision\OperationalChanges;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordLockoutRules;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;
+use FreeDSx\Ldap\Server\PasswordPolicy\UniquePolicyTimeFactory;
 use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\FreeDSx\Ldap\Clock\FrozenClock;
 use Tests\Support\FreeDSx\Ldap\Server\PasswordPolicy\RecordingPasswordChangeConstraint;
@@ -42,14 +44,24 @@ final class PasswordPolicyEngineTest extends TestCase
 
     private FrozenClock $clock;
 
+    private UniquePolicyTimeFactory&MockObject $uniqueTimes;
+
     private PasswordPolicyEngine $subject;
 
     protected function setUp(): void
     {
         $this->clock = FrozenClock::fromString(self::NOW);
+        $this->uniqueTimes = $this->createMock(UniquePolicyTimeFactory::class);
+
+        // Return the plain frozen instant so generated failure/grace values are the second stamped with .000000.
+        $this->uniqueTimes
+            ->method('next')
+            ->willReturnCallback(fn(): DateTimeImmutable => $this->clock->now());
+
         $this->subject = new PasswordPolicyEngine(
             clock: $this->clock,
             changeConstraints: new PasswordChangeConstraintChain([]),
+            uniqueTimes: $this->uniqueTimes,
         );
     }
 
@@ -184,7 +196,7 @@ final class PasswordPolicyEngineTest extends TestCase
             PasswordPolicyOid::NAME_PWD_FAILURE_TIME,
         );
         self::assertSame(
-            [GeneralizedTime::format($this->clock->now())],
+            [GeneralizedTime::formatWithFraction($this->clock->now())],
             $change->getAttribute()->getValues(),
         );
     }
@@ -214,8 +226,8 @@ final class PasswordPolicyEngineTest extends TestCase
         );
         self::assertSame(
             [
-                GeneralizedTime::format($recent),
-                GeneralizedTime::format($this->clock->now()),
+                GeneralizedTime::formatWithFraction($recent),
+                GeneralizedTime::formatWithFraction($this->clock->now()),
             ],
             $change->getAttribute()->getValues(),
         );
@@ -509,7 +521,7 @@ final class PasswordPolicyEngineTest extends TestCase
             PasswordPolicyOid::NAME_PWD_GRACE_USE_TIME,
         );
         self::assertSame(
-            [GeneralizedTime::format($this->clock->now())],
+            [GeneralizedTime::formatWithFraction($this->clock->now())],
             $graceChange->getAttribute()->getValues(),
         );
     }
@@ -921,6 +933,7 @@ final class PasswordPolicyEngineTest extends TestCase
         return new PasswordPolicyEngine(
             clock: $this->clock,
             changeConstraints: new PasswordChangeConstraintChain([$constraint]),
+            uniqueTimes: $this->uniqueTimes,
         );
     }
 
