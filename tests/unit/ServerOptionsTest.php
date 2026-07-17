@@ -171,9 +171,12 @@ final class ServerOptionsTest extends TestCase
         self::assertTrue($this->subject->isMonitorEnabled());
     }
 
-    public function test_monitor_snapshot_path_is_null_by_default(): void
+    public function test_monitor_snapshot_path_defaults_to_a_per_port_temp_file(): void
     {
-        self::assertNull($this->subject->getMonitorSnapshotPath());
+        self::assertSame(
+            sys_get_temp_dir() . '/freedsx_ldap_monitor_389.json',
+            $this->subject->getMonitorSnapshotPath(),
+        );
     }
 
     public function test_sync_is_disabled_by_default(): void

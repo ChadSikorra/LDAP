@@ -982,9 +982,13 @@ final class ServerOptions
         return $this->replicaConfig !== null;
     }
 
-    public function getMonitorSnapshotPath(): ?string
+    /**
+     * The configured cn=monitor snapshot path, or a per-port default under the system temp directory.
+     */
+    public function getMonitorSnapshotPath(): string
     {
-        return $this->monitorSnapshotPath;
+        return $this->monitorSnapshotPath
+            ?? sys_get_temp_dir() . '/freedsx_ldap_monitor_' . $this->port . '.json';
     }
 
     public function setMonitorSnapshotPath(?string $monitorSnapshotPath): self
@@ -1190,7 +1194,7 @@ final class ServerOptions
             'ssl_allow_self_signed' => $this->getSslAllowSelfSigned(),
             'ssl_ca_cert' => $this->getSslCaCert(),
             'monitor_enabled' => $this->isMonitorEnabled(),
-            'monitor_snapshot_path' => $this->getMonitorSnapshotPath(),
+            'monitor_snapshot_path' => $this->monitorSnapshotPath,
             'dse_alt_server' => $this->getDseAltServer(),
             'dse_vendor_name' => $this->getDseVendorName(),
             'dse_vendor_version' => $this->getDseVendorVersion(),
