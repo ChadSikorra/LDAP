@@ -17,6 +17,7 @@ use FreeDSx\Ldap\Container\ClientContainerProvider;
 use FreeDSx\Ldap\Container\ConnectionGraphContainerProvider;
 use FreeDSx\Ldap\Container\ContainerProviderInterface;
 use FreeDSx\Ldap\Container\CoreServerContainerProvider;
+use FreeDSx\Ldap\Container\HandlerContainerProvider;
 use FreeDSx\Ldap\Container\PasswordPolicyContainerProvider;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
@@ -47,7 +48,7 @@ class Container
     /**
      * @param array<class-string, object> $instances
      */
-    public function __construct(array $instances)
+    private function __construct(array $instances)
     {
         foreach ($instances as $className => $instance) {
             $this->instances[$className] = $instance;
@@ -61,6 +62,47 @@ class Container
                 );
             }
         }
+    }
+
+    /**
+     * @param array<class-string, object> $sharedInstances services carried into this generation (e.g. test overrides).
+     */
+    public static function forClient(
+        ClientOptions $options,
+        ?LdapClient $client = null,
+        array $sharedInstances = [],
+    ): self {
+        $instances = [ClientOptions::class => $options] + $sharedInstances;
+
+        if ($client !== null) {
+            $instances[LdapClient::class] = $client;
+        }
+
+        return new self($instances);
+    }
+
+    /**
+     * @param array<class-string, object> $sharedInstances services carried into this generation (e.g. across a reload).
+     */
+    public static function forServer(
+        ServerOptions $options,
+        array $sharedInstances = [],
+    ): self {
+        return new self([ServerOptions::class => $options] + $sharedInstances);
+    }
+
+    /**
+     * @param array<class-string, object> $sharedInstances services carried into this generation (e.g. across a reload).
+     */
+    public static function forProxy(
+        ServerOptions $options,
+        ProxyOptions $proxyOptions,
+        array $sharedInstances = [],
+    ): self {
+        return new self([
+            ServerOptions::class => $options,
+            ProxyOptions::class => $proxyOptions,
+        ] + $sharedInstances);
     }
 
     /**
@@ -122,6 +164,7 @@ class Container
             $providers[] = new CoreServerContainerProvider();
             $providers[] = new PasswordPolicyContainerProvider();
             $providers[] = new ConnectionGraphContainerProvider();
+            $providers[] = new HandlerContainerProvider();
         }
 
         return $providers;

@@ -559,26 +559,32 @@ final class CoreServerContainerProvider implements ContainerProviderInterface
             $inMemoryMetrics,
             $operationRollup,
         ): ServerProtocolFactoryInterface {
-            $instances = [
-                ServerOptions::class => $options,
+            $sharedInstances = [
                 MetricsRecorderInterface::class => $metricsRecorder,
                 MetricsSnapshotProvider::class => $metricsSnapshots,
                 InMemoryMetricsRecorder::class => $inMemoryMetrics,
             ];
 
             if ($backend !== null) {
-                $instances[WritableStorageBackend::class] = $backend;
-            }
-
-            if ($proxyOptions !== null) {
-                $instances[ProxyOptions::class] = $proxyOptions;
+                $sharedInstances[WritableStorageBackend::class] = $backend;
             }
 
             if ($operationRollup !== null) {
-                $instances[OperationRollupCoordinator::class] = $operationRollup;
+                $sharedInstances[OperationRollupCoordinator::class] = $operationRollup;
             }
 
-            return (new Container($instances))->get(ServerProtocolFactoryInterface::class);
+            $container = $proxyOptions !== null
+                ? Container::forProxy(
+                    $options,
+                    $proxyOptions,
+                    $sharedInstances,
+                )
+                : Container::forServer(
+                    $options,
+                    $sharedInstances,
+                );
+
+            return $container->get(ServerProtocolFactoryInterface::class);
         };
     }
 }

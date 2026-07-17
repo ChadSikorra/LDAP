@@ -53,9 +53,7 @@ class LdapServer
         private readonly ServerOptions $options = new ServerOptions(),
         ?Container $container = null,
     ) {
-        $this->container = $container ?? new Container([
-            ServerOptions::class => $this->options,
-        ]);
+        $this->container = $container ?? Container::forServer($this->options);
     }
 
     /**
@@ -185,10 +183,10 @@ class LdapServer
     ): LdapServer {
         return new LdapServer(
             $serverOptions,
-            new Container([
-                ServerOptions::class => $serverOptions,
-                ProxyOptions::class => $proxyOptions,
-            ]),
+            Container::forProxy(
+                $serverOptions,
+                $proxyOptions,
+            ),
         );
     }
 

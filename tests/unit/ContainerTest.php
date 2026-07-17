@@ -13,13 +13,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap;
 
-use FreeDSx\Ldap\ClientOptions;
 use FreeDSx\Ldap\Container;
 use FreeDSx\Ldap\LdapClient;
 use FreeDSx\Ldap\Protocol\ClientProtocolHandler;
 use FreeDSx\Ldap\Protocol\Factory\ClientProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ClientQueueInstantiator;
 use FreeDSx\Ldap\Protocol\RootDseLoader;
+use FreeDSx\Ldap\Protocol\Factory\ProtocolHandlerFactoryMap;
 use FreeDSx\Ldap\Protocol\Queue\Response\MetricsResponseInterceptor;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\AssertionEvaluator;
@@ -58,14 +58,7 @@ class ContainerTest extends TestCase
     {
         parent::setUp();
 
-        $client = new LdapClient();
-        $serverOptions = (new ServerOptions())->useInMemoryStorage();
-
-        $this->subject = new Container([
-            LdapClient::class => $client,
-            ClientOptions::class => $client->getOptions(),
-            ServerOptions::class => $serverOptions,
-        ]);
+        $this->subject = Container::forServer((new ServerOptions())->useInMemoryStorage());
     }
 
     public function test_it_assembles_the_backend_from_the_configured_storage(): void
@@ -79,7 +72,7 @@ class ContainerTest extends TestCase
     /**
      * @return array<array{class-string}>
      */
-    public static function buildableDependenciesDataProvider(): array
+    public static function clientDependenciesDataProvider(): array
     {
         return [
             [LdapClient::class],
@@ -88,6 +81,15 @@ class ContainerTest extends TestCase
             [ClientProtocolHandlerFactory::class],
             [SocketPool::class],
             [RootDseLoader::class],
+        ];
+    }
+
+    /**
+     * @return array<array{class-string}>
+     */
+    public static function serverDependenciesDataProvider(): array
+    {
+        return [
             [ServerProtocolFactory::class],
             [HandlerFactoryInterface::class],
             [ServerAuthorization::class],
@@ -105,6 +107,7 @@ class ContainerTest extends TestCase
             [OperationAuthorizationMiddleware::class],
             [AssertionMiddleware::class],
             [ResourceLimitMiddleware::class],
+            [ProtocolHandlerFactoryMap::class],
         ];
     }
 
@@ -119,8 +122,21 @@ class ContainerTest extends TestCase
     /**
      * @param class-string $class
      */
-    #[DataProvider('buildableDependenciesDataProvider')]
-    public function test_it_builds_the_dependencies(
+    #[DataProvider('clientDependenciesDataProvider')]
+    public function test_it_builds_the_client_dependencies(
+        string $class,
+    ): void {
+        self::assertInstanceOf(
+            $class,
+            $this->clientContainer()->get($class),
+        );
+    }
+
+    /**
+     * @param class-string $class
+     */
+    #[DataProvider('serverDependenciesDataProvider')]
+    public function test_it_builds_the_server_dependencies(
         string $class,
     ): void {
         self::assertInstanceOf(
@@ -227,6 +243,16 @@ class ContainerTest extends TestCase
         );
     }
 
+    private function clientContainer(): Container
+    {
+        $client = new LdapClient();
+
+        return Container::forClient(
+            $client->getOptions(),
+            $client,
+        );
+    }
+
     private function journalingOptions(): ServerOptions
     {
         return (new ServerOptions())
@@ -238,8 +264,6 @@ class ContainerTest extends TestCase
 
     private function containerFor(ServerOptions $options): Container
     {
-        return new Container([
-            ServerOptions::class => $options->useInMemoryStorage(),
-        ]);
+        return Container::forServer($options->useInMemoryStorage());
     }
 }
