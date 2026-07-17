@@ -20,10 +20,14 @@ use FreeDSx\Ldap\Protocol\ClientProtocolHandler;
 use FreeDSx\Ldap\Protocol\Factory\ClientProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ClientQueueInstantiator;
 use FreeDSx\Ldap\Protocol\RootDseLoader;
+use FreeDSx\Ldap\Protocol\Queue\Response\MetricsResponseInterceptor;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
+use FreeDSx\Ldap\Protocol\ServerProtocolHandler\AssertionEvaluator;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionPolicy;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
+use FreeDSx\Ldap\Server\Clock\Sleeper\BlockingSleeper;
+use FreeDSx\Ldap\Server\Clock\Sleeper\SleeperInterface;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Metrics\File\FileSnapshotProvider;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
@@ -31,6 +35,13 @@ use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
 use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
 use FreeDSx\Ldap\Server\Metrics\Recorder\MetricsRecorderChain;
 use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
+use FreeDSx\Ldap\Server\Middleware\AssertionMiddleware;
+use FreeDSx\Ldap\Server\Middleware\CriticalControlMiddleware;
+use FreeDSx\Ldap\Server\Middleware\MetricsMiddleware;
+use FreeDSx\Ldap\Server\Middleware\OperationAuthorizationMiddleware;
+use FreeDSx\Ldap\Server\Middleware\ResourceLimitMiddleware;
+use FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy\PasswordPolicyBindStrategyInterface;
+use FreeDSx\Ldap\Server\SearchLimit\SearchLimitResolver;
 use FreeDSx\Ldap\Server\ServerProtocolFactory;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
 use FreeDSx\Ldap\Server\SocketServerFactory;
@@ -84,7 +95,25 @@ class ContainerTest extends TestCase
             [MetricsRecorderInterface::class],
             [MetricsSnapshotProvider::class],
             [InMemoryMetricsRecorder::class],
+            [SleeperInterface::class],
+            [PasswordPolicyBindStrategyInterface::class],
+            [SearchLimitResolver::class],
+            [AssertionEvaluator::class],
+            [MetricsResponseInterceptor::class],
+            [MetricsMiddleware::class],
+            [CriticalControlMiddleware::class],
+            [OperationAuthorizationMiddleware::class],
+            [AssertionMiddleware::class],
+            [ResourceLimitMiddleware::class],
         ];
+    }
+
+    public function test_the_sleeper_is_blocking_under_the_default_pcntl_runner(): void
+    {
+        self::assertInstanceOf(
+            BlockingSleeper::class,
+            $this->subject->get(SleeperInterface::class),
+        );
     }
 
     /**
