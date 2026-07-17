@@ -33,6 +33,7 @@ use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Clock\ClockInterface;
 use FreeDSx\Ldap\Server\Clock\Sleeper\BlockingSleeper;
 use FreeDSx\Ldap\Server\Clock\Sleeper\CoroutineSleeper;
+use FreeDSx\Ldap\Server\Clock\Sleeper\SleeperInterface;
 use FreeDSx\Ldap\Server\Clock\SystemClock;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
@@ -87,6 +88,7 @@ final class CoreServerContainerProvider implements ContainerProviderInterface
             ServerRunnerInterface::class => $this->makeServerRunner(...),
             ServerAuthorization::class => $this->makeServerAuthorizer(...),
             ClockInterface::class => static fn(): ClockInterface => new SystemClock(),
+            SleeperInterface::class => $this->makeSleeper(...),
             ServerProtocolHandlerFactory::class => $this->makeServerProtocolHandlerFactory(...),
             InMemoryMetricsRecorder::class => static fn(): InMemoryMetricsRecorder => new InMemoryMetricsRecorder(),
             MetricsRecorderInterface::class => $this->makeMetricsRecorder(...),
@@ -113,6 +115,16 @@ final class CoreServerContainerProvider implements ContainerProviderInterface
     private function makeServerProtocolHandlerFactory(Container $container): ServerProtocolHandlerFactory
     {
         return new ServerProtocolHandlerFactory($container->get(ServerOptions::class));
+    }
+
+    /**
+     * The runner-appropriate sleeper: a coroutine-aware sleeper under Swoole, else a blocking one.
+     */
+    private function makeSleeper(Container $container): SleeperInterface
+    {
+        return $container->get(ServerOptions::class)->getUseSwooleRunner()
+            ? new CoroutineSleeper()
+            : new BlockingSleeper();
     }
 
     private function makeHandlerFactory(Container $container): HandlerFactory
@@ -416,9 +428,7 @@ final class CoreServerContainerProvider implements ContainerProviderInterface
         return new PasswordPolicyForwardWorker(
             $container->get(ReplicaPasswordStateStoreInterface::class),
             new LdapClientForwardStateSender(new PrimaryConnectionFactory($config)),
-            $useCoroutineSleeper
-                ? new CoroutineSleeper()
-                : new BlockingSleeper(),
+            $container->get(SleeperInterface::class),
             signals: $useCoroutineSleeper
                 ? null
                 : new PcntlShutdownSignals(),

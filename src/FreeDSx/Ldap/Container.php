@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap;
 
 use FreeDSx\Ldap\Container\ClientContainerProvider;
+use FreeDSx\Ldap\Container\ConnectionGraphContainerProvider;
 use FreeDSx\Ldap\Container\ContainerProviderInterface;
 use FreeDSx\Ldap\Container\CoreServerContainerProvider;
 use FreeDSx\Ldap\Container\PasswordPolicyContainerProvider;
@@ -120,6 +121,7 @@ class Container
         if (isset($this->instances[ServerOptions::class])) {
             $providers[] = new CoreServerContainerProvider();
             $providers[] = new PasswordPolicyContainerProvider();
+            $providers[] = new ConnectionGraphContainerProvider();
         }
 
         return $providers;
