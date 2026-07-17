@@ -61,8 +61,9 @@ class LdapClientTest extends TestCase
             ->method('isInstantiatedAndConnected')
             ->willReturn(false);
 
-        $this->container = new Container(
-            [
+        $this->container = Container::forClient(
+            new ClientOptions(),
+            sharedInstances: [
                 ClientProtocolHandler::class => $this->mockHandler,
                 ClientQueueInstantiator::class => $this->mockQueueInstantiator,
             ],

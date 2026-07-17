@@ -25,6 +25,8 @@ use FreeDSx\Ldap\Protocol\Bind\BindInterface;
 use FreeDSx\Ldap\Protocol\Bind\Sasl\SaslExchange;
 use FreeDSx\Ldap\Protocol\Bind\SaslBind;
 use FreeDSx\Ldap\Protocol\Bind\SimpleBind;
+use FreeDSx\Ldap\Protocol\Factory\HandlerContext;
+use FreeDSx\Ldap\Protocol\Factory\ProtocolHandlerFactoryMap;
 use FreeDSx\Ldap\Protocol\Factory\ProtocolHandlerProvider;
 use FreeDSx\Ldap\Protocol\Factory\ProtocolHandlerProviderInterface;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
@@ -40,13 +42,11 @@ use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordPolicyAwareAuthenticator;
 use FreeDSx\Ldap\Server\Backend\Auth\SaslBindPolicyEnforcer;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Clock\Sleeper\SleeperInterface;
 use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Logging\OperationAuditor;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
-use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
 use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\Server\Middleware\AssertionMiddleware;
 use FreeDSx\Ldap\Server\Middleware\AuthorizationResolutionMiddleware;
@@ -61,7 +61,6 @@ use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareChain;
 use FreeDSx\Ldap\Server\Middleware\ReadOnlyMiddleware;
 use FreeDSx\Ldap\Server\Middleware\RequestValidationMiddleware;
 use FreeDSx\Ldap\Server\Middleware\ResourceLimitMiddleware;
-use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy\PasswordPolicyBindStrategyInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\PasswordPolicyBindGuard;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyComponentFactory;
@@ -350,18 +349,13 @@ final class ConnectionHandlerBuilder implements ConnectionHandlerBuilderInterfac
     ): ProtocolHandlerProvider {
         return new ProtocolHandlerProvider(
             routeResolver: $this->container->get(ServerProtocolHandlerFactory::class),
-            handlerFactory: $this->container->get(HandlerFactoryInterface::class),
-            options: $this->serverOptions(),
-            targetResolver: $this->container->get(PasswordModifyTargetResolver::class),
-            hashService: $this->container->get(PasswordHashService::class),
-            writeDispatcher: $this->container->get(WriteOperationDispatcher::class),
-            policyComponentFactory: $this->container->get(PasswordPolicyComponentFactory::class),
-            passwordPolicyEngine: $this->container->get(PasswordPolicyEngine::class),
-            queue: $queue,
-            eventLogger: $eventLogger,
-            requestHistory: $requestHistory,
-            passwordPolicyContext: $policyContext,
-            metricsSnapshots: $this->container->get(MetricsSnapshotProvider::class),
+            factories: $this->container->get(ProtocolHandlerFactoryMap::class),
+            context: new HandlerContext(
+                queue: $queue,
+                eventLogger: $eventLogger,
+                requestHistory: $requestHistory,
+                passwordPolicyContext: $policyContext,
+            ),
         );
     }
 

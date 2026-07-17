@@ -13,18 +13,23 @@ declare(strict_types=1);
 
 namespace Tests\Unit\FreeDSx\Ldap\Protocol\Factory;
 
+use FreeDSx\Ldap\Container;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Control\PagingControl;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operations;
+use FreeDSx\Ldap\Protocol\Factory\HandlerContext;
+use FreeDSx\Ldap\Protocol\Factory\HandlerId;
+use FreeDSx\Ldap\Protocol\Factory\ProtocolHandlerFactoryMap;
 use FreeDSx\Ldap\Protocol\Factory\ProtocolHandlerProvider;
 use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerDispatchHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerPagingHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerPasswordModifyHandler;
+use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerProtocolHandlerInterface;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerRootDseHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerSearchHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerStartTlsHandler;
@@ -34,125 +39,29 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerUnsupportedExtendedHandler
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerWhoAmIHandler;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
-use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
-use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
-use FreeDSx\Ldap\Server\Clock\SystemClock;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
-use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
-use FreeDSx\Ldap\Server\PasswordPolicy\Constraint\PasswordChangeConstraintChain;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyComponentFactory;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\ServerOptions;
-use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class ProtocolHandlerProviderTest extends TestCase
 {
-    private ServerQueue&MockObject $mockQueue;
-
-    private HandlerFactoryInterface&MockObject $mockHandlerFactory;
-
     private ProtocolHandlerProvider $subject;
 
     protected function setUp(): void
     {
-        $this->mockQueue = $this->createMock(ServerQueue::class);
-        $this->mockHandlerFactory = $this->createMock(HandlerFactoryInterface::class);
-        $backend = new WritableStorageBackend(new InMemoryStorage());
-
-        $this->mockHandlerFactory
-            ->method('makeBackend')
-            ->willReturn($backend);
-        $this->mockHandlerFactory
-            ->method('makeWriteDispatcher')
-            ->willReturn(new WriteOperationDispatcher());
-        $this->mockHandlerFactory
-            ->method('makeIdentityResolverChain')
-            ->willReturn(new DnBindNameResolver());
-
-        $options = new ServerOptions();
-        $writeDispatcher = new WriteOperationDispatcher();
+        $container = Container::forServer((new ServerOptions())->useInMemoryStorage());
 
         $this->subject = new ProtocolHandlerProvider(
-            routeResolver: new ServerProtocolHandlerFactory($options),
-            handlerFactory: $this->mockHandlerFactory,
-            options: $options,
-            targetResolver: new PasswordModifyTargetResolver(
-                $backend,
-                new DnBindNameResolver(),
-            ),
-            hashService: new PasswordHashService(),
-            writeDispatcher: $writeDispatcher,
-            policyComponentFactory: new PasswordPolicyComponentFactory(
-                $this->mockHandlerFactory,
-                $options,
-                $writeDispatcher,
-                new PasswordPolicyEngine(
-                    new SystemClock(),
-                    new PasswordChangeConstraintChain([]),
-                ),
-            ),
-            passwordPolicyEngine: new PasswordPolicyEngine(
-                new SystemClock(),
-                new PasswordChangeConstraintChain([]),
-            ),
-            queue: $this->mockQueue,
-            eventLogger: new EventLogger(null),
-            requestHistory: new RequestHistory(),
-            passwordPolicyContext: null,
-        );
-    }
-
-    public function test_it_throws_when_password_policy_is_enabled_but_the_backend_is_not_writable(): void
-    {
-        $options = (new ServerOptions())->setPasswordPolicy(new PasswordPolicy());
-        $handlerFactory = $this->createMock(HandlerFactoryInterface::class);
-        $handlerFactory
-            ->method('makeBackend')
-            ->willReturn($this->createMock(LdapBackendInterface::class));
-        $writeDispatcher = new WriteOperationDispatcher();
-
-        $provider = new ProtocolHandlerProvider(
-            routeResolver: new ServerProtocolHandlerFactory($options),
-            handlerFactory: $handlerFactory,
-            options: $options,
-            targetResolver: new PasswordModifyTargetResolver(
-                $handlerFactory->makeBackend(),
-                new DnBindNameResolver(),
-            ),
-            hashService: new PasswordHashService(),
-            writeDispatcher: $writeDispatcher,
-            policyComponentFactory: new PasswordPolicyComponentFactory(
-                $handlerFactory,
-                $options,
-                $writeDispatcher,
-                new PasswordPolicyEngine(
-                    new SystemClock(),
-                    new PasswordChangeConstraintChain([]),
-                ),
-            ),
-            passwordPolicyEngine: new PasswordPolicyEngine(
-                new SystemClock(),
-                new PasswordChangeConstraintChain([]),
-            ),
-            queue: $this->mockQueue,
-            eventLogger: new EventLogger(null),
-            requestHistory: new RequestHistory(),
-            passwordPolicyContext: new PasswordPolicyContext(),
-        );
-
-        $this->expectException(RuntimeException::class);
-
-        $provider->get(
-            Operations::delete('cn=foo,dc=bar'),
-            new ControlBag(),
+            routeResolver: $container->get(ServerProtocolHandlerFactory::class),
+            factories: $container->get(ProtocolHandlerFactoryMap::class),
+            context: $this->handlerContext(),
         );
     }
 
@@ -280,6 +189,73 @@ final class ProtocolHandlerProviderTest extends TestCase
         self::assertInstanceOf(
             ServerDispatchHandler::class,
             $this->subject->get(Operations::rename('cn=foo', 'cn=foo'), new ControlBag()),
+        );
+    }
+
+    /**
+     * @return array<array{HandlerId}>
+     */
+    public static function handlerIdProvider(): array
+    {
+        return array_map(
+            static fn(HandlerId $handlerId): array => [$handlerId],
+            HandlerId::cases(),
+        );
+    }
+
+    #[DataProvider('handlerIdProvider')]
+    public function test_every_route_has_a_registered_factory(HandlerId $handlerId): void
+    {
+        $container = Container::forServer((new ServerOptions())->useInMemoryStorage());
+
+        self::assertInstanceOf(
+            ServerProtocolHandlerInterface::class,
+            $container->get(ProtocolHandlerFactoryMap::class)->make(
+                $handlerId,
+                $this->handlerContext(),
+            ),
+        );
+    }
+
+    public function test_it_throws_when_password_policy_is_enabled_but_the_backend_is_not_writable(): void
+    {
+        $handlerFactory = $this->createMock(HandlerFactoryInterface::class);
+        $handlerFactory
+            ->method('makeBackend')
+            ->willReturn($this->createMock(LdapBackendInterface::class));
+        $handlerFactory
+            ->method('makeWriteDispatcher')
+            ->willReturn(new WriteOperationDispatcher());
+        $handlerFactory
+            ->method('makeIdentityResolverChain')
+            ->willReturn(new DnBindNameResolver());
+
+        $container = Container::forServer(
+            (new ServerOptions())->setPasswordPolicy(new PasswordPolicy()),
+            [HandlerFactoryInterface::class => $handlerFactory],
+        );
+
+        $provider = new ProtocolHandlerProvider(
+            routeResolver: $container->get(ServerProtocolHandlerFactory::class),
+            factories: $container->get(ProtocolHandlerFactoryMap::class),
+            context: $this->handlerContext(new PasswordPolicyContext()),
+        );
+
+        $this->expectException(RuntimeException::class);
+
+        $provider->get(
+            Operations::delete('cn=foo,dc=bar'),
+            new ControlBag(),
+        );
+    }
+
+    private function handlerContext(?PasswordPolicyContext $passwordPolicyContext = null): HandlerContext
+    {
+        return new HandlerContext(
+            queue: $this->createMock(ServerQueue::class),
+            eventLogger: new EventLogger(null),
+            requestHistory: new RequestHistory(),
+            passwordPolicyContext: $passwordPolicyContext,
         );
     }
 }
