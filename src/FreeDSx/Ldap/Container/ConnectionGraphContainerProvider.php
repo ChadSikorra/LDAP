@@ -32,6 +32,8 @@ use FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy\PasswordPolicyBindStra
 use FreeDSx\Ldap\Server\PasswordPolicy\Guard\BindStrategy\ReplicaBindStrategy;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordStateStoreInterface;
+use FreeDSx\Ldap\Server\ConnectionHandlerBuilder;
+use FreeDSx\Ldap\Server\ConnectionHandlerBuilderInterface;
 use FreeDSx\Ldap\Server\SearchLimit\SearchLimitResolver;
 use FreeDSx\Ldap\ServerOptions;
 
@@ -46,6 +48,7 @@ final class ConnectionGraphContainerProvider implements ContainerProviderInterfa
     public function factories(): array
     {
         return [
+            ConnectionHandlerBuilderInterface::class => static fn(Container $container): ConnectionHandlerBuilder => new ConnectionHandlerBuilder($container),
             PasswordPolicyBindStrategyInterface::class => $this->makeBindStrategy(...),
             SearchLimitResolver::class => $this->makeSearchLimitResolver(...),
             AssertionEvaluator::class => $this->makeAssertionEvaluator(...),

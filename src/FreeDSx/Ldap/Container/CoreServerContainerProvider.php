@@ -21,7 +21,6 @@ use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\ProxyOptions;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
-use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeRecorder;
@@ -29,12 +28,12 @@ use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionPolicy;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionSweeper;
 use FreeDSx\Ldap\Server\Backend\Storage\OperationalAttributeGenerator;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
-use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Clock\ClockInterface;
 use FreeDSx\Ldap\Server\Clock\Sleeper\BlockingSleeper;
 use FreeDSx\Ldap\Server\Clock\Sleeper\CoroutineSleeper;
 use FreeDSx\Ldap\Server\Clock\Sleeper\SleeperInterface;
 use FreeDSx\Ldap\Server\Clock\SystemClock;
+use FreeDSx\Ldap\Server\ConnectionHandlerBuilderInterface;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\Metrics\File\FileSnapshotProvider;
@@ -46,9 +45,6 @@ use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
 use FreeDSx\Ldap\Server\Metrics\Recorder\MetricsRecorderChain;
 use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\Server\Metrics\Rollup\OperationRollupCoordinator;
-use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyTargetResolver;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyComponentFactory;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\Forward\LdapClientForwardStateSender;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\Forward\PasswordPolicyForwardWorker;
 use FreeDSx\Ldap\Server\PasswordPolicy\Replica\ReplicaPasswordStateStoreInterface;
@@ -215,22 +211,7 @@ final class CoreServerContainerProvider implements ContainerProviderInterface
 
     private function makeServerProtocolFactory(Container $container): ServerProtocolFactory
     {
-        return new ServerProtocolFactory(
-            handlerFactory: $container->get(HandlerFactoryInterface::class),
-            options: $container->get(ServerOptions::class),
-            passwordPolicyEngine: $container->get(PasswordPolicyEngine::class),
-            routeResolver: $container->get(ServerProtocolHandlerFactory::class),
-            targetResolver: $container->get(PasswordModifyTargetResolver::class),
-            hashService: $container->get(PasswordHashService::class),
-            writeDispatcher: $container->get(WriteOperationDispatcher::class),
-            policyComponentFactory: $container->get(PasswordPolicyComponentFactory::class),
-            metricsRecorder: $container->get(MetricsRecorderInterface::class),
-            metricsSnapshots: $container->get(MetricsSnapshotProvider::class),
-            operationRollup: $this->makeOperationRollup($container),
-            replicaPasswordStateStore: $container->get(ServerOptions::class)->isReadOnly()
-                ? $container->get(ReplicaPasswordStateStoreInterface::class)
-                : null,
-        );
+        return new ServerProtocolFactory($container->get(ConnectionHandlerBuilderInterface::class));
     }
 
     private function makeServerProtocolFactoryInterface(Container $container): ServerProtocolFactoryInterface
