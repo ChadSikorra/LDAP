@@ -18,23 +18,15 @@ use FreeDSx\Ldap\Server\Logging\ConnectionContext;
 use FreeDSx\Socket\Socket;
 
 /**
- * Adapts the container-built connection graph to the protocol factory contract used by the runners.
+ * Composes the per-connection protocol handler graph from a newly accepted socket.
  *
+ * @internal
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class ServerProtocolFactory implements ServerProtocolFactoryInterface
+interface ConnectionHandlerBuilderInterface
 {
-    public function __construct(
-        private readonly ConnectionHandlerBuilderInterface $builder,
-    ) {}
-
-    public function make(
+    public function build(
         Socket $socket,
         ConnectionContext $context = new ConnectionContext(),
-    ): ServerProtocolHandler {
-        return $this->builder->build(
-            $socket,
-            $context,
-        );
-    }
+    ): ServerProtocolHandler;
 }
