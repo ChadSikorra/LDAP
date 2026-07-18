@@ -142,15 +142,16 @@ class ServerSearchHandler implements ServerProtocolHandlerInterface
                 continue;
             }
 
-            yield $projection->project($filtered);
-            $emitted++;
-            $state->entriesReturned++;
-
+            // A further match past the cap proves overflow: signal without emitting it.
             if ($sizeLimit > 0 && $emitted >= $sizeLimit) {
                 $state->resultCode = ResultCode::SIZE_LIMIT_EXCEEDED;
 
                 return;
             }
+
+            yield $projection->project($filtered);
+            $emitted++;
+            $state->entriesReturned++;
         }
     }
 }

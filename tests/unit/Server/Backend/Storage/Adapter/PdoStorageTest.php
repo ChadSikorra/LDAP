@@ -622,6 +622,38 @@ final class PdoStorageTest extends TestCase
         );
     }
 
+    public function test_search_exact_filter_bounds_transfer_at_lookthrough(): void
+    {
+        $storage = PdoStorageFactory::forPcntl(PdoConfig::forSqlite(':memory:'));
+        $backend = new WritableStorageBackend(
+            $storage,
+            new SearchLimits(maxSearchLookthrough: 2),
+        );
+        $backend->add(
+            new AddCommand(new Entry(new Dn('dc=example,dc=com'), new Attribute('dc', 'example'))),
+            $this->systemContext(),
+        );
+        foreach (['Ann', 'Bob', 'Cyd', 'Dan', 'Eve'] as $cn) {
+            $backend->add(
+                new AddCommand(new Entry(
+                    new Dn("cn={$cn},dc=example,dc=com"),
+                    new Attribute('cn', $cn),
+                    new Attribute('st', 'dup'),
+                )),
+                $this->context(),
+            );
+        }
+
+        $request = (new SearchRequest(Filters::equal('st', 'dup')))
+            ->base('dc=example,dc=com')
+            ->useSubtreeScope();
+
+        self::assertCount(
+            3,
+            iterator_to_array($backend->search($request)->entries),
+        );
+    }
+
     public function test_atomic_rolls_back_on_exception(): void
     {
         $threw = false;

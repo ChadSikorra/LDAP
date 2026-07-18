@@ -236,6 +236,34 @@ final class ServerSearchHandlerTest extends TestCase
         ]);
     }
 
+    public function test_it_should_succeed_when_matches_equal_the_size_limit_exactly(): void
+    {
+        $entry1 = Entry::create('dc=foo,dc=bar', ['cn' => 'foo']);
+
+        $search = new LdapMessageRequest(
+            2,
+            (new SearchRequest(Filters::equal('foo', 'bar')))
+                ->base('dc=foo,dc=bar')
+                ->sizeLimit(1),
+        );
+
+        $this->mockBackend
+            ->expects(self::once())
+            ->method('search')
+            ->willReturn(new EntryStream($this->makeGenerator($entry1)));
+
+        $this->mockFilterEvaluator
+            ->method('evaluate')
+            ->willReturn(true);
+
+        $this->drive($this->subject, $search);
+
+        $this->assertSentMessages([
+            new LdapMessageResponse(2, new SearchResultEntry($entry1)),
+            new LdapMessageResponse(2, new SearchResultDone(0, 'dc=foo,dc=bar')),
+        ]);
+    }
+
     public function test_it_should_not_enforce_size_limit_when_zero(): void
     {
         $entry1 = Entry::create('dc=foo,dc=bar', ['cn' => 'foo']);
