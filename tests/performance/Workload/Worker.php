@@ -234,7 +234,7 @@ final class Worker
     {
         $request = Operations::search(Filters::equal('objectClass', 'inetOrgPerson'))
             ->base($this->config->writeBase)
-            ->useSubtreeScope();
+            ->useSingleLevelScope();
 
         $client->search($request);
     }

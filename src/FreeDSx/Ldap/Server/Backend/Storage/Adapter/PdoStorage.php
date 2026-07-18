@@ -189,10 +189,10 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
 
         $isPreFiltered = $filterResult !== null && $filterResult->isExact;
 
-        // Exact is bound by sizeLimit. Inexact is PHP re-evaluated: cap candidate transfer at lookthrough+1.
+        // Exact is bound by the client sizeLimit; otherwise cap candidate transfer at lookthrough+1.
         $sqlLimit = match (true) {
             $isPreFiltered && $options->sizeLimit > 0 => $options->sizeLimit,
-            !$isPreFiltered && $options->lookthroughLimit > 0 => $options->lookthroughLimit + 1,
+            $options->lookthroughLimit > 0 => $options->lookthroughLimit + 1,
             default => null,
         };
 
