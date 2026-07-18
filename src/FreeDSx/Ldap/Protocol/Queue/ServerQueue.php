@@ -42,7 +42,7 @@ use function strlen;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class ServerQueue extends LdapQueue
+class ServerQueue extends LdapQueue implements ConnectionControl
 {
     /**
      * @var LdapMessageRequest[]
