@@ -391,9 +391,11 @@ trait SqlFilterTranslatorTrait
     private function translateAnd(AndFilter $filter): ?SqlFilterResult
     {
         $parts = [];
+        $correlatedParts = [];
         $params = [];
         $drivableLeaves = [];
         $hasUntranslatable = false;
+        $allCorrelatable = true;
 
         foreach ($filter->get() as $child) {
             $result = $this->dispatch($child);
@@ -407,6 +409,12 @@ trait SqlFilterTranslatorTrait
             $parts[] = '(' . $result->sql . ')';
             array_push($params, ...$result->params);
             array_push($drivableLeaves, ...$this->drivableLeavesOf($result));
+
+            if ($result->correlatedSql !== null) {
+                $correlatedParts[] = '(' . $result->correlatedSql . ')';
+            } else {
+                $allCorrelatable = false;
+            }
         }
 
         if ($parts === []) {
@@ -418,6 +426,9 @@ trait SqlFilterTranslatorTrait
             $params,
             isExact: !$hasUntranslatable,
             drivableLeaves: $drivableLeaves,
+            correlatedSql: $allCorrelatable
+                ? implode(' AND ', $correlatedParts)
+                : null,
         );
     }
 
@@ -443,8 +454,10 @@ trait SqlFilterTranslatorTrait
     private function translateOr(OrFilter $filter): ?SqlFilterResult
     {
         $parts = [];
+        $correlatedParts = [];
         $params = [];
         $hasInexact = false;
+        $allCorrelatable = true;
 
         foreach ($filter->get() as $child) {
             $result = $this->dispatch($child);
@@ -456,6 +469,12 @@ trait SqlFilterTranslatorTrait
             }
             $parts[] = '(' . $result->sql . ')';
             array_push($params, ...$result->params);
+
+            if ($result->correlatedSql !== null) {
+                $correlatedParts[] = '(' . $result->correlatedSql . ')';
+            } else {
+                $allCorrelatable = false;
+            }
         }
 
         if ($parts === []) {
@@ -466,6 +485,9 @@ trait SqlFilterTranslatorTrait
             implode(' OR ', $parts),
             $params,
             isExact: !$hasInexact,
+            correlatedSql: $allCorrelatable
+                ? implode(' OR ', $correlatedParts)
+                : null,
         );
     }
 
@@ -485,6 +507,9 @@ trait SqlFilterTranslatorTrait
                 'NOT (' . $result->sql . ')',
                 $result->params,
                 isExact: $result->isExact,
+                correlatedSql: $result->correlatedSql !== null
+                    ? 'NOT (' . $result->correlatedSql . ')'
+                    : null,
             );
         }
 
@@ -493,15 +518,19 @@ trait SqlFilterTranslatorTrait
         // simple filters (those that populated referencedAttributes) we AND
         // in a presence guard so missing-attribute rows are excluded.
         if ($result->referencedAttributes !== []) {
+            $attributes = array_values(array_unique($result->referencedAttributes));
             $guards = array_map(
                 fn(string $attribute): string => $this->buildPresenceCheck($attribute),
-                array_values(array_unique($result->referencedAttributes)),
+                $attributes,
             );
 
             return new SqlFilterResult(
                 '(NOT (' . $result->sql . ') AND ' . implode(' AND ', $guards) . ')',
                 $result->params,
                 isExact: $result->isExact,
+                correlatedSql: $result->correlatedSql !== null
+                    ? '(NOT (' . $result->correlatedSql . ') AND ' . implode(' AND ', $this->correlatedGuards($attributes)) . ')'
+                    : null,
             );
         }
 
@@ -513,6 +542,28 @@ trait SqlFilterTranslatorTrait
             'NOT (' . $result->sql . ')',
             $result->params,
             isExact: false,
+            correlatedSql: $result->correlatedSql !== null
+                ? 'NOT (' . $result->correlatedSql . ')'
+                : null,
+        );
+    }
+
+    /**
+     * Correlated `EXISTS` presence guards matching the IN-form presence guards for a NOT(value) filter.
+     *
+     * @param list<string> $attributes
+     * @return list<string>
+     */
+    private function correlatedGuards(array $attributes): array
+    {
+        return array_map(
+            fn(string $attribute): string => SqlFilterResult::correlatedLeaf(
+                $this->sidecarCondition(
+                    $attribute,
+                    null,
+                ),
+            ),
+            $attributes,
         );
     }
 
