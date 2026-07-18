@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\Queue\Response;
 
+use FreeDSx\Ldap\Operation\Request\AbandonRequest;
+use FreeDSx\Ldap\Operation\Request\CancelRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 
 /**
@@ -39,6 +41,16 @@ final class Cancellation
     public function isSignalled(): bool
     {
         return $this->signal !== null;
+    }
+
+    public function isAbandoned(): bool
+    {
+        return $this->signal?->getRequest() instanceof AbandonRequest;
+    }
+
+    public function isCanceled(): bool
+    {
+        return $this->signal?->getRequest() instanceof CancelRequest;
     }
 
     public function signal(): ?LdapMessageRequest

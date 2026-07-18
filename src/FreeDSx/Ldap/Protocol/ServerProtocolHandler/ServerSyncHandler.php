@@ -26,10 +26,10 @@ use FreeDSx\Ldap\Operation\Response\SyncInfoMessage;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Operation\SearchOperationResult;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
@@ -60,12 +60,14 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
     ) {}
 
     /**
+     * Phase 1: sync (refresh + persist) stays a direct writer; it is folded into the writer in Phase 2.
+     *
      * @throws OperationException
      */
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): OperationResult {
+    ): ResponseStream {
         $request = $this->getSearchRequestFromMessage($message);
         $control = $this->syncRequestControl($message);
         $stream = $this->changeStream;
@@ -118,10 +120,10 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
             ));
         }
 
-        return SearchOperationResult::success(
+        return ResponseStream::none(SearchOperationResult::success(
             $message,
             $state->entriesReturned,
-        );
+        ));
     }
 
     /**

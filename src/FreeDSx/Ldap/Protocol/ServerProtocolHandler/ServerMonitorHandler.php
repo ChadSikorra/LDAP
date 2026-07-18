@@ -18,12 +18,10 @@ use FreeDSx\Ldap\Operation\Response\SearchResultDone;
 use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Protocol\LdapMessageResponse;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Server\Metrics\MetricsSnapshotProvider;
 use FreeDSx\Ldap\Server\Metrics\Snapshot\MetricsSnapshot;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\ServerRunner\CoroutineServerRunnerInterface;
 use FreeDSx\Ldap\Server\ServerRunner\PcntlServerRunner;
 use FreeDSx\Ldap\Server\ServerRunner\SwooleServerRunner;
@@ -47,31 +45,24 @@ class ServerMonitorHandler implements ServerProtocolHandlerInterface
 
     public function __construct(
         private readonly ServerOptions $options,
-        private readonly ServerQueue $queue,
         private readonly MetricsSnapshotProvider $snapshots,
     ) {}
 
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): OperationResult {
+    ): ResponseStream {
         $entry = Entry::fromArray(
             self::DN,
             $this->attributes($this->snapshots->snapshot()),
         );
 
-        $this->queue->sendMessage(
-            new LdapMessageResponse(
-                $message->getMessageId(),
-                new SearchResultEntry($entry),
-            ),
-            new LdapMessageResponse(
-                $message->getMessageId(),
-                new SearchResultDone(ResultCode::SUCCESS),
-            ),
+        return ResponseStream::reply(
+            $message,
+            OperationOutcomeResult::succeeded(),
+            new SearchResultEntry($entry),
+            new SearchResultDone(ResultCode::SUCCESS),
         );
-
-        return OperationOutcomeResult::succeeded();
     }
 
     /**

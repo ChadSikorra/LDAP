@@ -410,7 +410,10 @@ final class ConnectionHandlerBuilder implements ConnectionHandlerBuilderInterfac
                 $this->container->get(OperationAuthorizationMiddleware::class),
                 $this->container->get(AssertionMiddleware::class),
             ],
-            new HandlerInvoker($handlerProvider),
+            new HandlerInvoker(
+                $handlerProvider,
+                $queue,
+            ),
         );
     }
 }

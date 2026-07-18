@@ -18,13 +18,11 @@ use FreeDSx\Ldap\Operation\Response\SearchResultDone;
 use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Protocol\LdapMessageResponse;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Schema\Definition\AttributeTypeOid;
 use FreeDSx\Ldap\Schema\Definition\ObjectClassOid;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Ldap\ServerOptions;
 
@@ -35,15 +33,12 @@ use FreeDSx\Ldap\ServerOptions;
  */
 class ServerSubschemaHandler implements ServerProtocolHandlerInterface
 {
-    public function __construct(
-        private readonly ServerOptions $options,
-        private readonly ServerQueue $queue,
-    ) {}
+    public function __construct(private readonly ServerOptions $options) {}
 
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): OperationResult {
+    ): ResponseStream {
         $schemaDn = $this->options->getSubschemaEntry();
         $rdn = $schemaDn->getRdn();
         $schema = $this->options->getSchema();
@@ -76,18 +71,12 @@ class ServerSubschemaHandler implements ServerProtocolHandlerInterface
             ]),
         );
 
-        $this->queue->sendMessage(
-            new LdapMessageResponse(
-                $message->getMessageId(),
-                new SearchResultEntry($entry),
-            ),
-            new LdapMessageResponse(
-                $message->getMessageId(),
-                new SearchResultDone(ResultCode::SUCCESS),
-            ),
+        return ResponseStream::reply(
+            $message,
+            OperationOutcomeResult::succeeded(),
+            new SearchResultEntry($entry),
+            new SearchResultDone(ResultCode::SUCCESS),
         );
-
-        return OperationOutcomeResult::succeeded();
     }
 
     /**

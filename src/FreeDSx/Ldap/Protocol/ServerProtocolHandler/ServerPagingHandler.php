@@ -21,7 +21,8 @@ use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Protocol\Queue\Response\Cancellation;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
@@ -30,7 +31,6 @@ use FreeDSx\Ldap\Server\Paging\PagingRequestComparator;
 use FreeDSx\Ldap\Server\Paging\PagingResponse;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Operation\SearchOperationResult;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
@@ -48,7 +48,6 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
     use MatchedDnAccessFilterTrait;
 
     public function __construct(
-        private readonly ServerQueue $queue,
         private readonly LdapBackendInterface $backend,
         private readonly FilterEvaluatorInterface $filterEvaluator,
         private readonly AccessControlInterface $accessControl,
@@ -65,7 +64,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): OperationResult {
+    ): ResponseStream {
         $pagingRequest = $this->findOrMakePagingRequest($message);
         $searchRequest = $this->getSearchRequestFromMessage($message);
 
@@ -144,14 +143,7 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
             $this->requestHistory->removePagingGenerator($pagingRequest->getNextCookie());
         }
 
-        $this->sendEntriesToClient(
-            $searchResult,
-            $message,
-            $this->queue,
-            ...$controls,
-        );
-
-        return $failure !== null
+        $outcome = $failure !== null
             ? SearchOperationResult::failure(
                 $message,
                 $failure,
@@ -160,6 +152,17 @@ class ServerPagingHandler implements ServerProtocolHandlerInterface
                 $message,
                 $entriesReturned,
             );
+
+        // A page is pre-collected and bounded, so it is bulk-sent without mid-page cancel polling.
+        return ResponseStream::of(
+            $this->buildResponseStream(
+                $searchResult,
+                $message->getMessageId(),
+                new Cancellation(),
+                ...$controls,
+            ),
+            $outcome,
+        );
     }
 
     /**

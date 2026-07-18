@@ -14,17 +14,12 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
 use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 
 /**
  * Late-bound result code / diagnostic for a streaming search.
  */
 final class SearchResultState
 {
-    public bool $isAbandoned = false;
-
-    public ?LdapMessageRequest $cancelSignal = null;
-
     public int $entriesReturned = 0;
 
     public function __construct(

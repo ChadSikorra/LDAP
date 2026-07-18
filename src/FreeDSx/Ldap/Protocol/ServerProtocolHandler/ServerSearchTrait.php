@@ -22,7 +22,6 @@ use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Operation\LdapResult;
-use FreeDSx\Ldap\Operation\Request\CancelRequest;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\Response\SearchResultDone;
@@ -30,25 +29,12 @@ use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Protocol\Queue\Response\Cancellation;
 use FreeDSx\Ldap\Schema\Schema;
 use Generator;
 
 trait ServerSearchTrait
 {
-    private function sendEntriesToClient(
-        SearchResult $searchResult,
-        LdapMessageRequest $message,
-        ServerQueue $queue,
-        Control ...$controls,
-    ): void {
-        $queue->sendMessages($this->buildResponseStream(
-            $searchResult,
-            $message->getMessageId(),
-            ...$controls,
-        ));
-    }
-
     /**
      * Yields a SearchResultEntry per backend entry followed by the terminal SearchResultDone.
      * Yields nothing for abandoned requests; yields CANCELED + SUCCESS for cancelled requests.
@@ -58,23 +44,28 @@ trait ServerSearchTrait
     private function buildResponseStream(
         SearchResult $searchResult,
         int $messageId,
+        Cancellation $cancellation,
         Control ...$controls,
     ): Generator {
+        $state = $searchResult->getState();
+
         foreach ($searchResult->getEntries() as $entry) {
             yield new LdapMessageResponse(
                 $messageId,
                 new SearchResultEntry($entry),
             );
+
+            if ($cancellation->isSignalled()) {
+                break;
+            }
         }
 
-        $state = $searchResult->getState();
-
-        if ($state->isAbandoned) {
+        if ($cancellation->isAbandoned()) {
             return;
         }
-        $cancelSignal = $state->cancelSignal;
+        $cancelSignal = $cancellation->signal();
 
-        if ($cancelSignal !== null && $cancelSignal->getRequest() instanceof CancelRequest) {
+        if ($cancelSignal !== null && $cancellation->isCanceled()) {
             yield new LdapMessageResponse(
                 $messageId,
                 new SearchResultDone(
