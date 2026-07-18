@@ -520,7 +520,7 @@ final class ServerSyncHandlerTest extends TestCase
         return $this->subject->handleRequest(
             $this->syncMessage($cookie, $mode, $reloadHint),
             $this->token,
-        );
+        )->outcome();
     }
 
     private function syncMessage(

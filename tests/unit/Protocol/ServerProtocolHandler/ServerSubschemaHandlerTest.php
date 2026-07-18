@@ -20,7 +20,6 @@ use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerSubschemaHandler;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
@@ -31,8 +30,6 @@ use PHPUnit\Framework\TestCase;
 
 final class ServerSubschemaHandlerTest extends TestCase
 {
-    private ServerQueue&MockObject $mockQueue;
-
     private TokenInterface&MockObject $mockToken;
 
     private ServerOptions $options;
@@ -42,56 +39,45 @@ final class ServerSubschemaHandlerTest extends TestCase
     protected function setUp(): void
     {
         $this->options = new ServerOptions();
-        $this->mockQueue = $this->createMock(ServerQueue::class);
         $this->mockToken = $this->createMock(TokenInterface::class);
 
         $this->subject = new ServerSubschemaHandler(
             options: $this->options,
-            queue: $this->mockQueue,
         );
     }
 
     public function test_it_returns_a_stub_subschema_entry(): void
     {
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with(
-                self::callback(function (LdapMessageResponse $response) {
-                    /** @var SearchResultEntry $result */
-                    $result = $response->getResponse();
-                    $entry = $result->getEntry();
+        $stream = $this->subject->handleRequest($this->makeMessage(), $this->mockToken);
+        $messages = [...$stream->messages];
 
-                    return $entry->getDn()->toString() === 'cn=Subschema'
-                        && ($entry->get('objectClass')?->has('subschema') ?? false)
-                        && ($entry->get('cn')?->has('Subschema') ?? false);
-                }),
-                self::equalTo(new LdapMessageResponse(1, new SearchResultDone(ResultCode::SUCCESS))),
-            );
+        /** @var SearchResultEntry $result */
+        $result = $messages[0]->getResponse();
+        $entry = $result->getEntry();
 
-        $this->subject->handleRequest($this->makeMessage(), $this->mockToken);
+        self::assertSame(
+            'cn=Subschema',
+            $entry->getDn()->toString(),
+        );
+        self::assertTrue($entry->get('objectClass')?->has('subschema') ?? false);
+        self::assertTrue($entry->get('cn')?->has('Subschema') ?? false);
+        self::assertEquals(
+            new LdapMessageResponse(1, new SearchResultDone(ResultCode::SUCCESS)),
+            $messages[1],
+        );
     }
 
     public function test_it_uses_the_configured_subschema_entry_dn(): void
     {
         $this->options->setSubschemaEntry(new Dn('cn=schema,dc=example,dc=com'));
 
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with(
-                self::callback(function (LdapMessageResponse $response) {
-                    /** @var SearchResultEntry $result */
-                    $result = $response->getResponse();
-                    $entry = $result->getEntry();
+        $entry = $this->handleAndCaptureEntry();
 
-                    return $entry->getDn()->toString() === 'cn=schema,dc=example,dc=com'
-                        && ($entry->get('cn')?->has('schema') ?? false);
-                }),
-                self::anything(),
-            );
-
-        $this->subject->handleRequest($this->makeMessage(), $this->mockToken);
+        self::assertSame(
+            'cn=schema,dc=example,dc=com',
+            $entry->getDn()->toString(),
+        );
+        self::assertTrue($entry->get('cn')?->has('schema') ?? false);
     }
 
     public function test_it_returns_non_empty_attribute_types_in_rfc4512_format(): void
@@ -153,26 +139,12 @@ final class ServerSubschemaHandlerTest extends TestCase
 
     private function handleAndCaptureEntry(): Entry
     {
-        $captured = null;
+        $stream = $this->subject->handleRequest($this->makeMessage(), $this->mockToken);
+        $messages = [...$stream->messages];
 
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with(
-                self::callback(static function (LdapMessageResponse $response) use (&$captured): bool {
-                    /** @var SearchResultEntry $result */
-                    $result = $response->getResponse();
-                    $captured = $result->getEntry();
+        /** @var SearchResultEntry $result */
+        $result = $messages[0]->getResponse();
 
-                    return true;
-                }),
-                self::anything(),
-            );
-
-        $this->subject->handleRequest($this->makeMessage(), $this->mockToken);
-
-        assert($captured instanceof Entry);
-
-        return $captured;
+        return $result->getEntry();
     }
 }

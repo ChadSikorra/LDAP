@@ -25,7 +25,6 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\Queue\Response\PasswordPolicyResponseInterceptor;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Schema\Definition\PasswordPolicyOid;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Schema\Schema;
@@ -53,6 +52,7 @@ use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\DefaultPasswordQualityChecke
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordChangeRules;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;
 use FreeDSx\Ldap\Server\Token\BindToken;
+use FreeDSx\Ldap\Server\Token\TokenInterface;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\FreeDSx\Ldap\Clock\FrozenClock;
 
@@ -117,7 +117,8 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
             [PasswordPolicyOid::NAME_PWD_RESET => 'TRUE'],
         );
 
-        $handler->handleRequest(
+        $this->handle(
+            $handler,
             $this->modify('a-fresh-password'),
             $this->token(),
         );
@@ -213,7 +214,8 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
             new PasswordPolicy(change: new PasswordChangeRules(safeModify: true)),
         );
 
-        $handler->handleRequest(
+        $this->handle(
+            $handler,
             $this->modifyWithOld('original-pass', 'a-fresh-password'),
             $this->token(),
         );
@@ -239,7 +241,8 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
         $token = $this->token();
         $token->markMustChangePassword();
 
-        $handler->handleRequest(
+        $this->handle(
+            $handler,
             $this->modify('a-fresh-password'),
             $token,
         );
@@ -311,7 +314,6 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
         );
 
         return new ServerDispatchHandler(
-            queue: $this->capturingQueue(),
             backend: $this->backend,
             writeDispatcher: new WriteOperationDispatcher(
                 $policyWriteHandler,
@@ -322,19 +324,15 @@ final class PasswordPolicyPlainModifyEnforcementTest extends TestCase
         );
     }
 
-    private function capturingQueue(): ServerQueue
-    {
-        $interceptor = new PasswordPolicyResponseInterceptor($this->context);
-        $queue = $this->createMock(ServerQueue::class);
-        $queue
-            ->method('sendMessage')
-            ->willReturnCallback(function (LdapMessageResponse $response) use ($queue, $interceptor): ServerQueue {
-                $this->response = $interceptor->intercept($response);
-
-                return $queue;
-            });
-
-        return $queue;
+    private function handle(
+        ServerDispatchHandler $handler,
+        LdapMessageRequest $request,
+        TokenInterface $token,
+    ): void {
+        $stream = $handler->handleRequest($request, $token);
+        $messages = [...$stream->messages];
+        self::assertCount(1, $messages);
+        $this->response = (new PasswordPolicyResponseInterceptor($this->context))->intercept($messages[0]);
     }
 
     private function modify(string $newPassword): LdapMessageRequest

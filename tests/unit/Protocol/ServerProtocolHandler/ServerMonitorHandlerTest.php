@@ -21,7 +21,6 @@ use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerMonitorHandler;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\Metrics\Observation\ConnectionObservation;
@@ -36,8 +35,6 @@ use PHPUnit\Framework\TestCase;
 
 final class ServerMonitorHandlerTest extends TestCase
 {
-    private ServerQueue&MockObject $mockQueue;
-
     private TokenInterface&MockObject $mockToken;
 
     private InMemoryMetricsRecorder $metrics;
@@ -46,40 +43,38 @@ final class ServerMonitorHandlerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->mockQueue = $this->createMock(ServerQueue::class);
         $this->mockToken = $this->createMock(TokenInterface::class);
         $this->metrics = new InMemoryMetricsRecorder();
 
         $this->subject = new ServerMonitorHandler(
             options: new ServerOptions(),
-            queue: $this->mockQueue,
             snapshots: $this->metrics,
         );
     }
 
     public function test_it_serves_the_cn_monitor_entry(): void
     {
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with(
-                self::callback(static function (LdapMessageResponse $response): bool {
-                    /** @var SearchResultEntry $result */
-                    $result = $response->getResponse();
-                    $entry = $result->getEntry();
-
-                    return $entry->getDn()->toString() === 'cn=monitor'
-                        && ($entry->get('objectClass')?->has('extensibleObject') ?? false);
-                }),
-                self::equalTo(new LdapMessageResponse(
-                    1,
-                    new SearchResultDone(ResultCode::SUCCESS),
-                )),
-            );
-
-        $this->subject->handleRequest(
+        $stream = $this->subject->handleRequest(
             $this->makeMessage(),
             $this->mockToken,
+        );
+        $messages = [...$stream->messages];
+
+        /** @var SearchResultEntry $result */
+        $result = $messages[0]->getResponse();
+        $entry = $result->getEntry();
+
+        self::assertSame(
+            'cn=monitor',
+            $entry->getDn()->toString(),
+        );
+        self::assertTrue($entry->get('objectClass')?->has('extensibleObject') ?? false);
+        self::assertEquals(
+            new LdapMessageResponse(
+                1,
+                new SearchResultDone(ResultCode::SUCCESS),
+            ),
+            $messages[1],
         );
     }
 
@@ -310,7 +305,6 @@ final class ServerMonitorHandlerTest extends TestCase
 
         $subject = new ServerMonitorHandler(
             options: (new ServerOptions())->setUseSwooleRunner(true),
-            queue: $this->mockQueue,
             snapshots: $this->metrics,
         );
 
@@ -334,29 +328,15 @@ final class ServerMonitorHandlerTest extends TestCase
 
     private function handleAndCaptureEntry(?ServerMonitorHandler $subject = null): Entry
     {
-        $captured = null;
-
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with(
-                self::callback(static function (LdapMessageResponse $response) use (&$captured): bool {
-                    /** @var SearchResultEntry $result */
-                    $result = $response->getResponse();
-                    $captured = $result->getEntry();
-
-                    return true;
-                }),
-                self::anything(),
-            );
-
-        ($subject ?? $this->subject)->handleRequest(
+        $stream = ($subject ?? $this->subject)->handleRequest(
             $this->makeMessage(),
             $this->mockToken,
         );
+        $messages = [...$stream->messages];
 
-        assert($captured instanceof Entry);
+        /** @var SearchResultEntry $result */
+        $result = $messages[0]->getResponse();
 
-        return $captured;
+        return $result->getEntry();
     }
 }

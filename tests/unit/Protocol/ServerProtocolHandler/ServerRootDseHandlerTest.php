@@ -23,7 +23,6 @@ use FreeDSx\Ldap\Operation\Response\SearchResultDone;
 use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerRootDseHandler;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
@@ -36,8 +35,6 @@ use PHPUnit\Framework\TestCase;
 
 final class ServerRootDseHandlerTest extends TestCase
 {
-    private ServerQueue&MockObject $mockQueue;
-
     private ServerRootDseHandler $subject;
 
     private TokenInterface&MockObject $mockToken;
@@ -52,7 +49,6 @@ final class ServerRootDseHandlerTest extends TestCase
     {
         $this->options = new ServerOptions();
         $this->mockToken = $this->createMock(TokenInterface::class);
-        $this->mockQueue = $this->createMock(ServerQueue::class);
         $this->mockDseHandler = $this->createMock(RootDseHandlerInterface::class);
         $this->withBackendNamingContexts([]);
     }
@@ -67,11 +63,14 @@ final class ServerRootDseHandlerTest extends TestCase
             (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope(),
         );
 
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with(
-                self::equalTo(new LdapMessageResponse(1, new SearchResultEntry(Entry::create('', [
+        $stream = $this->subject->handleRequest(
+            $search,
+            $this->mockToken,
+        );
+
+        $this->assertEquals(
+            [
+                new LdapMessageResponse(1, new SearchResultEntry(Entry::create('', [
                     'namingContexts' => 'dc=Foo,dc=Bar',
                     'subschemaSubentry' => ['cn=Subschema'],
                     'supportedControl' => [
@@ -96,13 +95,10 @@ final class ServerRootDseHandlerTest extends TestCase
                     ],
                     'supportedLDAPVersion' => ['3'],
                     'vendorName' => 'Foo',
-                ])))),
-                self::equalTo(new LdapMessageResponse(1, new SearchResultDone(0))),
-            );
-
-        $this->subject->handleRequest(
-            $search,
-            $this->mockToken,
+                ]))),
+                new LdapMessageResponse(1, new SearchResultDone(0)),
+            ],
+            [...$stream->messages],
         );
     }
 
@@ -113,32 +109,24 @@ final class ServerRootDseHandlerTest extends TestCase
             (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope(),
         );
 
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with(
-                self::callback(function (LdapMessageResponse $response) {
-                    /** @var SearchResultEntry $result */
-                    $result = $response->getResponse();
-                    $entry = $result->getEntry();
-
-                    return $entry->get('supportedControl')?->has(Control::OID_PAGING) === true
-                        && $entry->get('supportedExtension')?->has(ExtendedRequest::OID_PWD_MODIFY) === true;
-                }),
-                self::anything(),
-            );
-
-        $this->subject->handleRequest(
+        $stream = $this->subject->handleRequest(
             $search,
             $this->mockToken,
         );
+        $messages = [...$stream->messages];
+
+        /** @var SearchResultEntry $result */
+        $result = $messages[0]->getResponse();
+        $entry = $result->getEntry();
+
+        self::assertTrue($entry->get('supportedControl')?->has(Control::OID_PAGING) === true);
+        self::assertTrue($entry->get('supportedExtension')?->has(ExtendedRequest::OID_PWD_MODIFY) === true);
     }
 
     public function test_it_advertises_the_sync_control_when_sync_is_enabled(): void
     {
         $this->subject = new ServerRootDseHandler(
             $this->options,
-            $this->mockQueue,
             $this->mockBackend,
             null,
             true,
@@ -149,23 +137,16 @@ final class ServerRootDseHandlerTest extends TestCase
             (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope(),
         );
 
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with(
-                self::callback(function (LdapMessageResponse $response) {
-                    /** @var SearchResultEntry $result */
-                    $result = $response->getResponse();
-
-                    return $result->getEntry()->get('supportedControl')?->has(Control::OID_SYNC_REQUEST) === true;
-                }),
-                self::anything(),
-            );
-
-        $this->subject->handleRequest(
+        $stream = $this->subject->handleRequest(
             $search,
             $this->mockToken,
         );
+        $messages = [...$stream->messages];
+
+        /** @var SearchResultEntry $result */
+        $result = $messages[0]->getResponse();
+
+        self::assertTrue($result->getEntry()->get('supportedControl')?->has(Control::OID_SYNC_REQUEST) === true);
     }
 
     public function test_it_should_send_a_request_to_the_dispatcher_if_it_implements_a_rootdse_aware_interface(): void
@@ -175,7 +156,6 @@ final class ServerRootDseHandlerTest extends TestCase
 
         $this->subject = new ServerRootDseHandler(
             $this->options,
-            $this->mockQueue,
             $this->mockBackend,
             $this->mockDseHandler,
         );
@@ -224,17 +204,17 @@ final class ServerRootDseHandlerTest extends TestCase
             )
             ->willReturn($handlerRootDse);
 
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with(
-                new LdapMessageResponse(1, new SearchResultEntry($handlerRootDse)),
-                new LdapMessageResponse(1, new SearchResultDone(0)),
-            );
-
-        $this->subject->handleRequest(
+        $stream = $this->subject->handleRequest(
             $search,
             $this->mockToken,
+        );
+
+        $this->assertEquals(
+            [
+                new LdapMessageResponse(1, new SearchResultEntry($handlerRootDse)),
+                new LdapMessageResponse(1, new SearchResultDone(0)),
+            ],
+            [...$stream->messages],
         );
     }
 
@@ -248,28 +228,25 @@ final class ServerRootDseHandlerTest extends TestCase
             (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope(),
         );
 
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with(
-                self::callback(function (LdapMessageResponse $response) {
-                    /** @var SearchResultEntry $search */
-                    $search = $response->getResponse();
-                    $attribute = $search->getEntry()->get('supportedSaslMechanisms');
-
-                    return $attribute !== null
-                        && $attribute->has(ServerOptions::SASL_PLAIN)
-                        && $attribute->has(ServerOptions::SASL_CRAM_MD5);
-                }),
-                new LdapMessageResponse(
-                    1,
-                    new SearchResultDone(0),
-                ),
-            );
-
-        $this->subject->handleRequest(
+        $stream = $this->subject->handleRequest(
             $search,
             $this->mockToken,
+        );
+        $messages = [...$stream->messages];
+
+        /** @var SearchResultEntry $result */
+        $result = $messages[0]->getResponse();
+        $attribute = $result->getEntry()->get('supportedSaslMechanisms');
+
+        self::assertNotNull($attribute);
+        self::assertTrue($attribute->has(ServerOptions::SASL_PLAIN));
+        self::assertTrue($attribute->has(ServerOptions::SASL_CRAM_MD5));
+        self::assertEquals(
+            new LdapMessageResponse(
+                1,
+                new SearchResultDone(0),
+            ),
+            $messages[1],
         );
     }
 
@@ -286,10 +263,13 @@ final class ServerRootDseHandlerTest extends TestCase
                 ->setAttributesOnly(true),
         );
 
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with(
+        $stream = $this->subject->handleRequest(
+            $search,
+            $this->mockToken,
+        );
+
+        $this->assertEquals(
+            [
                 new LdapMessageResponse(1, new SearchResultEntry(Entry::create('', [
                     'namingContexts' => [],
                     'subschemaSubentry' => [],
@@ -300,11 +280,8 @@ final class ServerRootDseHandlerTest extends TestCase
                     'vendorName' => [],
                 ]))),
                 new LdapMessageResponse(1, new SearchResultDone(0)),
-            );
-
-        $this->subject->handleRequest(
-            $search,
-            $this->mockToken,
+            ],
+            [...$stream->messages],
         );
     }
 
@@ -315,21 +292,15 @@ final class ServerRootDseHandlerTest extends TestCase
             (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope(),
         );
 
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with(
-                self::callback(function (LdapMessageResponse $response) {
-                    /** @var SearchResultEntry $result */
-                    $result = $response->getResponse();
-                    $attr = $result->getEntry()->get('subschemaSubentry');
+        $stream = $this->subject->handleRequest($search, $this->mockToken);
+        $messages = [...$stream->messages];
 
-                    return $attr !== null && $attr->has('cn=Subschema');
-                }),
-                self::anything(),
-            );
+        /** @var SearchResultEntry $result */
+        $result = $messages[0]->getResponse();
+        $attr = $result->getEntry()->get('subschemaSubentry');
 
-        $this->subject->handleRequest($search, $this->mockToken);
+        self::assertNotNull($attr);
+        self::assertTrue($attr->has('cn=Subschema'));
     }
 
     public function test_it_uses_configured_subschema_entry_dn(): void
@@ -341,21 +312,15 @@ final class ServerRootDseHandlerTest extends TestCase
             (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope(),
         );
 
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with(
-                self::callback(function (LdapMessageResponse $response) {
-                    /** @var SearchResultEntry $result */
-                    $result = $response->getResponse();
-                    $attr = $result->getEntry()->get('subschemaSubentry');
+        $stream = $this->subject->handleRequest($search, $this->mockToken);
+        $messages = [...$stream->messages];
 
-                    return $attr !== null && $attr->has('cn=schema,dc=example,dc=com');
-                }),
-                self::anything(),
-            );
+        /** @var SearchResultEntry $result */
+        $result = $messages[0]->getResponse();
+        $attr = $result->getEntry()->get('subschemaSubentry');
 
-        $this->subject->handleRequest($search, $this->mockToken);
+        self::assertNotNull($attr);
+        self::assertTrue($attr->has('cn=schema,dc=example,dc=com'));
     }
 
     public function test_it_should_only_return_specific_attributes_from_the_RootDSE_if_requested(): void
@@ -376,20 +341,20 @@ final class ServerRootDseHandlerTest extends TestCase
         $entry->changes()->reset();
         $entry->get('namingContexts')?->equals(new Attribute('foo'));
 
-        $this->mockQueue
-            ->expects($this->once())
-            ->method('sendMessage')
-            ->with(
+        $stream = $this->subject->handleRequest(
+            $search,
+            $this->mockToken,
+        );
+
+        $this->assertEquals(
+            [
                 new LdapMessageResponse(
                     1,
                     new SearchResultEntry($entry),
                 ),
                 new LdapMessageResponse(1, new SearchResultDone(0)),
-            );
-
-        $this->subject->handleRequest(
-            $search,
-            $this->mockToken,
+            ],
+            [...$stream->messages],
         );
     }
 
@@ -408,7 +373,6 @@ final class ServerRootDseHandlerTest extends TestCase
 
         $this->subject = new ServerRootDseHandler(
             $this->options,
-            $this->mockQueue,
             $this->mockBackend,
             null,
         );

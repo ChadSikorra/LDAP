@@ -29,6 +29,7 @@ use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseWriter;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerSearchHandler;
 use FreeDSx\Ldap\Schema\Schema;
@@ -39,6 +40,7 @@ use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStream;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Operation\OperationOutcome;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Operation\SearchOperationResult;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
@@ -95,13 +97,7 @@ final class ServerSearchHandlerTest extends TestCase
                 return $this->mockQueue;
             });
 
-        $this->subject = new ServerSearchHandler(
-            queue: $this->mockQueue,
-            backend: $this->mockBackend,
-            filterEvaluator: $this->mockFilterEvaluator,
-            accessControl: $this->mockAccessControl,
-            schema: $this->schema,
-        );
+        $this->subject = $this->makeHandler($this->mockAccessControl);
     }
 
     public function test_it_should_send_entries_from_the_backend_to_the_client(): void
@@ -124,9 +120,9 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('evaluate')
             ->willReturn(true);
 
-        $result = $this->subject->handleRequest(
+        $result = $this->drive(
+            $this->subject,
             $search,
-            $this->mockToken,
         );
 
         $this->assertSentMessages([
@@ -157,13 +153,7 @@ final class ServerSearchHandlerTest extends TestCase
         $mockAccessControl = $this->createMock(AccessControlInterface::class);
         $mockAccessControl->method('filterEntry')->willReturn($stripped);
 
-        $subject = new ServerSearchHandler(
-            queue: $this->mockQueue,
-            backend: $this->mockBackend,
-            filterEvaluator: $this->mockFilterEvaluator,
-            accessControl: $mockAccessControl,
-            schema: $this->schema,
-        );
+        $subject = $this->makeHandler($mockAccessControl);
 
         $this->mockBackend
             ->method('search')
@@ -173,9 +163,9 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('evaluate')
             ->willReturn(false);
 
-        $subject->handleRequest(
+        $this->drive(
+            $subject,
             $search,
-            $this->mockToken,
         );
 
         $this->assertSentMessages([
@@ -235,7 +225,7 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('evaluate')
             ->willReturn(true);
 
-        $this->subject->handleRequest($search, $this->mockToken);
+        $this->drive($this->subject, $search);
 
         $this->assertSentMessages([
             new LdapMessageResponse(2, new SearchResultEntry($entry1)),
@@ -267,7 +257,7 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('evaluate')
             ->willReturn(true);
 
-        $this->subject->handleRequest($search, $this->mockToken);
+        $this->drive($this->subject, $search);
 
         $this->assertSentMessages([
             new LdapMessageResponse(2, new SearchResultEntry($entry1)),
@@ -296,15 +286,11 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('evaluate')
             ->willReturn(true);
 
-        $subject = new ServerSearchHandler(
-            queue: $this->mockQueue,
-            backend: $this->mockBackend,
-            filterEvaluator: $this->mockFilterEvaluator,
-            accessControl: $this->mockAccessControl,
-            schema: $this->schema,
-            limits: new SearchLimits(maxSearchSize: 1),
+        $subject = $this->makeHandler(
+            $this->mockAccessControl,
+            new SearchLimits(maxSearchSize: 1),
         );
-        $subject->handleRequest($search, $this->mockToken);
+        $this->drive($subject, $search);
 
         $this->assertSentMessages([
             new LdapMessageResponse(2, new SearchResultEntry($entry1)),
@@ -332,15 +318,11 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('evaluate')
             ->willReturn(true);
 
-        $subject = new ServerSearchHandler(
-            queue: $this->mockQueue,
-            backend: $this->mockBackend,
-            filterEvaluator: $this->mockFilterEvaluator,
-            accessControl: $this->mockAccessControl,
-            schema: $this->schema,
-            limits: new SearchLimits(maxSearchSize: 5),
+        $subject = $this->makeHandler(
+            $this->mockAccessControl,
+            new SearchLimits(maxSearchSize: 5),
         );
-        $subject->handleRequest($search, $this->mockToken);
+        $this->drive($subject, $search);
 
         $this->assertSentMessages([
             new LdapMessageResponse(2, new SearchResultEntry($entry1)),
@@ -368,15 +350,11 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('evaluate')
             ->willReturn(true);
 
-        $subject = new ServerSearchHandler(
-            queue: $this->mockQueue,
-            backend: $this->mockBackend,
-            filterEvaluator: $this->mockFilterEvaluator,
-            accessControl: $this->mockAccessControl,
-            schema: $this->schema,
-            limits: new SearchLimits(maxSearchSize: 1),
+        $subject = $this->makeHandler(
+            $this->mockAccessControl,
+            new SearchLimits(maxSearchSize: 1),
         );
-        $subject->handleRequest($search, $this->mockToken);
+        $this->drive($subject, $search);
 
         $this->assertSentMessages([
             new LdapMessageResponse(2, new SearchResultEntry($entry1)),
@@ -396,9 +374,9 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('search')
             ->willReturn(new EntryStream($this->makeGenerator()));
 
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $search,
-            $this->mockToken,
         );
 
         $this->assertSentMessages([
@@ -443,14 +421,8 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('evaluate')
             ->willReturn(true);
 
-        $subject = new ServerSearchHandler(
-            queue: $this->mockQueue,
-            backend: $this->mockBackend,
-            filterEvaluator: $this->mockFilterEvaluator,
-            accessControl: $mockAccessControl,
-            schema: $this->schema,
-        );
-        $subject->handleRequest($search, $this->mockToken);
+        $subject = $this->makeHandler($mockAccessControl);
+        $this->drive($subject, $search);
 
         $this->assertSentMessages([
             new LdapMessageResponse(2, new SearchResultEntry($entry2)),
@@ -490,14 +462,8 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('evaluate')
             ->willReturnCallback(static fn(Entry $e): bool => $e === $entry);
 
-        $subject = new ServerSearchHandler(
-            queue: $this->mockQueue,
-            backend: $this->mockBackend,
-            filterEvaluator: $this->mockFilterEvaluator,
-            accessControl: $mockAccessControl,
-            schema: $this->schema,
-        );
-        $subject->handleRequest($search, $this->mockToken);
+        $subject = $this->makeHandler($mockAccessControl);
+        $this->drive($subject, $search);
 
         $this->assertSentMessages([
             new LdapMessageResponse(
@@ -533,7 +499,7 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('peekForCancelSignal')
             ->willReturn($abandonSignal);
 
-        $this->subject->handleRequest($search, $this->mockToken);
+        $this->drive($this->subject, $search);
 
         $sentDone = array_filter(
             $this->sentMessages,
@@ -569,7 +535,7 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('peekForCancelSignal')
             ->willReturn($cancelSignal);
 
-        $this->subject->handleRequest($search, $this->mockToken);
+        $this->drive($this->subject, $search);
 
         $nonEntryMessages = array_values(array_filter(
             $this->sentMessages,
@@ -604,9 +570,9 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('search')
             ->willReturn(new EntryStream($this->makeGenerator()));
 
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $search,
-            $this->mockToken,
         );
 
         $this->assertSentMessages([
@@ -629,9 +595,9 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('search')
             ->willReturn(new EntryStream($this->makeGenerator()));
 
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $search,
-            $this->mockToken,
         );
 
         $done = end($this->sentMessages);
@@ -659,9 +625,9 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('search')
             ->willReturn(new EntryStream($this->makeGenerator()));
 
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $search,
-            $this->mockToken,
         );
 
         $done = end($this->sentMessages);
@@ -693,9 +659,9 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('search')
             ->willReturn(new EntryStream($this->makeGenerator()));
 
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $search,
-            $this->mockToken,
         );
 
         $done = end($this->sentMessages);
@@ -722,14 +688,45 @@ final class ServerSearchHandlerTest extends TestCase
             ->method('search')
             ->willReturn(new EntryStream($this->makeGenerator()));
 
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $search,
-            $this->mockToken,
         );
 
         $done = end($this->sentMessages);
         self::assertInstanceOf(LdapMessageResponse::class, $done);
         self::assertNull($done->controls()->get(Control::OID_SORTING_RESPONSE));
+    }
+
+    private function makeHandler(
+        AccessControlInterface $accessControl,
+        ?SearchLimits $limits = null,
+    ): ServerSearchHandler {
+        return new ServerSearchHandler(
+            backend: $this->mockBackend,
+            filterEvaluator: $this->mockFilterEvaluator,
+            accessControl: $accessControl,
+            schema: $this->schema,
+            limits: $limits ?? new SearchLimits(),
+        );
+    }
+
+    /**
+     * Drives the handler's stream through the writer so it flushes and polls for cancellation.
+     */
+    private function drive(
+        ServerSearchHandler $subject,
+        LdapMessageRequest $search,
+    ): OperationResult {
+        $stream = $subject->handleRequest(
+            $search,
+            $this->mockToken,
+        );
+
+        return (new ResponseWriter($this->mockQueue))->write(
+            $stream,
+            $search->getMessageId(),
+        );
     }
 
     private function makeGenerator(Entry ...$entries): Generator
