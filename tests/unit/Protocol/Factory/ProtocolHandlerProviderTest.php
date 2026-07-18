@@ -25,7 +25,7 @@ use FreeDSx\Ldap\Protocol\Factory\HandlerId;
 use FreeDSx\Ldap\Protocol\Factory\ProtocolHandlerFactoryMap;
 use FreeDSx\Ldap\Protocol\Factory\ProtocolHandlerProvider;
 use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Protocol\Queue\ConnectionControl;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerDispatchHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerPagingHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerPasswordModifyHandler;
@@ -252,7 +252,7 @@ final class ProtocolHandlerProviderTest extends TestCase
     private function handlerContext(?PasswordPolicyContext $passwordPolicyContext = null): HandlerContext
     {
         return new HandlerContext(
-            queue: $this->createMock(ServerQueue::class),
+            connection: $this->createMock(ConnectionControl::class),
             eventLogger: new EventLogger(null),
             requestHistory: new RequestHistory(),
             passwordPolicyContext: $passwordPolicyContext,

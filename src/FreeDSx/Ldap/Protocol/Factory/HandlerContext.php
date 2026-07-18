@@ -13,7 +13,7 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\Factory;
 
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Protocol\Queue\ConnectionControl;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\RequestHistory;
@@ -27,7 +27,7 @@ use FreeDSx\Ldap\Server\RequestHistory;
 final readonly class HandlerContext
 {
     public function __construct(
-        public ServerQueue $queue,
+        public ConnectionControl $connection,
         public EventLogger $eventLogger,
         public RequestHistory $requestHistory,
         public ?PasswordPolicyContext $passwordPolicyContext = null,
