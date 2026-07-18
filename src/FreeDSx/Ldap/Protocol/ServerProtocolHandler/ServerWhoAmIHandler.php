@@ -13,15 +13,12 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
-use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Protocol\LdapMessageResponse;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
@@ -32,27 +29,24 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
  */
 class ServerWhoAmIHandler implements ServerProtocolHandlerInterface
 {
-    public function __construct(private readonly ServerQueue $queue) {}
-
-    /**
-     * {@inheritDoc}
-     * @throws EncoderException
-     */
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): OperationResult {
+    ): ResponseStream {
         $userId = null;
 
         if ($token instanceof AuthenticatedTokenInterface) {
             $userId = $token->getAuthzId()->toString();
         }
 
-        $this->queue->sendMessage(new LdapMessageResponse(
-            $message->getMessageId(),
-            new ExtendedResponse(new LdapResult(ResultCode::SUCCESS), null, $userId),
-        ));
-
-        return OperationOutcomeResult::succeeded();
+        return ResponseStream::reply(
+            $message,
+            OperationOutcomeResult::succeeded(),
+            new ExtendedResponse(
+                new LdapResult(ResultCode::SUCCESS),
+                null,
+                $userId,
+            ),
+        );
     }
 }

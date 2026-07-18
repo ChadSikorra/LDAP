@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
-use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
@@ -22,9 +21,7 @@ use FreeDSx\Ldap\Operation\Response\PasswordModifyResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Protocol\LdapMessageResponse;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Server\Operation\PasswordModifyOperationResult;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyResult;
 use FreeDSx\Ldap\Server\PasswordModify\PasswordModifyService;
@@ -32,56 +29,51 @@ use FreeDSx\Ldap\Server\Token\AuthenticatedTokenInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
 /**
- * Adapts RFC 3062 Password Modify requests to {@see PasswordModifyService}: decode, delegate, encode the response.
+ * Adapts RFC 3062 Password Modify requests to {@see PasswordModifyService}: decode, delegate, build the response.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInterface
 {
     public function __construct(
-        private ServerQueue $queue,
         private PasswordModifyService $service,
         private ResponseFactory $responseFactory = new ResponseFactory(),
     ) {}
 
-    /**
-     * {@inheritDoc}
-     *
-     * @throws EncoderException
-     */
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): OperationResult {
-        $targetDn = null;
-
+    ): ResponseStream {
         try {
             $result = $this->changePassword(
                 $message,
                 $token,
             );
-            $targetDn = $result->targetDn;
-            $this->sendSuccess(
-                $message,
-                $result,
-            );
         } catch (OperationException $e) {
-            $this->queue->sendMessage($this->responseFactory->getStandardResponse(
-                $message,
-                $e->getCode(),
-                $e->getMessage(),
-            ));
-
-            return PasswordModifyOperationResult::failure(
-                $message,
-                $e,
-                $targetDn,
+            return ResponseStream::of(
+                [$this->responseFactory->getStandardResponse(
+                    $message,
+                    $e->getCode(),
+                    $e->getMessage(),
+                )],
+                PasswordModifyOperationResult::failure(
+                    $message,
+                    $e,
+                    null,
+                ),
             );
         }
 
-        return PasswordModifyOperationResult::success(
+        return ResponseStream::reply(
             $message,
-            $targetDn,
+            PasswordModifyOperationResult::success(
+                $message,
+                $result->targetDn,
+            ),
+            new PasswordModifyResponse(
+                new LdapResult(ResultCode::SUCCESS),
+                $result->generatedPassword,
+            ),
         );
     }
 
@@ -107,18 +99,5 @@ readonly class ServerPasswordModifyHandler implements ServerProtocolHandlerInter
             $token,
             $message->controls(),
         );
-    }
-
-    private function sendSuccess(
-        LdapMessageRequest $message,
-        PasswordModifyResult $result,
-    ): void {
-        $this->queue->sendMessage(new LdapMessageResponse(
-            $message->getMessageId(),
-            new PasswordModifyResponse(
-                new LdapResult(ResultCode::SUCCESS),
-                $result->generatedPassword,
-            ),
-        ));
     }
 }

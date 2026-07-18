@@ -22,7 +22,7 @@ use FreeDSx\Ldap\Operation\Request;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Operation\OperationType;
@@ -34,7 +34,6 @@ use FreeDSx\Ldap\Server\Backend\Write\WriteCommandFactory;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\Operation\CompareOperationResult;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Operation\WriteOperationResult;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 
@@ -48,7 +47,6 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
     private ReadEntryControlHandler $readEntryControlHandler;
 
     public function __construct(
-        private ServerQueue $queue,
         private LdapBackendInterface $backend,
         private WriteOperationDispatcher $writeDispatcher,
         private AccessControlInterface $accessControl,
@@ -71,7 +69,7 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): OperationResult {
+    ): ResponseStream {
         $schemaViolations = new SchemaViolations();
         $request = $message->getRequest();
         $controls = $message->controls();
@@ -99,21 +97,23 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
     private function handleCompare(
         LdapMessageRequest $message,
         Request\CompareRequest $request,
-    ): OperationResult {
+    ): ResponseStream {
         $match = $this->backend->compare(
             $request->getDn(),
             $request->getFilter(),
         );
-        $this->queue->sendMessage($this->responseFactory->getStandardResponse(
-            $message,
-            $match
-                ? ResultCode::COMPARE_TRUE
-                : ResultCode::COMPARE_FALSE,
-        ));
 
-        return CompareOperationResult::completed(
-            $message,
-            $match,
+        return ResponseStream::of(
+            [$this->responseFactory->getStandardResponse(
+                $message,
+                $match
+                    ? ResultCode::COMPARE_TRUE
+                    : ResultCode::COMPARE_FALSE,
+            )],
+            CompareOperationResult::completed(
+                $message,
+                $match,
+            ),
         );
     }
 
@@ -127,7 +127,7 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         ControlBag $controls,
         TokenInterface $token,
         SchemaViolations $schemaViolations,
-    ): OperationResult {
+    ): ResponseStream {
         $preRead = $this->readEntryControlHandler->preReadFor($request, $controls);
 
         $this->dispatchWrite(
@@ -139,17 +139,18 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
 
         $postRead = $this->readEntryControlHandler->postReadFor($request, $controls);
 
-        $this->queue->sendMessage($this->responseFactory->getStandardResponse(
-            $message,
-            ResultCode::SUCCESS,
-            '',
-            null,
-            ...$this->successControls($preRead, $postRead),
-        ));
-
-        return WriteOperationResult::success(
-            $message,
-            $schemaViolations,
+        return ResponseStream::of(
+            [$this->responseFactory->getStandardResponse(
+                $message,
+                ResultCode::SUCCESS,
+                '',
+                null,
+                ...$this->successControls($preRead, $postRead),
+            )],
+            WriteOperationResult::success(
+                $message,
+                $schemaViolations,
+            ),
         );
     }
 

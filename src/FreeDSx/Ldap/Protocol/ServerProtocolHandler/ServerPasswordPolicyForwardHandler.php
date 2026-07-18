@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 
-use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
@@ -22,12 +21,10 @@ use FreeDSx\Ldap\Operation\Request\ForwardPasswordPolicyStateRequest;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Protocol\LdapMessageResponse;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyEngine;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
 use FreeDSx\Ldap\Server\PasswordPolicy\UserPasswordState;
@@ -43,7 +40,6 @@ use FreeDSx\Ldap\Server\Token\TokenInterface;
 readonly class ServerPasswordPolicyForwardHandler implements ServerProtocolHandlerInterface
 {
     public function __construct(
-        private ServerQueue $queue,
         private WritableLdapBackendInterface $backend,
         private PasswordPolicyResolver $policyResolver,
         private PasswordPolicyEngine $engine,
@@ -52,13 +48,12 @@ readonly class ServerPasswordPolicyForwardHandler implements ServerProtocolHandl
     /**
      * {@inheritDoc}
      *
-     * @throws EncoderException
      * @throws OperationException
      */
     public function handleRequest(
         LdapMessageRequest $message,
         TokenInterface $token,
-    ): OperationResult {
+    ): ResponseStream {
         $request = $message->getRequest();
         if (!$request instanceof ForwardPasswordPolicyStateRequest) {
             throw new OperationException(
@@ -69,12 +64,11 @@ readonly class ServerPasswordPolicyForwardHandler implements ServerProtocolHandl
 
         $this->apply($request);
 
-        $this->queue->sendMessage(new LdapMessageResponse(
-            $message->getMessageId(),
+        return ResponseStream::reply(
+            $message,
+            OperationOutcomeResult::succeeded(),
             new ExtendedResponse(new LdapResult(ResultCode::SUCCESS)),
-        ));
-
-        return OperationOutcomeResult::succeeded();
+        );
     }
 
     /**

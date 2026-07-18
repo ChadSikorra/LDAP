@@ -24,4 +24,6 @@ interface ConnectionControl
     public function isEncrypted(): bool;
 
     public function encrypt(): static;
+
+    public function close(): void;
 }
