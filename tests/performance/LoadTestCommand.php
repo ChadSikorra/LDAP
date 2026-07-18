@@ -19,6 +19,7 @@ use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Search\Filters;
 use InvalidArgumentException;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\ConsoleOutputInterface;
@@ -202,8 +203,9 @@ final class LoadTestCommand extends Command
             ->addOption(
                 'monitor',
                 null,
-                InputOption::VALUE_NONE,
-                'Enable cn=monitor on the spawned server and print its counters after the run for cross-checking.',
+                InputOption::VALUE_NEGATABLE,
+                'Print server-side cn=monitor counters after the run (on by default; use --no-monitor to disable).',
+                true,
             )
             ->addOption(
                 'search-sub-size-limit',
@@ -384,17 +386,24 @@ final class LoadTestCommand extends Command
             'trafficBytesReceived',
             'trafficEntriesReturned',
         ];
+
+        $table = new Table($output);
+        $table->setHeaders([
+            'Stat',
+            'Value',
+        ]);
         foreach ($attributes as $name) {
             if (!isset($entry[$name])) {
                 continue;
             }
 
-            $output->writeln(sprintf(
-                '  %s: %s',
+            // Multi-valued stats (per-op counts/latencies) read better one pair per line in the cell.
+            $table->addRow([
                 $name,
-                implode(', ', $entry[$name]),
-            ));
+                implode("\n", $entry[$name]),
+            ]);
         }
+        $table->render();
     }
 
     private function buildConfig(InputInterface $input): Config

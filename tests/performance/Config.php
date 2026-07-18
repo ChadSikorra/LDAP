@@ -91,7 +91,7 @@ final class Config
         public readonly string $writeBase = self::DEFAULT_WRITE_BASE,
         public readonly bool $jit = true,
         public readonly int $searchSubSizeLimit = self::DEFAULT_SEARCH_SUB_SIZE_LIMIT,
-        public readonly bool $monitor = false,
+        public readonly bool $monitor = true,
         public readonly ?string $searchAttributes = null,
         public readonly bool $attributesOnly = false,
         public readonly int $seedAttributes = 0,
