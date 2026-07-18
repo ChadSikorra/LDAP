@@ -28,6 +28,10 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
+use FreeDSx\Ldap\Protocol\Queue\Response\Cancellation;
+use FreeDSx\Ldap\Protocol\Queue\Response\QueueWriterConfig;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseWriter;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
@@ -39,6 +43,7 @@ use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\InMemoryChangeJournal;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ReplicaId;
+use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Ldap\Sync\Provider\SyncPersistStreamer;
 use FreeDSx\Ldap\Sync\Provider\SyncResultProjector;
@@ -89,9 +94,13 @@ final class SyncPersistStreamerTest extends TestCase
 
         $this->queue = $this->createMock(ServerQueue::class);
         $this->queue
-            ->method('sendMessage')
-            ->willReturnCallback(function (LdapMessageResponse ...$responses): ServerQueue {
+            ->method('sendMessages')
+            ->willReturnCallback(function (iterable $responses): ServerQueue {
                 foreach ($responses as $response) {
+                    if (!$response instanceof LdapMessageResponse) {
+                        continue;
+                    }
+
                     $this->sent[] = $response;
                 }
 
@@ -116,7 +125,6 @@ final class SyncPersistStreamerTest extends TestCase
             ->willReturn(true);
 
         $this->subject = new SyncPersistStreamer(
-            queue: $this->queue,
             backend: $this->backend,
             projector: new SyncResultProjector(
                 accessControl: $accessControl,
@@ -132,7 +140,7 @@ final class SyncPersistStreamerTest extends TestCase
     {
         $this->cancelSignals = [new LdapMessageRequest(9, new CancelRequest(5))];
 
-        $this->persist();
+        $this->drive($this->subject);
 
         $done = $this->firstSent(fn(LdapMessageResponse $m): bool => $m->getResponse() instanceof SearchResultDone);
         self::assertNotNull($done);
@@ -156,7 +164,7 @@ final class SyncPersistStreamerTest extends TestCase
     {
         $this->cancelSignals = [new LdapMessageRequest(9, new AbandonRequest(5))];
 
-        $this->persist();
+        $this->drive($this->subject);
 
         self::assertNull(
             $this->firstSent(fn(LdapMessageResponse $m): bool => $m->getResponse() instanceof SearchResultDone),
@@ -175,7 +183,7 @@ final class SyncPersistStreamerTest extends TestCase
             $this->cancelSignals[] = new LdapMessageRequest(9, new CancelRequest(5));
         };
 
-        $this->persist();
+        $this->drive($this->subject);
 
         $entry = $this->firstSent(fn(LdapMessageResponse $m): bool => $m->getResponse() instanceof SearchResultEntry);
         self::assertNotNull($entry);
@@ -207,7 +215,6 @@ final class SyncPersistStreamerTest extends TestCase
             ->willReturn(new ReplicaId(self::ORIGIN));
 
         $subject = new SyncPersistStreamer(
-            queue: $this->queue,
             backend: $this->backend,
             projector: new SyncResultProjector(
                 accessControl: $this->createMock(AccessControlInterface::class),
@@ -218,13 +225,7 @@ final class SyncPersistStreamerTest extends TestCase
             pollInterval: 0.0,
         );
 
-        $subject->persist(
-            0,
-            $this->request(),
-            $this->token,
-            5,
-            new Dn('dc=example,dc=com'),
-        );
+        $this->drive($subject);
 
         $done = $this->firstSent(fn(LdapMessageResponse $m): bool => $m->getResponse() instanceof SearchResultDone);
         self::assertNotNull($done);
@@ -236,14 +237,29 @@ final class SyncPersistStreamerTest extends TestCase
         );
     }
 
-    private function persist(): void
+    /**
+     * Drives the persist generator through the writer, which polls the queue and feeds the cancellation token.
+     */
+    private function drive(SyncPersistStreamer $subject): void
     {
-        $this->subject->persist(
-            0,
-            $this->request(),
-            $this->token,
+        $cancellation = new Cancellation();
+        $stream = ResponseStream::streaming(
+            $subject->stream(
+                0,
+                $this->request(),
+                $this->token,
+                5,
+                new Dn('dc=example,dc=com'),
+                $cancellation,
+            ),
+            fn(): OperationOutcomeResult => OperationOutcomeResult::succeeded(),
+            new QueueWriterConfig(flushPerMessage: true, signalInterval: 1),
+            $cancellation,
+        );
+
+        (new ResponseWriter($this->queue))->write(
+            $stream,
             5,
-            new Dn('dc=example,dc=com'),
         );
     }
 

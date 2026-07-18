@@ -26,8 +26,9 @@ use FreeDSx\Ldap\Operation\Response\SyncInfoMessage;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
+use FreeDSx\Ldap\Protocol\Queue\Response\Cancellation;
+use FreeDSx\Ldap\Protocol\Queue\Response\QueueWriterConfig;
 use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
 use FreeDSx\Ldap\Server\Operation\SearchOperationResult;
@@ -50,7 +51,6 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
     use ServerSearchTrait;
 
     public function __construct(
-        private readonly ServerQueue $queue,
         private readonly LdapBackendInterface $backend,
         private readonly SyncResultProjector $projector,
         private readonly SearchLimits $limits = new SearchLimits(),
@@ -60,8 +60,6 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
     ) {}
 
     /**
-     * Phase 1: sync (refresh + persist) stays a direct writer; it is folded into the writer in Phase 2.
-     *
      * @throws OperationException
      */
     public function handleRequest(
@@ -84,6 +82,7 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
         $this->assertModeSupported($mode);
 
         $baseDn = $this->assertBaseDnProvided($request);
+        $messageId = $message->getMessageId();
         $latestSeq = $stream->latestSeq();
         $sinceSeq = $this->resolveSince($control, $stream, $latestSeq);
         $state = new SearchResultState();
@@ -93,37 +92,62 @@ final class ServerSyncHandler implements ServerProtocolHandlerInterface
             : $this->incrementalEntries($message, $request, $token, $streamer, $sinceSeq, $state);
 
         $cookie = (new SyncCookie($stream->origin(), $latestSeq))->encode();
-
-        if ($mode === SyncRequestControl::MODE_REFRESH_AND_PERSIST) {
-            $this->queue->sendMessages($this->withRefreshDone(
-                $entries,
-                $message->getMessageId(),
-                $sinceSeq === null
-                    ? new SyncRefreshPresent(true, $cookie)
-                    : new SyncRefreshDelete(true, $cookie),
-            ));
-            $streamer->persist(
-                $latestSeq,
-                $request,
-                $token,
-                $message->getMessageId(),
-                $baseDn,
-            );
-        } else {
-            // refreshDeletes: a delete phase (true) only for an incremental sync that sent explicit
-            // deletes; a full refresh is a present phase (false) the consumer reconciles by absence.
-            $this->queue->sendMessages($this->withSyncDone(
-                $entries,
-                $message->getMessageId(),
-                $baseDn,
-                new SyncDoneControl($cookie, $sinceSeq !== null),
-            ));
-        }
-
-        return ResponseStream::none(SearchOperationResult::success(
+        $outcome = fn(): SearchOperationResult => SearchOperationResult::success(
             $message,
             $state->entriesReturned,
-        ));
+        );
+
+        if ($mode === SyncRequestControl::MODE_REFRESH_AND_PERSIST) {
+            $cancellation = new Cancellation();
+            $boundary = $sinceSeq === null
+                ? new SyncRefreshPresent(true, $cookie)
+                : new SyncRefreshDelete(true, $cookie);
+
+            return ResponseStream::streaming(
+                $this->concat(
+                    $this->withRefreshDone(
+                        $entries,
+                        $messageId,
+                        $boundary,
+                    ),
+                    $streamer->stream(
+                        $latestSeq,
+                        $request,
+                        $token,
+                        $messageId,
+                        $baseDn,
+                        $cancellation,
+                    ),
+                ),
+                $outcome,
+                // Each change and keepalive flushes immediately for liveness; poll cancel after each.
+                new QueueWriterConfig(flushPerMessage: true, signalInterval: 1),
+                $cancellation,
+            );
+        }
+
+        // refreshDeletes: a delete phase (true) only for an incremental sync that sent explicit
+        // deletes; a full refresh is a present phase (false) the consumer reconciles by absence.
+        return ResponseStream::streaming(
+            $this->withSyncDone(
+                $entries,
+                $messageId,
+                $baseDn,
+                new SyncDoneControl($cookie, $sinceSeq !== null),
+            ),
+            $outcome,
+        );
+    }
+
+    /**
+     * @param Generator<LdapMessageResponse> ...$streams
+     * @return Generator<LdapMessageResponse>
+     */
+    private function concat(Generator ...$streams): Generator
+    {
+        foreach ($streams as $stream) {
+            yield from $stream;
+        }
     }
 
     /**

@@ -352,7 +352,7 @@ final class ConnectionHandlerBuilder implements ConnectionHandlerBuilderInterfac
             routeResolver: $this->container->get(ServerProtocolHandlerFactory::class),
             factories: $this->container->get(ProtocolHandlerFactoryMap::class),
             context: new HandlerContext(
-                queue: $queue,
+                connection: $queue,
                 eventLogger: $eventLogger,
                 requestHistory: $requestHistory,
                 passwordPolicyContext: $policyContext,

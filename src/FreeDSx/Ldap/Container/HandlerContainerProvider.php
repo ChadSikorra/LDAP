@@ -82,7 +82,7 @@ final class HandlerContainerProvider implements ContainerProviderInterface
             HandlerId::StartTls->value => static fn(HandlerContext $context): ServerProtocolHandlerInterface
                 => new ServerStartTlsHandler(
                     options: $container->get(ServerOptions::class),
-                    connection: $context->queue,
+                    connection: $context->connection,
                     eventLogger: $context->eventLogger,
                 ),
             HandlerId::UnsupportedExtended->value => static fn(): ServerProtocolHandlerInterface
@@ -178,7 +178,6 @@ final class HandlerContainerProvider implements ContainerProviderInterface
         if ($journal !== null) {
             $stream = new ChangeStream($journal);
             $streamer = new SyncPersistStreamer(
-                queue: $context->queue,
                 backend: $backend,
                 projector: $projector,
                 stream: $stream,
@@ -191,7 +190,6 @@ final class HandlerContainerProvider implements ContainerProviderInterface
         }
 
         return new ServerSyncHandler(
-            queue: $context->queue,
             backend: $backend,
             projector: $projector,
             limits: $searchLimits ?? $options->makeSearchLimits(),

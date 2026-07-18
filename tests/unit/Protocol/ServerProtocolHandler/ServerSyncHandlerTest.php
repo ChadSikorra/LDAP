@@ -29,6 +29,7 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Authorization\AuthzId;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseWriter;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerSyncHandler;
 use FreeDSx\Ldap\Search\Filters;
@@ -148,15 +149,6 @@ final class ServerSyncHandlerTest extends TestCase
                 return $this->queue;
             });
         $this->queue
-            ->method('sendMessage')
-            ->willReturnCallback(function (LdapMessageResponse ...$responses): ServerQueue {
-                foreach ($responses as $response) {
-                    $this->sent[] = $response;
-                }
-
-                return $this->queue;
-            });
-        $this->queue
             ->method('peekForCancelSignal')
             ->willReturnCallback(fn(): ?LdapMessageRequest => array_shift($this->cancelSignals));
 
@@ -166,7 +158,6 @@ final class ServerSyncHandlerTest extends TestCase
             filterEvaluator: $this->filterEvaluator,
         );
         $this->persistStreamer = new SyncPersistStreamer(
-            queue: $this->queue,
             backend: $this->backend,
             projector: $this->syncProjector,
             stream: $this->changeStream,
@@ -174,7 +165,6 @@ final class ServerSyncHandlerTest extends TestCase
         );
 
         $this->subject = new ServerSyncHandler(
-            queue: $this->queue,
             backend: $this->backend,
             projector: $this->syncProjector,
             changeStream: $this->changeStream,
@@ -459,9 +449,9 @@ final class ServerSyncHandlerTest extends TestCase
         // A pending cancel terminates the persist loop after the boundary is emitted.
         $this->cancelSignals = [new LdapMessageRequest(9, new CancelRequest(1))];
 
-        $this->persistHandler()->handleRequest(
+        $this->drive(
+            $this->persistHandler(),
             $this->syncMessage(null, SyncRequestControl::MODE_REFRESH_AND_PERSIST),
-            $this->token,
         );
 
         $boundary = null;
@@ -483,7 +473,6 @@ final class ServerSyncHandlerTest extends TestCase
     public function test_sync_is_declined_when_no_change_stream_is_available(): void
     {
         $handler = new ServerSyncHandler(
-            queue: $this->queue,
             backend: $this->backend,
             projector: new SyncResultProjector(
                 accessControl: $this->accessControl,
@@ -503,7 +492,6 @@ final class ServerSyncHandlerTest extends TestCase
     private function persistHandler(): ServerSyncHandler
     {
         return new ServerSyncHandler(
-            queue: $this->queue,
             backend: $this->backend,
             projector: $this->syncProjector,
             changeStream: $this->changeStream,
@@ -517,10 +505,26 @@ final class ServerSyncHandlerTest extends TestCase
         int $mode = SyncRequestControl::MODE_REFRESH_ONLY,
         bool $reloadHint = false,
     ): OperationResult {
-        return $this->subject->handleRequest(
+        return $this->drive(
+            $this->subject,
             $this->syncMessage($cookie, $mode, $reloadHint),
-            $this->token,
-        )->outcome();
+        );
+    }
+
+    /**
+     * Drives the handler's stream through the writer, which populates the queue and polls for cancellation.
+     */
+    private function drive(
+        ServerSyncHandler $handler,
+        LdapMessageRequest $message,
+    ): OperationResult {
+        return (new ResponseWriter($this->queue))->write(
+            $handler->handleRequest(
+                $message,
+                $this->token,
+            ),
+            $message->getMessageId(),
+        );
     }
 
     private function syncMessage(

@@ -16,15 +16,13 @@ namespace FreeDSx\Ldap\Sync\Provider;
 use FreeDSx\Ldap\Control\Sync\SyncDoneControl;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Operation\LdapResult;
-use FreeDSx\Ldap\Operation\Request\CancelRequest;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\Response\SearchResultDone;
 use FreeDSx\Ldap\Operation\Response\SyncInfo\SyncNewCookie;
 use FreeDSx\Ldap\Operation\ResultCode;
-use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Protocol\Queue\Response\Cancellation;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\ChangeType;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Change\PendingChange;
@@ -33,9 +31,10 @@ use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeScope;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
 use FreeDSx\Ldap\Server\Clock\Sleeper\SleeperInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
+use Generator;
 
 /**
- * Tails the change journal for a refreshAndPersist consumer, pushing changes until it cancels or disconnects.
+ * Tails the change journal for a refreshAndPersist consumer, yielding changes until it cancels or disconnects.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -47,7 +46,6 @@ final readonly class SyncPersistStreamer
     public const DEFAULT_POLL_INTERVAL = 1.0;
 
     public function __construct(
-        private ServerQueue $queue,
         private LdapBackendInterface $backend,
         private SyncResultProjector $projector,
         private ChangeStream $stream,
@@ -84,15 +82,20 @@ final readonly class SyncPersistStreamer
     }
 
     /**
-     * Runs the persist phase: pushes each change as it lands, advancing the cookie, until cancel or disconnect.
+     * The persist phase: yields each change as it lands, advancing the cookie, until cancel or disconnect.
+     *
+     * The writer polls the queue and offers any abandon/cancel into the shared token, which this loop reads.
+     *
+     * @return Generator<LdapMessageResponse>
      */
-    public function persist(
+    public function stream(
         int $startSeq,
         SearchRequest $request,
         TokenInterface $token,
         int $messageId,
         Dn $baseDn,
-    ): void {
+        Cancellation $cancellation,
+    ): Generator {
         $lastSeq = $startSeq;
         $origin = $this->stream->origin();
 
@@ -101,26 +104,35 @@ final readonly class SyncPersistStreamer
 
             // A trim past the consumer's position would silently drop changes: force a full re-sync instead.
             if ($latestSeq > $lastSeq && !$this->stream->retainsSince($lastSeq)) {
-                $this->sendRefreshRequired($messageId, $baseDn, $origin, $latestSeq);
+                yield $this->refreshRequired($messageId, $baseDn, $origin, $latestSeq);
 
                 return;
             }
 
             if ($latestSeq > $lastSeq) {
-                $this->pushChanges($lastSeq, $request, $token, $messageId);
+                yield from $this->pushChanges($lastSeq, $request, $token, $messageId);
                 $lastSeq = $latestSeq;
             }
 
             // Advances the client cookie, and doubles as a keepalive that surfaces a dead peer on the next poll.
-            $this->queue->sendMessage(new LdapMessageResponse(
+            yield new LdapMessageResponse(
                 $messageId,
                 new SyncNewCookie((new SyncCookie($origin, $lastSeq))->encode()),
-            ));
+            );
 
-            $signal = $this->queue->peekForCancelSignal($messageId);
+            $signal = $cancellation->signal();
 
             if ($signal !== null) {
-                $this->sendTerminal($signal, $messageId, $baseDn, $origin, $lastSeq);
+                // Abandon carries no response (RFC 4511 §4.11); only a Cancel gets an acknowledged close.
+                if ($cancellation->isCanceled()) {
+                    yield from $this->terminal(
+                        $signal->getMessageId(),
+                        $messageId,
+                        $baseDn,
+                        $origin,
+                        $lastSeq,
+                    );
+                }
 
                 return;
             }
@@ -129,18 +141,21 @@ final readonly class SyncPersistStreamer
         }
     }
 
+    /**
+     * @return Generator<LdapMessageResponse>
+     */
     private function pushChanges(
         int $sinceSeq,
         SearchRequest $request,
         TokenInterface $token,
         int $messageId,
-    ): void {
+    ): Generator {
         foreach ($this->projectSince($sinceSeq, $request, $token) as $result) {
-            $this->queue->sendMessage(new LdapMessageResponse(
+            yield new LdapMessageResponse(
                 $messageId,
                 $result->entry,
                 $result->control,
-            ));
+            );
         }
     }
 
@@ -173,44 +188,40 @@ final readonly class SyncPersistStreamer
         };
     }
 
-    private function sendTerminal(
-        LdapMessageRequest $signal,
+    /**
+     * @return Generator<LdapMessageResponse>
+     */
+    private function terminal(
+        int $cancelMessageId,
         int $messageId,
         Dn $baseDn,
         ReplicaId $origin,
         int $lastSeq,
-    ): void {
-        // Abandon carries no response (RFC 4511 §4.11); only a Cancel gets an acknowledged close.
-        if (!($signal->getRequest() instanceof CancelRequest)) {
-            return;
-        }
-
-        $this->queue->sendMessage(
-            new LdapMessageResponse(
-                $messageId,
-                new SearchResultDone(
-                    ResultCode::CANCELED,
-                    $baseDn->toString(),
-                ),
-                new SyncDoneControl(
-                    (new SyncCookie($origin, $lastSeq))->encode(),
-                    true,
-                ),
+    ): Generator {
+        yield new LdapMessageResponse(
+            $messageId,
+            new SearchResultDone(
+                ResultCode::CANCELED,
+                $baseDn->toString(),
             ),
-            new LdapMessageResponse(
-                $signal->getMessageId(),
-                new ExtendedResponse(new LdapResult(ResultCode::SUCCESS)),
+            new SyncDoneControl(
+                (new SyncCookie($origin, $lastSeq))->encode(),
+                true,
             ),
+        );
+        yield new LdapMessageResponse(
+            $cancelMessageId,
+            new ExtendedResponse(new LdapResult(ResultCode::SUCCESS)),
         );
     }
 
-    private function sendRefreshRequired(
+    private function refreshRequired(
         int $messageId,
         Dn $baseDn,
         ReplicaId $origin,
         int $latestSeq,
-    ): void {
-        $this->queue->sendMessage(new LdapMessageResponse(
+    ): LdapMessageResponse {
+        return new LdapMessageResponse(
             $messageId,
             new SearchResultDone(
                 ResultCode::SYNCHRONIZATION_REFRESH_REQUIRED,
@@ -220,6 +231,6 @@ final readonly class SyncPersistStreamer
                 (new SyncCookie($origin, $latestSeq))->encode(),
                 true,
             ),
-        ));
+        );
     }
 }
