@@ -86,6 +86,82 @@ final class SqliteFilterTranslatorTest extends TestCase
         );
     }
 
+    public function test_leaf_correlated_sql_is_an_exists_form(): void
+    {
+        $result = $this->subject->translate(new EqualityFilter(
+            'cn',
+            'Alice',
+        ));
+
+        self::assertNotNull($result);
+        self::assertNotNull($result->correlatedSql);
+        self::assertStringContainsString(
+            'EXISTS (',
+            $result->correlatedSql,
+        );
+        self::assertStringContainsString(
+            's.entry_lc_dn = lc_dn',
+            $result->correlatedSql,
+        );
+        self::assertStringNotContainsString(
+            'lc_dn IN (',
+            $result->correlatedSql,
+        );
+    }
+
+    public function test_and_composes_correlated_exists_with_and(): void
+    {
+        $result = $this->subject->translate(new AndFilter(
+            new EqualityFilter('cn', 'Alice'),
+            new EqualityFilter('sn', 'Smith'),
+        ));
+
+        self::assertNotNull($result);
+        self::assertNotNull($result->correlatedSql);
+        self::assertSame(
+            2,
+            substr_count($result->correlatedSql, 'EXISTS ('),
+        );
+        self::assertStringContainsString(
+            ') AND (',
+            $result->correlatedSql,
+        );
+    }
+
+    public function test_or_composes_correlated_exists_with_or(): void
+    {
+        $result = $this->subject->translate(new OrFilter(
+            new EqualityFilter('cn', 'Alice'),
+            new EqualityFilter('cn', 'Bob'),
+        ));
+
+        self::assertNotNull($result);
+        self::assertNotNull($result->correlatedSql);
+        self::assertStringContainsString(
+            ') OR (',
+            $result->correlatedSql,
+        );
+    }
+
+    public function test_not_value_correlated_sql_keeps_the_presence_guard(): void
+    {
+        $result = $this->subject->translate(new NotFilter(
+            new EqualityFilter('cn', 'Alice'),
+        ));
+
+        self::assertNotNull($result);
+        self::assertNotNull($result->correlatedSql);
+        self::assertStringContainsString(
+            'NOT (',
+            $result->correlatedSql,
+        );
+        // Presence guard EXISTS plus the negated value EXISTS.
+        self::assertSame(
+            2,
+            substr_count($result->correlatedSql, 'EXISTS ('),
+        );
+    }
+
     public function test_approximate_translates_same_as_equality(): void
     {
         $result = $this->subject->translate(new ApproximateFilter(

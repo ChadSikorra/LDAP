@@ -263,6 +263,57 @@ final class PdoListQueryBuilderTest extends TestCase
         );
     }
 
+    public function test_child_scope_uses_the_correlated_exists_form(): void
+    {
+        $query = (new PdoListQueryBuilder(new SqliteDialect()))->build(
+            'ou=people,dc=foo,dc=bar',
+            false,
+            $this->sidecarLeaf(),
+            5001,
+            [],
+        );
+
+        self::assertStringContainsString(
+            'lc_parent_dn = ?',
+            $query->sql,
+        );
+        self::assertStringContainsString(
+            'EXISTS (',
+            $query->sql,
+        );
+        self::assertStringContainsString(
+            's.entry_lc_dn = lc_dn',
+            $query->sql,
+        );
+        self::assertStringNotContainsString(
+            'lc_dn IN (',
+            $query->sql,
+        );
+    }
+
+    public function test_child_scope_falls_back_to_the_in_form_without_a_correlated_form(): void
+    {
+        $query = (new PdoListQueryBuilder(new SqliteDialect()))->build(
+            'ou=people,dc=foo,dc=bar',
+            false,
+            new SqlFilterResult(
+                "lc_dn IN (SELECT s.entry_lc_dn FROM entry_attribute_values s WHERE s.attr_name_lower = 'cn')",
+                [],
+            ),
+            5001,
+            [],
+        );
+
+        self::assertStringContainsString(
+            'lc_dn IN (',
+            $query->sql,
+        );
+        self::assertStringNotContainsString(
+            'EXISTS (',
+            $query->sql,
+        );
+    }
+
     private function sidecarLeaf(): SqlFilterResult
     {
         return new SqlFilterResult(

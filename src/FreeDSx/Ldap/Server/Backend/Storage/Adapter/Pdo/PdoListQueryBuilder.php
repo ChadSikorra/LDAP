@@ -153,8 +153,11 @@ final readonly class PdoListQueryBuilder
             return $query;
         }
 
+        // short-circuits the child scan instead of an IN list materialising the whole match set (O(directory)).
+        $filterSql = $filterResult->correlatedSql ?? $filterResult->sql;
+
         return $query->appending(
-            ' AND (' . $filterResult->sql . ')',
+            ' AND (' . $filterSql . ')',
             $filterResult->params,
         );
     }

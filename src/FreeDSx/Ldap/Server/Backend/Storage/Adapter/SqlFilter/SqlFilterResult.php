@@ -23,10 +23,16 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter;
 final class SqlFilterResult
 {
     /**
+     * Correlated `EXISTS` form referencing the outer `lc_dn` so an outer LIMIT can short-circuit, or null when none.
+     */
+    public readonly ?string $correlatedSql;
+
+    /**
      * @param list<string> $params
      * @param list<string> $referencedAttributes Attributes whose absence makes the filter undefined under RFC 4511
      * @param ?string $sidecarCondition Single drivable leaf's sidecar WHERE body for the streaming fast path.
      * @param list<SidecarLeaf> $drivableLeaves A composed filter's drivable child leaves, for composed-filter streaming.
+     * @param ?string $correlatedSql Explicit correlated form for composites; leaves derive it from $sidecarCondition.
      */
     public function __construct(
         public readonly string $sql,
@@ -35,5 +41,23 @@ final class SqlFilterResult
         public readonly array $referencedAttributes = [],
         public readonly ?string $sidecarCondition = null,
         public readonly array $drivableLeaves = [],
-    ) {}
+        ?string $correlatedSql = null,
+    ) {
+        $this->correlatedSql = $correlatedSql
+            ?? ($sidecarCondition !== null ? self::correlatedLeaf($sidecarCondition) : null);
+    }
+
+    /**
+     * Wraps a sidecar WHERE body as an `EXISTS` correlated to the outer entries row via the unqualified `lc_dn`.
+     */
+    public static function correlatedLeaf(string $sidecarCondition): string
+    {
+        return <<<SQL
+            EXISTS (
+                SELECT 1
+                FROM entry_attribute_values s
+                WHERE s.entry_lc_dn = lc_dn
+                  AND $sidecarCondition)
+            SQL;
+    }
 }
