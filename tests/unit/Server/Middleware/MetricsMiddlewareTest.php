@@ -224,6 +224,8 @@ final class MetricsMiddlewareTest extends TestCase
             $this->contextFor(new SearchRequest(Filters::present('objectClass'))),
             new StubMiddlewareHandler(OperationOutcomeResult::succeeded()),
         );
+        // The coordinator batches sends. force it done for the test.
+        $coordinator->finish();
 
         $parentRecorder = new InMemoryMetricsRecorder();
         (new OperationRollupCoordinator($parentRecorder))->collect($channel);

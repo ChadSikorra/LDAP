@@ -23,7 +23,18 @@ use FreeDSx\Ldap\Server\Process\ChildChannel;
  */
 final class OperationRollupCoordinator
 {
+    /**
+     * Batch sends by op count and elapsed time so a fast workload does not backpressure on the blocking channel.
+     */
+    private const FLUSH_OPS = 256;
+
+    private const FLUSH_INTERVAL_SECONDS = 0.1;
+
     private ?ChildChannel $boundChannel = null;
+
+    private int $opsSinceSend = 0;
+
+    private float $lastSendAt = 0.0;
 
     public function __construct(
         private readonly MetricsRollupInterface $recorder,
@@ -42,22 +53,28 @@ final class OperationRollupCoordinator
     {
         $this->recorder->resetDelta();
         $this->boundChannel = $channel;
+        $this->opsSinceSend = 0;
+        $this->lastSendAt = microtime(true);
     }
 
     /**
-     * In the child: report the metrics recorded since the last flush.
+     * In the child: report accumulated metrics once the batch reaches its op count or time bound.
      */
     public function flush(): void
     {
-        $this->boundChannel?->send(new MetricsDeltaMessage($this->recorder->takeDelta()));
+        $this->opsSinceSend++;
+
+        if ($this->batchIsReady()) {
+            $this->sendDelta();
+        }
     }
 
     /**
-     * In the child: send a final flush, then close the write end so the parent reads EOF.
+     * In the child: send the final accumulated delta, then close the write end so the parent reads EOF.
      */
     public function finish(): void
     {
-        $this->flush();
+        $this->sendDelta();
         $this->boundChannel?->closeWrite();
     }
 
@@ -71,5 +88,21 @@ final class OperationRollupCoordinator
                 $this->recorder->mergeDelta($message->delta());
             }
         }
+    }
+
+    /**
+     * Whether the accumulated batch has reached its op-count or time bound and should be sent.
+     */
+    private function batchIsReady(): bool
+    {
+        return $this->opsSinceSend >= self::FLUSH_OPS
+            || (microtime(true) - $this->lastSendAt) >= self::FLUSH_INTERVAL_SECONDS;
+    }
+
+    private function sendDelta(): void
+    {
+        $this->boundChannel?->send(new MetricsDeltaMessage($this->recorder->takeDelta()));
+        $this->opsSinceSend = 0;
+        $this->lastSendAt = microtime(true);
     }
 }

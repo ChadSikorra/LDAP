@@ -42,7 +42,7 @@ final class OperationRollupCoordinatorTest extends TestCase
         $this->parent = new OperationRollupCoordinator($this->parentRecorder);
     }
 
-    public function test_a_flushed_delta_is_collected_into_the_parent(): void
+    public function test_a_sub_threshold_flush_defers_the_send_until_finish(): void
     {
         $channel = $this->child->openChannel();
         $this->child->enterChild($channel);
@@ -57,17 +57,26 @@ final class OperationRollupCoordinatorTest extends TestCase
         $this->parent->collect($channel);
 
         self::assertSame(
+            [],
+            $this->parentRecorder->snapshot()->operations->counts,
+        );
+
+        $this->child->finish();
+        $this->parent->collect($channel);
+
+        self::assertSame(
             ['search' => 1],
             $this->parentRecorder->snapshot()->operations->counts,
         );
     }
 
-    public function test_incremental_flushes_accumulate_in_the_parent(): void
+    public function test_reaching_the_op_batch_threshold_sends_without_finish(): void
     {
         $channel = $this->child->openChannel();
         $this->child->enterChild($channel);
 
-        for ($i = 0; $i < 3; $i++) {
+        // FLUSH_OPS = 256; the 256th flush crosses the batch and sends the accumulated delta.
+        for ($i = 0; $i < 256; $i++) {
             $this->childRecorder->operationObserved(new OperationObservation(
                 OperationType::Search,
                 true,
@@ -75,11 +84,42 @@ final class OperationRollupCoordinatorTest extends TestCase
                 ResultCode::SUCCESS,
             ));
             $this->child->flush();
-            $this->parent->collect($channel);
         }
+        $this->parent->collect($channel);
 
         self::assertSame(
-            ['search' => 3],
+            ['search' => 256],
+            $this->parentRecorder->snapshot()->operations->counts,
+        );
+    }
+
+    public function test_the_time_interval_triggers_a_send_between_ops(): void
+    {
+        $channel = $this->child->openChannel();
+        $this->child->enterChild($channel);
+
+        $this->childRecorder->operationObserved(new OperationObservation(
+            OperationType::Search,
+            true,
+            0.1,
+            ResultCode::SUCCESS,
+        ));
+        $this->child->flush();
+
+        // Past FLUSH_INTERVAL_SECONDS (0.1s), the next flush sends even though the op count is far below the batch.
+        usleep(120000);
+
+        $this->childRecorder->operationObserved(new OperationObservation(
+            OperationType::Search,
+            true,
+            0.1,
+            ResultCode::SUCCESS,
+        ));
+        $this->child->flush();
+        $this->parent->collect($channel);
+
+        self::assertSame(
+            ['search' => 2],
             $this->parentRecorder->snapshot()->operations->counts,
         );
     }
