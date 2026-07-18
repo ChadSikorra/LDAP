@@ -211,6 +211,32 @@ final class LoadTestCommand extends Command
                 InputOption::VALUE_REQUIRED,
                 'Per-request size limit applied to search-sub ops (0 = unlimited)',
                 (string) Config::DEFAULT_SEARCH_SUB_SIZE_LIMIT,
+            )
+            ->addOption(
+                'search-attributes',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Attributes requested by search ops: a CSV list, ALL (default), or 1.1 for no attributes.',
+            )
+            ->addOption(
+                'attributes-only',
+                null,
+                InputOption::VALUE_NONE,
+                'Request attribute descriptions without values (attributesOnly) on search ops.',
+            )
+            ->addOption(
+                'seed-attributes',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Filler attributes added to each seeded entry to widen the return path (0 = none).',
+                '0',
+            )
+            ->addOption(
+                'max-search-lookthrough',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Max entries examined per search before adminLimitExceeded (0 = unbounded; default mirrors the server).',
+                (string) Config::DEFAULT_MAX_SEARCH_LOOKTHROUGH,
             );
     }
 
@@ -349,6 +375,7 @@ final class LoadTestCommand extends Command
             'operationsCompleted',
             'operationsFailed',
             'operationsByType',
+            'operationsAvgLatencyMsByType',
             'operationsByResultCode',
             'bindsByMethod',
             'searchesByScope',
@@ -410,7 +437,20 @@ final class LoadTestCommand extends Command
             jit: !(bool) $input->getOption('no-jit') && $runner !== 'pcntl',
             searchSubSizeLimit: $this->requireInt($input, 'search-sub-size-limit'),
             monitor: (bool) $input->getOption('monitor'),
+            searchAttributes: $this->optionalString($input, 'search-attributes'),
+            attributesOnly: (bool) $input->getOption('attributes-only'),
+            seedAttributes: $this->requireInt($input, 'seed-attributes'),
+            maxSearchLookthrough: $this->requireInt($input, 'max-search-lookthrough'),
         );
+    }
+
+    private function optionalString(InputInterface $input, string $name): ?string
+    {
+        $value = $input->getOption($name);
+
+        return is_string($value) && $value !== ''
+            ? $value
+            : null;
     }
 
     private function requireString(InputInterface $input, string $name): string

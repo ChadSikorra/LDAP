@@ -78,6 +78,13 @@ final class LdapBackendStorageCommand extends Command
                 '0',
             )
             ->addOption(
+                'seed-attributes',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Filler attributes added to each seed entry to widen the return path (0 = none)',
+                '0',
+            )
+            ->addOption(
                 'validation-mode',
                 null,
                 InputOption::VALUE_REQUIRED,
@@ -128,6 +135,7 @@ final class LdapBackendStorageCommand extends Command
         $runner = $this->getStringOption($input, 'runner');
         $port = (int) $this->getStringOption($input, 'port');
         $seedEntries = (int) $this->getStringOption($input, 'seed-entries');
+        $seedAttributes = (int) $this->getStringOption($input, 'seed-attributes');
 
         if (!in_array($storage, ['memory', 'json', 'sqlite', 'mysql'], true)) {
             $io->error("Invalid --storage value: {$storage}. Expected one of: memory, json, sqlite, mysql.");
@@ -143,6 +151,12 @@ final class LdapBackendStorageCommand extends Command
 
         if ($seedEntries < 0) {
             $io->error("Invalid --seed-entries value: {$seedEntries}. Must be zero or greater.");
+
+            return Command::FAILURE;
+        }
+
+        if ($seedAttributes < 0) {
+            $io->error("Invalid --seed-attributes value: {$seedAttributes}. Must be zero or greater.");
 
             return Command::FAILURE;
         }
@@ -197,13 +211,22 @@ final class LdapBackendStorageCommand extends Command
         ];
 
         for ($i = 1; $i <= $seedEntries; $i++) {
-            $entries[] = new Entry(
-                new Dn("cn=seed-{$i},ou=people,dc=foo,dc=bar"),
+            $attributes = [
                 new Attribute('cn', "seed-{$i}"),
                 new Attribute('objectClass', 'inetOrgPerson', 'extensibleObject'),
                 new Attribute('sn', 'Seeded'),
                 new Attribute('mail', "seed-{$i}@foo.bar"),
                 new Attribute('uidNumber', (string) (1000 + $i)),
+            ];
+
+            // Distinct option subtypes of a defined, non-filtered, non-indexed base type widen the return path.
+            for ($k = 1; $k <= $seedAttributes; $k++) {
+                $attributes[] = new Attribute("initials;filler-{$k}", "filler-{$i}-{$k}");
+            }
+
+            $entries[] = new Entry(
+                new Dn("cn=seed-{$i},ou=people,dc=foo,dc=bar"),
+                ...$attributes,
             );
         }
 
