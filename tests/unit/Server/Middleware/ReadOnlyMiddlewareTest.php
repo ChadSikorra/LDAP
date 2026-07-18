@@ -27,12 +27,13 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\ReplicaConfig;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
 use FreeDSx\Ldap\Server\Middleware\ReadOnlyMiddleware;
+use FreeDSx\Ldap\Server\Operation\OperationOutcome;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -40,8 +41,6 @@ use PHPUnit\Framework\TestCase;
 
 final class ReadOnlyMiddlewareTest extends TestCase
 {
-    private ServerQueue&MockObject $queue;
-
     private MiddlewareHandlerInterface&MockObject $next;
 
     private ReplicaConfig $replicaConfig;
@@ -50,17 +49,13 @@ final class ReadOnlyMiddlewareTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->queue = $this->createMock(ServerQueue::class);
         $this->next = $this->createMock(MiddlewareHandlerInterface::class);
         $this->replicaConfig = new ReplicaConfig(
             (new ClientOptions())
                 ->setServers(['primary.example.com'])
                 ->setPort(389),
         );
-        $this->subject = new ReadOnlyMiddleware(
-            $this->queue,
-            $this->replicaConfig,
-        );
+        $this->subject = new ReadOnlyMiddleware($this->replicaConfig);
     }
 
     /**
@@ -104,31 +99,31 @@ final class ReadOnlyMiddlewareTest extends TestCase
             ->expects(self::never())
             ->method('handle');
 
-        $sent = null;
-        $this->queue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->willReturnCallback(function (LdapMessageResponse $message) use (&$sent): ServerQueue {
-                $sent = $message;
-
-                return $this->queue;
-            });
-
-        $result = $this->subject->process(
+        $stream = $this->subject->process(
             $this->context($request),
             $this->next,
         );
 
         self::assertSame(
             ResultCode::REFERRAL,
-            $result->resultCode(),
+            $stream->outcome()->resultCode(),
+        );
+        self::assertSame(
+            OperationOutcome::Failed,
+            $stream->outcome()->outcome(),
+        );
+
+        $messages = [...$stream->messages];
+        self::assertCount(
+            1,
+            $messages,
         );
         self::assertInstanceOf(
             LdapMessageResponse::class,
-            $sent,
+            $messages[0],
         );
 
-        $response = $sent->getResponse();
+        $response = $messages[0]->getResponse();
         self::assertInstanceOf(
             $expectedResponse,
             $response,
@@ -149,9 +144,6 @@ final class ReadOnlyMiddlewareTest extends TestCase
         $this->next
             ->expects(self::never())
             ->method('handle');
-        $this->queue
-            ->expects(self::never())
-            ->method('sendMessage');
 
         $this->expectException(OperationException::class);
         $this->expectExceptionCode(ResultCode::UNWILLING_TO_PERFORM);
@@ -165,16 +157,13 @@ final class ReadOnlyMiddlewareTest extends TestCase
     public function test_a_read_passes_through_to_the_next_handler(): void
     {
         $context = $this->context(Operations::search(Filters::present('objectClass')));
-        $expected = OperationOutcomeResult::succeeded();
+        $expected = ResponseStream::none(OperationOutcomeResult::succeeded());
 
         $this->next
             ->expects(self::once())
             ->method('handle')
             ->with($context)
             ->willReturn($expected);
-        $this->queue
-            ->expects(self::never())
-            ->method('sendMessage');
 
         self::assertSame(
             $expected,

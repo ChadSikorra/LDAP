@@ -17,12 +17,12 @@ use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\PagingControl;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\AssertionEvaluator;
 use FreeDSx\Ldap\Server\AccessControl\OperationTargetDn;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 
 /**
  * Rejects an operation whose RFC 4528 assertion control does not match its target entry, before dispatch.
@@ -40,7 +40,7 @@ final readonly class AssertionMiddleware implements MiddlewareInterface
     public function process(
         ServerRequestContext $context,
         MiddlewareHandlerInterface $next,
-    ): OperationResult {
+    ): ResponseStream {
         $message = $context->message;
         $request = $message->getRequest();
 

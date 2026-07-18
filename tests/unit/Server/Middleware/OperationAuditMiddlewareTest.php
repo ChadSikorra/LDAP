@@ -29,6 +29,7 @@ use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\Logging\OperationAuditor;
 use FreeDSx\Ldap\Server\Middleware\OperationAuditMiddleware;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
+use FreeDSx\Ldap\Server\Operation\FailedOperationResult;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
 use FreeDSx\Ldap\Server\Operation\WriteOperationResult;
 use FreeDSx\Ldap\Server\Token\BindToken;
@@ -89,7 +90,7 @@ final class OperationAuditMiddlewareTest extends TestCase
         );
     }
 
-    public function test_it_returns_the_result_from_the_next_handler_unchanged(): void
+    public function test_it_returns_the_stream_from_the_next_handler_unchanged(): void
     {
         $result = OperationOutcomeResult::failed();
 
@@ -98,18 +99,19 @@ final class OperationAuditMiddlewareTest extends TestCase
             $this->subject->process(
                 $this->context,
                 new StubMiddlewareHandler($result),
-            ),
+            )->outcome(),
         );
     }
 
-    public function test_it_audits_a_write_authorization_denial_and_rethrows(): void
+    public function test_it_audits_a_write_authorization_denial(): void
     {
-        $exception = new OperationException(
-            'Denied.',
-            ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+        $this->auditFailure(
+            $this->context,
+            new OperationException(
+                'Denied.',
+                ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+            ),
         );
-
-        $this->processThrowing($this->context, $exception);
 
         self::assertTrue($this->wasLogged('authz.denied.write'));
     }
@@ -117,24 +119,27 @@ final class OperationAuditMiddlewareTest extends TestCase
     public function test_it_audits_a_search_authorization_denial(): void
     {
         $context = $this->contextFor((new SearchRequest(Filters::present('cn')))->base('dc=bar'));
-        $exception = new OperationException(
-            'Denied.',
-            ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
-        );
 
-        $this->processThrowing($context, $exception);
+        $this->auditFailure(
+            $context,
+            new OperationException(
+                'Denied.',
+                ResultCode::INSUFFICIENT_ACCESS_RIGHTS,
+            ),
+        );
 
         self::assertTrue($this->wasLogged('authz.denied.read'));
     }
 
     public function test_it_audits_a_critical_control_rejection(): void
     {
-        $exception = new OperationException(
-            'Critical control 1.2.3.4 is not supported.',
-            ResultCode::UNAVAILABLE_CRITICAL_EXTENSION,
+        $this->auditFailure(
+            $this->context,
+            new OperationException(
+                'Critical control 1.2.3.4 is not supported.',
+                ResultCode::UNAVAILABLE_CRITICAL_EXTENSION,
+            ),
         );
-
-        $this->processThrowing($this->context, $exception);
 
         self::assertTrue($this->wasLogged('control.critical.rejected'));
     }
@@ -157,12 +162,12 @@ final class OperationAuditMiddlewareTest extends TestCase
             $violations,
         );
 
-        $this->processThrowing($this->context, $exception);
+        $this->auditFailure($this->context, $exception);
 
         self::assertTrue($this->wasLogged('schema.violation'));
     }
 
-    public function test_it_rethrows_the_caught_operation_exception(): void
+    public function test_it_lets_an_exception_from_the_next_handler_propagate(): void
     {
         $exception = new OperationException('Boom.');
 
@@ -174,18 +179,20 @@ final class OperationAuditMiddlewareTest extends TestCase
         );
     }
 
-    private function processThrowing(
+    /**
+     * A failure reaches the audit middleware as a resolved FailedOperationResult, not a thrown exception.
+     */
+    private function auditFailure(
         ServerRequestContext $context,
         OperationException $exception,
     ): void {
-        try {
-            $this->subject->process(
-                $context,
-                new ThrowingMiddlewareHandler($exception),
-            );
-            self::fail('Expected the OperationException to be re-thrown.');
-        } catch (OperationException) {
-        }
+        $this->subject->process(
+            $context,
+            new StubMiddlewareHandler(new FailedOperationResult(
+                $context->message,
+                $exception,
+            )),
+        );
     }
 
     private function wasLogged(string $event): bool

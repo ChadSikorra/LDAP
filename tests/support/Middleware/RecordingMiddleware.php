@@ -13,10 +13,10 @@ declare(strict_types=1);
 
 namespace Tests\Support\FreeDSx\Ldap\Middleware;
 
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 
 /**
  * Records before/after markers around the next handler for ordering assertions.
@@ -33,7 +33,7 @@ final readonly class RecordingMiddleware implements MiddlewareInterface
     public function process(
         ServerRequestContext $context,
         MiddlewareHandlerInterface $next,
-    ): OperationResult {
+    ): ResponseStream {
         $this->log->record('before:' . $this->label);
         $result = $next->handle($context);
         $this->log->record('after:' . $this->label);

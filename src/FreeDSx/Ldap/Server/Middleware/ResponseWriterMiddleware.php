@@ -13,59 +13,78 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\Middleware;
 
-use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseWriter;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\MatchedDnAccessFilterTrait;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
-use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
+use FreeDSx\Ldap\Server\Operation\FailedOperationResult;
 
 /**
- * Translates an OperationException thrown anywhere below into the matching response.
+ * The single sink: drains the response stream to the queue, rendering any thrown OperationException as its response.
+ *
+ * A streaming handler runs during the drain, so mid-stream failures are answered here too (a partial stream is followed by its error terminal).
  *
  * @internal
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final readonly class OperationErrorMiddleware implements MiddlewareInterface
+final readonly class ResponseWriterMiddleware implements MiddlewareInterface
 {
     use MatchedDnAccessFilterTrait;
 
     public function __construct(
-        private ServerQueue $queue,
+        private ResponseWriter $writer,
         private LdapBackendInterface $backend,
         private AccessControlInterface $accessControl,
         private ResponseFactory $responseFactory = new ResponseFactory(),
     ) {}
 
-    /**
-     * @throws EncoderException
-     */
     public function process(
         ServerRequestContext $context,
         MiddlewareHandlerInterface $next,
-    ): OperationResult {
+    ): ResponseStream {
+        $messageId = $context->message->getMessageId();
+
         try {
-            return $next->handle($context);
+            $outcome = $this->writer->write(
+                $next->handle($context),
+                $messageId,
+            );
         } catch (OperationException $e) {
-            $this->queue->sendMessage($this->responseFactory->getStandardResponse(
+            $outcome = $this->writer->write(
+                $this->errorStream($context, $e),
+                $messageId,
+            );
+        }
+
+        return ResponseStream::resolved($outcome);
+    }
+
+    private function errorStream(
+        ServerRequestContext $context,
+        OperationException $exception,
+    ): ResponseStream {
+        return ResponseStream::of(
+            [$this->responseFactory->getStandardResponse(
                 $context->message,
-                $e->getCode(),
-                $e->getMessage(),
+                $exception->getCode(),
+                $exception->getMessage(),
                 $this->filterMatchedDn(
-                    $e->getMatchedDn(),
+                    $exception->getMatchedDn(),
                     $context->tokenOrFail(),
                     $this->backend,
                     $this->accessControl,
                 ),
-            ));
-
-            return OperationOutcomeResult::failed($e->getCode());
-        }
+            )],
+            new FailedOperationResult(
+                $context->message,
+                $exception,
+            ),
+        );
     }
 }

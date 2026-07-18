@@ -21,6 +21,7 @@ use FreeDSx\Ldap\Operation\Request\SaslBindRequest;
 use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\Request\SimpleBindRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\Observation\OperationObservation;
 use FreeDSx\Ldap\Server\Metrics\Rollup\OperationRollupCoordinator;
@@ -28,7 +29,6 @@ use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
 use FreeDSx\Ldap\Server\Operation\OperationOutcome;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 use Throwable;
 
 use function microtime;
@@ -53,15 +53,16 @@ final readonly class MetricsMiddleware implements MiddlewareInterface
     public function process(
         ServerRequestContext $context,
         MiddlewareHandlerInterface $next,
-    ): OperationResult {
+    ): ResponseStream {
         $request = $context->message->getRequest();
         $operation = OperationType::classify($request);
         $this->recorder->operationStarted($operation);
         $startedAt = microtime(true);
 
         try {
-            $result = $next->handle($context);
+            $stream = $next->handle($context);
         } catch (OperationException $e) {
+            // Only front-of-chain failures (bind/authorization) reach here; operation failures resolve as outcomes.
             $this->record(
                 $request,
                 $operation,
@@ -84,6 +85,7 @@ final readonly class MetricsMiddleware implements MiddlewareInterface
             throw $e;
         }
 
+        $result = $stream->outcome();
         $this->record(
             $request,
             $operation,
@@ -92,7 +94,7 @@ final readonly class MetricsMiddleware implements MiddlewareInterface
             $result->resultCode(),
         );
 
-        return $result;
+        return $stream;
     }
 
     private function record(

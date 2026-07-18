@@ -16,12 +16,12 @@ namespace FreeDSx\Ldap\Server\Middleware;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Authenticator;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Protocol\ServerAuthorization;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Token\AnonToken;
 
 /**
@@ -43,7 +43,7 @@ final readonly class BindMiddleware implements MiddlewareInterface
     public function process(
         ServerRequestContext $context,
         MiddlewareHandlerInterface $next,
-    ): OperationResult {
+    ): ResponseStream {
         $request = $context->message->getRequest();
 
         if (!$this->authorization->isAuthenticationRequest($request)) {
@@ -60,8 +60,9 @@ final readonly class BindMiddleware implements MiddlewareInterface
             );
         }
 
+        // The authenticator writes the bind response itself (an interactive sub-protocol); carry only the outcome.
         $this->authorization->setToken($this->authenticator->bind($context->message));
 
-        return OperationOutcomeResult::succeeded();
+        return ResponseStream::resolved(OperationOutcomeResult::succeeded());
     }
 }

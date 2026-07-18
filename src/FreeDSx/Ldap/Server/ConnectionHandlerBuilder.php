@@ -56,7 +56,7 @@ use FreeDSx\Ldap\Server\Middleware\CriticalControlMiddleware;
 use FreeDSx\Ldap\Server\Middleware\MetricsMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationAuditMiddleware;
 use FreeDSx\Ldap\Server\Middleware\OperationAuthorizationMiddleware;
-use FreeDSx\Ldap\Server\Middleware\OperationErrorMiddleware;
+use FreeDSx\Ldap\Server\Middleware\ResponseWriterMiddleware;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\HandlerInvoker;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareChain;
 use FreeDSx\Ldap\Server\Middleware\ReadOnlyMiddleware;
@@ -393,28 +393,24 @@ final class ConnectionHandlerBuilder implements ConnectionHandlerBuilderInterfac
                 ),
                 // The token is resolved at this point, so per-identity limits can be attached.
                 $this->container->get(ResourceLimitMiddleware::class),
-                new OperationErrorMiddleware(
-                    $queue,
+                // Audits the resolved outcome; sits above the writer so a streamed result's count is final.
+                new OperationAuditMiddleware(new OperationAuditor($eventLogger)),
+                // The single sink: drains every operation response and renders any thrown failure.
+                new ResponseWriterMiddleware(
+                    new ResponseWriter($queue),
                     $backend,
                     $options->getAccessControl(),
                 ),
-                new OperationAuditMiddleware(new OperationAuditor($eventLogger)),
-                // Only present on a read-only replica; sits below OperationErrorMiddleware so a rejection renders,
+                // Only present on a read-only replica; sits below the writer so its referral is drained,
                 // and before the ACL loop so a write short-circuits early.
                 ...($replicaConfig !== null
-                    ? [new ReadOnlyMiddleware(
-                        $queue,
-                        $replicaConfig,
-                    )]
+                    ? [new ReadOnlyMiddleware($replicaConfig)]
                     : []),
                 $this->container->get(CriticalControlMiddleware::class),
                 $this->container->get(OperationAuthorizationMiddleware::class),
                 $this->container->get(AssertionMiddleware::class),
             ],
-            new HandlerInvoker(
-                $handlerProvider,
-                new ResponseWriter($queue),
-            ),
+            new HandlerInvoker($handlerProvider),
         );
     }
 }

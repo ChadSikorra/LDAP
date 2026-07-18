@@ -13,9 +13,9 @@ declare(strict_types=1);
 
 namespace Tests\Support\FreeDSx\Ldap\Middleware;
 
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 use Throwable;
 
 /**
@@ -27,7 +27,7 @@ final readonly class ThrowingMiddlewareHandler implements MiddlewareHandlerInter
 {
     public function __construct(private Throwable $throwable) {}
 
-    public function handle(ServerRequestContext $context): OperationResult
+    public function handle(ServerRequestContext $context): ResponseStream
     {
         throw $this->throwable;
     }

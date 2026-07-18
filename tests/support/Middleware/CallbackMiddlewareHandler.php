@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Tests\Support\FreeDSx\Ldap\Middleware;
 
 use Closure;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
@@ -30,8 +31,8 @@ final readonly class CallbackMiddlewareHandler implements MiddlewareHandlerInter
      */
     public function __construct(private Closure $callback) {}
 
-    public function handle(ServerRequestContext $context): OperationResult
+    public function handle(ServerRequestContext $context): ResponseStream
     {
-        return ($this->callback)($context);
+        return ResponseStream::resolved(($this->callback)($context));
     }
 }

@@ -14,23 +14,19 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Middleware\Pipeline;
 
 use FreeDSx\Ldap\Protocol\Factory\ProtocolHandlerProviderInterface;
-use FreeDSx\Ldap\Protocol\Queue\Response\ResponseWriter;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 
 /**
- * Terminal handler that resolves the per-request handler, writes its response, and returns its outcome.
+ * Terminal handler that resolves and invokes the per-request protocol handler, returning its response stream.
  *
  * @internal
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
 final readonly class HandlerInvoker implements MiddlewareHandlerInterface
 {
-    public function __construct(
-        private ProtocolHandlerProviderInterface $protocolHandlerProvider,
-        private ResponseWriter $responseWriter,
-    ) {}
+    public function __construct(private ProtocolHandlerProviderInterface $protocolHandlerProvider) {}
 
-    public function handle(ServerRequestContext $context): OperationResult
+    public function handle(ServerRequestContext $context): ResponseStream
     {
         $handler = $this->protocolHandlerProvider->get(
             $context->message->getRequest(),
@@ -38,14 +34,9 @@ final readonly class HandlerInvoker implements MiddlewareHandlerInterface
             $context->searchLimits(),
         );
 
-        $stream = $handler->handleRequest(
+        return $handler->handleRequest(
             $context->message,
             $context->tokenOrFail(),
-        );
-
-        return $this->responseWriter->write(
-            $stream,
-            $context->message->getMessageId(),
         );
     }
 }
