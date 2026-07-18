@@ -16,12 +16,12 @@ namespace Tests\Unit\FreeDSx\Ldap\Protocol\ServerProtocolHandler;
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Operation\LdapResult;
 use FreeDSx\Ldap\Operation\Request\PasswordModifyRequest;
 use FreeDSx\Ldap\Operation\Response\PasswordModifyResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerPasswordModifyHandler;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
@@ -39,13 +39,11 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Covers the transport seam: decoding, response encoding, and error mapping. The use case itself is exercised by
+ * Covers the transport seam: decoding, response building, and error mapping. The use case itself is exercised by
  * {@see \Tests\Unit\FreeDSx\Ldap\Server\PasswordModify\PasswordModifyServiceTest}.
  */
 final class ServerPasswordModifyHandlerTest extends TestCase
 {
-    private ServerQueue&MockObject $mockQueue;
-
     private LdapBackendInterface&MockObject $mockBackend;
 
     private ServerPasswordModifyHandler $subject;
@@ -56,11 +54,9 @@ final class ServerPasswordModifyHandlerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->mockQueue = $this->createMock(ServerQueue::class);
         $this->mockBackend = $this->createMock(LdapBackendInterface::class);
         $mockWriteHandler = $this->createMock(WriteHandlerInterface::class);
 
-        $this->mockQueue->method('sendMessage')->willReturnSelf();
         $mockWriteHandler->method('supports')->willReturn(true);
 
         $this->userEntry = new Entry(
@@ -72,7 +68,6 @@ final class ServerPasswordModifyHandlerTest extends TestCase
         );
 
         $this->subject = new ServerPasswordModifyHandler(
-            queue: $this->mockQueue,
             service: new PasswordModifyService(
                 targetResolver: new PasswordModifyTargetResolver(
                     $this->mockBackend,
@@ -91,16 +86,7 @@ final class ServerPasswordModifyHandlerTest extends TestCase
             ->method('get')
             ->willReturn($this->userEntry);
 
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(
-                fn(LdapMessageResponse $r)
-                => $r->getResponse() instanceof PasswordModifyResponse
-                && $r->getResponse()->getGeneratedPassword() === null,
-            ));
-
-        $result = $this->subject->handleRequest(
+        $stream = $this->subject->handleRequest(
             new LdapMessageRequest(
                 1,
                 new PasswordModifyRequest(null, '12345', 'newpass'),
@@ -108,10 +94,15 @@ final class ServerPasswordModifyHandlerTest extends TestCase
             $this->userToken,
         );
 
-        self::assertInstanceOf(PasswordModifyOperationResult::class, $result);
+        $response = $this->singleResponse($stream->messages);
+        self::assertInstanceOf(PasswordModifyResponse::class, $response);
+        self::assertNull($response->getGeneratedPassword());
+
+        $outcome = $stream->outcome();
+        self::assertInstanceOf(PasswordModifyOperationResult::class, $outcome);
         self::assertSame(
             OperationOutcome::Succeeded,
-            $result->outcome(),
+            $outcome->outcome(),
         );
     }
 
@@ -121,38 +112,32 @@ final class ServerPasswordModifyHandlerTest extends TestCase
             ->method('get')
             ->willReturn($this->userEntry);
 
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(
-                fn(LdapMessageResponse $r)
-                => $r->getResponse() instanceof PasswordModifyResponse
-                && strlen((string) $r->getResponse()->getGeneratedPassword()) === 16,
-            ));
-
-        $this->subject->handleRequest(
+        $stream = $this->subject->handleRequest(
             new LdapMessageRequest(
                 1,
                 new PasswordModifyRequest(null, '12345', null),
             ),
             $this->userToken,
         );
+
+        $response = $this->singleResponse($stream->messages);
+        self::assertInstanceOf(PasswordModifyResponse::class, $response);
+        self::assertSame(
+            16,
+            strlen((string) $response->getGeneratedPassword()),
+        );
     }
 
     public function test_anonymous_token_is_rejected_with_unwilling_to_perform(): void
     {
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(
-                fn(LdapMessageResponse $r)
-                => method_exists($r->getResponse(), 'getResultCode')
-                && $r->getResponse()->getResultCode() === ResultCode::UNWILLING_TO_PERFORM,
-            ));
-
-        $this->subject->handleRequest(
+        $stream = $this->subject->handleRequest(
             new LdapMessageRequest(1, new PasswordModifyRequest()),
             new AnonToken(),
+        );
+
+        self::assertSame(
+            ResultCode::UNWILLING_TO_PERFORM,
+            $this->singleResponse($stream->messages)->getResultCode(),
         );
     }
 
@@ -162,16 +147,7 @@ final class ServerPasswordModifyHandlerTest extends TestCase
             ->method('get')
             ->willReturn($this->userEntry);
 
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::callback(
-                fn(LdapMessageResponse $r)
-                => method_exists($r->getResponse(), 'getResultCode')
-                && $r->getResponse()->getResultCode() === ResultCode::INVALID_CREDENTIALS,
-            ));
-
-        $result = $this->subject->handleRequest(
+        $stream = $this->subject->handleRequest(
             new LdapMessageRequest(
                 1,
                 new PasswordModifyRequest(null, 'wrongpass', 'newpass'),
@@ -179,10 +155,35 @@ final class ServerPasswordModifyHandlerTest extends TestCase
             $this->userToken,
         );
 
-        self::assertInstanceOf(PasswordModifyOperationResult::class, $result);
+        self::assertSame(
+            ResultCode::INVALID_CREDENTIALS,
+            $this->singleResponse($stream->messages)->getResultCode(),
+        );
+
+        $outcome = $stream->outcome();
+        self::assertInstanceOf(PasswordModifyOperationResult::class, $outcome);
         self::assertSame(
             OperationOutcome::Failed,
-            $result->outcome(),
+            $outcome->outcome(),
         );
+    }
+
+    /**
+     * @param iterable<LdapMessageResponse> $messages
+     */
+    private function singleResponse(iterable $messages): LdapResult
+    {
+        $messages = [...$messages];
+        self::assertCount(
+            1,
+            $messages,
+        );
+        $response = $messages[0]->getResponse();
+        self::assertInstanceOf(
+            LdapResult::class,
+            $response,
+        );
+
+        return $response;
     }
 }

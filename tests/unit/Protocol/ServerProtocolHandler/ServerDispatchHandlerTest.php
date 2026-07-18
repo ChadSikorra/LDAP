@@ -23,7 +23,6 @@ use FreeDSx\Ldap\Operation\Request\CompareRequest;
 use FreeDSx\Ldap\Operation\Request\DeleteRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerDispatchHandler;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
@@ -48,8 +47,6 @@ final class ServerDispatchHandlerTest extends TestCase
 
     private WriteHandlerInterface&MockObject $mockWriteHandler;
 
-    private ServerQueue&MockObject $mockQueue;
-
     private TokenInterface&MockObject $mockToken;
 
     private AccessControlInterface&MockObject $mockAccessControl;
@@ -57,21 +54,15 @@ final class ServerDispatchHandlerTest extends TestCase
     protected function setUp(): void
     {
         $this->mockToken = $this->createMock(TokenInterface::class);
-        $this->mockQueue = $this->createMock(ServerQueue::class);
         $this->mockBackend = $this->createMock(LdapBackendInterface::class);
         $this->mockWriteHandler = $this->createMock(WriteHandlerInterface::class);
         $this->mockAccessControl = $this->createMock(AccessControlInterface::class);
-
-        $this->mockQueue
-            ->method('sendMessage')
-            ->willReturnSelf();
 
         $this->mockWriteHandler
             ->method('supports')
             ->willReturn(true);
 
         $this->subject = new ServerDispatchHandler(
-            queue: $this->mockQueue,
             backend: $this->mockBackend,
             writeDispatcher: new WriteOperationDispatcher($this->mockWriteHandler),
             accessControl: $this->mockAccessControl,
@@ -88,12 +79,12 @@ final class ServerDispatchHandlerTest extends TestCase
             ->method('handle')
             ->with(self::isInstanceOf(WriteRequestInterface::class));
 
-        $result = $this->subject->handleRequest($add, $this->mockToken);
+        $outcome = $this->subject->handleRequest($add, $this->mockToken)->outcome();
 
-        self::assertInstanceOf(WriteOperationResult::class, $result);
+        self::assertInstanceOf(WriteOperationResult::class, $outcome);
         self::assertSame(
             OperationOutcome::Succeeded,
-            $result->outcome(),
+            $outcome->outcome(),
         );
     }
 
@@ -132,9 +123,9 @@ final class ServerDispatchHandlerTest extends TestCase
             )
             ->willReturn(true);
 
-        $result = $this->subject->handleRequest($compare, $this->mockToken);
+        $outcome = $this->subject->handleRequest($compare, $this->mockToken)->outcome();
 
-        self::assertInstanceOf(CompareOperationResult::class, $result);
+        self::assertInstanceOf(CompareOperationResult::class, $outcome);
     }
 
     public function test_it_lets_operation_exceptions_from_backend_compare_bubble(): void
@@ -157,7 +148,6 @@ final class ServerDispatchHandlerTest extends TestCase
     public function test_it_throws_when_no_write_handler_supports_the_operation(): void
     {
         $subject = new ServerDispatchHandler(
-            queue: $this->mockQueue,
             backend: $this->mockBackend,
             writeDispatcher: new WriteOperationDispatcher(),
             accessControl: $this->mockAccessControl,

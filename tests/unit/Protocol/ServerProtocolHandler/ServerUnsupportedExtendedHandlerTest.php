@@ -20,7 +20,6 @@ use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerUnsupportedExtendedHandler;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -30,15 +29,12 @@ final class ServerUnsupportedExtendedHandlerTest extends TestCase
 {
     private ServerUnsupportedExtendedHandler $subject;
 
-    private ServerQueue&MockObject $mockQueue;
-
     private TokenInterface&MockObject $mockToken;
 
     protected function setUp(): void
     {
-        $this->mockQueue = $this->createMock(ServerQueue::class);
         $this->mockToken = $this->createMock(TokenInterface::class);
-        $this->subject = new ServerUnsupportedExtendedHandler($this->mockQueue);
+        $this->subject = new ServerUnsupportedExtendedHandler();
     }
 
     public function test_it_returns_protocol_error_with_response_name_echoing_the_request(): void
@@ -49,10 +45,13 @@ final class ServerUnsupportedExtendedHandlerTest extends TestCase
             new ExtendedRequest($oid),
         );
 
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage')
-            ->with(self::equalTo(new LdapMessageResponse(
+        $stream = $this->subject->handleRequest(
+            $request,
+            $this->mockToken,
+        );
+
+        $this->assertEquals(
+            [new LdapMessageResponse(
                 42,
                 new ExtendedResponse(
                     new LdapResult(
@@ -62,11 +61,8 @@ final class ServerUnsupportedExtendedHandlerTest extends TestCase
                     ),
                     $oid,
                 ),
-            )));
-
-        $this->subject->handleRequest(
-            $request,
-            $this->mockToken,
+            )],
+            [...$stream->messages],
         );
     }
 
@@ -78,13 +74,14 @@ final class ServerUnsupportedExtendedHandlerTest extends TestCase
             new Control('1.2.3.4', false),
         );
 
-        $this->mockQueue
-            ->expects(self::once())
-            ->method('sendMessage');
-
-        $this->subject->handleRequest(
+        $stream = $this->subject->handleRequest(
             $request,
             $this->mockToken,
+        );
+
+        $this->assertCount(
+            1,
+            [...$stream->messages],
         );
     }
 }

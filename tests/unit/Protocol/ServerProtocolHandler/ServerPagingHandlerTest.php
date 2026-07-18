@@ -28,6 +28,7 @@ use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseWriter;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerPagingHandler;
 use FreeDSx\Ldap\Schema\Schema;
@@ -40,6 +41,7 @@ use FreeDSx\Ldap\Server\Paging\PagingRequest;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Operation\OperationOutcome;
+use FreeDSx\Ldap\Server\Operation\OperationResult;
 use FreeDSx\Ldap\Server\Operation\SearchOperationResult;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
@@ -104,7 +106,6 @@ class ServerPagingHandlerTest extends TestCase
             });
 
         $this->subject = new ServerPagingHandler(
-            queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $this->mockAccessControl,
@@ -126,9 +127,9 @@ class ServerPagingHandlerTest extends TestCase
             ->with(self::isInstanceOf(SearchRequest::class))
             ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
 
-        $result = $this->subject->handleRequest(
+        $result = $this->drive(
+            $this->subject,
             $message,
-            $this->mockToken,
         );
 
         self::assertEquals(
@@ -160,9 +161,9 @@ class ServerPagingHandlerTest extends TestCase
             ->method('search')
             ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
 
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $message,
-            $this->mockToken,
         );
 
         self::assertEquals(
@@ -186,7 +187,7 @@ class ServerPagingHandlerTest extends TestCase
             ->method('search')
             ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
 
-        $this->subject->handleRequest($firstMessage, $this->mockToken);
+        $this->drive($this->subject, $firstMessage);
 
         $capturedCookie = $this->donePagingControl()->getCookie();
         self::assertNotSame('', $capturedCookie);
@@ -199,7 +200,7 @@ class ServerPagingHandlerTest extends TestCase
             searchRequest: $pagingReq->getSearchRequest(),
         );
 
-        $this->subject->handleRequest($secondMessage, $this->mockToken);
+        $this->drive($this->subject, $secondMessage);
     }
 
     public function test_it_should_send_the_correct_response_if_paging_is_abandoned(): void
@@ -215,9 +216,9 @@ class ServerPagingHandlerTest extends TestCase
             ->expects(self::never())
             ->method('search');
 
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $message,
-            $this->mockToken,
         );
 
         self::assertSame([], $this->entryMessages());
@@ -237,9 +238,9 @@ class ServerPagingHandlerTest extends TestCase
             ->expects(self::never())
             ->method('search');
 
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $message,
-            $this->mockToken,
         );
 
         self::assertEquals(
@@ -282,9 +283,9 @@ class ServerPagingHandlerTest extends TestCase
             ->expects(self::never())
             ->method('search');
 
-        $result = $this->subject->handleRequest(
+        $result = $this->drive(
+            $this->subject,
             $message,
-            $this->mockToken,
         );
 
         self::assertSame([], $this->entryMessages());
@@ -330,7 +331,7 @@ class ServerPagingHandlerTest extends TestCase
             ->method('search')
             ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
 
-        $this->subject->handleRequest($message, $this->mockToken);
+        $this->drive($this->subject, $message);
 
         self::assertEquals(
             [new LdapMessageResponse(2, new SearchResultEntry($entry1))],
@@ -360,9 +361,9 @@ class ServerPagingHandlerTest extends TestCase
             ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2, $entry3, $entry4)));
 
         // First page: pageSize=1, sizeLimit=2 — gets entry1, stores generator
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $this->makeSearchMessage(size: 1, searchRequest: $searchRequest),
-            $this->mockToken,
         );
 
         $capturedCookie = $this->donePagingControl()->getCookie();
@@ -370,9 +371,9 @@ class ServerPagingHandlerTest extends TestCase
 
         // Second page: pageSize=10, sizeLimit=2 — gets entry2+entry3 (hits limit), entry4 still in generator → SIZE_LIMIT_EXCEEDED
         $pagingReq = $this->requestHistory->pagingRequest()->findByNextCookie($capturedCookie);
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $this->makeSearchMessage(size: 10, cookie: $capturedCookie, searchRequest: $pagingReq->getSearchRequest()),
-            $this->mockToken,
         );
 
         $sizeLimitExceededSeen = false;
@@ -403,7 +404,6 @@ class ServerPagingHandlerTest extends TestCase
             ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
 
         $subject = new ServerPagingHandler(
-            queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $this->mockAccessControl,
@@ -411,7 +411,7 @@ class ServerPagingHandlerTest extends TestCase
             schema: $this->schema,
             limits: new SearchLimits(maxSearchSize: 1),
         );
-        $subject->handleRequest($message, $this->mockToken);
+        $this->drive($subject, $message);
 
         self::assertEquals(
             [new LdapMessageResponse(2, new SearchResultEntry($entry1))],
@@ -435,7 +435,6 @@ class ServerPagingHandlerTest extends TestCase
             ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
 
         $subject = new ServerPagingHandler(
-            queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $this->mockAccessControl,
@@ -443,7 +442,7 @@ class ServerPagingHandlerTest extends TestCase
             schema: $this->schema,
             limits: new SearchLimits(maxSearchPageSize: 1),
         );
-        $subject->handleRequest($message, $this->mockToken);
+        $this->drive($subject, $message);
 
         // Only 1 entry returned despite client requesting page size 10.
         self::assertEquals(
@@ -468,7 +467,6 @@ class ServerPagingHandlerTest extends TestCase
             ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2, $entry3)));
 
         $subject = new ServerPagingHandler(
-            queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $this->mockAccessControl,
@@ -476,7 +474,7 @@ class ServerPagingHandlerTest extends TestCase
             schema: $this->schema,
             limits: new SearchLimits(maxSearchPageSize: 2),
         );
-        $subject->handleRequest($message, $this->mockToken);
+        $this->drive($subject, $message);
 
         // Server applies its max of 2 entries per page.
         self::assertCount(2, $this->entryMessages());
@@ -496,7 +494,6 @@ class ServerPagingHandlerTest extends TestCase
             ->willReturn(new EntryStream($this->makeGenerator($entry1, $entry2)));
 
         $subject = new ServerPagingHandler(
-            queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $this->mockAccessControl,
@@ -504,7 +501,7 @@ class ServerPagingHandlerTest extends TestCase
             schema: $this->schema,
             limits: new SearchLimits(maxSearchPageSize: 5),
         );
-        $subject->handleRequest($message, $this->mockToken);
+        $this->drive($subject, $message);
 
         // Client requested 1 per page; server max is 5 — client's lower value wins.
         self::assertEquals(
@@ -541,14 +538,13 @@ class ServerPagingHandlerTest extends TestCase
             )));
 
         $subject = new ServerPagingHandler(
-            queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $mockAccessControl,
             requestHistory: $this->requestHistory,
             schema: $this->schema,
         );
-        $subject->handleRequest($message, $this->mockToken);
+        $this->drive($subject, $message);
 
         self::assertEquals(
             [new LdapMessageResponse(2, new SearchResultEntry($entry2))],
@@ -583,14 +579,13 @@ class ServerPagingHandlerTest extends TestCase
             ->willReturn(new EntryStream($this->makeGenerator($entry)));
 
         $subject = new ServerPagingHandler(
-            queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $mockFilterEvaluator,
             accessControl: $mockAccessControl,
             requestHistory: $this->requestHistory,
             schema: $this->schema,
         );
-        $subject->handleRequest($message, $this->mockToken);
+        $this->drive($subject, $message);
 
         self::assertSame([], $this->entryMessages());
     }
@@ -608,9 +603,9 @@ class ServerPagingHandlerTest extends TestCase
             ->method('search')
             ->willReturn(new EntryStream($this->makeGenerator()));
 
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $message,
-            $this->mockToken,
         );
 
         $sortControl = $this->doneMessage()->controls()->get(Control::OID_SORTING_RESPONSE);
@@ -637,9 +632,9 @@ class ServerPagingHandlerTest extends TestCase
             ->method('search')
             ->willReturn(new EntryStream($this->makeGenerator()));
 
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $message,
-            $this->mockToken,
         );
 
         $sortControl = $this->doneMessage()->controls()->get(Control::OID_SORTING_RESPONSE);
@@ -665,9 +660,9 @@ class ServerPagingHandlerTest extends TestCase
             ->method('search')
             ->willReturn(new EntryStream($this->makeGenerator()));
 
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $message,
-            $this->mockToken,
         );
 
         self::assertNull(
@@ -694,9 +689,9 @@ class ServerPagingHandlerTest extends TestCase
             ->method('get')
             ->willReturn($matchedEntry);
 
-        $this->subject->handleRequest(
+        $this->drive(
+            $this->subject,
             $message,
-            $this->mockToken,
         );
 
         $done = $this->doneMessage()->getResponse();
@@ -736,7 +731,6 @@ class ServerPagingHandlerTest extends TestCase
             ->willReturn(null);
 
         $subject = new ServerPagingHandler(
-            queue: $this->mockQueue,
             backend: $this->mockBackend,
             filterEvaluator: $this->mockFilterEvaluator,
             accessControl: $mockAccessControl,
@@ -744,9 +738,9 @@ class ServerPagingHandlerTest extends TestCase
             schema: $this->schema,
         );
 
-        $subject->handleRequest(
+        $this->drive(
+            $subject,
             $message,
-            $this->mockToken,
         );
 
         $done = $this->doneMessage()->getResponse();
@@ -758,6 +752,21 @@ class ServerPagingHandlerTest extends TestCase
         self::assertSame(
             '',
             $done->getDn()->toString(),
+        );
+    }
+
+    private function drive(
+        ServerPagingHandler $subject,
+        LdapMessageRequest $message,
+    ): OperationResult {
+        $stream = $subject->handleRequest(
+            $message,
+            $this->mockToken,
+        );
+
+        return (new ResponseWriter($this->mockQueue))->write(
+            $stream,
+            $message->getMessageId(),
         );
     }
 

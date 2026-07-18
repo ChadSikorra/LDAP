@@ -23,7 +23,7 @@ use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operation\Request\ForwardPasswordPolicyStateRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerPasswordPolicyForwardHandler;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteContext;
@@ -43,18 +43,16 @@ final class ServerPasswordPolicyForwardHandlerTest extends TestCase
 
     private const DN = 'cn=user,dc=foo,dc=bar';
 
-    private ServerQueue&MockObject $queue;
-
     private WritableLdapBackendInterface&MockObject $backend;
 
     private ServerPasswordPolicyForwardHandler $subject;
 
+    private ResponseStream $lastStream;
+
     protected function setUp(): void
     {
-        $this->queue = $this->createMock(ServerQueue::class);
         $this->backend = $this->createMock(WritableLdapBackendInterface::class);
         $this->subject = new ServerPasswordPolicyForwardHandler(
-            $this->queue,
             $this->backend,
             new PasswordPolicyResolver(
                 $this->backend,
@@ -77,15 +75,16 @@ final class ServerPasswordPolicyForwardHandlerTest extends TestCase
             '2026-05-20 11:59:00',
             new DateTimeZone('UTC'),
         );
-        $this->queue
-            ->expects(self::once())
-            ->method('sendMessage');
 
         $changes = $this->captureComputedChanges(
             new ForwardPasswordPolicyStateRequest(self::DN, 'uuid', [$time]),
             Entry::fromArray(self::DN, ['cn' => ['user']]),
         );
 
+        self::assertCount(
+            1,
+            [...$this->lastStream->messages],
+        );
         self::assertSame(
             'pwdFailureTime',
             $changes[0]->getAttribute()->getName(),
@@ -123,10 +122,6 @@ final class ServerPasswordPolicyForwardHandlerTest extends TestCase
 
     public function test_it_still_acks_and_does_not_write_when_no_policy_applies(): void
     {
-        $this->queue
-            ->expects(self::once())
-            ->method('sendMessage');
-
         $changes = $this->captureComputedChanges(
             new ForwardPasswordPolicyStateRequest(self::DN, 'uuid', [
                 new DateTimeImmutable('2026-05-20 11:59:00', new DateTimeZone('UTC')),
@@ -134,6 +129,10 @@ final class ServerPasswordPolicyForwardHandlerTest extends TestCase
             null,
         );
 
+        self::assertCount(
+            1,
+            [...$this->lastStream->messages],
+        );
         self::assertSame(
             [],
             $changes,
@@ -186,7 +185,7 @@ final class ServerPasswordPolicyForwardHandlerTest extends TestCase
                 }),
             );
 
-        $this->subject->handleRequest(
+        $this->lastStream = $this->subject->handleRequest(
             $this->messageFor($request),
             $this->createMock(TokenInterface::class),
         );
