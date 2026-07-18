@@ -66,6 +66,11 @@ final class Config
 
     public const DEFAULT_SEARCH_SUB_SIZE_LIMIT = 500;
 
+    /**
+     * Mirrors the realistic ServerOptions default so load tests run bounded rather than with lookthrough disabled.
+     */
+    public const DEFAULT_MAX_SEARCH_LOOKTHROUGH = 5000;
+
     public function __construct(
         public readonly string $backend,
         public readonly string $runner,
@@ -87,6 +92,10 @@ final class Config
         public readonly bool $jit = true,
         public readonly int $searchSubSizeLimit = self::DEFAULT_SEARCH_SUB_SIZE_LIMIT,
         public readonly bool $monitor = false,
+        public readonly ?string $searchAttributes = null,
+        public readonly bool $attributesOnly = false,
+        public readonly int $seedAttributes = 0,
+        public readonly int $maxSearchLookthrough = self::DEFAULT_MAX_SEARCH_LOOKTHROUGH,
     ) {
         $this->assertEnum('backend', $backend, self::BACKENDS);
         $this->assertEnum('runner', $runner, self::RUNNERS);
@@ -97,6 +106,8 @@ final class Config
         $this->assertNonNegative('warmup', $warmup);
         $this->assertNonNegative('seed-entries', $seedEntries);
         $this->assertNonNegative('search-sub-size-limit', $searchSubSizeLimit);
+        $this->assertNonNegative('seed-attributes', $seedAttributes);
+        $this->assertNonNegative('max-search-lookthrough', $maxSearchLookthrough);
 
         if ($duration !== null) {
             $this->assertPositive('duration', $duration);

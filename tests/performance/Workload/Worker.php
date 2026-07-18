@@ -19,6 +19,7 @@ use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\LdapClient;
+use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Search\Filter\FilterInterface;
@@ -197,7 +198,7 @@ final class Worker
 
     private function doSearchRead(LdapClient $client): void
     {
-        $request = Operations::search(Filters::present('objectClass'))
+        $request = $this->newSearch(Filters::present('objectClass'))
             ->base($this->randomReadDn())
             ->useBaseScope();
 
@@ -206,7 +207,7 @@ final class Worker
 
     private function doSearchEq(LdapClient $client): void
     {
-        $request = Operations::search($this->randomEqualityFilter())
+        $request = $this->newSearch($this->randomEqualityFilter())
             ->base($this->config->baseDn)
             ->useSubtreeScope();
 
@@ -219,7 +220,7 @@ final class Worker
             ? Filters::startsWith('cn', 'seed-')
             : Filters::startsWith('cn', '');
 
-        $request = Operations::search($filter)
+        $request = $this->newSearch($filter)
             ->base($this->config->baseDn)
             ->useSubtreeScope();
 
@@ -232,7 +233,7 @@ final class Worker
 
     private function doSearchList(LdapClient $client): void
     {
-        $request = Operations::search(Filters::equal('objectClass', 'inetOrgPerson'))
+        $request = $this->newSearch(Filters::equal('objectClass', 'inetOrgPerson'))
             ->base($this->config->writeBase)
             ->useSingleLevelScope();
 
@@ -246,7 +247,7 @@ final class Worker
             : Filters::contains('cn', 'eed');
 
         $client->search(
-            Operations::search($filter)
+            $this->newSearch($filter)
                 ->base($this->config->baseDn)
                 ->useSubtreeScope(),
         );
@@ -259,7 +260,7 @@ final class Worker
             : Filters::endsWith('cn', 'e');
 
         $client->search(
-            Operations::search($filter)
+            $this->newSearch($filter)
                 ->base($this->config->baseDn)
                 ->useSubtreeScope(),
         );
@@ -272,7 +273,7 @@ final class Worker
             : 1000;
 
         $client->search(
-            Operations::search(Filters::greaterThanOrEqual('uidNumber', (string) $threshold))
+            $this->newSearch(Filters::greaterThanOrEqual('uidNumber', (string) $threshold))
                 ->base($this->config->baseDn)
                 ->useSubtreeScope(),
         );
@@ -289,7 +290,7 @@ final class Worker
         );
 
         $client->search(
-            Operations::search($filter)
+            $this->newSearch($filter)
                 ->base($this->config->baseDn)
                 ->useSubtreeScope(),
         );
@@ -306,10 +307,35 @@ final class Worker
         );
 
         $client->search(
-            Operations::search($filter)
+            $this->newSearch($filter)
                 ->base($this->config->baseDn)
                 ->useSubtreeScope(),
         );
+    }
+
+    /**
+     * Builds a search request, applying the configured attribute selection so the return path can be varied.
+     */
+    private function newSearch(FilterInterface $filter): SearchRequest
+    {
+        $request = Operations::search($filter);
+        $attributes = $this->config->searchAttributes;
+
+        if ($attributes !== null && strcasecmp($attributes, 'ALL') !== 0) {
+            $request->select(...array_map(
+                'trim',
+                explode(
+                    ',',
+                    $attributes,
+                ),
+            ));
+        }
+
+        if ($this->config->attributesOnly) {
+            $request->setAttributesOnly(true);
+        }
+
+        return $request;
     }
 
     private function randomSeedIdx(): int
