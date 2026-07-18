@@ -13,12 +13,13 @@ declare(strict_types=1);
 
 namespace Tests\Support\FreeDSx\Ldap\Middleware;
 
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
 use FreeDSx\Ldap\Server\Operation\OperationResult;
 
 /**
- * Terminal handler that returns a preconfigured result.
+ * Terminal handler that resolves to a preconfigured outcome.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
@@ -26,8 +27,8 @@ final readonly class StubMiddlewareHandler implements MiddlewareHandlerInterface
 {
     public function __construct(private OperationResult $result) {}
 
-    public function handle(ServerRequestContext $context): OperationResult
+    public function handle(ServerRequestContext $context): ResponseStream
     {
-        return $this->result;
+        return ResponseStream::resolved($this->result);
     }
 }

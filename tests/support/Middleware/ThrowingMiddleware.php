@@ -13,10 +13,10 @@ declare(strict_types=1);
 
 namespace Tests\Support\FreeDSx\Ldap\Middleware;
 
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 use Throwable;
 
 /**
@@ -31,7 +31,7 @@ final readonly class ThrowingMiddleware implements MiddlewareInterface
     public function process(
         ServerRequestContext $context,
         MiddlewareHandlerInterface $next,
-    ): OperationResult {
+    ): ResponseStream {
         throw $this->throwable;
     }
 }

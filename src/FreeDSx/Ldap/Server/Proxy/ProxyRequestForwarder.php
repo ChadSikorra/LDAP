@@ -28,11 +28,11 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Factory\ResponseFactory;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 
 /**
  * Relays a request to the upstream connection and relays the response back to the client.
@@ -50,7 +50,7 @@ final readonly class ProxyRequestForwarder implements MiddlewareHandlerInterface
     /**
      * {@inheritDoc}
      */
-    public function handle(ServerRequestContext $context): OperationResult
+    public function handle(ServerRequestContext $context): ResponseStream
     {
         $message = $context->message;
         $request = $message->getRequest();
@@ -59,12 +59,12 @@ final readonly class ProxyRequestForwarder implements MiddlewareHandlerInterface
             $this->client->unbind();
             $this->queue->close();
 
-            return OperationOutcomeResult::succeeded();
+            return ResponseStream::resolved(OperationOutcomeResult::succeeded());
         }
 
         // Synchronous, sequential forwarding means nothing is ever in flight upstream to abandon.
         if ($request instanceof AbandonRequest) {
-            return OperationOutcomeResult::succeeded();
+            return ResponseStream::resolved(OperationOutcomeResult::succeeded());
         }
 
         try {
@@ -80,7 +80,7 @@ final readonly class ProxyRequestForwarder implements MiddlewareHandlerInterface
                 $e->getMatchedDn(),
             ));
 
-            return OperationOutcomeResult::failed($e->getCode());
+            return ResponseStream::resolved(OperationOutcomeResult::failed($e->getCode()));
         }
 
         if ($request instanceof SearchRequest) {
@@ -89,7 +89,7 @@ final readonly class ProxyRequestForwarder implements MiddlewareHandlerInterface
             $this->relaySingle($message, $response);
         }
 
-        return OperationOutcomeResult::succeeded();
+        return ResponseStream::resolved(OperationOutcomeResult::succeeded());
     }
 
     /**

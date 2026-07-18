@@ -14,10 +14,10 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Middleware;
 
 use FreeDSx\Ldap\Exception\RequestValidationException;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 
 use function in_array;
 use function sprintf;
@@ -41,7 +41,7 @@ final class RequestValidationMiddleware implements MiddlewareInterface
     public function process(
         ServerRequestContext $context,
         MiddlewareHandlerInterface $next,
-    ): OperationResult {
+    ): ResponseStream {
         $messageId = $context->message->getMessageId();
 
         if ($messageId === 0) {

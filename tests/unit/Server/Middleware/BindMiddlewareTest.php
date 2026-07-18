@@ -89,7 +89,7 @@ final class BindMiddlewareTest extends TestCase
         );
         self::assertSame(
             OperationOutcome::Succeeded,
-            $result->outcome(),
+            $result->outcome()->outcome(),
         );
     }
 

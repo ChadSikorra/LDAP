@@ -18,24 +18,33 @@ use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\Request\DeleteRequest;
 use FreeDSx\Ldap\Operation\Request\RequestInterface;
+use FreeDSx\Ldap\Operation\Request\SearchRequest;
 use FreeDSx\Ldap\Operation\Response\DeleteResponse;
+use FreeDSx\Ldap\Operation\Response\SearchResultDone;
+use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseWriter;
 use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Middleware\OperationErrorMiddleware;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
+use FreeDSx\Ldap\Server\Middleware\ResponseWriterMiddleware;
 use FreeDSx\Ldap\Server\Operation\OperationOutcome;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
+use FreeDSx\Ldap\Server\Operation\SearchOperationResult;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
+use Generator;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\FreeDSx\Ldap\Middleware\StreamMiddlewareHandler;
 use Tests\Support\FreeDSx\Ldap\Middleware\StubMiddlewareHandler;
 use Tests\Support\FreeDSx\Ldap\Middleware\ThrowingMiddlewareHandler;
 
-final class OperationErrorMiddlewareTest extends TestCase
+final class ResponseWriterMiddlewareTest extends TestCase
 {
     private ServerQueue&MockObject $mockQueue;
 
@@ -45,9 +54,12 @@ final class OperationErrorMiddlewareTest extends TestCase
 
     private TokenInterface&MockObject $mockToken;
 
-    private OperationErrorMiddleware $subject;
+    private ResponseWriterMiddleware $subject;
 
-    private ?LdapMessageResponse $sent = null;
+    /**
+     * @var list<LdapMessageResponse>
+     */
+    private array $sent = [];
 
     protected function setUp(): void
     {
@@ -57,40 +69,46 @@ final class OperationErrorMiddlewareTest extends TestCase
         $this->mockToken = $this->createMock(TokenInterface::class);
 
         $this->mockQueue
-            ->method('sendMessage')
-            ->willReturnCallback(function (LdapMessageResponse $response): ServerQueue {
-                $this->sent = $response;
+            ->method('sendMessages')
+            ->willReturnCallback(function (iterable $responses): ServerQueue {
+                foreach ($responses as $response) {
+                    if ($response instanceof LdapMessageResponse) {
+                        $this->sent[] = $response;
+                    }
+                }
 
                 return $this->mockQueue;
             });
 
-        $this->subject = new OperationErrorMiddleware(
-            $this->mockQueue,
+        $this->subject = new ResponseWriterMiddleware(
+            new ResponseWriter($this->mockQueue),
             $this->mockBackend,
             $this->mockAccessControl,
         );
     }
 
-    public function test_it_passes_a_successful_result_through_without_sending(): void
+    public function test_it_resolves_a_successful_outcome_without_rendering_an_error(): void
     {
-        $this->mockQueue
-            ->expects(self::never())
-            ->method('sendMessage');
-
         $result = OperationOutcomeResult::succeeded();
+
+        $stream = $this->subject->process(
+            $this->contextFor(new DeleteRequest('cn=foo,dc=bar')),
+            new StubMiddlewareHandler($result),
+        );
 
         self::assertSame(
             $result,
-            $this->subject->process(
-                $this->contextFor(new DeleteRequest('cn=foo,dc=bar')),
-                new StubMiddlewareHandler($result),
-            ),
+            $stream->outcome(),
+        );
+        self::assertSame(
+            [],
+            $this->sent,
         );
     }
 
     public function test_it_renders_the_response_for_a_thrown_exception_and_does_not_rethrow(): void
     {
-        $result = $this->subject->process(
+        $stream = $this->subject->process(
             $this->contextFor(new DeleteRequest('cn=foo,dc=bar')),
             new ThrowingMiddlewareHandler(new OperationException(
                 'Unwilling.',
@@ -100,14 +118,43 @@ final class OperationErrorMiddlewareTest extends TestCase
 
         self::assertSame(
             OperationOutcome::Failed,
-            $result->outcome(),
+            $stream->outcome()->outcome(),
         );
 
-        $response = $this->sent?->getResponse();
+        $response = $this->firstSent()?->getResponse();
         self::assertInstanceOf(DeleteResponse::class, $response);
         self::assertSame(
             ResultCode::UNWILLING_TO_PERFORM,
             $response->getResultCode(),
+        );
+    }
+
+    public function test_a_mid_stream_failure_is_answered_after_the_entries_already_written(): void
+    {
+        $entry = new LdapMessageResponse(1, new SearchResultEntry(Entry::create('cn=a,dc=bar')));
+
+        $this->subject->process(
+            $this->contextFor((new SearchRequest(Filters::present('cn')))->base('dc=bar')),
+            new StreamMiddlewareHandler(ResponseStream::streaming(
+                (function () use ($entry): Generator {
+                    yield $entry;
+
+                    throw new OperationException('Backend failed.', ResultCode::OPERATIONS_ERROR);
+                })(),
+                static fn(): SearchOperationResult => throw new OperationException('unreached'),
+            )),
+        );
+
+        // The already-produced entry went out, then the failure rendered as the search's terminal.
+        self::assertSame(
+            $entry,
+            $this->sent[0] ?? null,
+        );
+        $done = $this->sent[1]->getResponse() ?? null;
+        self::assertInstanceOf(SearchResultDone::class, $done);
+        self::assertSame(
+            ResultCode::OPERATIONS_ERROR,
+            $done->getResultCode(),
         );
     }
 
@@ -125,7 +172,7 @@ final class OperationErrorMiddlewareTest extends TestCase
             new ThrowingMiddlewareHandler($this->noSuchObject(new Dn('dc=bar'))),
         );
 
-        $response = $this->sent?->getResponse();
+        $response = $this->firstSent()?->getResponse();
         self::assertInstanceOf(DeleteResponse::class, $response);
         self::assertSame(
             'dc=bar',
@@ -147,7 +194,7 @@ final class OperationErrorMiddlewareTest extends TestCase
             new ThrowingMiddlewareHandler($this->noSuchObject(new Dn('dc=bar'))),
         );
 
-        $response = $this->sent?->getResponse();
+        $response = $this->firstSent()?->getResponse();
         self::assertInstanceOf(DeleteResponse::class, $response);
         self::assertSame(
             '',
@@ -166,7 +213,7 @@ final class OperationErrorMiddlewareTest extends TestCase
             new ThrowingMiddlewareHandler($this->noSuchObject(new Dn('dc=bar'))),
         );
 
-        $response = $this->sent?->getResponse();
+        $response = $this->firstSent()?->getResponse();
         self::assertInstanceOf(DeleteResponse::class, $response);
         self::assertSame(
             '',
@@ -182,6 +229,11 @@ final class OperationErrorMiddlewareTest extends TestCase
             null,
             $matchedDn,
         );
+    }
+
+    private function firstSent(): ?LdapMessageResponse
+    {
+        return $this->sent[0] ?? null;
     }
 
     private function contextFor(RequestInterface $request): ServerRequestContext

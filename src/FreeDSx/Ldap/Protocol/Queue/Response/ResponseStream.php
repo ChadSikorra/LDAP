@@ -146,4 +146,12 @@ final readonly class ResponseStream
             $outcome,
         );
     }
+
+    /**
+     * An already-written response carrying only its resolved outcome, handed up past the writer.
+     */
+    public static function resolved(OperationResult $outcome): self
+    {
+        return self::none($outcome);
+    }
 }

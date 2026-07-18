@@ -65,7 +65,7 @@ final class ProxyRequestForwarderTest extends TestCase
             new DeleteRequest('cn=foo,dc=bar'),
         ));
 
-        self::assertSame(OperationOutcome::Succeeded, $result->outcome());
+        self::assertSame(OperationOutcome::Succeeded, $result->outcome()->outcome());
     }
 
     public function test_it_relays_an_upstream_error_as_a_response(): void
@@ -92,7 +92,7 @@ final class ProxyRequestForwarderTest extends TestCase
             new DeleteRequest('cn=missing,dc=bar'),
         ));
 
-        self::assertSame(OperationOutcome::Failed, $result->outcome());
+        self::assertSame(OperationOutcome::Failed, $result->outcome()->outcome());
     }
 
     public function test_it_closes_both_connections_on_unbind(): void
@@ -121,7 +121,7 @@ final class ProxyRequestForwarderTest extends TestCase
             new AbandonRequest(2),
         ));
 
-        self::assertSame(OperationOutcome::Succeeded, $result->outcome());
+        self::assertSame(OperationOutcome::Succeeded, $result->outcome()->outcome());
     }
 
     private function contextFor(

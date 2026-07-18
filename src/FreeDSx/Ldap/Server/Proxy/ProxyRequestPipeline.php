@@ -14,11 +14,11 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Proxy;
 
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Protocol\Queue\Response\ResponseWriter;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerProtocolHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 
 /**
  * Proxy request pipeline: handles StartTLS locally and forwards everything else.
@@ -36,7 +36,7 @@ final readonly class ProxyRequestPipeline implements MiddlewareHandlerInterface
     /**
      * {@inheritDoc}
      */
-    public function handle(ServerRequestContext $context): OperationResult
+    public function handle(ServerRequestContext $context): ResponseStream
     {
         $request = $context->message->getRequest();
 
@@ -46,10 +46,10 @@ final readonly class ProxyRequestPipeline implements MiddlewareHandlerInterface
                 $context->tokenOrFail(),
             );
 
-            return $this->responseWriter->write(
+            return ResponseStream::resolved($this->responseWriter->write(
                 $stream,
                 $context->message->getMessageId(),
-            );
+            ));
         }
 
         return $this->forwarder->handle($context);

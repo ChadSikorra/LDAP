@@ -17,10 +17,10 @@ use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Exception\OperationException;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\Factory\HandlerRouteResolverInterface;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 
 use function in_array;
 use function sprintf;
@@ -44,7 +44,7 @@ final readonly class CriticalControlMiddleware implements MiddlewareInterface
     public function process(
         ServerRequestContext $context,
         MiddlewareHandlerInterface $next,
-    ): OperationResult {
+    ): ResponseStream {
         $controls = $context->message->controls();
         $routeId = $this->routeResolver->routeIdFor(
             $context->message->getRequest(),

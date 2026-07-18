@@ -59,7 +59,7 @@ final class ProxyRequestPipelineTest extends TestCase
         $this->forwarder
             ->expects(self::once())
             ->method('handle')
-            ->willReturn(OperationOutcomeResult::succeeded());
+            ->willReturn(ResponseStream::none(OperationOutcomeResult::succeeded()));
         $this->startTlsHandler
             ->expects(self::never())
             ->method('handleRequest');

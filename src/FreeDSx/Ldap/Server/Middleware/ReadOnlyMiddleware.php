@@ -28,13 +28,12 @@ use FreeDSx\Ldap\Operation\Response\ModifyDnResponse;
 use FreeDSx\Ldap\Operation\Response\ModifyResponse;
 use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
-use FreeDSx\Ldap\Protocol\Queue\ServerQueue;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\ReplicaConfig;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
-use FreeDSx\Ldap\Server\Operation\OperationResult;
 
 use function in_array;
 
@@ -59,15 +58,12 @@ final readonly class ReadOnlyMiddleware implements MiddlewareInterface
         OperationType::PasswordModify,
     ];
 
-    public function __construct(
-        private ServerQueue $queue,
-        private ReplicaConfig $replicaConfig,
-    ) {}
+    public function __construct(private ReplicaConfig $replicaConfig) {}
 
     public function process(
         ServerRequestContext $context,
         MiddlewareHandlerInterface $next,
-    ): OperationResult {
+    ): ResponseStream {
         $request = $context->message->getRequest();
 
         $isWrite = in_array(
@@ -87,12 +83,13 @@ final readonly class ReadOnlyMiddleware implements MiddlewareInterface
             );
         }
 
-        $this->queue->sendMessage($this->referralResponse(
-            $request,
-            $context->message->getMessageId(),
-        ));
-
-        return OperationOutcomeResult::failed(ResultCode::REFERRAL);
+        return ResponseStream::of(
+            [$this->referralResponse(
+                $request,
+                $context->message->getMessageId(),
+            )],
+            OperationOutcomeResult::failed(ResultCode::REFERRAL),
+        );
     }
 
     private function referralResponse(

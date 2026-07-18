@@ -11,28 +11,23 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace FreeDSx\Ldap\Server\Middleware\Pipeline;
+namespace Tests\Support\FreeDSx\Ldap\Middleware;
 
 use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
+use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
+use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
 
 /**
- * Binds a single middleware to the next handler in the chain.
+ * Terminal handler that returns a preconfigured response stream (e.g. a streaming one that fails mid-drain).
  *
- * @internal
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final readonly class ChainStep implements MiddlewareHandlerInterface
+final readonly class StreamMiddlewareHandler implements MiddlewareHandlerInterface
 {
-    public function __construct(
-        private MiddlewareInterface $middleware,
-        private MiddlewareHandlerInterface $next,
-    ) {}
+    public function __construct(private ResponseStream $stream) {}
 
     public function handle(ServerRequestContext $context): ResponseStream
     {
-        return $this->middleware->process(
-            $context,
-            $this->next,
-        );
+        return $this->stream;
     }
 }
