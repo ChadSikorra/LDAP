@@ -71,33 +71,29 @@ final class HandlerContainerProvider implements ContainerProviderInterface
         return new ProtocolHandlerFactoryMap([
             HandlerId::Abandon->value => static fn(): ServerProtocolHandlerInterface
                 => new ServerAbandonHandler(),
-            HandlerId::Cancel->value => static fn(HandlerContext $context): ServerProtocolHandlerInterface
-                => new ServerCancelHandler($context->queue),
-            HandlerId::WhoAmI->value => static fn(HandlerContext $context): ServerProtocolHandlerInterface
-                => new ServerWhoAmIHandler($context->queue),
+            HandlerId::Cancel->value => static fn(): ServerProtocolHandlerInterface
+                => new ServerCancelHandler(),
+            HandlerId::WhoAmI->value => static fn(): ServerProtocolHandlerInterface
+                => new ServerWhoAmIHandler(),
             HandlerId::PasswordModify->value => fn(HandlerContext $context): ServerProtocolHandlerInterface
                 => $this->makePasswordModifyHandler($container, $context),
-            HandlerId::PasswordPolicyForward->value => fn(HandlerContext $context): ServerProtocolHandlerInterface
-                => $this->makeForwardHandler($container, $context),
+            HandlerId::PasswordPolicyForward->value => fn(): ServerProtocolHandlerInterface
+                => $this->makeForwardHandler($container),
             HandlerId::StartTls->value => static fn(HandlerContext $context): ServerProtocolHandlerInterface
                 => new ServerStartTlsHandler(
                     options: $container->get(ServerOptions::class),
-                    queue: $context->queue,
+                    connection: $context->queue,
                     eventLogger: $context->eventLogger,
                 ),
-            HandlerId::UnsupportedExtended->value => static fn(HandlerContext $context): ServerProtocolHandlerInterface
-                => new ServerUnsupportedExtendedHandler($context->queue),
-            HandlerId::RootDse->value => fn(HandlerContext $context): ServerProtocolHandlerInterface
-                => $this->makeRootDseHandler($container, $context),
-            HandlerId::Subschema->value => static fn(HandlerContext $context): ServerProtocolHandlerInterface
-                => new ServerSubschemaHandler(
-                    options: $container->get(ServerOptions::class),
-                    queue: $context->queue,
-                ),
-            HandlerId::Monitor->value => static fn(HandlerContext $context): ServerProtocolHandlerInterface
+            HandlerId::UnsupportedExtended->value => static fn(): ServerProtocolHandlerInterface
+                => new ServerUnsupportedExtendedHandler(),
+            HandlerId::RootDse->value => fn(): ServerProtocolHandlerInterface
+                => $this->makeRootDseHandler($container),
+            HandlerId::Subschema->value => static fn(): ServerProtocolHandlerInterface
+                => new ServerSubschemaHandler($container->get(ServerOptions::class)),
+            HandlerId::Monitor->value => static fn(): ServerProtocolHandlerInterface
                 => new ServerMonitorHandler(
                     options: $container->get(ServerOptions::class),
-                    queue: $context->queue,
                     snapshots: $container->get(MetricsSnapshotProvider::class),
                 ),
             HandlerId::Paging->value => fn(HandlerContext $context, ?SearchLimits $limits): ServerProtocolHandlerInterface
@@ -105,9 +101,9 @@ final class HandlerContainerProvider implements ContainerProviderInterface
             HandlerId::Sync->value => fn(HandlerContext $context, ?SearchLimits $limits): ServerProtocolHandlerInterface
                 => $this->makeSyncHandler($container, $context, $limits),
             HandlerId::Search->value => fn(HandlerContext $context, ?SearchLimits $limits): ServerProtocolHandlerInterface
-                => $this->makeSearchHandler($container, $context, $limits),
-            HandlerId::Unbind->value => static fn(HandlerContext $context): ServerProtocolHandlerInterface
-                => new ServerUnbindHandler($context->queue),
+                => $this->makeSearchHandler($container, $limits),
+            HandlerId::Unbind->value => static fn(): ServerProtocolHandlerInterface
+                => new ServerUnbindHandler(),
             HandlerId::Dispatch->value => fn(HandlerContext $context): ServerProtocolHandlerInterface
                 => $this->makeDispatchHandler($container, $context),
         ]);
@@ -120,7 +116,6 @@ final class HandlerContainerProvider implements ContainerProviderInterface
         $policyComponentFactory = $container->get(PasswordPolicyComponentFactory::class);
 
         return new ServerPasswordModifyHandler(
-            queue: $context->queue,
             service: new PasswordModifyService(
                 targetResolver: $container->get(PasswordModifyTargetResolver::class),
                 accessControl: $container->get(ServerOptions::class)->getAccessControl(),
@@ -135,33 +130,27 @@ final class HandlerContainerProvider implements ContainerProviderInterface
         );
     }
 
-    private function makeForwardHandler(
-        Container $container,
-        HandlerContext $context,
-    ): ServerProtocolHandlerInterface {
+    private function makeForwardHandler(Container $container): ServerProtocolHandlerInterface
+    {
         $backend = $container->get(HandlerFactoryInterface::class)->makeBackend();
         if (!$backend instanceof WritableLdapBackendInterface) {
-            return new ServerUnsupportedExtendedHandler($context->queue);
+            return new ServerUnsupportedExtendedHandler();
         }
 
         return new ServerPasswordPolicyForwardHandler(
-            queue: $context->queue,
             backend: $backend,
             policyResolver: $container->get(PasswordPolicyComponentFactory::class)->makeResolver(),
             engine: $container->get(PasswordPolicyEngine::class),
         );
     }
 
-    private function makeRootDseHandler(
-        Container $container,
-        HandlerContext $context,
-    ): ServerRootDseHandler {
+    private function makeRootDseHandler(Container $container): ServerRootDseHandler
+    {
         $handlerFactory = $container->get(HandlerFactoryInterface::class);
         $backend = $handlerFactory->makeBackend();
 
         return new ServerRootDseHandler(
             options: $container->get(ServerOptions::class),
-            queue: $context->queue,
             backend: $backend,
             rootDseHandler: $handlerFactory->makeRootDseHandler(),
             supportsSync: $this->syncJournalFor($container, $backend) !== null,
@@ -223,7 +212,6 @@ final class HandlerContainerProvider implements ContainerProviderInterface
         );
 
         return new ServerDispatchHandler(
-            queue: $context->queue,
             backend: $handlerFactory->makeBackend(),
             writeDispatcher: $policyWriteHandler !== null
                 ? $handlerFactory->makeWriteDispatcher($policyWriteHandler)
@@ -235,13 +223,11 @@ final class HandlerContainerProvider implements ContainerProviderInterface
 
     private function makeSearchHandler(
         Container $container,
-        HandlerContext $context,
         ?SearchLimits $searchLimits,
     ): ServerSearchHandler {
         $options = $container->get(ServerOptions::class);
 
         return new ServerSearchHandler(
-            queue: $context->queue,
             backend: $container->get(HandlerFactoryInterface::class)->makeBackend(),
             filterEvaluator: $options->getFilterEvaluator(),
             accessControl: $options->getAccessControl(),
@@ -258,7 +244,6 @@ final class HandlerContainerProvider implements ContainerProviderInterface
         $options = $container->get(ServerOptions::class);
 
         return new ServerPagingHandler(
-            queue: $context->queue,
             backend: $container->get(HandlerFactoryInterface::class)->makeBackend(),
             filterEvaluator: $options->getFilterEvaluator(),
             accessControl: $options->getAccessControl(),
