@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Proxy;
 
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
+use FreeDSx\Ldap\Protocol\Queue\Response\ResponseWriter;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerProtocolHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\MiddlewareHandlerInterface;
 use FreeDSx\Ldap\Server\Middleware\Pipeline\ServerRequestContext;
@@ -29,6 +30,7 @@ final readonly class ProxyRequestPipeline implements MiddlewareHandlerInterface
     public function __construct(
         private ServerProtocolHandlerInterface $startTlsHandler,
         private MiddlewareHandlerInterface $forwarder,
+        private ResponseWriter $responseWriter,
     ) {}
 
     /**
@@ -39,9 +41,14 @@ final readonly class ProxyRequestPipeline implements MiddlewareHandlerInterface
         $request = $context->message->getRequest();
 
         if ($request instanceof ExtendedRequest && $request->getName() === ExtendedRequest::OID_START_TLS) {
-            return $this->startTlsHandler->handleRequest(
+            $stream = $this->startTlsHandler->handleRequest(
                 $context->message,
                 $context->tokenOrFail(),
+            );
+
+            return $this->responseWriter->write(
+                $stream,
+                $context->message->getMessageId(),
             );
         }
 
