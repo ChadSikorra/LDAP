@@ -17,10 +17,14 @@ use FreeDSx\Asn1\Asn1;
 use FreeDSx\Asn1\Encoder\EncoderInterface;
 use FreeDSx\Asn1\Type\IncompleteType;
 use FreeDSx\Ldap\Control\Control;
+use FreeDSx\Ldap\Control\Sync\SyncStateControl;
+use FreeDSx\Ldap\Entry\Attribute;
+use FreeDSx\Ldap\Entry\Entry;
 use FreeDSx\Ldap\Operation\Request\AbandonRequest;
 use FreeDSx\Ldap\Operation\Request\CancelRequest;
 use FreeDSx\Ldap\Operation\Request\DeleteRequest;
 use FreeDSx\Ldap\Operation\Response\DeleteResponse;
+use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Protocol\LdapEncoder;
 use FreeDSx\Ldap\Protocol\LdapMessageRequest;
 use FreeDSx\Ldap\Protocol\LdapMessageResponse;
@@ -416,6 +420,83 @@ final class ServerQueueTest extends TestCase
             ['a', 'b'],
             $log->entries,
         );
+    }
+
+    public function test_it_encodes_a_search_result_entry_identically_to_the_generic_path(): void
+    {
+        $message = new LdapMessageResponse(
+            2,
+            new SearchResultEntry(new Entry(
+                'cn=foo,dc=example,dc=com',
+                new Attribute('cn', 'foo'),
+                new Attribute('objectClass', 'top', 'person'),
+                new Attribute('sn', 'Foo'),
+                new Attribute('userCertificate;binary', "\x00\x01\x02"),
+                new Attribute('emptyAttribute'),
+            )),
+        );
+
+        self::assertSame(
+            (new LdapEncoder())->encode($message->toAsn1()),
+            $this->captureSentBytes($message),
+        );
+    }
+
+    public function test_it_encodes_a_search_result_entry_with_controls_identically(): void
+    {
+        $message = new LdapMessageResponse(
+            3,
+            new SearchResultEntry(new Entry(
+                'cn=bar,dc=example,dc=com',
+                new Attribute('cn', 'bar'),
+            )),
+            new Control('1.2.3.4'),
+        );
+
+        self::assertSame(
+            (new LdapEncoder())->encode($message->toAsn1()),
+            $this->captureSentBytes($message),
+        );
+    }
+
+    public function test_it_encodes_a_sync_entry_with_a_state_control_identically(): void
+    {
+        $message = new LdapMessageResponse(
+            4,
+            new SearchResultEntry(new Entry(
+                'cn=synced,dc=example,dc=com',
+                new Attribute('cn', 'synced'),
+                new Attribute('objectClass', 'top', 'person'),
+            )),
+            new SyncStateControl(
+                SyncStateControl::STATE_ADD,
+                str_repeat("\x11", 16),
+            ),
+        );
+
+        self::assertSame(
+            (new LdapEncoder())->encode($message->toAsn1()),
+            $this->captureSentBytes($message),
+        );
+    }
+
+    /**
+     * Sends the message through a real-encoder queue and returns the bytes written to the socket.
+     */
+    private function captureSentBytes(LdapMessageResponse $message): string
+    {
+        $written = '';
+        $socket = $this->createMock(Socket::class);
+        $socket->method('write')->willReturnCallback(function (string $data) use (&$written, $socket): Socket {
+            $written .= $data;
+
+            return $socket;
+        });
+
+        # A null encoder builds a real LdapEncoder, so the real search-entry fast path runs.
+        (new ServerQueue($socket))->sendMessage($message);
+
+        return $written;
     }
 
     private function makeQueueWithEncodedRequest(LdapMessageRequest $message): ServerQueue

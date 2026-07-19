@@ -37,7 +37,7 @@ use FreeDSx\Ldap\Exception\ProtocolException;
  */
 class SearchResultEntry implements ResponseInterface
 {
-    protected const TAG_NUMBER = 4;
+    public const TAG_NUMBER = 4;
 
     public function __construct(private readonly Entry $entry) {}
 
