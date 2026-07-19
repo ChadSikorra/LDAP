@@ -67,6 +67,11 @@ final class Config
     public const DEFAULT_SEARCH_SUB_SIZE_LIMIT = 500;
 
     /**
+     * A sorted search models a bounded display page typically, so give it a realistic limit.
+     */
+    public const DEFAULT_SEARCH_SORT_SIZE_LIMIT = 50;
+
+    /**
      * Mirrors the realistic ServerOptions default so load tests run bounded rather than with lookthrough disabled.
      */
     public const DEFAULT_MAX_SEARCH_LOOKTHROUGH = 5000;
@@ -91,6 +96,7 @@ final class Config
         public readonly string $writeBase = self::DEFAULT_WRITE_BASE,
         public readonly bool $jit = true,
         public readonly int $searchSubSizeLimit = self::DEFAULT_SEARCH_SUB_SIZE_LIMIT,
+        public readonly int $searchSortSizeLimit = self::DEFAULT_SEARCH_SORT_SIZE_LIMIT,
         public readonly bool $monitor = true,
         public readonly ?string $searchAttributes = null,
         public readonly bool $attributesOnly = false,
@@ -106,6 +112,7 @@ final class Config
         $this->assertNonNegative('warmup', $warmup);
         $this->assertNonNegative('seed-entries', $seedEntries);
         $this->assertNonNegative('search-sub-size-limit', $searchSubSizeLimit);
+        $this->assertNonNegative('search-sort-size-limit', $searchSortSizeLimit);
         $this->assertNonNegative('seed-attributes', $seedAttributes);
         $this->assertNonNegative('max-search-lookthrough', $maxSearchLookthrough);
 

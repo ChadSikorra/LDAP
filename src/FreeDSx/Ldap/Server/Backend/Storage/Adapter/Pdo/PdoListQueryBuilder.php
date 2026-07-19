@@ -15,6 +15,7 @@ namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Pdo;
 
 use FreeDSx\Ldap\Control\Sorting\SortKey;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\PdoDialectInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect\SortKeySpec;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqlFilterResult;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\SqlFilter\SqlFilterUtility;
 
@@ -58,7 +59,7 @@ final readonly class PdoListQueryBuilder
         };
 
         if ($sortKeys !== []) {
-            $query = $this->appendSortClause(
+            $query = $this->applySort(
                 $query,
                 $sortKeys,
             );
@@ -218,28 +219,27 @@ final readonly class PdoListQueryBuilder
     /**
      * @param SortKey[] $sortKeys
      */
-    private function appendSortClause(
+    private function applySort(
         SqlQuery $query,
         array $sortKeys,
     ): SqlQuery {
-        $clauses = [];
-        $params = [];
-
-        foreach ($sortKeys as $sortKey) {
-            $clause = $this->dialect->sortKeyClause(
+        $specs = array_values(array_map(
+            static fn(SortKey $sortKey): SortKeySpec => new SortKeySpec(
                 strtolower($sortKey->getAttribute()),
                 $sortKey->getUseReverseOrder() ? 'DESC' : 'ASC',
-            );
-            $clauses[] = $clause->sql;
-            $params = array_merge(
-                $params,
-                $clause->params,
-            );
-        }
+            ),
+            $sortKeys,
+        ));
 
-        return $query->appending(
-            ' ORDER BY ' . implode(', ', $clauses),
-            $params,
+        $sorted = $this->dialect->sortedQuery(
+            $query->sql,
+            $query->params,
+            $specs,
+        );
+
+        return new SqlQuery(
+            $sorted->sql,
+            $sorted->params,
         );
     }
 }

@@ -18,11 +18,15 @@ namespace Tests\Performance\FreeDSx\Ldap\Threshold;
  */
 final class ThresholdSet
 {
+    /**
+     * @param array<string, float> $perOpMaxP99Ms per-op p99 ceilings (ms) that override maxP99Ms for the named op
+     */
     public function __construct(
         public readonly ?float $maxErrorRate = null,
         public readonly ?int $maxErrors = null,
         public readonly ?float $minThroughput = null,
         public readonly ?float $maxP99Ms = null,
+        public readonly array $perOpMaxP99Ms = [],
     ) {}
 
     public function isEmpty(): bool
@@ -30,7 +34,8 @@ final class ThresholdSet
         return $this->maxErrorRate === null
             && $this->maxErrors === null
             && $this->minThroughput === null
-            && $this->maxP99Ms === null;
+            && $this->maxP99Ms === null
+            && $this->perOpMaxP99Ms === [];
     }
 
     /**
@@ -43,6 +48,10 @@ final class ThresholdSet
             maxErrors: $overrides->maxErrors ?? $this->maxErrors,
             minThroughput: $overrides->minThroughput ?? $this->minThroughput,
             maxP99Ms: $overrides->maxP99Ms ?? $this->maxP99Ms,
+            perOpMaxP99Ms: array_merge(
+                $this->perOpMaxP99Ms,
+                $overrides->perOpMaxP99Ms,
+            ),
         );
     }
 }

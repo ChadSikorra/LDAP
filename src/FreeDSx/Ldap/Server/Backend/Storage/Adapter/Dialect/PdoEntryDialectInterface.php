@@ -109,10 +109,14 @@ interface PdoEntryDialectInterface
     public function maxDnLength(): ?int;
 
     /**
-     * Returns the ORDER BY term and bound params for one sort key, with NULL/missing values ordered per RFC 2891 §2.2.
+     * Rewrites the base entry query with an ORDER BY for the sort keys, NULL/missing values ordered per RFC 2891 §2.2.
+     *
+     * @param list<string> $baseParams
+     * @param list<SortKeySpec> $sortKeys
      */
-    public function sortKeyClause(
-        string $attributeLower,
-        string $direction,
-    ): SortClause;
+    public function sortedQuery(
+        string $baseSql,
+        array $baseParams,
+        array $sortKeys,
+    ): SortedQuery;
 }

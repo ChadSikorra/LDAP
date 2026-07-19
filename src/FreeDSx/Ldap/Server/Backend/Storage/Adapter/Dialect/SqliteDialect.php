@@ -74,23 +74,35 @@ final class SqliteDialect implements PdoDialectInterface
         return null;
     }
 
-    public function sortKeyClause(
-        string $attributeLower,
-        string $direction,
-    ): SortClause {
-        // RFC 2891 §2.2: NULL is the largest value, so missing entries sort last (ASC) or first (DESC).
-        $nulls = $direction === 'ASC'
-            ? 'NULLS LAST'
-            : 'NULLS FIRST';
+    public function sortedQuery(
+        string $baseSql,
+        array $baseParams,
+        array $sortKeys,
+    ): SortedQuery {
+        $terms = [];
+        $sortParams = [];
 
-        return new SortClause(
-            <<<SQL
+        // RFC 2891 §2.2: NULL is the largest value, so missing entries sort last (ASC) or first (DESC). Native
+        // NULLS ordering evaluates the correlated subquery once, so the base query needs no wrapping.
+        foreach ($sortKeys as $sortKey) {
+            $nulls = $sortKey->direction === 'ASC'
+                ? 'NULLS LAST'
+                : 'NULLS FIRST';
+            $terms[] = <<<SQL
                 (SELECT MIN(eav.value_lower)
                  FROM entry_attribute_values eav
                  WHERE eav.entry_lc_dn = LOWER(dn)
-                   AND eav.attr_name_lower = ?) $direction $nulls
-            SQL,
-            [$attributeLower],
+                   AND eav.attr_name_lower = ?) {$sortKey->direction} {$nulls}
+                SQL;
+            $sortParams[] = $sortKey->attributeLower;
+        }
+
+        return new SortedQuery(
+            $baseSql . ' ORDER BY ' . implode(', ', $terms),
+            array_merge(
+                $baseParams,
+                $sortParams,
+            ),
         );
     }
 

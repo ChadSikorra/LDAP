@@ -215,6 +215,13 @@ final class LoadTestCommand extends Command
                 (string) Config::DEFAULT_SEARCH_SUB_SIZE_LIMIT,
             )
             ->addOption(
+                'search-sort-size-limit',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Per-request size limit applied to search-sort ops (0 = unlimited)',
+                (string) Config::DEFAULT_SEARCH_SORT_SIZE_LIMIT,
+            )
+            ->addOption(
                 'search-attributes',
                 null,
                 InputOption::VALUE_REQUIRED,
@@ -445,6 +452,7 @@ final class LoadTestCommand extends Command
             // Swoole keeps it. --no-jit forces it off either way.
             jit: !(bool) $input->getOption('no-jit') && $runner !== 'pcntl',
             searchSubSizeLimit: $this->requireInt($input, 'search-sub-size-limit'),
+            searchSortSizeLimit: $this->requireInt($input, 'search-sort-size-limit'),
             monitor: (bool) $input->getOption('monitor'),
             searchAttributes: $this->optionalString($input, 'search-attributes'),
             attributesOnly: (bool) $input->getOption('attributes-only'),

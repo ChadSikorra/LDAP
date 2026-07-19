@@ -316,18 +316,24 @@ final class Worker
     }
 
     /**
-     * Subtree search with a server-side sort; the sort key is resolved per candidate from the sidecar.
+     * Server-side sort over a selective subset (a realistic sorted search filters first), size-limited to a display page.
      */
     private function doSearchSort(LdapClient $client): void
     {
         $filter = $this->config->seedEntries > 0
-            ? Filters::startsWith('cn', 'seed-')
+            ? Filters::startsWith('cn', 'seed-1')
             : Filters::startsWith('cn', '');
 
+        $request = $this->newSearch($filter)
+            ->base($this->config->baseDn)
+            ->useSubtreeScope();
+
+        if ($this->config->searchSortSizeLimit > 0) {
+            $request->sizeLimit($this->config->searchSortSizeLimit);
+        }
+
         $client->search(
-            $this->newSearch($filter)
-                ->base($this->config->baseDn)
-                ->useSubtreeScope(),
+            $request,
             Controls::sort('sn'),
         );
     }

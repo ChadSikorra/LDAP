@@ -47,10 +47,11 @@ final class ThresholdEvaluator
             );
         }
 
-        if ($thresholds->maxP99Ms !== null) {
+        if ($thresholds->maxP99Ms !== null || $thresholds->perOpMaxP99Ms !== []) {
             $gates[] = $this->evaluateMaxP99(
                 $snapshot,
                 $thresholds->maxP99Ms,
+                $thresholds->perOpMaxP99Ms,
             );
         }
 
@@ -122,32 +123,48 @@ final class ThresholdEvaluator
     }
 
     /**
+     * Gates each op against its own ceiling (per-op override, else the global), reporting the op nearest its limit.
+     *
+     * @param array<string, float> $perOpMaxMs
+     *
      * @return array{gate: string, passed: bool, expected: string, actual: string}
      */
     private function evaluateMaxP99(
         StatsSnapshot $snapshot,
-        float $maxMs,
+        ?float $globalMaxMs,
+        array $perOpMaxMs,
     ): array {
         $worstOp = null;
-        $worstP99Ns = 0;
+        $worstRatio = 0.0;
+        $worstP99Ms = 0.0;
+        $worstCeilingMs = 0.0;
 
         foreach ($snapshot->operations() as $op) {
-            $p99 = $snapshot->latencyStats($op)['p99'];
+            $ceilingMs = $perOpMaxMs[$op] ?? $globalMaxMs;
 
-            if ($p99 <= $worstP99Ns) {
+            if ($ceilingMs === null) {
                 continue;
             }
 
-            $worstP99Ns = $p99;
-            $worstOp = $op;
-        }
+            $p99Ms = $snapshot->latencyStats($op)['p99'] / 1_000_000;
+            $ratio = $p99Ms / $ceilingMs;
 
-        $worstP99Ms = $worstP99Ns / 1_000_000;
+            if ($ratio <= $worstRatio) {
+                continue;
+            }
+
+            $worstRatio = $ratio;
+            $worstOp = $op;
+            $worstP99Ms = $p99Ms;
+            $worstCeilingMs = $ceilingMs;
+        }
 
         return [
             'gate' => 'max-p99-ms',
-            'passed' => $worstP99Ms <= $maxMs,
-            'expected' => sprintf('<= %.2f ms', $maxMs),
+            'passed' => $worstOp === null || $worstP99Ms <= $worstCeilingMs,
+            'expected' => $worstOp !== null
+                ? sprintf('<= %.2f ms (%s)', $worstCeilingMs, $worstOp)
+                : 'no gated ops',
             'actual' => $worstOp !== null
                 ? sprintf('%.2f ms (%s)', $worstP99Ms, $worstOp)
                 : 'no data',
