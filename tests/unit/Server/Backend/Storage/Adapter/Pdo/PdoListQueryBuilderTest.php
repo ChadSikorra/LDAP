@@ -58,7 +58,7 @@ final class PdoListQueryBuilderTest extends TestCase
         self::assertSame(['cn'], $params);
     }
 
-    public function test_mysql_ascending_emulates_nulls_last_with_two_params(): void
+    public function test_mysql_ascending_projects_the_key_once_and_orders_nulls_last(): void
     {
         [$sql, $params] = $this->rootQuery(
             new PdoListQueryBuilder(new MysqlDialect()),
@@ -66,11 +66,12 @@ final class PdoListQueryBuilderTest extends TestCase
             SortKey::ascending('cn'),
         );
 
-        self::assertStringContainsString('IS NULL ASC', $sql);
-        self::assertSame(['cn', 'cn'], $params);
+        self::assertStringContainsString('AS __sk0', $sql);
+        self::assertStringContainsString('ORDER BY __sk0 IS NULL ASC, __sk0 ASC', $sql);
+        self::assertSame(['cn'], $params);
     }
 
-    public function test_mysql_descending_emulates_nulls_first_with_two_params(): void
+    public function test_mysql_descending_projects_the_key_once_and_orders_nulls_first(): void
     {
         [$sql, $params] = $this->rootQuery(
             new PdoListQueryBuilder(new MysqlDialect()),
@@ -78,21 +79,41 @@ final class PdoListQueryBuilderTest extends TestCase
             SortKey::descending('cn'),
         );
 
-        self::assertStringContainsString('IS NULL DESC', $sql);
-        self::assertSame(['cn', 'cn'], $params);
+        self::assertStringContainsString('ORDER BY __sk0 IS NULL DESC, __sk0 DESC', $sql);
+        self::assertSame(['cn'], $params);
     }
 
-    public function test_mysql_multi_key_preserves_param_order(): void
+    public function test_mysql_multi_key_projects_each_key_and_orders_in_sequence(): void
     {
-        [, $params] = $this->rootQuery(
+        [$sql, $params] = $this->rootQuery(
             new PdoListQueryBuilder(new MysqlDialect()),
             null,
             SortKey::ascending('sn'),
             SortKey::descending('cn'),
         );
 
+        self::assertStringContainsString(
+            'ORDER BY __sk0 IS NULL ASC, __sk0 ASC, __sk1 IS NULL DESC, __sk1 DESC',
+            $sql,
+        );
         self::assertSame(
-            ['sn', 'sn', 'cn', 'cn'],
+            ['sn', 'cn'],
+            $params,
+        );
+    }
+
+    public function test_mysql_sort_params_bind_before_the_base_query_params(): void
+    {
+        [$sql, $params] = $this->rootQuery(
+            new PdoListQueryBuilder(new MysqlDialect()),
+            new SqlFilterResult('eav.value_lower = ?', ['smith']),
+            SortKey::ascending('sn'),
+        );
+
+        // The projected sort key precedes the nested base query, so its param binds first.
+        self::assertStringContainsString('FROM (', $sql);
+        self::assertSame(
+            ['sn', 'smith'],
             $params,
         );
     }

@@ -139,24 +139,48 @@ trait PdoDialectTrait
         return 'INSERT INTO entry_attribute_values (entry_lc_dn, attr_name_lower, value_lower, value_original) VALUES ';
     }
 
-    public function sortKeyClause(
-        string $attributeLower,
-        string $direction,
-    ): SortClause {
-        $expr = <<<SQL
-            (SELECT MIN(eav.value_lower)
-             FROM entry_attribute_values eav
-             WHERE eav.entry_lc_dn = LOWER(dn)
-               AND eav.attr_name_lower = ?)
+    public function sortedQuery(
+        string $baseSql,
+        array $baseParams,
+        array $sortKeys,
+    ): SortedQuery {
+        $projections = [];
+        $orderTerms = [];
+        $sortParams = [];
+
+        // MySQL/MariaDB lack NULLS FIRST/LAST and would re-run the correlated subquery per ORDER BY term; project the
+        // key once into a derived table, then order by the materialised column (single evaluation per candidate).
+        foreach ($sortKeys as $index => $sortKey) {
+            $alias = '__sk' . $index;
+            $projections[] = <<<SQL
+                (SELECT MIN(eav.value_lower)
+                 FROM entry_attribute_values eav
+                 WHERE eav.entry_lc_dn = LOWER(__base.dn)
+                   AND eav.attr_name_lower = ?) AS {$alias}
+                SQL;
+            $orderTerms[] = "{$alias} IS NULL {$sortKey->direction}, {$alias} {$sortKey->direction}";
+            $sortParams[] = $sortKey->attributeLower;
+        }
+
+        $projection = implode(",\n", $projections);
+        $order = implode(', ', $orderTerms);
+        $sql = <<<SQL
+            SELECT dn, attributes FROM (
+                SELECT __base.dn, __base.attributes,
+                {$projection}
+                FROM ({$baseSql}) __base
+            ) __keyed
+            ORDER BY {$order}
             SQL;
 
-        // MySQL/MariaDB lack NULLS FIRST/LAST...emulate via an "IS NULL" ordering prefix.
-        return new SortClause(
-            $expr . ' IS NULL ' . $direction . ', ' . $expr . ' ' . $direction,
-            [
-                $attributeLower,
-                $attributeLower,
-            ],
+        // The projected subqueries precede the nested base query textually.
+        // So their params bind first.
+        return new SortedQuery(
+            $sql,
+            array_merge(
+                $sortParams,
+                $baseParams,
+            ),
         );
     }
 }

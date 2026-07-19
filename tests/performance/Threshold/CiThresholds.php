@@ -65,11 +65,14 @@ final class CiThresholds
                 maxErrors: 0,
                 minThroughput: 720.0,
                 maxP99Ms: 200.0,
+                // Server-sides sort file-sorts + materializes per query, so it's going to be slower.
+                perOpMaxP99Ms: ['search-sort' => 250.0],
             ),
             'mysql:swoole' => new ThresholdSet(
                 maxErrors: 0,
                 minThroughput: 720.0,
                 maxP99Ms: 200.0,
+                perOpMaxP99Ms: ['search-sort' => 250.0],
             ),
             default => throw new InvalidArgumentException(sprintf(
                 'Unknown CI profile "%s". Known: %s.',

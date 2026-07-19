@@ -14,11 +14,11 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Server\Backend\Storage\Adapter\Dialect;
 
 /**
- * ORDER BY term for one sort key plus its bound parameters.
+ * A base entry query rewritten with an ORDER BY, plus its parameters in bind order.
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-final readonly class SortClause
+final readonly class SortedQuery
 {
     /**
      * @param list<string> $params
