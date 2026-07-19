@@ -13,14 +13,18 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Protocol;
 
+use FreeDSx\Asn1\Asn1;
 use FreeDSx\Asn1\Encoder\EncoderInterface;
 use FreeDSx\Asn1\Encoder\EncoderOptions;
 use FreeDSx\Asn1\Exception\EncoderException;
 use FreeDSx\Asn1\Exception\PduLengthException;
+use FreeDSx\Asn1\Helper\AttributeEntryEncoder;
+use FreeDSx\Asn1\Type\SequenceOfType;
 use FreeDSx\Ldap\Exception\ProtocolException;
 use FreeDSx\Ldap\Exception\RequestSizeExceededException;
 use FreeDSx\Ldap\Exception\UnsolicitedNotificationException;
 use FreeDSx\Ldap\Operation\Response\ExtendedResponse;
+use FreeDSx\Ldap\Operation\Response\SearchResultEntry;
 use FreeDSx\Ldap\Protocol\Queue\MessageWrapperInterface;
 use FreeDSx\Socket\Exception\ConnectionException;
 use FreeDSx\Socket\Queue\Asn1MessageQueue;
@@ -45,6 +49,8 @@ class LdapQueue extends Asn1MessageQueue
 
     private ?MessageWrapperInterface $messageWrapper = null;
 
+    private readonly AttributeEntryEncoder $entryEncoder;
+
     public function __construct(
         Socket $socket,
         ?EncoderInterface $encoder = null,
@@ -54,6 +60,7 @@ class LdapQueue extends Asn1MessageQueue
             $socket,
             $encoder ?? new LdapEncoder(new EncoderOptions(maxLength: $maxReceiveSize)),
         );
+        $this->entryEncoder = new AttributeEntryEncoder();
     }
 
     /**
@@ -165,7 +172,7 @@ class LdapQueue extends Asn1MessageQueue
         $buffer = '';
 
         foreach ($messages as $message) {
-            $encoded = $this->encoder->encode($message->toAsn1());
+            $encoded = $this->encodeMessage($message);
             $this->onMessageEncoded($encoded);
             $buffer .= $this->messageWrapper !== null ? $this->messageWrapper->wrap($encoded) : $encoded;
             $bufferLen = strlen($buffer);
@@ -249,5 +256,62 @@ class LdapQueue extends Asn1MessageQueue
         }
 
         return  $message;
+    }
+
+    /**
+     * Encodes a message to BER, taking a dedicated fast path for search result entries.
+     *
+     * @throws EncoderException
+     */
+    private function encodeMessage(LdapMessage $message): string
+    {
+        $response = $message instanceof LdapMessageResponse
+            ? $message->getResponse()
+            : null;
+
+        if (!($response instanceof SearchResultEntry)) {
+            return $this->encoder->encode($message->toAsn1());
+        }
+
+        $envelope = Asn1::sequence(
+            Asn1::integer($message->getMessageId()),
+            Asn1::raw($this->encodeSearchResultEntry($response)),
+        );
+
+        $controls = $message->controls()->toArray();
+        if ($controls !== []) {
+            /** @var SequenceOfType $context */
+            $context = Asn1::context(
+                tagNumber: 0,
+                type: Asn1::sequenceOf(),
+            );
+            foreach ($controls as $control) {
+                $context->addChild($control->toAsn1());
+            }
+            $envelope->addChild($context);
+        }
+
+        return $this->encoder->encode($envelope);
+    }
+
+    /**
+     * @throws EncoderException
+     */
+    private function encodeSearchResultEntry(SearchResultEntry $response): string
+    {
+        $entry = $response->getEntry();
+        $attributes = [];
+        foreach ($entry->getAttributes() as $attribute) {
+            $attributes[] = [
+                $attribute->getDescription(),
+                $attribute->getValues(),
+            ];
+        }
+
+        return $this->entryEncoder->encode(
+            SearchResultEntry::TAG_NUMBER,
+            $entry->getDn()->toString(),
+            $attributes,
+        );
     }
 }
