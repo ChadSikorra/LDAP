@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS entry_attribute_values (
 
 CREATE INDEX IF NOT EXISTS idx_eav_attr_value ON entry_attribute_values (attr_name_lower, value_lower);
 
-CREATE INDEX IF NOT EXISTS idx_eav_entry ON entry_attribute_values (entry_lc_dn);
+-- Covering (entry_lc_dn leads): entry-scoped lookups plus index-only sort MIN() and correlated EXISTS.
+CREATE INDEX IF NOT EXISTS idx_eav_entry ON entry_attribute_values (entry_lc_dn, attr_name_lower, value_lower);
 
 CREATE TABLE IF NOT EXISTS ldap_change_journal (
     seq          INTEGER NOT NULL PRIMARY KEY,
