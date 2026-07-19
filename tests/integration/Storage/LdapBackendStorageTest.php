@@ -222,6 +222,74 @@ class LdapBackendStorageTest extends ServerTestCase
         );
     }
 
+    public function testInexactFilterOnUnrequestedAttributeStillMatchesAndProjects(): void
+    {
+        $this->authenticateUser();
+
+        $this->ldapClient()->create(Entry::fromArray(
+            'cn=hazard,dc=foo,dc=bar',
+            [
+                'cn' => 'hazard',
+                'sn' => 'Smithers',
+                'mail' => 'hazard@foo.bar',
+                'objectClass' => 'inetOrgPerson',
+            ],
+        ));
+
+        // Substring is inexact: SQL yields candidates and PHP re-evaluates (sn) on the hydrated entry, so storage must
+        // materialize sn (filter-referenced) even though only cn was requested; projection then drops it.
+        $entries = $this->ldapClient()->search(
+            Operations::search(Filters::contains('sn', 'mither'))
+                ->base('dc=foo,dc=bar')
+                ->useSubtreeScope()
+                ->select('cn'),
+        );
+
+        $entry = $entries->first();
+        self::assertNotNull($entry);
+        self::assertSame(
+            'cn=hazard,dc=foo,dc=bar',
+            $entry->getDn()->toString(),
+        );
+        self::assertSame(
+            ['hazard'],
+            $entry->get(new Attribute('cn'), true)?->getValues(),
+        );
+        self::assertNull($entry->get(new Attribute('sn'), true));
+    }
+
+    public function testNoAttributesRequestStillMatchesAnInexactFilter(): void
+    {
+        $this->authenticateUser();
+
+        $this->ldapClient()->create(Entry::fromArray(
+            'cn=noattr,dc=foo,dc=bar',
+            [
+                'cn' => 'noattr',
+                'sn' => 'Jones',
+                'objectClass' => 'inetOrgPerson',
+            ],
+        ));
+
+        $entries = $this->ldapClient()->search(
+            Operations::search(Filters::contains('sn', 'one'))
+                ->base('dc=foo,dc=bar')
+                ->useSubtreeScope()
+                ->select('1.1'),
+        );
+
+        $entry = $entries->first();
+        self::assertNotNull($entry);
+        self::assertSame(
+            'cn=noattr,dc=foo,dc=bar',
+            $entry->getDn()->toString(),
+        );
+        self::assertCount(
+            0,
+            $entry->getAttributes(),
+        );
+    }
+
     public function testAddDuplicateDnFails(): void
     {
         $this->ldapClient()->bind('cn=user,dc=foo,dc=bar', '12345');

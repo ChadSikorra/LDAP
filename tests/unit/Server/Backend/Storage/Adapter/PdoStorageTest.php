@@ -407,6 +407,65 @@ final class PdoStorageTest extends TestCase
         self::assertCount(2, $results);
     }
 
+    public function test_list_materializes_only_the_allowed_base_attributes(): void
+    {
+        $this->storage->store(new Entry(
+            new Dn('cn=narrow,dc=example,dc=com'),
+            new Attribute('cn', 'narrow'),
+            new Attribute('cn;lang-en', 'Narrow EN'),
+            new Attribute('sn', 'Surname'),
+            new Attribute('mail', 'narrow@example.com'),
+        ));
+
+        $narrow = $this->firstByDn(
+            $this->storage->list(new StorageListOptions(
+                baseDn: new Dn(''),
+                subtree: true,
+                filter: new AndFilter(),
+                attributes: ['cn'],
+            ))->entries,
+            'cn=narrow,dc=example,dc=com',
+        );
+
+        self::assertNotNull($narrow);
+        // Only the allowed base name is built; its option subtype rides along, sn and mail are skipped.
+        self::assertSame(
+            ['cn', 'cn;lang-en'],
+            array_map(
+                static fn(Attribute $attribute): string => $attribute->getDescription(),
+                $narrow->getAttributes(),
+            ),
+        );
+    }
+
+    public function test_list_with_null_attributes_materializes_every_attribute(): void
+    {
+        $this->storage->store(new Entry(
+            new Dn('cn=full,dc=example,dc=com'),
+            new Attribute('cn', 'full'),
+            new Attribute('sn', 'Surname'),
+            new Attribute('mail', 'full@example.com'),
+        ));
+
+        $full = $this->firstByDn(
+            $this->storage->list(new StorageListOptions(
+                baseDn: new Dn(''),
+                subtree: true,
+                filter: new AndFilter(),
+            ))->entries,
+            'cn=full,dc=example,dc=com',
+        );
+
+        self::assertNotNull($full);
+        self::assertSame(
+            ['cn', 'sn', 'mail'],
+            array_map(
+                static fn(Attribute $attribute): string => $attribute->getDescription(),
+                $full->getAttributes(),
+            ),
+        );
+    }
+
     public function test_interleaved_lists_do_not_share_cursor_state(): void
     {
         $this->subject->add(
@@ -1125,6 +1184,22 @@ final class PdoStorageTest extends TestCase
     protected function makeJournalingStorage(): ChangeJournalingInterface
     {
         return PdoStorageFactory::forPcntl(PdoConfig::forSqlite(':memory:'));
+    }
+
+    /**
+     * @param iterable<Entry> $entries
+     */
+    private function firstByDn(
+        iterable $entries,
+        string $dn,
+    ): ?Entry {
+        foreach ($entries as $entry) {
+            if ($entry->getDn()->toString() === $dn) {
+                return $entry;
+            }
+        }
+
+        return null;
     }
 
     /**

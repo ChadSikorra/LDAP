@@ -20,7 +20,7 @@ use Stringable;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class EqualityFilter implements FilterInterface, Stringable
+class EqualityFilter implements FilterInterface, FilterAttributeInterface, Stringable
 {
     use AttributeValueAssertionTrait;
 

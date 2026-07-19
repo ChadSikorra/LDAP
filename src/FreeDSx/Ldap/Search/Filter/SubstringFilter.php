@@ -40,7 +40,7 @@ use Stringable;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class SubstringFilter implements FilterInterface, Stringable
+class SubstringFilter implements FilterInterface, FilterAttributeInterface, Stringable
 {
     use FilterAttributeTrait;
 
