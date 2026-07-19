@@ -38,7 +38,7 @@ use Stringable;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class MatchingRuleFilter implements FilterInterface, Stringable
+class MatchingRuleFilter implements FilterInterface, FilterAttributeInterface, Stringable
 {
     protected const CHOICE_TAG = 9;
 

@@ -16,6 +16,7 @@ namespace FreeDSx\Ldap\Server\Backend\Storage;
 use FreeDSx\Ldap\Control\Control;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Control\Sorting\SortingControl;
+use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
@@ -34,6 +35,7 @@ use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\MoveCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Command\UpdateCommand;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
+use FreeDSx\Ldap\Search\Filter\FilterAttributes;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\DnTooLongException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\InvalidAttributeException;
 use FreeDSx\Ldap\Server\Backend\Storage\Exception\StorageIoException;
@@ -207,6 +209,7 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 ? $sortingControl->getSortKeys()
                 : [],
             lookthroughLimit: $limits->maxSearchLookthrough,
+            attributes: $this->materializedAttributes($request),
             isIntegerOrderedResolver: fn(string $attribute): ?bool => $this->schema?->isIntegerOrdered($attribute),
         );
 
@@ -496,6 +499,43 @@ final class WritableStorageBackend implements WritableLdapBackendInterface, Rese
                 $context,
             );
         });
+    }
+
+    /**
+     * Base attribute names storage must materialize (requested plus filter-referenced), or null to materialize all.
+     *
+     * @return list<string>|null
+     */
+    private function materializedAttributes(SearchRequest $request): ?array
+    {
+        $names = array_map(
+            static fn(Attribute $attribute): string => strtolower($attribute->getName()),
+            $request->getAttributes(),
+        );
+
+        if ($names === [] || in_array('*', $names, true) || in_array('+', $names, true)) {
+            return null;
+        }
+
+        $filterAttributes = FilterAttributes::referenced($request->getFilter());
+
+        if ($filterAttributes === null) {
+            return null;
+        }
+
+        $materialized = [];
+        foreach ($names as $name) {
+            if ($name === '1.1') {
+                continue;
+            }
+
+            $materialized[$name] = true;
+        }
+        foreach ($filterAttributes as $attribute) {
+            $materialized[$attribute] = true;
+        }
+
+        return array_keys($materialized);
     }
 
     /**

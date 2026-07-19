@@ -28,6 +28,7 @@ final class StorageListOptions
 {
     /**
      * @param SortKey[] $sortKeys
+     * @param list<string>|null $attributes Lowercase base attribute names to materialize, or null for all.
      * @param (\Closure(string): (bool|null))|null $isIntegerOrderedResolver Resolves whether an attribute orders numerically.
      */
     public function __construct(
@@ -38,6 +39,7 @@ final class StorageListOptions
         public readonly int $sizeLimit = 0,
         public readonly array $sortKeys = [],
         public readonly int $lookthroughLimit = 0,
+        public readonly ?array $attributes = null,
         public readonly ?Closure $isIntegerOrderedResolver = null,
     ) {}
 

@@ -29,7 +29,7 @@ use Stringable;
  *
  * @author Chad Sikorra <Chad.Sikorra@gmail.com>
  */
-class PresentFilter implements FilterInterface, Stringable
+class PresentFilter implements FilterInterface, FilterAttributeInterface, Stringable
 {
     use FilterAttributeTrait;
 

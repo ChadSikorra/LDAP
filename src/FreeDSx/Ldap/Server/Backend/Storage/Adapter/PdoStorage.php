@@ -182,6 +182,7 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
                         $composed->params,
                     ),
                     $deadline,
+                    $options->attributes,
                 ),
                 false,
             );
@@ -208,6 +209,7 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
             $this->generateRows(
                 $this->prepareAndExecute($query->sql, $query->params),
                 $deadline,
+                $options->attributes,
             ),
             $isPreFiltered,
         );
@@ -397,16 +399,27 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
     /**
      * @return Generator<Entry>
      */
+    /**
+     * @param list<string>|null $attributes
+     */
     private function generateRows(
         PooledStatement $stmt,
         ?float $deadline,
+        ?array $attributes = null,
     ): Generator {
+        $allowed = $attributes === null
+            ? null
+            : array_fill_keys($attributes, true);
+
         while (($row = $stmt->fetch()) !== false) {
             if ($deadline !== null && microtime(true) >= $deadline) {
                 throw new TimeLimitExceededException();
             }
 
-            $entry = $this->rowToEntry($row);
+            $entry = $this->rowToEntry(
+                $row,
+                $allowed,
+            );
             if ($entry !== null) {
                 yield $entry;
             }
@@ -515,8 +528,13 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
         return serialize($attributes);
     }
 
-    private function rowToEntry(mixed $row): ?Entry
-    {
+    /**
+     * @param array<string, true>|null $allowed Base names to materialize, or null for all.
+     */
+    private function rowToEntry(
+        mixed $row,
+        ?array $allowed = null,
+    ): ?Entry {
         if (!is_array($row)) {
             return null;
         }
@@ -541,6 +559,10 @@ final class PdoStorage implements EntryStorageInterface, ResettableInterface, Ch
         $attributes = [];
 
         foreach ($raw as $name => $values) {
+            if ($allowed !== null && !isset($allowed[strtolower((string) strtok($name, ';'))])) {
+                continue;
+            }
+
             $attributes[] = Attribute::fromArray(
                 $name,
                 $values,
