@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Tests\Performance\FreeDSx\Ldap\Workload;
 
 use FreeDSx\Ldap\ClientOptions;
+use FreeDSx\Ldap\Controls;
 use FreeDSx\Ldap\Entry\Attribute;
 use FreeDSx\Ldap\Entry\Change;
 use FreeDSx\Ldap\Entry\Entry;
@@ -180,6 +181,7 @@ final class Worker
             'search-list' => $this->doSearchList($client),
             'search-and' => $this->doSearchAnd($client),
             'search-or' => $this->doSearchOr($client),
+            'search-sort' => $this->doSearchSort($client),
             'compare' => $this->doCompare($client),
             'add' => $this->doAdd($client),
             'modify' => $this->doModify($client),
@@ -310,6 +312,23 @@ final class Worker
             $this->newSearch($filter)
                 ->base($this->config->baseDn)
                 ->useSubtreeScope(),
+        );
+    }
+
+    /**
+     * Subtree search with a server-side sort; the sort key is resolved per candidate from the sidecar.
+     */
+    private function doSearchSort(LdapClient $client): void
+    {
+        $filter = $this->config->seedEntries > 0
+            ? Filters::startsWith('cn', 'seed-')
+            : Filters::startsWith('cn', '');
+
+        $client->search(
+            $this->newSearch($filter)
+                ->base($this->config->baseDn)
+                ->useSubtreeScope(),
+            Controls::sort('sn'),
         );
     }
 

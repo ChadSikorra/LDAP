@@ -54,7 +54,7 @@ final class Config
         'json',
     ];
 
-    public const DEFAULT_MIX = 'bind=5,search-read=50,search-eq=25,search-sub=10,search-list=5,add=2,modify=2,delete=1';
+    public const DEFAULT_MIX = 'bind=5,search-read=50,search-eq=25,search-sub=10,search-list=5,search-sort=3,add=2,modify=2,delete=1';
 
     public const DEFAULT_BIND_DN = 'cn=user,dc=foo,dc=bar';
 
