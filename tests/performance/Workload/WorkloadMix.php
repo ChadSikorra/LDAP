@@ -32,6 +32,7 @@ final class WorkloadMix
         'search-and',
         'search-or',
         'search-sort',
+        'search-paged',
         'compare',
         'add',
         'modify',

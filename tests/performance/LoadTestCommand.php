@@ -208,11 +208,11 @@ final class LoadTestCommand extends Command
                 true,
             )
             ->addOption(
-                'search-sub-size-limit',
+                'search-size-limit',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'Per-request size limit applied to search-sub ops (0 = unlimited)',
-                (string) Config::DEFAULT_SEARCH_SUB_SIZE_LIMIT,
+                'Per-request size limit applied to search-list and search-sub ops (0 = unlimited)',
+                (string) Config::DEFAULT_SEARCH_SIZE_LIMIT,
             )
             ->addOption(
                 'search-sort-size-limit',
@@ -451,7 +451,7 @@ final class LoadTestCommand extends Command
             // The spawned server defaults JIT off for pcntl (tracing JIT can crash forked workers under load)
             // Swoole keeps it. --no-jit forces it off either way.
             jit: !(bool) $input->getOption('no-jit') && $runner !== 'pcntl',
-            searchSubSizeLimit: $this->requireInt($input, 'search-sub-size-limit'),
+            searchSizeLimit: $this->requireInt($input, 'search-size-limit'),
             searchSortSizeLimit: $this->requireInt($input, 'search-sort-size-limit'),
             monitor: (bool) $input->getOption('monitor'),
             searchAttributes: $this->optionalString($input, 'search-attributes'),

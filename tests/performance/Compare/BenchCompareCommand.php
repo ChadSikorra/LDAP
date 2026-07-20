@@ -185,11 +185,11 @@ final class BenchCompareCommand extends Command
                 'Disable opcache + tracing JIT on the spawned FreeDSx server (default: enabled).',
             )
             ->addOption(
-                'search-sub-size-limit',
+                'search-size-limit',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'Per-request size limit applied to search-sub ops (0 = unlimited)',
-                (string) Config::DEFAULT_SEARCH_SUB_SIZE_LIMIT,
+                'Per-request size limit applied to search-list and search-sub ops (0 = unlimited)',
+                (string) Config::DEFAULT_SEARCH_SIZE_LIMIT,
             )
             ->addOption(
                 'driver-processes',
@@ -306,7 +306,7 @@ final class BenchCompareCommand extends Command
     }
 
     /**
-     * @return array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSubSizeLimit: int, driverProcesses: int}
+     * @return array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSizeLimit: int, driverProcesses: int}
      */
     private function resolveParams(InputInterface $input): array
     {
@@ -336,7 +336,7 @@ final class BenchCompareCommand extends Command
             'rngSeed' => $this->parseInt($input->getOption('rng-seed'), 'rng-seed'),
             'seedEntries' => $this->requireInt($input, 'seed-entries'),
             'jit' => !(bool) $input->getOption('no-jit'),
-            'searchSubSizeLimit' => $this->requireInt($input, 'search-sub-size-limit'),
+            'searchSizeLimit' => $this->requireInt($input, 'search-size-limit'),
             'driverProcesses' => $driverProcesses,
         ];
     }
@@ -374,7 +374,7 @@ final class BenchCompareCommand extends Command
     }
 
     /**
-     * @param array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSubSizeLimit: int, driverProcesses: int} $params
+     * @param array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSizeLimit: int, driverProcesses: int} $params
      */
     private function runAgainstTarget(
         OutputInterface $output,
@@ -402,7 +402,7 @@ final class BenchCompareCommand extends Command
     }
 
     /**
-     * @param array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSubSizeLimit: int, driverProcesses: int} $params
+     * @param array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSizeLimit: int, driverProcesses: int} $params
      */
     private function runAgainstFreedsx(
         OutputInterface $output,
@@ -479,12 +479,12 @@ final class BenchCompareCommand extends Command
             baseDn: $config->baseDn,
             writeBase: $config->writeBase,
             jit: $config->jit,
-            searchSubSizeLimit: $config->searchSubSizeLimit,
+            searchSizeLimit: $config->searchSizeLimit,
         );
     }
 
     /**
-     * @param array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSubSizeLimit: int, driverProcesses: int} $params
+     * @param array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSizeLimit: int, driverProcesses: int} $params
      */
     private function buildTargetConfig(
         InputInterface $input,
@@ -510,12 +510,12 @@ final class BenchCompareCommand extends Command
             baseDn: $bench->benchBaseDn,
             writeBase: $bench->writeBaseDn,
             jit: $params['jit'],
-            searchSubSizeLimit: $params['searchSubSizeLimit'],
+            searchSizeLimit: $params['searchSizeLimit'],
         );
     }
 
     /**
-     * @param array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSubSizeLimit: int, driverProcesses: int} $params
+     * @param array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSizeLimit: int, driverProcesses: int} $params
      */
     private function buildFreedsxConfig(
         InputInterface $input,
@@ -536,7 +536,7 @@ final class BenchCompareCommand extends Command
             output: 'text',
             seedEntries: $params['seedEntries'],
             jit: $params['jit'],
-            searchSubSizeLimit: $params['searchSubSizeLimit'],
+            searchSizeLimit: $params['searchSizeLimit'],
         );
     }
 

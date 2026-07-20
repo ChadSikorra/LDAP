@@ -25,6 +25,7 @@ use FreeDSx\Ldap\Operation\ResultCode;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Search\Filter\FilterInterface;
 use FreeDSx\Ldap\Search\Filters;
+use FreeDSx\Ldap\Search\Paging;
 use LogicException;
 use Tests\Performance\FreeDSx\Ldap\Config;
 use Tests\Performance\FreeDSx\Ldap\Stats\StatsCollector;
@@ -50,6 +51,11 @@ final class Worker
     private array $ownedDns = [];
 
     private int $addSeq = 0;
+
+    /**
+     * @var ?Paging Active paged search; each search-paged op pulls one page, restarting when the walk is exhausted.
+     */
+    private ?Paging $paging = null;
 
     public function __construct(
         private readonly int $workerId,
@@ -182,6 +188,7 @@ final class Worker
             'search-and' => $this->doSearchAnd($client),
             'search-or' => $this->doSearchOr($client),
             'search-sort' => $this->doSearchSort($client),
+            'search-paged' => $this->doSearchPaged($client),
             'compare' => $this->doCompare($client),
             'add' => $this->doAdd($client),
             'modify' => $this->doModify($client),
@@ -225,10 +232,7 @@ final class Worker
         $request = $this->newSearch($filter)
             ->base($this->config->baseDn)
             ->useSubtreeScope();
-
-        if ($this->config->searchSubSizeLimit > 0) {
-            $request->sizeLimit($this->config->searchSubSizeLimit);
-        }
+        $this->applySearchSizeLimit($request);
 
         $client->search($request);
     }
@@ -238,8 +242,19 @@ final class Worker
         $request = $this->newSearch(Filters::equal('objectClass', 'inetOrgPerson'))
             ->base($this->config->writeBase)
             ->useSingleLevelScope();
+        $this->applySearchSizeLimit($request);
 
         $client->search($request);
+    }
+
+    /**
+     * Applies the shared search size limit so list and sub cap at the same count for an apples-to-apples comparison.
+     */
+    private function applySearchSizeLimit(SearchRequest $request): void
+    {
+        if ($this->config->searchSizeLimit > 0) {
+            $request->sizeLimit($this->config->searchSizeLimit);
+        }
     }
 
     private function doSearchSubstr(LdapClient $client): void
@@ -336,6 +351,37 @@ final class Worker
             $request,
             Controls::sort('sn'),
         );
+    }
+
+    /**
+     * Fetches ONE page of a paged (RFC 2696) subtree search per op, so each sample is a single page's latency; the
+     * page size matches the shared search size limit, making a page directly comparable to a one-shot search.
+     */
+    private function doSearchPaged(LdapClient $client): void
+    {
+        if ($this->paging === null || !$this->paging->hasEntries()) {
+            $filter = $this->config->seedEntries > 0
+                ? Filters::startsWith('cn', 'seed-')
+                : Filters::startsWith('cn', '');
+
+            $this->paging = $client->paging(
+                $this->newSearch($filter)
+                    ->base($this->config->baseDn)
+                    ->useSubtreeScope(),
+                $this->config->searchSizeLimit > 0
+                    ? $this->config->searchSizeLimit
+                    : null,
+            );
+        }
+
+        try {
+            $this->paging->getEntries();
+        } catch (Throwable $e) {
+            // Drop the cursor so the next op starts a fresh walk; re-throw so the outer handler records the outcome.
+            $this->paging = null;
+
+            throw $e;
+        }
     }
 
     /**
