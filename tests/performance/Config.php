@@ -64,7 +64,7 @@ final class Config
 
     public const DEFAULT_WRITE_BASE = 'ou=people,dc=foo,dc=bar';
 
-    public const DEFAULT_SEARCH_SUB_SIZE_LIMIT = 500;
+    public const DEFAULT_SEARCH_SIZE_LIMIT = 500;
 
     /**
      * A sorted search models a bounded display page typically, so give it a realistic limit.
@@ -95,7 +95,7 @@ final class Config
         public readonly string $baseDn = self::DEFAULT_BASE_DN,
         public readonly string $writeBase = self::DEFAULT_WRITE_BASE,
         public readonly bool $jit = true,
-        public readonly int $searchSubSizeLimit = self::DEFAULT_SEARCH_SUB_SIZE_LIMIT,
+        public readonly int $searchSizeLimit = self::DEFAULT_SEARCH_SIZE_LIMIT,
         public readonly int $searchSortSizeLimit = self::DEFAULT_SEARCH_SORT_SIZE_LIMIT,
         public readonly bool $monitor = true,
         public readonly ?string $searchAttributes = null,
@@ -111,7 +111,7 @@ final class Config
         $this->assertPositive('port', $port);
         $this->assertNonNegative('warmup', $warmup);
         $this->assertNonNegative('seed-entries', $seedEntries);
-        $this->assertNonNegative('search-sub-size-limit', $searchSubSizeLimit);
+        $this->assertNonNegative('search-size-limit', $searchSizeLimit);
         $this->assertNonNegative('search-sort-size-limit', $searchSortSizeLimit);
         $this->assertNonNegative('seed-attributes', $seedAttributes);
         $this->assertNonNegative('max-search-lookthrough', $maxSearchLookthrough);
