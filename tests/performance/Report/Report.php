@@ -41,6 +41,8 @@ final class Report
         private readonly Config $config,
         private readonly WorkloadMix $mix,
         private readonly StatsSnapshot $snapshot,
+        private readonly ?string $subject = null,
+        private readonly bool $external = false,
     ) {}
 
     public function render(OutputInterface $output): void
@@ -102,10 +104,23 @@ final class Report
             ? sprintf('%ds', $this->config->duration)
             : sprintf('%d ops/client', $this->config->ops);
 
+        $title = $this->subject ?? 'FreeDSx LDAP load test';
+
         $lines = [
-            'FreeDSx LDAP load test',
-            '======================',
-            sprintf(
+            $title,
+            str_repeat('=', strlen($title)),
+        ];
+
+        // Backend/runner are FreeDSx-internal knobs, so they are omitted when reporting an external (non-FreeDSx) server.
+        $lines[] = $this->external
+            ? sprintf(
+                'Clients: %d   Duration: %s   Warmup: %ds   Elapsed: %.1fs',
+                $this->config->clients,
+                $duration,
+                $this->config->warmup,
+                $this->snapshot->elapsedSeconds,
+            )
+            : sprintf(
                 'Backend: %s (%s runner)   Clients: %d   Duration: %s   Warmup: %ds   Elapsed: %.1fs',
                 $this->config->backend,
                 $this->config->runner,
@@ -113,12 +128,12 @@ final class Report
                 $duration,
                 $this->config->warmup,
                 $this->snapshot->elapsedSeconds,
-            ),
-            sprintf(
-                'Mix: %s',
-                $this->mix->describe(),
-            ),
-        ];
+            );
+
+        $lines[] = sprintf(
+            'Mix: %s',
+            $this->mix->describe(),
+        );
 
         return implode(PHP_EOL, $lines);
     }

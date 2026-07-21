@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+# One-command fair LDAP benchmark.
+
+# NOTE: Not storage-parity. Each server uses its own native backend.
+#
+# Usage (from the repo root):
+#
+#   composer compare-ldap -- [--source=freedsx|openldap|opendj] [--target=freedsx|openldap|opendj]
+#       [--seed-entries=2000] [--cpus=4] [--storage=sqlite] [--runner=pcntl] [--mix=default]
+#       [--search-value=seed-1] [--duration=15] [--warmup=3] [--clients=8] [--driver-processes=1] [--keep-up]
+#
+# --storage/--runner apply only to a freedsx side.
+# --search-value is the cn prefix the subtree searches filter on (--search-value=seed- matches all).
+#
+# Examples:
+#
+#   # FreeDSx (sqlite) vs OpenDJ at 25k, with search-sub kept selective on OpenDJ's substring index
+#   composer compare-ldap -- --target=opendj --seed-entries=25000 --search-value=seed-12
+#
+#   # Any-vs-any: neither side is FreeDSx (both seeded over LDAP)
+#   composer compare-ldap -- --source=openldap --target=opendj
+#
+set -euo pipefail
+
+cd "$(dirname "$0")/../.."
+COMPOSE="tests/profile/docker-compose.yml"
+
+SOURCE=freedsx
+TARGET=openldap
+SEED=2000
+CPUS=4
+STORAGE=sqlite
+RUNNER=pcntl
+MIX=default
+SEARCHVAL=seed-1
+DURATION=15
+WARMUP=3
+CLIENTS=8
+DRIVER_PROCS=1
+KEEP_UP=0
+
+for arg in "$@"; do
+    case "$arg" in
+        --source=*)           SOURCE="${arg#*=}" ;;
+        --target=*)           TARGET="${arg#*=}" ;;
+        --seed-entries=*)     SEED="${arg#*=}" ;;
+        --cpus=*)             CPUS="${arg#*=}" ;;
+        --storage=*)          STORAGE="${arg#*=}" ;;
+        --runner=*)           RUNNER="${arg#*=}" ;;
+        --mix=*)              MIX="${arg#*=}" ;;
+        --search-value=*)     SEARCHVAL="${arg#*=}" ;;
+        --duration=*)         DURATION="${arg#*=}" ;;
+        --warmup=*)           WARMUP="${arg#*=}" ;;
+        --clients=*)          CLIENTS="${arg#*=}" ;;
+        --driver-processes=*) DRIVER_PROCS="${arg#*=}" ;;
+        --keep-up)            KEEP_UP=1 ;;
+        -h|--help)            sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        *)                    echo "unknown arg: $arg" >&2; exit 2 ;;
+    esac
+done
+
+# Resolve a service key to its compose service, container, internal LDAP port, admin bind, base DN, display
+# label, and per-service setup hook. Sets ${prefix}_SVC / _CONT / _PORT / _BIND / _PW / _BASE / _LABEL / _SETUP.
+resolve_svc() {
+    local key="$1" p="$2"
+    case "$key" in
+        freedsx)
+            declare -g "${p}_SVC=freedsx-server" "${p}_CONT=freedsx-profile-server" "${p}_PORT=10389" \
+                "${p}_BIND=cn=user,dc=foo,dc=bar" "${p}_PW=12345" "${p}_BASE=dc=foo,dc=bar" \
+                "${p}_LABEL=FreeDSx/$STORAGE" "${p}_SETUP=none" ;;
+        openldap)
+            declare -g "${p}_SVC=openldap" "${p}_CONT=freedsx-profile-openldap" "${p}_PORT=389" \
+                "${p}_BIND=cn=admin,dc=example,dc=com" "${p}_PW=P@ssword12345" "${p}_BASE=dc=example,dc=com" \
+                "${p}_LABEL=OpenLDAP" "${p}_SETUP=none" ;;
+        opendj)
+            declare -g "${p}_SVC=opendj" "${p}_CONT=freedsx-profile-opendj" "${p}_PORT=1389" \
+                "${p}_BIND=cn=Directory Manager" "${p}_PW=P@ssword12345" "${p}_BASE=dc=example,dc=com" \
+                "${p}_LABEL=OpenDJ" "${p}_SETUP=opendj" ;;
+        *) echo "unknown service: $key (expected freedsx, openldap, or opendj)" >&2; exit 2 ;;
+    esac
+}
+
+if [[ "$SOURCE" == "$TARGET" ]]; then
+    echo "--source and --target must differ (got '$SOURCE' for both)" >&2
+    exit 2
+fi
+
+resolve_svc "$SOURCE" SRC
+resolve_svc "$TARGET" TGT
+
+# Resolve the 'default' mix to a portable representative mix (the harness DEFAULT_MIX minus search-sort, which
+# needs server-side sort vanilla slapd does not load; pass a custom --mix with search-sort for servers that support it).
+if [[ "$MIX" == "default" ]]; then
+    MIX="bind=5,search-read=50,search-eq=25,search-sub=10,search-list=5,add=2,modify=2,delete=1"
+fi
+
+# OpenDJ does not create the base entry and defaults are noisy/entry-limited for a benchmark: create the base entry,
+# silence the per-op access log, and raise objectClass's index-entry-limit so search-list (which matches every entry
+# via objectClass) stays indexed past the default 4000. search-sub is kept selective via --search-value.
+setup_opendj() {
+    local bind="$1" pw="$2" base="$3"
+    if ! docker exec freedsx-profile-opendj /opt/opendj/bin/ldapsearch \
+        -h localhost -p 1389 -D "$bind" -w "$pw" -b "$base" -s base "(objectClass=*)" 1.1 >/dev/null 2>&1; then
+        echo "==> creating base entry $base in opendj"
+        local dc="${base#dc=}"; dc="${dc%%,*}"
+        printf 'dn: %s\nobjectClass: top\nobjectClass: domain\ndc: %s\n' "$base" "$dc" \
+            | docker exec -i freedsx-profile-opendj /opt/opendj/bin/ldapmodify -a \
+                -h localhost -p 1389 -D "$bind" -w "$pw"
+    fi
+
+    echo "==> tuning opendj (disable access log; raise objectClass index-entry-limit)"
+    docker exec freedsx-profile-opendj /opt/opendj/bin/dsconfig set-log-publisher-prop \
+        --publisher-name "Json File-Based Access Logger" --set enabled:false \
+        -h localhost -p 4444 -D "$bind" -w "$pw" -X -n >/dev/null 2>&1 \
+    || docker exec freedsx-profile-opendj /opt/opendj/bin/dsconfig set-log-publisher-prop \
+        --publisher-name "File-Based Access Logger" --set enabled:false \
+        -h localhost -p 4444 -D "$bind" -w "$pw" -X -n >/dev/null 2>&1 \
+    || echo "   (access-log tweak skipped)"
+    docker exec freedsx-profile-opendj /opt/opendj/bin/dsconfig set-backend-index-prop \
+        --backend-name userRoot --index-name objectClass --set index-entry-limit:200000 \
+        -h localhost -p 4444 -D "$bind" -w "$pw" -X -n >/dev/null 2>&1 \
+    || echo "   (index-limit tweak skipped)"
+}
+
+echo "==> up $SRC_LABEL ($SRC_SVC) + $TGT_LABEL ($TGT_SVC) (cpus=$CPUS each, seed=$SEED)"
+# freedsx-server self-seeds via SEED_ENTRIES; here the bench seeds it over LDAP like any other side, so it starts empty.
+PROFILE_CPUS="$CPUS" FREEDSX_STORAGE="$STORAGE" FREEDSX_RUNNER="$RUNNER" SEED_ENTRIES=0 \
+    docker compose -f "$COMPOSE" up -d --wait "$SRC_SVC" "$TGT_SVC"
+
+[[ "$SRC_SETUP" == opendj ]] && setup_opendj "$SRC_BIND" "$SRC_PW" "$SRC_BASE"
+[[ "$TGT_SETUP" == opendj ]] && setup_opendj "$TGT_BIND" "$TGT_PW" "$TGT_BASE"
+
+NET=$(docker inspect -f '{{range $k,$_ := .NetworkSettings.Networks}}{{$k}}{{end}}' "$SRC_CONT")
+
+echo "==> running comparison (driver container on '$NET')"
+docker run --rm --network "$NET" -v "$PWD":/app -w /app --entrypoint php \
+    freedsx-profile:latest -d xdebug.mode=off -d opcache.enable_cli=1 -d opcache.jit=off \
+    tests/bin/ldap-bench-compare.php \
+    --source-host="$SRC_SVC" --source-port="$SRC_PORT" --source-bind-dn="$SRC_BIND" --source-bind-password="$SRC_PW" --source-base-dn="$SRC_BASE" --source-label="$SRC_LABEL" \
+    --target-host="$TGT_SVC" --target-port="$TGT_PORT" --target-bind-dn="$TGT_BIND" --target-bind-password="$TGT_PW" --target-base-dn="$TGT_BASE" --target-label="$TGT_LABEL" \
+    --seed-entries="$SEED" --mix="$MIX" --search-value="$SEARCHVAL" --duration="$DURATION" --warmup="$WARMUP" \
+    --clients="$CLIENTS" --driver-processes="$DRIVER_PROCS"
+
+if [[ "$KEEP_UP" -eq 0 ]]; then
+    echo "==> tearing down (pass --keep-up to skip)"
+    docker compose -f "$COMPOSE" down
+fi

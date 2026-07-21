@@ -197,6 +197,7 @@ final class MultiDriverCoordinator
             writeBase: $base->writeBase,
             jit: $base->jit,
             searchSizeLimit: $base->searchSizeLimit,
+            searchValue: $base->searchValue,
         );
     }
 

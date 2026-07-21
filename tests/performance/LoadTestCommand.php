@@ -215,6 +215,13 @@ final class LoadTestCommand extends Command
                 (string) Config::DEFAULT_SEARCH_SIZE_LIMIT,
             )
             ->addOption(
+                'search-value',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'cn prefix the subtree searches filter on; a broader value (e.g. "seed-") matches more entries',
+                Config::DEFAULT_SEARCH_VALUE,
+            )
+            ->addOption(
                 'search-sort-size-limit',
                 null,
                 InputOption::VALUE_REQUIRED,
@@ -452,6 +459,7 @@ final class LoadTestCommand extends Command
             // Swoole keeps it. --no-jit forces it off either way.
             jit: !(bool) $input->getOption('no-jit') && $runner !== 'pcntl',
             searchSizeLimit: $this->requireInt($input, 'search-size-limit'),
+            searchValue: $this->requireString($input, 'search-value'),
             searchSortSizeLimit: $this->requireInt($input, 'search-sort-size-limit'),
             monitor: (bool) $input->getOption('monitor'),
             searchAttributes: $this->optionalString($input, 'search-attributes'),
