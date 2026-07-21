@@ -91,7 +91,7 @@ class ServerTestCase extends LdapTestCase
         $this->client = null;
 
         if ($this->overrideProcess !== null) {
-            $this->overrideProcess->stop(self::SERVER_STOP_TIMEOUT_SECONDS);
+            self::stopProcessTree($this->overrideProcess);
             $this->overrideProcess = null;
         }
 
@@ -125,8 +125,10 @@ class ServerTestCase extends LdapTestCase
 
     protected static function tearDownSharedServer(): void
     {
-        self::$sharedProcess?->stop(self::SERVER_STOP_TIMEOUT_SECONDS);
-        self::$sharedProcess = null;
+        if (self::$sharedProcess !== null) {
+            self::stopProcessTree(self::$sharedProcess);
+            self::$sharedProcess = null;
+        }
     }
 
     /**
@@ -164,10 +166,10 @@ class ServerTestCase extends LdapTestCase
         $this->client = null;
 
         if ($this->overrideProcess !== null) {
-            $this->overrideProcess->stop(self::SERVER_STOP_TIMEOUT_SECONDS);
+            self::stopProcessTree($this->overrideProcess);
             $this->overrideProcess = null;
         } elseif (self::$sharedProcess !== null) {
-            self::$sharedProcess->stop(self::SERVER_STOP_TIMEOUT_SECONDS);
+            self::stopProcessTree(self::$sharedProcess);
             self::$sharedProcess = null;
             $this->needsSharedRestart = true;
         }
@@ -270,6 +272,57 @@ class ServerTestCase extends LdapTestCase
         self::waitForProcess($process, 'server starting...');
 
         self::$sharedProcess = $process;
+    }
+
+    /**
+     * Stops a process and SIGKILLs any descendants, since nested children (provider/upstream) are only cleaned up via
+     * the parent's shutdown function, which does not run on a signal kill.
+     */
+    private static function stopProcessTree(Process $process): void
+    {
+        $pid = $process->getPid();
+        $descendants = $pid !== null
+            ? self::descendantPids($pid)
+            : [];
+
+        $process->stop(self::SERVER_STOP_TIMEOUT_SECONDS);
+
+        foreach ($descendants as $descendant) {
+            if (@posix_kill($descendant, 0)) {
+                @posix_kill($descendant, SIGKILL);
+            }
+        }
+    }
+
+    /**
+     * Walks the process tree below a pid (via pgrep -P) so descendants can be reaped before they are orphaned.
+     *
+     * @return list<int>
+     */
+    private static function descendantPids(int $pid): array
+    {
+        $found = [];
+        $queue = [$pid];
+
+        while ($queue !== []) {
+            $current = array_shift($queue);
+            $children = [];
+            exec(
+                sprintf('pgrep -P %d 2>/dev/null', $current),
+                $children,
+            );
+
+            foreach ($children as $child) {
+                $childPid = (int) trim($child);
+
+                if ($childPid > 0) {
+                    $found[] = $childPid;
+                    $queue[] = $childPid;
+                }
+            }
+        }
+
+        return $found;
     }
 
     private static function waitForProcess(Process $process, string $marker): string
