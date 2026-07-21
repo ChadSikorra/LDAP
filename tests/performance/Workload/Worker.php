@@ -68,7 +68,6 @@ final class Worker
         $this->mailDomain = $this->deriveMailDomain($this->config->baseDn);
         $this->fixedReadDns = [
             $this->config->baseDn,
-            $this->config->bindDn,
             $this->config->writeBase,
             $this->compareDn,
         ];
@@ -225,11 +224,7 @@ final class Worker
 
     private function doSearchSub(LdapClient $client): void
     {
-        $filter = $this->config->seedEntries > 0
-            ? Filters::startsWith('cn', 'seed-')
-            : Filters::startsWith('cn', '');
-
-        $request = $this->newSearch($filter)
+        $request = $this->newSearch($this->searchValueFilter())
             ->base($this->config->baseDn)
             ->useSubtreeScope();
         $this->applySearchSizeLimit($request);
@@ -255,6 +250,13 @@ final class Worker
         if ($this->config->searchSizeLimit > 0) {
             $request->sizeLimit($this->config->searchSizeLimit);
         }
+    }
+
+    private function searchValueFilter(): FilterInterface
+    {
+        return $this->config->seedEntries > 0
+            ? Filters::startsWith('cn', $this->config->searchValue)
+            : Filters::startsWith('cn', '');
     }
 
     private function doSearchSubstr(LdapClient $client): void
@@ -335,11 +337,7 @@ final class Worker
      */
     private function doSearchSort(LdapClient $client): void
     {
-        $filter = $this->config->seedEntries > 0
-            ? Filters::startsWith('cn', 'seed-1')
-            : Filters::startsWith('cn', '');
-
-        $request = $this->newSearch($filter)
+        $request = $this->newSearch($this->searchValueFilter())
             ->base($this->config->baseDn)
             ->useSubtreeScope();
 
@@ -360,12 +358,8 @@ final class Worker
     private function doSearchPaged(LdapClient $client): void
     {
         if ($this->paging === null || !$this->paging->hasEntries()) {
-            $filter = $this->config->seedEntries > 0
-                ? Filters::startsWith('cn', 'seed-')
-                : Filters::startsWith('cn', '');
-
             $this->paging = $client->paging(
-                $this->newSearch($filter)
+                $this->newSearch($this->searchValueFilter())
                     ->base($this->config->baseDn)
                     ->useSubtreeScope(),
                 $this->config->searchSizeLimit > 0

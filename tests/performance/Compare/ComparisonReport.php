@@ -18,25 +18,16 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Tests\Performance\FreeDSx\Ldap\Stats\StatsSnapshot;
 
 /**
- * Side-by-side renderer for an external LDAP target vs FreeDSx benchmark run.
+ * Side-by-side renderer for a target LDAP server vs the source server (FreeDSx by default) benchmark run.
  */
 final class ComparisonReport
 {
-    private const HEADERS = [
-        'Operation',
-        'Target ops/s',
-        'FreeDSx ops/s',
-        'Ratio (FreeDSx/Target)',
-        'Target p99',
-        'FreeDSx p99',
-        'Target err',
-        'FD err',
-    ];
-
     public function __construct(
         private readonly ?StatsSnapshot $target,
-        private readonly ?StatsSnapshot $freedsx,
+        private readonly ?StatsSnapshot $source,
         private readonly string $format,
+        private readonly string $targetLabel = 'Target',
+        private readonly string $sourceLabel = 'FreeDSx',
     ) {}
 
     public function render(OutputInterface $output): void
@@ -50,6 +41,23 @@ final class ComparisonReport
         $this->renderText($output);
     }
 
+    /**
+     * @return list<string>
+     */
+    private function headers(): array
+    {
+        return [
+            'Operation',
+            "{$this->targetLabel} ops/s",
+            "{$this->sourceLabel} ops/s",
+            "Ratio ({$this->sourceLabel}/{$this->targetLabel})",
+            "{$this->targetLabel} p99",
+            "{$this->sourceLabel} p99",
+            "{$this->targetLabel} err",
+            "{$this->sourceLabel} err",
+        ];
+    }
+
     private function renderText(OutputInterface $output): void
     {
         $output->writeln('');
@@ -57,18 +65,18 @@ final class ComparisonReport
         $output->writeln('=======================');
 
         if ($this->target === null) {
-            $output->writeln('Target run was skipped.');
+            $output->writeln(sprintf('%s run was skipped.', $this->targetLabel));
         }
-        if ($this->freedsx === null) {
-            $output->writeln('FreeDSx run was skipped.');
+        if ($this->source === null) {
+            $output->writeln(sprintf('%s run was skipped.', $this->sourceLabel));
         }
 
-        if ($this->target === null || $this->freedsx === null) {
+        if ($this->target === null || $this->source === null) {
             return;
         }
 
         $table = new Table($output);
-        $table->setHeaders(self::HEADERS);
+        $table->setHeaders($this->headers());
 
         foreach ($this->unionOps() as $op) {
             $table->addRow($this->buildRow($op));
@@ -77,24 +85,30 @@ final class ComparisonReport
         $table->render();
 
         $targetTotal = $this->target->overallThroughput();
-        $fdTotal = $this->freedsx->overallThroughput();
+        $sourceTotal = $this->source->overallThroughput();
 
         $output->writeln('');
         $output->writeln(sprintf(
-            'Overall throughput: Target %s ops/s  |  FreeDSx %s ops/s  |  ratio %s',
+            'Overall throughput: %s %s ops/s  |  %s %s ops/s  |  ratio %s',
+            $this->targetLabel,
             number_format($targetTotal, 1),
-            number_format($fdTotal, 1),
-            $this->formatRatio($fdTotal, $targetTotal),
+            $this->sourceLabel,
+            number_format($sourceTotal, 1),
+            $this->formatRatio($sourceTotal, $targetTotal),
         ));
         $output->writeln(sprintf(
-            'Errors: Target %d  |  FreeDSx %d',
+            'Errors: %s %d  |  %s %d',
+            $this->targetLabel,
             $this->target->totalErrors(),
-            $this->freedsx->totalErrors(),
+            $this->sourceLabel,
+            $this->source->totalErrors(),
         ));
         $output->writeln(sprintf(
-            'Elapsed: Target %.1fs  |  FreeDSx %.1fs',
+            'Elapsed: %s %.1fs  |  %s %.1fs',
+            $this->targetLabel,
             $this->target->elapsedSeconds,
-            $this->freedsx->elapsedSeconds,
+            $this->sourceLabel,
+            $this->source->elapsedSeconds,
         ));
     }
 
@@ -104,20 +118,20 @@ final class ComparisonReport
     private function buildRow(string $op): array
     {
         $targetThr = $this->target?->throughput($op) ?? 0.0;
-        $fdThr = $this->freedsx?->throughput($op) ?? 0.0;
+        $sourceThr = $this->source?->throughput($op) ?? 0.0;
 
         $targetStats = $this->target?->latencyStats($op) ?? ['p99' => 0];
-        $fdStats = $this->freedsx?->latencyStats($op) ?? ['p99' => 0];
+        $sourceStats = $this->source?->latencyStats($op) ?? ['p99' => 0];
 
         return [
             $op,
             number_format($targetThr, 2),
-            number_format($fdThr, 2),
-            $this->formatRatio($fdThr, $targetThr),
+            number_format($sourceThr, 2),
+            $this->formatRatio($sourceThr, $targetThr),
             self::formatNanos($targetStats['p99']),
-            self::formatNanos($fdStats['p99']),
+            self::formatNanos($sourceStats['p99']),
             (string) ($this->target?->errorCount($op) ?? 0),
-            (string) ($this->freedsx?->errorCount($op) ?? 0),
+            (string) ($this->source?->errorCount($op) ?? 0),
         ];
     }
 
@@ -128,7 +142,7 @@ final class ComparisonReport
     {
         $ops = array_merge(
             $this->target?->operations() ?? [],
-            $this->freedsx?->operations() ?? [],
+            $this->source?->operations() ?? [],
         );
 
         return array_values(array_unique($ops));
@@ -139,7 +153,7 @@ final class ComparisonReport
         return json_encode(
             [
                 'target' => $this->snapshotToArray($this->target),
-                'freedsx' => $this->snapshotToArray($this->freedsx),
+                'source' => $this->snapshotToArray($this->source),
             ],
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
         );

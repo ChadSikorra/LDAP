@@ -66,6 +66,8 @@ final class Config
 
     public const DEFAULT_SEARCH_SIZE_LIMIT = 500;
 
+    public const DEFAULT_SEARCH_VALUE = 'seed-1';
+
     /**
      * A sorted search models a bounded display page typically, so give it a realistic limit.
      */
@@ -96,6 +98,7 @@ final class Config
         public readonly string $writeBase = self::DEFAULT_WRITE_BASE,
         public readonly bool $jit = true,
         public readonly int $searchSizeLimit = self::DEFAULT_SEARCH_SIZE_LIMIT,
+        public readonly string $searchValue = self::DEFAULT_SEARCH_VALUE,
         public readonly int $searchSortSizeLimit = self::DEFAULT_SEARCH_SORT_SIZE_LIMIT,
         public readonly bool $monitor = true,
         public readonly ?string $searchAttributes = null,

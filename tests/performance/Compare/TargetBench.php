@@ -35,7 +35,7 @@ final class TargetBench
 
     public readonly string $writeBaseDn;
 
-    private readonly LdapClient $client;
+    private LdapClient $client;
 
     private bool $bound = false;
 
@@ -50,14 +50,7 @@ final class TargetBench
     ) {
         $this->benchBaseDn = "ou={$this->benchOu},{$this->rootBaseDn}";
         $this->writeBaseDn = "ou={$this->peopleOu},{$this->benchBaseDn}";
-        $this->client = new LdapClient(
-            (new ClientOptions())
-                ->setServers([$this->host])
-                ->setPort($this->port)
-                ->setTransport('tcp')
-                ->setTimeoutConnect(5)
-                ->setTimeoutRead(30),
-        );
+        $this->client = $this->buildClient();
     }
 
     public function compareDn(): string
@@ -113,7 +106,8 @@ final class TargetBench
 
     public function cleanup(): void
     {
-        $this->bindIfNeeded();
+        // The seed connection may have gone idle and been dropped during the run, so reconnect for a reliable teardown.
+        $this->reconnect();
 
         try {
             $entries = $this->client->search(
@@ -161,6 +155,30 @@ final class TargetBench
         }
 
         $this->bound = false;
+    }
+
+    private function buildClient(): LdapClient
+    {
+        return new LdapClient(
+            (new ClientOptions())
+                ->setServers([$this->host])
+                ->setPort($this->port)
+                ->setTransport('tcp')
+                ->setTimeoutConnect(5)
+                ->setTimeoutRead(30),
+        );
+    }
+
+    private function reconnect(): void
+    {
+        try {
+            $this->client->unbind();
+        } catch (Throwable) {
+        }
+
+        $this->client = $this->buildClient();
+        $this->bound = false;
+        $this->bindIfNeeded();
     }
 
     private function bindIfNeeded(): void

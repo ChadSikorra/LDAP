@@ -22,31 +22,35 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Tests\Performance\FreeDSx\Ldap\Config;
 use Tests\Performance\FreeDSx\Ldap\Driver;
 use Tests\Performance\FreeDSx\Ldap\Report\Report;
-use Tests\Performance\FreeDSx\Ldap\Server\ServerManager;
 use Tests\Performance\FreeDSx\Ldap\Stats\StatsSnapshot;
 use Tests\Performance\FreeDSx\Ldap\Workload\WorkloadMix;
 use Throwable;
 
-/**
- * Runs the load test against an external LDAP target and FreeDSx (spawned) with
- * identical workload parameters, then prints a side-by-side comparison. Target defaults
- * assume a local OpenLDAP; override `--target-*` to point at another server (389 DS,
- * OpenDJ, ApacheDS, etc). Active Directory is not supported — the seeder uses
- * `inetOrgPerson + extensibleObject`.
- */
 final class BenchCompareCommand extends Command
 {
-    private const DEFAULT_TARGET_BASE_DN = 'dc=example,dc=com';
+    private const DEFAULT_SOURCE_LABEL = 'FreeDSx';
+
+    private const DEFAULT_SOURCE_PORT = 10389;
+
+    private const DEFAULT_SOURCE_BIND_DN = 'cn=user,dc=foo,dc=bar';
+
+    private const DEFAULT_SOURCE_BIND_PASSWORD = '12345';
+
+    private const DEFAULT_SOURCE_BASE_DN = 'dc=foo,dc=bar';
+
+    private const DEFAULT_TARGET_LABEL = 'Target';
+
+    private const DEFAULT_TARGET_PORT = 10390;
 
     private const DEFAULT_TARGET_BIND_DN = 'cn=admin,dc=example,dc=com';
 
     private const DEFAULT_TARGET_BIND_PASSWORD = 'P@ssword12345';
 
-    private const DEFAULT_FREEDSX_PORT = 10389;
+    private const DEFAULT_TARGET_BASE_DN = 'dc=example,dc=com';
 
     protected static $defaultName = 'load-compare';
 
-    protected static $defaultDescription = 'Benchmark FreeDSx vs an external LDAP target under identical workload parameters.';
+    protected static $defaultDescription = 'Benchmark a source LDAP server against a target under identical workload parameters.';
 
     protected function configure(): void
     {
@@ -88,7 +92,7 @@ final class BenchCompareCommand extends Command
                 'seed-entries',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'Fixture entries to pre-seed under the write base',
+                'Fixture entries to pre-seed under each side write base',
                 '5000',
             )
             ->addOption(
@@ -98,39 +102,60 @@ final class BenchCompareCommand extends Command
                 'RNG seed for reproducible workloads (applied to both runs)',
             )
             ->addOption(
-                'freedsx-backend',
+                'source-host',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'FreeDSx backend: ' . implode(' | ', Config::BACKENDS),
-                'sqlite',
+                'Source server host',
+                '127.0.0.1',
             )
             ->addOption(
-                'freedsx-runner',
+                'source-port',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'FreeDSx runner: ' . implode(' | ', Config::RUNNERS),
-                'swoole',
+                'Source server port',
+                (string) self::DEFAULT_SOURCE_PORT,
             )
             ->addOption(
-                'freedsx-port',
+                'source-bind-dn',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'Port to spawn FreeDSx on',
-                (string) self::DEFAULT_FREEDSX_PORT,
+                'DN to bind to the source for seeding + workload',
+                self::DEFAULT_SOURCE_BIND_DN,
+            )
+            ->addOption(
+                'source-bind-password',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Password paired with --source-bind-dn',
+                self::DEFAULT_SOURCE_BIND_PASSWORD,
+            )
+            ->addOption(
+                'source-base-dn',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Source base DN below which the bench subtree is created',
+                self::DEFAULT_SOURCE_BASE_DN,
+            )
+            ->addOption(
+                'source-label',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Display name for the source server in the report (the project under test)',
+                self::DEFAULT_SOURCE_LABEL,
             )
             ->addOption(
                 'target-host',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'External LDAP target host',
+                'Target server host',
                 '127.0.0.1',
             )
             ->addOption(
                 'target-port',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'External LDAP target port',
-                '389',
+                'Target server port (the bundled bench OpenLDAP publishes 10390; use 389 for a standard slapd)',
+                (string) self::DEFAULT_TARGET_PORT,
             )
             ->addOption(
                 'target-bind-dn',
@@ -154,22 +179,29 @@ final class BenchCompareCommand extends Command
                 self::DEFAULT_TARGET_BASE_DN,
             )
             ->addOption(
+                'target-label',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Display name for the target server in the report (e.g. OpenLDAP)',
+                self::DEFAULT_TARGET_LABEL,
+            )
+            ->addOption(
                 'skip-target',
                 null,
                 InputOption::VALUE_NONE,
-                'Skip the target run (FreeDSx-only)',
+                'Skip the target run (source-only)',
             )
             ->addOption(
-                'skip-freedsx',
+                'skip-source',
                 null,
                 InputOption::VALUE_NONE,
-                'Skip the FreeDSx run (target-only)',
+                'Skip the source run (target-only)',
             )
             ->addOption(
                 'no-cleanup',
                 null,
                 InputOption::VALUE_NONE,
-                'Leave the target bench subtree in place after the run',
+                'Leave the bench subtrees in place after the run',
             )
             ->addOption(
                 'output',
@@ -182,7 +214,7 @@ final class BenchCompareCommand extends Command
                 'no-jit',
                 null,
                 InputOption::VALUE_NONE,
-                'Disable opcache + tracing JIT on the spawned FreeDSx server (default: enabled).',
+                'Disable opcache + tracing JIT on the multi-process driver workers (default: enabled).',
             )
             ->addOption(
                 'search-size-limit',
@@ -190,6 +222,13 @@ final class BenchCompareCommand extends Command
                 InputOption::VALUE_REQUIRED,
                 'Per-request size limit applied to search-list and search-sub ops (0 = unlimited)',
                 (string) Config::DEFAULT_SEARCH_SIZE_LIMIT,
+            )
+            ->addOption(
+                'search-value',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'cn prefix the subtree searches filter on; a broader value (e.g. "seed-") matches more entries',
+                Config::DEFAULT_SEARCH_VALUE,
             )
             ->addOption(
                 'driver-processes',
@@ -207,10 +246,10 @@ final class BenchCompareCommand extends Command
     ): int {
         $progress = $this->progressChannel($output);
         $skipTarget = (bool) $input->getOption('skip-target');
-        $skipFreedsx = (bool) $input->getOption('skip-freedsx');
+        $skipSource = (bool) $input->getOption('skip-source');
 
-        if ($skipTarget && $skipFreedsx) {
-            $output->writeln('<error>Both --skip-target and --skip-freedsx are set; nothing to run.</error>');
+        if ($skipTarget && $skipSource) {
+            $output->writeln('<error>Both --skip-target and --skip-source are set; nothing to run.</error>');
 
             return Command::INVALID;
         }
@@ -223,90 +262,195 @@ final class BenchCompareCommand extends Command
             return Command::INVALID;
         }
 
-        $targetSnapshot = null;
-        $freedsxSnapshot = null;
+        $targetSide = $this->sideFromOptions($input, 'target');
+        $sourceSide = $this->sideFromOptions($input, 'source');
 
-        $bench = $skipTarget
-            ? null
-            : $this->makeBench($input);
+        $targetSnapshot = null;
+        $sourceSnapshot = null;
+        $benches = [];
 
         try {
-            if ($bench !== null) {
-                $this->seedTarget(
-                    $progress,
-                    $bench,
-                    $params['seedEntries'],
-                );
-
-                $targetSnapshot = $this->runAgainstTarget(
-                    $output,
-                    $progress,
-                    $input,
-                    $bench,
-                    $params,
-                );
-                $this->renderSingleRun(
-                    $output,
-                    'Target',
-                    $targetSnapshot,
-                    $this->buildTargetConfig(
-                        $input,
-                        $bench,
-                        $params,
-                    ),
-                );
+            if (!$skipTarget) {
+                $targetSnapshot = $this->runSide($output, $progress, $targetSide, $params, $benches);
             }
-
-            if (!$skipFreedsx) {
-                $freedsxSnapshot = $this->runAgainstFreedsx(
-                    $output,
-                    $progress,
-                    $input,
-                    $params,
-                );
-                $this->renderSingleRun(
-                    $output,
-                    'FreeDSx',
-                    $freedsxSnapshot,
-                    $this->buildFreedsxConfig(
-                        $input,
-                        $params,
-                    ),
-                );
+            if (!$skipSource) {
+                $sourceSnapshot = $this->runSide($output, $progress, $sourceSide, $params, $benches);
             }
         } catch (Throwable $e) {
             $output->writeln('<error>Benchmark failed: ' . $e->getMessage() . '</error>');
 
             return Command::FAILURE;
         } finally {
-            if ($bench !== null) {
-                if (!$input->getOption('no-cleanup')) {
-                    $progress->writeln(sprintf(
-                        'Cleaning up target bench subtree at %s...',
-                        $bench->benchBaseDn,
-                    ));
-                    try {
-                        $bench->cleanup();
-                    } catch (Throwable $e) {
-                        $progress->writeln('<comment>Cleanup warning: ' . $e->getMessage() . '</comment>');
-                    }
-                }
-                $bench->close();
-            }
+            $this->teardownBenches($progress, $benches, (bool) $input->getOption('no-cleanup'));
         }
 
         $format = $this->requireString($input, 'output');
         (new ComparisonReport(
             target: $targetSnapshot,
-            freedsx: $freedsxSnapshot,
+            source: $sourceSnapshot,
             format: $format,
+            targetLabel: $targetSide->label,
+            sourceLabel: $sourceSide->label,
         ))->render($output);
 
         return Command::SUCCESS;
     }
 
     /**
-     * @return array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSizeLimit: int, driverProcesses: int}
+     * @param array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSizeLimit: int, searchValue: string, driverProcesses: int} $params
+     * @param list<TargetBench> $benches
+     */
+    private function runSide(
+        OutputInterface $output,
+        OutputInterface $progress,
+        BenchSide $side,
+        array $params,
+        array &$benches,
+    ): StatsSnapshot {
+        $bench = new TargetBench(
+            host: $side->host,
+            port: $side->port,
+            bindDn: $side->bindDn,
+            bindPassword: $side->bindPassword,
+            rootBaseDn: $side->baseDn,
+        );
+        $benches[] = $bench;
+
+        $this->seedSide(
+            $progress,
+            $side,
+            $bench,
+            $params['seedEntries'],
+        );
+
+        $config = $this->buildConfig(
+            $side,
+            $bench,
+            $params,
+        );
+
+        $progress->writeln(sprintf(
+            'Running workload against %s...',
+            $side->label,
+        ));
+
+        $snapshot = $params['driverProcesses'] === 1
+            ? (new Driver($config))->run($output)
+            : (new MultiDriverCoordinator($params['driverProcesses']))->run(
+                $config,
+                $progress,
+            );
+
+        $this->renderSingleRun(
+            $output,
+            $side->label,
+            $snapshot,
+            $config,
+            sprintf('%s load test', $side->label),
+            true,
+        );
+
+        return $snapshot;
+    }
+
+    private function seedSide(
+        OutputInterface $progress,
+        BenchSide $side,
+        TargetBench $bench,
+        int $seedEntries,
+    ): void {
+        $progress->writeln(sprintf(
+            'Seeding %s bench subtree %s with %d entries (+ cn=alice)...',
+            $side->label,
+            $bench->benchBaseDn,
+            $seedEntries,
+        ));
+
+        $start = microtime(true);
+        $bench->seed($seedEntries);
+        $elapsed = microtime(true) - $start;
+
+        $progress->writeln(sprintf(
+            '%s seed complete in %.1fs.',
+            $side->label,
+            $elapsed,
+        ));
+    }
+
+    /**
+     * @param array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSizeLimit: int, searchValue: string, driverProcesses: int} $params
+     */
+    private function buildConfig(
+        BenchSide $side,
+        TargetBench $bench,
+        array $params,
+    ): Config {
+        return new Config(
+            // Backend/runner are FreeDSx-internal knobs; the driver only connects to host:port, so external runs pass
+            // innocuous placeholders that satisfy Config validation without affecting the workload.
+            backend: 'sqlite',
+            runner: 'pcntl',
+            clients: $params['clients'],
+            duration: $params['duration'],
+            ops: $params['ops'],
+            mix: $params['mix'],
+            host: $side->host,
+            port: $side->port,
+            warmup: $params['warmup'],
+            serverMode: 'external',
+            rngSeed: $params['rngSeed'],
+            output: 'text',
+            seedEntries: 0,
+            bindDn: $side->bindDn,
+            bindPassword: $side->bindPassword,
+            baseDn: $bench->benchBaseDn,
+            writeBase: $bench->writeBaseDn,
+            jit: $params['jit'],
+            searchSizeLimit: $params['searchSizeLimit'],
+            searchValue: $params['searchValue'],
+        );
+    }
+
+    /**
+     * @param list<TargetBench> $benches
+     */
+    private function teardownBenches(
+        OutputInterface $progress,
+        array $benches,
+        bool $noCleanup,
+    ): void {
+        foreach ($benches as $bench) {
+            if (!$noCleanup) {
+                $progress->writeln(sprintf(
+                    'Cleaning up bench subtree at %s...',
+                    $bench->benchBaseDn,
+                ));
+                try {
+                    $bench->cleanup();
+                } catch (Throwable $e) {
+                    $progress->writeln('<comment>Cleanup warning: ' . $e->getMessage() . '</comment>');
+                }
+            }
+            $bench->close();
+        }
+    }
+
+    private function sideFromOptions(
+        InputInterface $input,
+        string $prefix,
+    ): BenchSide {
+        return new BenchSide(
+            label: $this->requireString($input, "{$prefix}-label"),
+            host: $this->requireString($input, "{$prefix}-host"),
+            port: $this->requireInt($input, "{$prefix}-port"),
+            bindDn: $this->requireString($input, "{$prefix}-bind-dn"),
+            bindPassword: $this->requireString($input, "{$prefix}-bind-password"),
+            baseDn: $this->requireString($input, "{$prefix}-base-dn"),
+        );
+    }
+
+    /**
+     * @return array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSizeLimit: int, searchValue: string, driverProcesses: int}
      */
     private function resolveParams(InputInterface $input): array
     {
@@ -337,207 +481,9 @@ final class BenchCompareCommand extends Command
             'seedEntries' => $this->requireInt($input, 'seed-entries'),
             'jit' => !(bool) $input->getOption('no-jit'),
             'searchSizeLimit' => $this->requireInt($input, 'search-size-limit'),
+            'searchValue' => $this->requireString($input, 'search-value'),
             'driverProcesses' => $driverProcesses,
         ];
-    }
-
-    private function makeBench(InputInterface $input): TargetBench
-    {
-        return new TargetBench(
-            host: $this->requireString($input, 'target-host'),
-            port: $this->requireInt($input, 'target-port'),
-            bindDn: $this->requireString($input, 'target-bind-dn'),
-            bindPassword: $this->requireString($input, 'target-bind-password'),
-            rootBaseDn: $this->requireString($input, 'target-base-dn'),
-        );
-    }
-
-    private function seedTarget(
-        OutputInterface $progress,
-        TargetBench $bench,
-        int $seedEntries,
-    ): void {
-        $progress->writeln(sprintf(
-            'Seeding target bench subtree %s with %d entries (+ cn=alice)...',
-            $bench->benchBaseDn,
-            $seedEntries,
-        ));
-
-        $start = microtime(true);
-        $bench->seed($seedEntries);
-        $elapsed = microtime(true) - $start;
-
-        $progress->writeln(sprintf(
-            'Target seed complete in %.1fs.',
-            $elapsed,
-        ));
-    }
-
-    /**
-     * @param array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSizeLimit: int, driverProcesses: int} $params
-     */
-    private function runAgainstTarget(
-        OutputInterface $output,
-        OutputInterface $progress,
-        InputInterface $input,
-        TargetBench $bench,
-        array $params,
-    ): StatsSnapshot {
-        $progress->writeln('Running workload against target...');
-
-        $config = $this->buildTargetConfig(
-            $input,
-            $bench,
-            $params,
-        );
-
-        if ($params['driverProcesses'] === 1) {
-            return (new Driver($config))->run($output);
-        }
-
-        return (new MultiDriverCoordinator($params['driverProcesses']))->run(
-            $config,
-            $progress,
-        );
-    }
-
-    /**
-     * @param array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSizeLimit: int, driverProcesses: int} $params
-     */
-    private function runAgainstFreedsx(
-        OutputInterface $output,
-        OutputInterface $progress,
-        InputInterface $input,
-        array $params,
-    ): StatsSnapshot {
-        $progress->writeln('Running workload against FreeDSx...');
-
-        $config = $this->buildFreedsxConfig(
-            $input,
-            $params,
-        );
-
-        if ($params['driverProcesses'] === 1) {
-            return (new Driver($config))->run($output);
-        }
-
-        return $this->runFreedsxMultiDriver(
-            $config,
-            $params['driverProcesses'],
-            $progress,
-        );
-    }
-
-    /**
-     * Owns the FreeDSx server lifecycle in the parent so all N children connect to a single
-     * spawned instance instead of each trying (and failing) to start their own.
-     */
-    private function runFreedsxMultiDriver(
-        Config $spawnConfig,
-        int $driverProcesses,
-        OutputInterface $progress,
-    ): StatsSnapshot {
-        $progress->writeln(sprintf(
-            'Starting FreeDSx server (parent-owned for %d driver processes)...',
-            $driverProcesses,
-        ));
-
-        $serverManager = new ServerManager($spawnConfig);
-        $serverManager->start();
-        $progress->writeln('Server ready.');
-
-        try {
-            $childConfig = $this->withExternalServer($spawnConfig);
-
-            return (new MultiDriverCoordinator($driverProcesses))->run(
-                $childConfig,
-                $progress,
-            );
-        } finally {
-            $serverManager->stop();
-        }
-    }
-
-    private function withExternalServer(Config $config): Config
-    {
-        return new Config(
-            backend: $config->backend,
-            runner: $config->runner,
-            clients: $config->clients,
-            duration: $config->duration,
-            ops: $config->ops,
-            mix: $config->mix,
-            host: $config->host,
-            port: $config->port,
-            warmup: $config->warmup,
-            serverMode: 'external',
-            rngSeed: $config->rngSeed,
-            output: $config->output,
-            seedEntries: 0,
-            bindDn: $config->bindDn,
-            bindPassword: $config->bindPassword,
-            baseDn: $config->baseDn,
-            writeBase: $config->writeBase,
-            jit: $config->jit,
-            searchSizeLimit: $config->searchSizeLimit,
-        );
-    }
-
-    /**
-     * @param array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSizeLimit: int, driverProcesses: int} $params
-     */
-    private function buildTargetConfig(
-        InputInterface $input,
-        TargetBench $bench,
-        array $params,
-    ): Config {
-        return new Config(
-            backend: $this->requireString($input, 'freedsx-backend'),
-            runner: $this->requireString($input, 'freedsx-runner'),
-            clients: $params['clients'],
-            duration: $params['duration'],
-            ops: $params['ops'],
-            mix: $params['mix'],
-            host: $this->requireString($input, 'target-host'),
-            port: $this->requireInt($input, 'target-port'),
-            warmup: $params['warmup'],
-            serverMode: 'external',
-            rngSeed: $params['rngSeed'],
-            output: 'text',
-            seedEntries: 0,
-            bindDn: $this->requireString($input, 'target-bind-dn'),
-            bindPassword: $this->requireString($input, 'target-bind-password'),
-            baseDn: $bench->benchBaseDn,
-            writeBase: $bench->writeBaseDn,
-            jit: $params['jit'],
-            searchSizeLimit: $params['searchSizeLimit'],
-        );
-    }
-
-    /**
-     * @param array{duration: ?int, ops: ?int, mix: string, clients: int, warmup: int, rngSeed: ?int, seedEntries: int, jit: bool, searchSizeLimit: int, driverProcesses: int} $params
-     */
-    private function buildFreedsxConfig(
-        InputInterface $input,
-        array $params,
-    ): Config {
-        return new Config(
-            backend: $this->requireString($input, 'freedsx-backend'),
-            runner: $this->requireString($input, 'freedsx-runner'),
-            clients: $params['clients'],
-            duration: $params['duration'],
-            ops: $params['ops'],
-            mix: $params['mix'],
-            host: '127.0.0.1',
-            port: $this->requireInt($input, 'freedsx-port'),
-            warmup: $params['warmup'],
-            serverMode: 'spawn',
-            rngSeed: $params['rngSeed'],
-            output: 'text',
-            seedEntries: $params['seedEntries'],
-            jit: $params['jit'],
-            searchSizeLimit: $params['searchSizeLimit'],
-        );
     }
 
     private function renderSingleRun(
@@ -545,6 +491,8 @@ final class BenchCompareCommand extends Command
         string $label,
         StatsSnapshot $snapshot,
         Config $config,
+        ?string $subject = null,
+        bool $external = false,
     ): void {
         $output->writeln('');
         $output->writeln(sprintf('--- %s results ---', $label));
@@ -552,6 +500,8 @@ final class BenchCompareCommand extends Command
             $config,
             new WorkloadMix($config->mix),
             $snapshot,
+            $subject,
+            $external,
         ))->render($output);
     }
 
