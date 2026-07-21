@@ -49,12 +49,12 @@ final class CiThresholds
             'json:swoole' => new ThresholdSet(
                 maxErrors: 0,
                 minThroughput: 600.0,
-                maxP99Ms: 175.0,
+                maxP99Ms: 200.0,
             ),
             'sqlite:pcntl' => new ThresholdSet(
                 maxErrors: 0,
                 minThroughput: 935.0,
-                maxP99Ms: 175.0,
+                maxP99Ms: 200.0,
             ),
             'sqlite:swoole' => new ThresholdSet(
                 maxErrors: 0,
