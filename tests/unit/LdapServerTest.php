@@ -100,7 +100,6 @@ class LdapServerTest extends TestCase
                 'idle_timeout' => 600,
                 'require_authentication' => true,
                 'allow_anonymous' => false,
-                'rootdse_handler' => null,
                 'logger' => null,
                 'use_ssl' => false,
                 'ssl_cert' => null,

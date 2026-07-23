@@ -27,16 +27,11 @@ final class WriteRequestReplayer
 {
     private readonly WriteOperationDispatcher $dispatcher;
 
-    /**
-     * @param WriteHandlerInterface[] $writeHandlers Additional handlers tried before the backend.
-     */
     public function __construct(
         WriteHandlerInterface $backend,
-        array $writeHandlers = [],
         private readonly WriteCommandFactory $commandFactory = new WriteCommandFactory(),
     ) {
-        $writeHandlers[] = $backend;
-        $this->dispatcher = new WriteOperationDispatcher(...$writeHandlers);
+        $this->dispatcher = new WriteOperationDispatcher($backend);
     }
 
     /**

@@ -104,7 +104,9 @@ final class PasswordPolicyContainerProvider implements ContainerProviderInterfac
 
     private function makeWriteOperationDispatcher(Container $container): WriteOperationDispatcher
     {
-        return $container->get(HandlerFactoryInterface::class)->makeWriteDispatcher();
+        return new WriteOperationDispatcher(
+            $container->get(HandlerFactoryInterface::class)->makeBackend(),
+        );
     }
 
     private function makePasswordPolicyComponentFactory(Container $container): PasswordPolicyComponentFactory

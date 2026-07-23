@@ -14,11 +14,10 @@ declare(strict_types=1);
 namespace FreeDSx\Ldap\Container;
 
 use FreeDSx\Ldap\Container;
-use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Protocol\Factory\ServerProtocolHandlerFactory;
 use FreeDSx\Ldap\Protocol\Queue\Response\MetricsResponseInterceptor;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\AssertionEvaluator;
-use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\Rollup\OperationRollupCoordinator;
@@ -63,8 +62,6 @@ final class ConnectionGraphContainerProvider implements ContainerProviderInterfa
 
     /**
      * The pre-bind strategy: replica-local worst-outcome state on a read-only replica, authoritative entry state otherwise.
-     *
-     * @throws RuntimeException when the backend cannot record password-policy bind state.
      */
     private function makeBindStrategy(Container $container): PasswordPolicyBindStrategyInterface
     {
@@ -77,16 +74,9 @@ final class ConnectionGraphContainerProvider implements ContainerProviderInterfa
             );
         }
 
-        $backend = $container->get(HandlerFactoryInterface::class)->makeBackend();
-        if (!$backend instanceof WritableLdapBackendInterface) {
-            throw new RuntimeException(
-                'A backend implementing WritableLdapBackendInterface is required to record password-policy bind state.',
-            );
-        }
-
         return new EntryBindStrategy(
             $engine,
-            $backend,
+            $container->get(HandlerFactoryInterface::class)->makeBackend(),
         );
     }
 
@@ -105,7 +95,7 @@ final class ConnectionGraphContainerProvider implements ContainerProviderInterfa
     private function makeAssertionEvaluator(Container $container): AssertionEvaluator
     {
         return new AssertionEvaluator(
-            $container->get(ServerOptions::class)->getFilterEvaluator(),
+            $container->get(FilterEvaluatorInterface::class),
             $container->get(HandlerFactoryInterface::class)->makeBackend(),
         );
     }

@@ -32,19 +32,15 @@ use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\DefaultPasswordQualityChecke
 use FreeDSx\Ldap\Server\PasswordPolicy\QualityCheck\PasswordQualityCheckerInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Server\AccessControl\AclRules;
 use FreeDSx\Ldap\Server\AccessControl\RuleBasedAccessControl;
 use FreeDSx\Ldap\Server\AccessControl\Subject\SubjectMatcherInterface;
-use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Configuration\ConfigReloaderInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogPolicy;
 use FreeDSx\Ldap\Server\Metrics\MetricsRecorderInterface;
 use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
-use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\SearchLimit\SearchLimitRules;
 use FreeDSx\Ldap\Server\SearchLimits;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
@@ -169,15 +165,6 @@ final class ServerOptions
     private ?BindNameResolverInterface $identityResolver = null;
 
     private ?ExternalCredentialMapperInterface $externalCredentialMapper = null;
-
-    private ?RootDseHandlerInterface $rootDseHandler = null;
-
-    /**
-     * @var WriteHandlerInterface[]
-     */
-    private array $writeHandlers = [];
-
-    private ?FilterEvaluatorInterface $filterEvaluator = null;
 
     private ?Schema $schema = null;
 
@@ -620,45 +607,6 @@ final class ServerOptions
     public function setExternalCredentialMapper(?ExternalCredentialMapperInterface $externalCredentialMapper): self
     {
         $this->externalCredentialMapper = $externalCredentialMapper;
-
-        return $this;
-    }
-
-    public function getRootDseHandler(): ?RootDseHandlerInterface
-    {
-        return $this->rootDseHandler;
-    }
-
-    public function setRootDseHandler(?RootDseHandlerInterface $rootDseHandler): self
-    {
-        $this->rootDseHandler = $rootDseHandler;
-
-        return $this;
-    }
-
-    /**
-     * @return WriteHandlerInterface[]
-     */
-    public function getWriteHandlers(): array
-    {
-        return $this->writeHandlers;
-    }
-
-    public function addWriteHandler(WriteHandlerInterface $handler): self
-    {
-        $this->writeHandlers[] = $handler;
-
-        return $this;
-    }
-
-    public function getFilterEvaluator(): FilterEvaluatorInterface
-    {
-        return $this->filterEvaluator ??= new FilterEvaluator($this->getSchema());
-    }
-
-    public function setFilterEvaluator(?FilterEvaluatorInterface $filterEvaluator): self
-    {
-        $this->filterEvaluator = $filterEvaluator;
 
         return $this;
     }
@@ -1170,7 +1118,7 @@ final class ServerOptions
     }
 
     /**
-     * @return array{ip: string, port: int, unix_socket: string, transport: string, idle_timeout: int, require_authentication: bool, allow_anonymous: bool, rootdse_handler: ?RootDseHandlerInterface, logger: ?LoggerInterface, use_ssl: bool, ssl_cert: ?string, ssl_cert_key: ?string, ssl_cert_passphrase: ?string, min_tls_version: string, ssl_ciphers: string, ssl_validate_cert: bool, ssl_allow_self_signed: ?bool, ssl_ca_cert: ?string, monitor_enabled: bool, monitor_snapshot_path: ?string, dse_alt_server: ?string, dse_vendor_name: string, dse_vendor_version: ?string, sasl_mechanisms: string[]}
+     * @return array{ip: string, port: int, unix_socket: string, transport: string, idle_timeout: int, require_authentication: bool, allow_anonymous: bool, logger: ?LoggerInterface, use_ssl: bool, ssl_cert: ?string, ssl_cert_key: ?string, ssl_cert_passphrase: ?string, min_tls_version: string, ssl_ciphers: string, ssl_validate_cert: bool, ssl_allow_self_signed: ?bool, ssl_ca_cert: ?string, monitor_enabled: bool, monitor_snapshot_path: ?string, dse_alt_server: ?string, dse_vendor_name: string, dse_vendor_version: ?string, sasl_mechanisms: string[]}
      */
     public function toArray(): array
     {
@@ -1182,7 +1130,6 @@ final class ServerOptions
             'idle_timeout' => $this->getIdleTimeout(),
             'require_authentication' => $this->isRequireAuthentication(),
             'allow_anonymous' => $this->isAllowAnonymous(),
-            'rootdse_handler' => $this->getRootDseHandler(),
             'logger' => $this->getLogger(),
             'use_ssl' => $this->isUseSsl(),
             'ssl_cert' => $this->getSslCert(),

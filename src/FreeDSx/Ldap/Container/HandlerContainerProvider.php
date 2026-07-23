@@ -34,7 +34,7 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerUnbindHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerUnsupportedExtendedHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerWhoAmIHandler;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordHashService;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Read\ChangeStream;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
@@ -132,13 +132,8 @@ final class HandlerContainerProvider implements ContainerProviderInterface
 
     private function makeForwardHandler(Container $container): ServerProtocolHandlerInterface
     {
-        $backend = $container->get(HandlerFactoryInterface::class)->makeBackend();
-        if (!$backend instanceof WritableLdapBackendInterface) {
-            return new ServerUnsupportedExtendedHandler();
-        }
-
         return new ServerPasswordPolicyForwardHandler(
-            backend: $backend,
+            backend: $container->get(HandlerFactoryInterface::class)->makeBackend(),
             policyResolver: $container->get(PasswordPolicyComponentFactory::class)->makeResolver(),
             engine: $container->get(PasswordPolicyEngine::class),
         );
@@ -146,13 +141,12 @@ final class HandlerContainerProvider implements ContainerProviderInterface
 
     private function makeRootDseHandler(Container $container): ServerRootDseHandler
     {
-        $handlerFactory = $container->get(HandlerFactoryInterface::class);
-        $backend = $handlerFactory->makeBackend();
+        $options = $container->get(ServerOptions::class);
+        $backend = $container->get(HandlerFactoryInterface::class)->makeBackend();
 
         return new ServerRootDseHandler(
-            options: $container->get(ServerOptions::class),
+            options: $options,
             backend: $backend,
-            rootDseHandler: $handlerFactory->makeRootDseHandler(),
             supportsSync: $this->syncJournalFor($container, $backend) !== null,
         );
     }
@@ -167,7 +161,7 @@ final class HandlerContainerProvider implements ContainerProviderInterface
         $journal = $this->syncJournalFor($container, $backend);
         $projector = new SyncResultProjector(
             accessControl: $options->getAccessControl(),
-            filterEvaluator: $options->getFilterEvaluator(),
+            filterEvaluator: $container->get(FilterEvaluatorInterface::class),
             eventLogger: $context->eventLogger,
         );
 
@@ -212,7 +206,10 @@ final class HandlerContainerProvider implements ContainerProviderInterface
         return new ServerDispatchHandler(
             backend: $handlerFactory->makeBackend(),
             writeDispatcher: $policyWriteHandler !== null
-                ? $handlerFactory->makeWriteDispatcher($policyWriteHandler)
+                ? new WriteOperationDispatcher(
+                    $policyWriteHandler,
+                    $handlerFactory->makeBackend(),
+                )
                 : $container->get(WriteOperationDispatcher::class),
             accessControl: $container->get(ServerOptions::class)->getAccessControl(),
             schema: $container->get(ServerOptions::class)->getSchema(),
@@ -227,7 +224,7 @@ final class HandlerContainerProvider implements ContainerProviderInterface
 
         return new ServerSearchHandler(
             backend: $container->get(HandlerFactoryInterface::class)->makeBackend(),
-            filterEvaluator: $options->getFilterEvaluator(),
+            filterEvaluator: $container->get(FilterEvaluatorInterface::class),
             accessControl: $options->getAccessControl(),
             schema: $options->getSchema(),
             limits: $searchLimits ?? $options->makeSearchLimits(),
@@ -243,7 +240,7 @@ final class HandlerContainerProvider implements ContainerProviderInterface
 
         return new ServerPagingHandler(
             backend: $container->get(HandlerFactoryInterface::class)->makeBackend(),
-            filterEvaluator: $options->getFilterEvaluator(),
+            filterEvaluator: $container->get(FilterEvaluatorInterface::class),
             accessControl: $options->getAccessControl(),
             requestHistory: $context->requestHistory,
             schema: $options->getSchema(),
@@ -253,7 +250,7 @@ final class HandlerContainerProvider implements ContainerProviderInterface
 
     private function syncJournalFor(
         Container $container,
-        LdapBackendInterface $backend,
+        WritableLdapBackendInterface $backend,
     ): ?ChangeJournalInterface {
         if (!$container->get(ServerOptions::class)->isSyncEnabled() || !$backend instanceof WritableStorageBackend) {
             return null;
