@@ -19,10 +19,7 @@ use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticator;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
-use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\ServerOptions;
 
@@ -42,7 +39,7 @@ class HandlerFactory implements HandlerFactoryInterface
     /**
      * @inheritDoc
      */
-    public function makeBackend(): LdapBackendInterface
+    public function makeBackend(): WritableLdapBackendInterface
     {
         return $this->backend;
     }
@@ -50,41 +47,13 @@ class HandlerFactory implements HandlerFactoryInterface
     /**
      * @inheritDoc
      */
-    public function makeRootDseHandler(): ?RootDseHandlerInterface
-    {
-        $explicit = $this->options->getRootDseHandler();
-        if ($explicit !== null) {
-            return $explicit;
-        }
-
-        if ($this->backend instanceof RootDseHandlerInterface) {
-            return $this->backend;
-        }
-
-        return null;
-    }
-
-    /**
-     * @inheritDoc
-     */
     public function makePasswordAuthenticator(): PasswordAuthenticatableInterface
     {
-        $explicit = $this->options->getPasswordAuthenticator();
-
-        if ($explicit !== null) {
-            return $explicit;
-        }
-
-        $backend = $this->makeBackend();
-
-        if ($backend instanceof PasswordAuthenticatableInterface) {
-            return $backend;
-        }
-
-        return new PasswordAuthenticator(
-            $this->makeIdentityResolverChain(),
-            $backend,
-        );
+        return $this->options->getPasswordAuthenticator()
+            ?? new PasswordAuthenticator(
+                $this->makeIdentityResolverChain(),
+                $this->backend,
+            );
     }
 
     public function makeIdentityResolverChain(): BindNameResolverInterface
@@ -95,19 +64,5 @@ class HandlerFactory implements HandlerFactoryInterface
             new DnBindNameResolver(),
             $configured ?? new AttributeSearchBindNameResolver(),
         ]);
-    }
-
-    /**
-     * @inheritDoc
-     */
-    public function makeWriteDispatcher(WriteHandlerInterface ...$prepend): WriteOperationDispatcher
-    {
-        $handlers = $this->options->getWriteHandlers();
-        $handlers[] = $this->backend;
-
-        return new WriteOperationDispatcher(
-            ...$prepend,
-            ...$handlers,
-        );
     }
 }

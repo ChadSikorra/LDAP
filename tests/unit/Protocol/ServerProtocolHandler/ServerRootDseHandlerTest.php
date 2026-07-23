@@ -26,8 +26,6 @@ use FreeDSx\Ldap\Protocol\LdapMessageResponse;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerRootDseHandler;
 use FreeDSx\Ldap\Search\Filters;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\RequestContext;
-use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Ldap\ServerOptions;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -41,15 +39,12 @@ final class ServerRootDseHandlerTest extends TestCase
 
     private ServerOptions $options;
 
-    private RootDseHandlerInterface&MockObject $mockDseHandler;
-
     private LdapBackendInterface&MockObject $mockBackend;
 
     protected function setUp(): void
     {
         $this->options = new ServerOptions();
         $this->mockToken = $this->createMock(TokenInterface::class);
-        $this->mockDseHandler = $this->createMock(RootDseHandlerInterface::class);
         $this->withBackendNamingContexts([]);
     }
 
@@ -128,7 +123,6 @@ final class ServerRootDseHandlerTest extends TestCase
         $this->subject = new ServerRootDseHandler(
             $this->options,
             $this->mockBackend,
-            null,
             true,
         );
 
@@ -147,75 +141,6 @@ final class ServerRootDseHandlerTest extends TestCase
         $result = $messages[0]->getResponse();
 
         self::assertTrue($result->getEntry()->get('supportedControl')?->has(Control::OID_SYNC_REQUEST) === true);
-    }
-
-    public function test_it_should_send_a_request_to_the_dispatcher_if_it_implements_a_rootdse_aware_interface(): void
-    {
-        $this->options->setDseVendorName('Foo');
-        $this->withBackendNamingContexts(['dc=Foo,dc=Bar']);
-
-        $this->subject = new ServerRootDseHandler(
-            $this->options,
-            $this->mockBackend,
-            $this->mockDseHandler,
-        );
-
-        $searchReqeust = (new SearchRequest(Filters::present('objectClass')))->base('')->useBaseScope();
-        $search = new LdapMessageRequest(
-            1,
-            $searchReqeust,
-        );
-        $rootDse = Entry::create('', [
-            'namingContexts' => 'dc=Foo,dc=Bar',
-            'subschemaSubentry' => ['cn=Subschema'],
-            'supportedControl' => [
-                Control::OID_PAGING,
-                Control::OID_SORTING,
-                Control::OID_RELAX_RULES,
-                Control::OID_PROXY_AUTHORIZATION,
-                Control::OID_MANAGE_DSA_IT,
-                Control::OID_ASSERTION,
-                Control::OID_PRE_READ,
-                Control::OID_POST_READ,
-                Control::OID_SUBTREE_DELETE,
-            ],
-            'supportedExtension' => [
-                ExtendedRequest::OID_WHOAMI,
-                ExtendedRequest::OID_PWD_MODIFY,
-                ExtendedRequest::OID_CANCEL,
-            ],
-            'supportedFeatures' => [
-                '1.3.6.1.4.1.4203.1.5.1',
-                '1.3.6.1.4.1.4203.1.5.3',
-            ],
-            'supportedLDAPVersion' => ['3'],
-            'vendorName' => 'Foo',
-        ]);
-
-        $handlerRootDse = Entry::fromArray('', ['foo' => 'bar']);
-
-        $this->mockDseHandler
-            ->expects($this->once())
-            ->method('rootDse')
-            ->with(
-                self::isInstanceOf(RequestContext::class),
-                $searchReqeust,
-                $rootDse,
-            )
-            ->willReturn($handlerRootDse);
-
-        $stream = $this->subject->handleRequest(
-            $search,
-            $this->mockToken,
-        );
-
-        $this->assertEquals(
-            [
-                new LdapMessageResponse(1, new SearchResultEntry($handlerRootDse)),
-                new LdapMessageResponse(1, new SearchResultDone(0)),
-            ],
-            [...$stream->messages],
-        );
     }
 
     public function test_it_should_include_supported_sasl_mechanisms_when_configured(): void
@@ -374,7 +299,6 @@ final class ServerRootDseHandlerTest extends TestCase
         $this->subject = new ServerRootDseHandler(
             $this->options,
             $this->mockBackend,
-            null,
         );
     }
 }

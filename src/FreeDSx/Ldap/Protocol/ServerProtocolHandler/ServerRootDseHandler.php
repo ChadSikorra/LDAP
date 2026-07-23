@@ -25,8 +25,6 @@ use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Server\Operation\OperationOutcomeResult;
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\RequestContext;
-use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\Token\TokenInterface;
 use FreeDSx\Ldap\ServerOptions;
 
@@ -52,7 +50,6 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
     public function __construct(
         private readonly ServerOptions $options,
         private readonly LdapBackendInterface $backend,
-        private readonly ?RootDseHandlerInterface $rootDseHandler = null,
         private readonly bool $supportsSync = false,
     ) {}
 
@@ -117,14 +114,6 @@ class ServerRootDseHandler implements ServerProtocolHandlerInterface
 
         /** @var SearchRequest $request */
         $request = $message->getRequest();
-        if ($this->rootDseHandler) {
-            $entry = $this->rootDseHandler->rootDse(
-                new RequestContext($message->controls(), $token),
-                $request,
-                $entry,
-            );
-        }
-
         $this->filterEntryAttributes($request, $entry);
 
         return ResponseStream::reply(

@@ -15,10 +15,7 @@ namespace FreeDSx\Ldap\Server;
 
 use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
-use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
-use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
+use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
 
 /**
  * Responsible for instantiating classes needed by the core server logic.
@@ -28,30 +25,15 @@ use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 interface HandlerFactoryInterface
 {
     /**
-     * Return the configured backend, or an empty in-memory backend if none is set.
+     * Return the configured backend.
      */
-    public function makeBackend(): LdapBackendInterface;
-
-    /**
-     * Return the optional root DSE handler, or null if not configured.
-     */
-    public function makeRootDseHandler(): ?RootDseHandlerInterface;
-
-    /**
-     * Build the write operation dispatcher.
-     *
-     * Any $prepend handlers run first, then explicit write handlers.
-     */
-    public function makeWriteDispatcher(WriteHandlerInterface ...$prepend): WriteOperationDispatcher;
+    public function makeBackend(): WritableLdapBackendInterface;
 
     /**
      * Return a PasswordAuthenticatableInterface for simple-bind and SASL PLAIN.
      *
-     * Resolution order:
-     *   1. An explicitly configured authenticator (via ServerOptions::setPasswordAuthenticator()).
-     *   2. The backend itself, if it implements PasswordAuthenticatableInterface.
-     *   3. The default PasswordAuthenticator, which reads userPassword from entries
-     *      returned by the backend's get() method.
+     * This is the authenticator configured via ServerOptions::setPasswordAuthenticator(), otherwise the default
+     * PasswordAuthenticator, which reads userPassword from entries returned by the backend's get() method.
      */
     public function makePasswordAuthenticator(): PasswordAuthenticatableInterface;
 

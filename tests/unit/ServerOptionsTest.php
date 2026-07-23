@@ -26,12 +26,8 @@ use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\BindNameResolverInterface;
 use FreeDSx\Ldap\Server\Sasl\External\ExternalCredentialMapperInterface;
 use FreeDSx\Ldap\Server\Backend\Auth\PasswordAuthenticatableInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ChangeJournalConfig;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\ReplicaId;
-use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
-use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
 use FreeDSx\Ldap\Server\Metrics\Recorder\InMemoryMetricsRecorder;
 use FreeDSx\Ldap\Server\Metrics\Recorder\NullMetricsRecorder;
 use FreeDSx\Ldap\Server\ServerRunner\ServerRunnerInterface;
@@ -635,66 +631,6 @@ final class ServerOptionsTest extends TestCase
         self::assertSame(
             $resolver,
             $this->subject->getIdentityResolver(),
-        );
-    }
-
-    public function test_root_dse_handler_is_null_by_default(): void
-    {
-        self::assertNull($this->subject->getRootDseHandler());
-    }
-
-    public function test_it_can_set_root_dse_handler(): void
-    {
-        $handler = $this->createMock(RootDseHandlerInterface::class);
-
-        $this->subject->setRootDseHandler($handler);
-
-        self::assertSame(
-            $handler,
-            $this->subject->getRootDseHandler(),
-        );
-    }
-
-    public function test_write_handlers_are_empty_by_default(): void
-    {
-        self::assertSame(
-            [],
-            $this->subject->getWriteHandlers(),
-        );
-    }
-
-    public function test_it_can_add_write_handlers(): void
-    {
-        $handler1 = $this->createMock(WriteHandlerInterface::class);
-        $handler2 = $this->createMock(WriteHandlerInterface::class);
-
-        $this->subject
-            ->addWriteHandler($handler1)
-            ->addWriteHandler($handler2);
-
-        self::assertSame(
-            [$handler1, $handler2],
-            $this->subject->getWriteHandlers(),
-        );
-    }
-
-    public function test_filter_evaluator_defaults_to_a_filter_evaluator_instance(): void
-    {
-        self::assertInstanceOf(
-            FilterEvaluator::class,
-            $this->subject->getFilterEvaluator(),
-        );
-    }
-
-    public function test_it_can_set_filter_evaluator(): void
-    {
-        $evaluator = $this->createMock(FilterEvaluatorInterface::class);
-
-        $this->subject->setFilterEvaluator($evaluator);
-
-        self::assertSame(
-            $evaluator,
-            $this->subject->getFilterEvaluator(),
         );
     }
 

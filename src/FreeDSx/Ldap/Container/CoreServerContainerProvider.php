@@ -22,6 +22,8 @@ use FreeDSx\Ldap\ProxyOptions;
 use FreeDSx\Ldap\Schema\SchemaValidationMode;
 use FreeDSx\Ldap\Schema\Validation\SchemaValidator;
 use FreeDSx\Ldap\Server\Backend\Storage\EntryStorageInterface;
+use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator;
+use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeJournalingInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\Capture\ChangeRecorder;
 use FreeDSx\Ldap\Server\Backend\Storage\Journal\RetentionPolicy;
@@ -78,6 +80,7 @@ final class CoreServerContainerProvider implements ContainerProviderInterface
         return [
             SocketServerFactory::class => $this->makeSocketServerFactory(...),
             HandlerFactoryInterface::class => $this->makeHandlerFactory(...),
+            FilterEvaluatorInterface::class => $this->makeFilterEvaluator(...),
             WritableStorageBackend::class => $this->makeBackend(...),
             ServerProtocolFactory::class => $this->makeServerProtocolFactory(...),
             ServerProtocolFactoryInterface::class => $this->makeServerProtocolFactoryInterface(...),
@@ -129,6 +132,11 @@ final class CoreServerContainerProvider implements ContainerProviderInterface
             $container->get(ServerOptions::class),
             $this->backendOrFail($container),
         );
+    }
+
+    private function makeFilterEvaluator(Container $container): FilterEvaluator
+    {
+        return new FilterEvaluator($container->get(ServerOptions::class)->getSchema());
     }
 
     /**

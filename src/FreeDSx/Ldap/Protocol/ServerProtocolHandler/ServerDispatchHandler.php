@@ -26,7 +26,6 @@ use FreeDSx\Ldap\Protocol\Queue\Response\ResponseStream;
 use FreeDSx\Ldap\Schema\Schema;
 use FreeDSx\Ldap\Server\AccessControl\AccessControlInterface;
 use FreeDSx\Ldap\Operation\OperationType;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\Backend\Write\Command\DeleteCommand;
 use FreeDSx\Ldap\Server\Backend\Write\Schema\SchemaViolations;
 use FreeDSx\Ldap\Server\Backend\Write\WritableLdapBackendInterface;
@@ -47,7 +46,7 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
     private ReadEntryControlHandler $readEntryControlHandler;
 
     public function __construct(
-        private LdapBackendInterface $backend,
+        private WritableLdapBackendInterface $backend,
         private WriteOperationDispatcher $writeDispatcher,
         private AccessControlInterface $accessControl,
         Schema $schema,
@@ -193,13 +192,6 @@ readonly class ServerDispatchHandler implements ServerProtocolHandlerInterface
         TokenInterface $token,
         SchemaViolations $schemaViolations,
     ): void {
-        if (!$this->backend instanceof WritableLdapBackendInterface) {
-            throw new OperationException(
-                'The backend does not support subtree deletion.',
-                ResultCode::UNWILLING_TO_PERFORM,
-            );
-        }
-
         // Permissive by default; lock down by denying the Delete operation on the subtree (per-entry authorization below).
         $this->backend->deleteSubtree(
             new DeleteCommand($request->getDn()),

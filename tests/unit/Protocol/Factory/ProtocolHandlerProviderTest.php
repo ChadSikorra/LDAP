@@ -17,7 +17,6 @@ use FreeDSx\Ldap\Container;
 use FreeDSx\Ldap\Control\ControlBag;
 use FreeDSx\Ldap\Control\PagingControl;
 use FreeDSx\Ldap\Entry\Entry;
-use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Operation\Request\ExtendedRequest;
 use FreeDSx\Ldap\Operations;
 use FreeDSx\Ldap\Protocol\Factory\HandlerContext;
@@ -38,12 +37,7 @@ use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerUnbindHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerUnsupportedExtendedHandler;
 use FreeDSx\Ldap\Protocol\ServerProtocolHandler\ServerWhoAmIHandler;
 use FreeDSx\Ldap\Search\Filter\EqualityFilter;
-use FreeDSx\Ldap\Server\Backend\Auth\NameResolver\DnBindNameResolver;
-use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
-use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
-use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
-use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyContext;
 use FreeDSx\Ldap\Server\RequestHistory;
 use FreeDSx\Ldap\ServerOptions;
@@ -214,38 +208,6 @@ final class ProtocolHandlerProviderTest extends TestCase
                 $handlerId,
                 $this->handlerContext(),
             ),
-        );
-    }
-
-    public function test_it_throws_when_password_policy_is_enabled_but_the_backend_is_not_writable(): void
-    {
-        $handlerFactory = $this->createMock(HandlerFactoryInterface::class);
-        $handlerFactory
-            ->method('makeBackend')
-            ->willReturn($this->createMock(LdapBackendInterface::class));
-        $handlerFactory
-            ->method('makeWriteDispatcher')
-            ->willReturn(new WriteOperationDispatcher());
-        $handlerFactory
-            ->method('makeIdentityResolverChain')
-            ->willReturn(new DnBindNameResolver());
-
-        $container = Container::forServer(
-            (new ServerOptions())->setPasswordPolicy(new PasswordPolicy()),
-            [HandlerFactoryInterface::class => $handlerFactory],
-        );
-
-        $provider = new ProtocolHandlerProvider(
-            routeResolver: $container->get(ServerProtocolHandlerFactory::class),
-            factories: $container->get(ProtocolHandlerFactoryMap::class),
-            context: $this->handlerContext(new PasswordPolicyContext()),
-        );
-
-        $this->expectException(RuntimeException::class);
-
-        $provider->get(
-            Operations::delete('cn=foo,dc=bar'),
-            new ControlBag(),
         );
     }
 

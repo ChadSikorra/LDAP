@@ -15,11 +15,12 @@ namespace Tests\Unit\FreeDSx\Ldap\Server\PasswordPolicy;
 
 use FreeDSx\Ldap\Entry\Dn;
 use FreeDSx\Ldap\Entry\Entry;
+use FreeDSx\Ldap\Server\Backend\LdapBackendInterface;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicy;
 use FreeDSx\Ldap\Server\PasswordPolicy\PasswordPolicyResolver;
 use FreeDSx\Ldap\Server\PasswordPolicy\Rules\PasswordQualityRules;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use Tests\Support\FreeDSx\Ldap\Backend\RecordingLdapBackend;
 
 final class PasswordPolicyResolverTest extends TestCase
 {
@@ -29,10 +30,15 @@ final class PasswordPolicyResolverTest extends TestCase
 
     private const DEFAULT_DN = 'cn=default,ou=policies,dc=example,dc=com';
 
+    /**
+     * @var array<string, int> DN string → number of get() calls
+     */
+    private array $getCalls = [];
+
     public function test_returns_null_when_no_source_configured(): void
     {
         $resolver = new PasswordPolicyResolver(
-            new RecordingLdapBackend(),
+            $this->backend(),
             defaultPolicyDn: null,
             inMemoryFallback: null,
         );
@@ -45,7 +51,7 @@ final class PasswordPolicyResolverTest extends TestCase
         $fallback = new PasswordPolicy(quality: new PasswordQualityRules(minLength: 8));
 
         $resolver = new PasswordPolicyResolver(
-            new RecordingLdapBackend(),
+            $this->backend(),
             defaultPolicyDn: null,
             inMemoryFallback: $fallback,
         );
@@ -62,7 +68,7 @@ final class PasswordPolicyResolverTest extends TestCase
             self::DEFAULT_DN,
             ['pwdMinLength' => '10'],
         );
-        $backend = new RecordingLdapBackend([self::DEFAULT_DN => $defaultEntry]);
+        $backend = $this->backend([self::DEFAULT_DN => $defaultEntry]);
 
         $resolver = new PasswordPolicyResolver(
             $backend,
@@ -89,7 +95,7 @@ final class PasswordPolicyResolverTest extends TestCase
             self::DEFAULT_DN,
             ['pwdMinLength' => '6'],
         );
-        $backend = new RecordingLdapBackend([
+        $backend = $this->backend([
             self::SUBENTRY_DN => $subentryEntry,
             self::DEFAULT_DN => $defaultEntry,
         ]);
@@ -117,7 +123,7 @@ final class PasswordPolicyResolverTest extends TestCase
             self::DEFAULT_DN,
             ['pwdMinLength' => '6'],
         );
-        $backend = new RecordingLdapBackend([
+        $backend = $this->backend([
             self::DEFAULT_DN => $defaultEntry,
         ]);
 
@@ -144,7 +150,7 @@ final class PasswordPolicyResolverTest extends TestCase
             self::DEFAULT_DN,
             ['pwdMinLength' => '6'],
         );
-        $backend = new RecordingLdapBackend([self::DEFAULT_DN => $defaultEntry]);
+        $backend = $this->backend([self::DEFAULT_DN => $defaultEntry]);
 
         $resolver = new PasswordPolicyResolver(
             $backend,
@@ -158,8 +164,27 @@ final class PasswordPolicyResolverTest extends TestCase
 
         self::assertSame(
             1,
-            $backend->getCallCount(self::DEFAULT_DN),
+            $this->getCalls[self::DEFAULT_DN] ?? 0,
         );
+    }
+
+    /**
+     * A backend stub keyed by DN string that records how many times each DN is fetched.
+     *
+     * @param array<string, Entry> $entries DN string → entry
+     */
+    private function backend(array $entries = []): LdapBackendInterface&MockObject
+    {
+        $backend = $this->createMock(LdapBackendInterface::class);
+        $backend->method('get')
+            ->willReturnCallback(function (Dn $dn) use ($entries): ?Entry {
+                $key = $dn->toString();
+                $this->getCalls[$key] = ($this->getCalls[$key] ?? 0) + 1;
+
+                return $entries[$key] ?? null;
+            });
+
+        return $backend;
     }
 
     /**

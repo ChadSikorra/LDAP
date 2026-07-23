@@ -14,7 +14,6 @@ General LDAP Server Usage
     * [JsonFileStorage](#jsonfilestorage)
     * [SQLite](#sqlite)
     * [MySQL](#mysql)
-  * [Custom Filter Evaluation](#custom-filter-evaluation)
 * [LDIF Data](#ldif-data)
   * [Seeding Initial Entries](#seeding-initial-entries)
   * [Replaying LDIF Changelogs](#replaying-ldif-changelogs)
@@ -317,10 +316,7 @@ All client LDAP operations — search, add, delete, modify, rename, compare — 
 Paging is handled automatically: a PHP generator is stored per connection and resumes it for each page
 request. Your `search()` implementation simply yields entries.
 
-Authentication is a **separate concern** handled by `PasswordAuthenticatableInterface`. See [Authentication](#authentication).
-
-A custom backend implements `WritableLdapBackendInterface`: the read operations (`search()`, `get()`,
-`compare()`), the `WriteHandlerInterface` dispatch pair (`supports()`/`handle()`), and `deleteSubtree()`.
+Authentication is a separate concern handled by `PasswordAuthenticatableInterface`. See [Authentication](#authentication).
 
 ### Built-In Storage Implementations
 
@@ -484,43 +480,6 @@ $config = PdoConfig::forDriver(
     ->setSessionStatements(["SET client_encoding = 'UTF8'"]);
 
 $storage = PdoStorageFactory::forPcntl($config);
-```
-
-### Custom Filter Evaluation
-
-By default, a pure-PHP `FilterEvaluator` is applied to entries yielded by `search()` as a correctness
-guarantee. For backends that translate LDAP filters to a native query language (SQL, MongoDB, etc.) and return
-pre-filtered results, you can replace the evaluator:
-
-```php
-use FreeDSx\Ldap\LdapServer;
-use FreeDSx\Ldap\ServerOptions;
-use App\MyEntryStorage;
-use App\MySqlFilterEvaluator;
-
-$options = (new ServerOptions())
-    ->setStorage(new MyEntryStorage())
-    ->setFilterEvaluator(new MySqlFilterEvaluator());
-
-$server = new LdapServer($options);
-$server->run();
-```
-
-The custom evaluator must implement `FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface`:
-
-```php
-use FreeDSx\Ldap\Entry\Entry;
-use FreeDSx\Ldap\Search\Filter\FilterInterface;
-use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
-
-class MySqlFilterEvaluator implements FilterEvaluatorInterface
-{
-    public function evaluate(Entry $entry, FilterInterface $filter): bool
-    {
-        // Custom matching logic (e.g. bitwise matching rules for AD compatibility).
-        return true;
-    }
-}
 ```
 
 ## LDIF Data
@@ -770,60 +729,14 @@ $server = new LdapServer((new ServerOptions())->setPasswordAuthenticator(new MyA
 
 ## Handling the RootDSE
 
-The server generates a default RootDSE. `namingContexts` is derived from the backend (storage contents, or whatever a
-custom backend declares); other attributes such as `vendorName` come from `ServerOptions`. For most deployments this is
-sufficient. The default entry always advertises:
+The server generates the RootDSE. `namingContexts` is derived from the backend storage contents; other attributes such
+as `vendorName` come from `ServerOptions`. The entry always advertises:
 
 - `supportedControl`: paging (RFC 2696)
 - `supportedExtension`: WhoAmI (RFC 4532), Password Modify (RFC 3062), and StartTLS (RFC 4511) if an SSL certificate is configured
 - `supportedLDAPVersion`: `3`
 
-If you need full control (for example to add custom attributes) implement `RootDseHandlerInterface`. Your
-implementation receives the default-generated entry and returns a (possibly modified) entry to send back to the
-client. (A `makeProxy()` server forwards RootDSE requests to the upstream automatically, so this is not needed there.)
-
-For a custom handler:
-
-```php
-namespace App;
-
-use FreeDSx\Ldap\Entry\Entry;
-use FreeDSx\Ldap\Operation\Request\SearchRequest;
-use FreeDSx\Ldap\Server\RequestContext;
-use FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface;
-
-class MyRootDseHandler implements RootDseHandlerInterface
-{
-    public function rootDse(
-        RequestContext $context,
-        SearchRequest $request,
-        Entry $rootDse,
-    ): Entry {
-        // Modify the default entry or return a completely custom one.
-        $rootDse->set('namingContexts', 'dc=example,dc=com');
-
-        return $rootDse;
-    }
-}
-```
-
-Register it with the server:
-
-```php
-use FreeDSx\Ldap\LdapServer;
-use FreeDSx\Ldap\ServerOptions;
-use App\MyEntryStorage;
-use App\MyRootDseHandler;
-
-$options = (new ServerOptions())
-    ->setStorage(new MyEntryStorage())
-    ->setRootDseHandler(new MyRootDseHandler());
-
-$server = new LdapServer($options);
-$server->run();
-```
-
-If your backend class also implements `RootDseHandlerInterface`, you do not need to set `setRootDseHandler()` — it will be used automatically.
+A `makeProxy()` server forwards RootDSE requests to the upstream automatically.
 
 ## SASL Authentication
 

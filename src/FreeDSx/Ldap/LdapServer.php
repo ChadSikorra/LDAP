@@ -29,6 +29,7 @@ use FreeDSx\Ldap\Server\AccessControl\PrivilegedBypassAccessControl;
 use FreeDSx\Ldap\Server\Backend\Storage\Adapter\InMemoryStorage;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DirectoryDumper;
 use FreeDSx\Ldap\Server\Backend\Storage\Export\DumpOptions;
+use FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface;
 use FreeDSx\Ldap\Server\Backend\Storage\LdapImporter;
 use FreeDSx\Ldap\Server\Backend\Storage\WritableStorageBackend;
 use FreeDSx\Ldap\Server\Backend\Write\WriteRequestReplayer;
@@ -136,10 +137,8 @@ class LdapServer
             throw new RuntimeException('applyChanges() requires storage configured via ServerOptions::setStorage().');
         }
 
-        (new WriteRequestReplayer(
-            $backend,
-            $this->options->getWriteHandlers(),
-        ))->apply((new LdifParser())->parse($loader));
+        (new WriteRequestReplayer($backend))
+            ->apply((new LdifParser())->parse($loader));
 
         return $this;
     }
@@ -165,7 +164,7 @@ class LdapServer
         $output->write((new DirectoryDumper(
             $backend,
             $backend->namingContexts(),
-            $this->options->getFilterEvaluator(),
+            $this->container->get(FilterEvaluatorInterface::class),
         ))->dump($options));
 
         return $this;

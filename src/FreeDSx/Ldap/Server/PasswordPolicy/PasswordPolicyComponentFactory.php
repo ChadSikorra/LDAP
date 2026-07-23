@@ -13,12 +13,10 @@ declare(strict_types=1);
 
 namespace FreeDSx\Ldap\Server\PasswordPolicy;
 
-use FreeDSx\Ldap\Exception\RuntimeException;
 use FreeDSx\Ldap\Server\Backend\Write\PasswordPolicyWriteHandler;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChange\NullSystemChangeWriter;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriter;
 use FreeDSx\Ldap\Server\Backend\Write\SystemChange\SystemChangeWriterInterface;
-use FreeDSx\Ldap\Server\Backend\Write\WriteHandlerInterface;
 use FreeDSx\Ldap\Server\Backend\Write\WriteOperationDispatcher;
 use FreeDSx\Ldap\Server\HandlerFactoryInterface;
 use FreeDSx\Ldap\Server\Logging\EventLogger;
@@ -40,9 +38,6 @@ final readonly class PasswordPolicyComponentFactory
         private PasswordPolicyEngine $passwordPolicyEngine,
     ) {}
 
-    /**
-     * @throws RuntimeException when policy is active but the backend cannot enforce writes.
-     */
     public function makeWriteHandler(
         EventLogger $eventLogger,
         ?PasswordPolicyContext $passwordPolicyContext,
@@ -51,19 +46,13 @@ final readonly class PasswordPolicyComponentFactory
             $eventLogger,
             $passwordPolicyContext,
         );
+
         if ($guard === null) {
             return null;
         }
 
-        $backend = $this->handlerFactory->makeBackend();
-        if (!$backend instanceof WriteHandlerInterface) {
-            throw new RuntimeException(
-                'A backend implementing WriteHandlerInterface is required to enforce policy on userPassword modifications.',
-            );
-        }
-
         return new PasswordPolicyWriteHandler(
-            $backend,
+            $this->handlerFactory->makeBackend(),
             $guard,
             $this->makeSystemChangeWriter(),
         );

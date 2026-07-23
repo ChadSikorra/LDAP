@@ -17,8 +17,6 @@ LDAP Server Configuration
     * [ServerOptions:setAccessControl](#setaccesscontrol)
 * [Backend](#backend)
     * [ServerOptions:setStorage](#setstorage)
-    * [ServerOptions:setFilterEvaluator](#setfilterevaluator)
-    * [ServerOptions:setRootDseHandler](#setrootdsehandler)
     * [ServerOptions:setPasswordAuthenticator](#setpasswordauthenticator)
     * [ServerOptions:setIdentityResolver](#setidentityresolver)
 * [Schema](#schema)
@@ -254,9 +252,9 @@ See [Access Control](Access-Control.md) for control-rule grants.
 
 ## Backend
 
-The LDAP server works by being provided a backend that implements `LdapBackendInterface` (or the writable extension
-`WritableLdapBackendInterface`). The backend is responsible for handling directory data (search, authentication, and
-optionally write operations). You can also plug in a custom filter evaluator or a custom RootDSE handler.
+The LDAP server handles directory data through `WritableStorageBackend`, which applies LDAP semantics over the
+`EntryStorageInterface` set via `setStorage()`. You can also plug in a custom filter evaluator or a custom RootDSE
+handler.
 
 ------------------
 #### setStorage
@@ -279,48 +277,6 @@ yourself, see [Database Schema](Database-Schema.md).
 
 **Note**: a non-proxy server started without a configured storage throws at startup rather than silently
 serving an empty directory.
-
-------------------
-#### setFilterEvaluator
-
-This should be an object instance that implements `FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluatorInterface`. If provided,
-the server uses it when evaluating LDAP search filters against candidate entries returned by the backend. The default
-evaluator covers all standard LDAP filter types. A custom evaluator is useful when you need non-standard matching rules
-(for example, bitwise matching rules for Active Directory compatibility).
-
-```php
-use FreeDSx\Ldap\ServerOptions;
-use FreeDSx\Ldap\LdapServer;
-use App\MyFilterEvaluator;
-
-$server = new LdapServer((new ServerOptions())->setFilterEvaluator(new MyFilterEvaluator()));
-```
-
-**Default**: `FreeDSx\Ldap\Server\Backend\Storage\FilterEvaluator`
-
-------------------
-#### setRootDseHandler
-
-This should be an object instance that implements `FreeDSx\Ldap\Server\RequestHandler\RootDseHandlerInterface`. If
-defined, the server calls it when responding to RootDSE requests from clients, passing the pre-built default entry so
-the handler can inspect or augment it. If not defined, the server responds with a default RootDSE entry composed of
-values from the `ServerOptions::getDse*()` configuration options.
-
-When a backend is provided and implements `RootDseHandlerInterface`, it is used automatically — no separate
-`setRootDseHandler()` call is needed.
-
-```php
-use FreeDSx\Ldap\ServerOptions;
-use FreeDSx\Ldap\LdapServer;
-use App\MyRootDseHandler;
-
-$server = new LdapServer(
-    (new ServerOptions)
-        ->setRootDseHandler(new MyRootDseHandler())
-);
-```
-
-**Default**: `null`
 
 ------------------
 #### setPasswordAuthenticator
